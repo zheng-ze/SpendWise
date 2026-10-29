@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-27
+Last reconciled: 2026-10-29
 
 ## Feature overview
 
@@ -12,11 +12,11 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
 
 ## Key files
 
-- `app/lib/ui/common/base/ledger_backed_notifier.dart` — the `LedgerBackedNotifier` mixin: a `ledger`
+- `app/lib/ui/common/base/ledger_backed_notifier.dart` - the `LedgerBackedNotifier` mixin: a `ledger`
   getter that throws if the ledger is not ready, and `updateState()` that applies a transform to the
   current `ViewState` and no-ops if the provider is disposed.
-- `app/lib/ui/common/base/step_emitting.dart` — the `Step` emission contract.
-- `app/lib/ui/common/base/flow_base.dart` — the Flow base that watches ViewModels for `Step` and maps each
+- `app/lib/ui/common/base/step_emitting.dart` - the `Step` emission contract.
+- `app/lib/ui/common/base/flow_base.dart` - the Flow base that watches ViewModels for `Step` and maps each
   to a push/pop on its own `Navigator`.
 - `app/lib/ui/shell/app_shell.dart` - the shell: no ViewModel, only the layout
   mode (`shellLayoutModeProvider`), mounting one Flow per destination.
@@ -30,7 +30,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   geometry. `shellWindowSizeProvider` defaults to `Size.zero`, so fixtures
   without the binding resolve mobile to phone and desktop platforms to
   desktop.
-- `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
+- `app/lib/ui/symbol_map.dart` - symbol-to-IconData mapping.
 - `app/lib/ui/theme/` - `spendwise_colors.dart` (`SpendWiseColors` ThemeExtension with the
   Harbour glass light/dark tokens), `spendwise_text.dart` (`SpendWiseText` amount roles plus the
   `context.colors` / `context.text` accessors), `spendwise_theme.dart`
@@ -56,7 +56,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   a local `GlobalKey<NavigatorState>`; it watches ViewModels for a `Step` via `ref.listenManual` and
   maps each `Step` to a push/pop. The View never touches navigation.
 - **Step** is a sealed per-Flow type carrying only plain data (e.g. `BudgetSelected(String id)`), no
-  `Widget` or `BuildContext`; consumption is single-shot — the Flow clears it via `clearStep()` after
+  `Widget` or `BuildContext`; consumption is single-shot - the Flow clears it via `clearStep()` after
   acting. Replaces the earlier `NavigationIntent` field.
 - **Shared Add presenter** - `openNewEntry` (`app/lib/ui/transactions/entry/new_entry_presenter.dart`)
   is the single entry point for creating entries: it reads `shellLayoutModeProvider` from the
@@ -71,21 +71,20 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   subscription and one completion `Completer`. Ownership is acquired synchronously before
   initialization; a duplicate request, including one made while the outgoing route is still
   animating, returns an immediate no-op `Future`, and only the accepted invocation returns the
-  session completion. The controller invalidates the null-key form and receipt providers, initializes
-  the fresh form once, applies the optional scoped source prefill once, and rechecks the owner
-  context, session identity and the Add route's `isActive` after each await. Expected retirement is
-  cancellation, not a reported failure; a real presentation or initialization failure is reported
-  once and releases ownership.
-  Add dismissal is Add-only (NG3 leaves Edit and view unchanged): the presenter passes
-  `EntryForm.onDismiss`, which calls the captured session's idempotent `close`. `close` retires the
+  session completion. The controller invalidates the null-key form and receipt providers, starts an
+  initialization attempt bound to the session lifetime, subscribes to form Steps, and installs the
+  sheet before awaiting that attempt. The route immediately hosts the loading form; a failed load
+  leaves the same route open with an explicit Retry action. Retry invalidates only the form provider,
+  and the optional scoped source prefill applies once on the first successful attempt. Eligibility
+  checks include the owner context, session identity and exact route's `isActive` after awaiting.
+  The Add presenter supplies `EntryForm.onDismiss`, which calls the captured session's idempotent `close`. `close` retires the
   session, then pops through the captured Navigator when the Add route is current, or removes only
   that exact route with `removeRoute` when a picker or unrelated route covers it. Covering routes
-  stay intact and their later results are rejected by the retired session guard. Retirement is
-  idempotent and also runs on `route.popped` (barrier dismissal, Back) and on route removal, so a
+  stay intact, except the tracked receipt chooser removed during cleanup; their later results are
+  rejected by the retired session guard. Retirement is idempotent and also runs on `route.popped` (barrier dismissal, Back) and on route removal, so a
   Navigator teardown that skips `popped` still retires. Ownership releases at `route.completed`,
-  which fires after the reverse transition and disposal: `newEntryPresentationProvider` stays
-  `presented` through the close animation, keeping the open page left-half and single-column, then
-  returns to `closed` and settles the accepted completion at `completed`.
+  which fires after the reverse transition and disposal. Shared shell occupancy also lasts until
+  that route completes, keeping the sheet composition through its exit animation.
   Every exit converges on the session's idempotent `retire`: successful save
   (`onDismiss`), Back, barrier dismissal, external route removal, owner teardown and container
   disposal. `retire` closes the Step subscription, marks the plain lifetime token retired so presenter,
@@ -100,15 +99,14 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   `AppShell` captures the controller when it opens Add and calls `ownerDisposed` from `dispose`
   without reading `WidgetRef`. Owner disposal retires the session; with an installed route it removes
   the route without animation in a microtask (an already outgoing route is left to finish), and with
-  no route it releases at once, so a suspended initialization cannot hold ownership and its late
-  result neither pushes a route nor reports a failure. Other callers rely on the context and session
-  rechecks after each await. Container disposal runs `NewEntryPresentationController.dispose`,
+  no route it releases after deferred cleanup. A late initialization result cannot revive a retired
+  session. Other callers rely on the context and session rechecks after awaiting. Container disposal
+  runs `NewEntryPresentationController.dispose`,
   which touches only captured state: it retires and defers removal of a surviving route to a
   microtask, and the accepted request still completes at that route's `completed` (it completes
-  directly only when no route is installed). A genuine initialization or presentation failure is reported
-  once; a route that was created but never installed is disposed, and an installed one is removed and
-  released at `completed`. No process-global state exists.
-  The session installs exactly one form Step subscription before presentation, but dispatch waits
+  directly only when no route is installed). A presentation failure is reported once; a route
+  created but never installed is disposed, and an installed one is removed and released at `completed`. No process-global state exists.
+  The session installs exactly one form Step subscription before pushing the route, but dispatch waits
   for the Add route's first mounted frame. After that frame the session inspects the form's current
   pending Step and runs the same `consumeStep` function the subscription uses. `consumeStep`
   validates the session, reads the current Step, clears it once, rechecks eligibility, then
@@ -118,14 +116,11 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   date, end-date and crop helper, which check it after each await before mutating; omitted guards
   leave the Edit and view paths unchanged. Resize replaces neither the subscription, the mount
   pickup nor the session identity.
-  A container-local `newEntryPresentationProvider` (`closed`, `opening`, `presented`) publishes the
-  state: `closed` becomes `opening` before asynchronous initialization, `presented` is published
-  immediately before `showAppSheet`, and the controller returns it to `closed` at release. The shell
-  reads `presented` to narrow its page for the open right-half form. The controller does not
-  depend on layout size or mode; the initial presentation comes from the caller-side ref. A resize
-  neither restarts the controller nor invalidates the form or coordinator nor replaces the
-  subscription or route, so the draft, auxiliary picker routes above the sheet and
-  the captured Money source survive threshold crossings.
+  Add's private session controls duplicate admission and asynchronous eligibility. Shared sheet
+  occupancy comes from installed `AppSheetRoute`s through `ShellPresentationController`, rather than
+  an Add-specific presentation provider. A resize neither restarts the session nor invalidates the
+  form or coordinator nor replaces the subscription or route, so the draft, auxiliary picker routes
+  and captured Money source survive threshold crossings.
   `AppShell` routes its phone, open and desktop Add controls through one callback. It captures a source
   only when Money is selected, using a constructor-injected getter backed by the stable
   `MoneyNavigatorObserver`; the observer tracks the top route of AccountsFlow's navigator, and
@@ -179,44 +174,39 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   destination switches and resizes. Overview's View History selects History
   on every layout and pushes no route. There is no Trends destination in the
   shell. There is no header gear and no shell Add FAB.
-  `ShellPaneScope` supplies the mode, safe body width and whether Add is
-  presented. `ShellPaneHost` calls `pageBuilder(context, presentation)` with
-  bounded page constraints and either `ShellPagePresentation.fullPage` or
-  `ShellPagePresentation.singleColumn`. In open mode, let W be the complete safe body width: the page
-  is W/2 wide when a detail or Add occupies the right half. With neither, the page fills the shell
-  content viewport, which reserves only the 72 dp rail gutter from the left-safe content width. A
-  visible detail starts at W/2 and is W/2 - 72 dp wide; the 72 dp rail gutter is reserved once. The
-  rail remains 9 dp from the physical right edge. The host retains the page child at one
-  element location across selection, resize and Add visibility changes. It owns
-  the detail divider, pinned title/subtitle/actions header and Close button.
-  `ShellDetail` requires a stable `id`, title, body builder and non-null `onClose`,
-  with optional subtitle and header actions. The host always draws the
-  `shellDetailCloseKey` Close button and calls `onClose` when tapped
-  (`app/lib/ui/shell/shell_pane_host.dart`).
-  Page and detail body builders own their vertical scrolling. When detail is hidden by phone/desktop mode
-  or Add, its subtree remains offstage with feature selection intact.
-  `ShellPaneHost` never changes routes. A visible floating action appears only
-  for the active, current page in open mode without Add, at 10 dp from the
-  bottom and 3 dp from the usable page's right edge (75 dp from the full body's
-  right edge). (`app/lib/ui/shell/shell_pane_host.dart`,
-  `app/lib/ui/shell/open_rail.dart`)
+  `ShellPaneScope` supplies the mode, shared `splitOffset`, `sheetCovered` and `addPresented`.
+  The retained name `addPresented` means at least one AppSheet is installed or exiting, including
+  forms and pickers. Coverage is narrower: a sheet covers the shell only when its nearest
+  non-AppSheet predecessor is the shell route. A sheet over a foreground root page therefore
+  contributes occupancy without shifting the shell beneath it.
 
-  Selected-detail state, including `selectedDetailId`, belongs to the feature
-  ViewModel and is independent of layout mode. Phone and open row actions write
-  the same selection. A retained feature Flow owns at most one managed phone
-  detail route; its content observes the latest selection. After selection or
-  mode changes, one post-frame reconciliation reads the latest values. Entering
-  open removes only that Flow's tracked phone detail route as a presentation-
-  only removal, preserving selection. Entering phone pushes one managed detail
-  route when selection exists and none is present. A selection change updates
-  the existing route instead of stacking another. User Back or Close clears
-  selection; presentation-only removal preserves it. Route identity prevents a
-  completed outgoing route from clearing a replacement selection. Reconcile
-  only after the feature page is exposed: preserve unrelated routes and defer a
-  missing phone-detail push while one covers that page. Exactly one exposed
-  detail must match the latest selection. Desktop detail presentation remains
-  feature-owned. This entry records the feature Flow requirement; production
-  verification of its reconciliation behavior is not established here.
+  `ShellPaneHost` passes bounded constraints and either `ShellPagePresentation.fullPage` or
+  `singleColumn` to its page builder. On open and desktop, an exposed detail occupies the right
+  column. While the shell is sheet-covered, that current detail shifts left and the list is hidden;
+  clearing selection reveals the list, and selecting another detail shifts the new current detail.
+  Phone has no shifted pane. With no detail, open coverage narrows the list beside the sheet,
+  while desktop retains its ordinary full-width list and centered dialog.
+  The page slot always retains its `Align`, sizing, isolation and `MediaQuery` ancestry.
+  `_InactivePaneIsolation` toggles Offstage, tickers, focus, semantics and pointer access while
+  preserving the page's Flow and Navigator State. A present detail keeps its keyed `_DetailPaneState`
+  and body ancestry through shifting; clearing the detail genuinely removes its subtree.
+  `ShellDetail.onClose` is optional. The host supplies a Close control only when that callback is
+  present; Budgets omits it. A floating action appears only for the active, current open page while
+  no AppSheet is installed or exiting. (`app/lib/ui/shell/shell_pane_host.dart`)
+
+  `resolveShellPaneGeometry` is shared by shell and root sheets. Open splits at the physical window
+  midpoint, translates the left column through the left safe inset and reserves the 72 dp rail
+  gutter once. Desktop splits the safe content remaining after `desktopSidebarWidth` and
+  `sidebarDividerWidth` equally, ends at the right safe inset and reserves no rail gutter. The
+  desktop sidebar remains mounted. (`app/lib/ui/shell/shell_pane_geometry.dart`,
+  `app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/desktop_sidebar.dart`)
+
+  Selected detail belongs to the feature. Budgets uses a managed root detail page only on phone,
+  reconciled after the frame from current selection, mode and destination activity. Entering open
+  or desktop removes that tracked page as a presentation-only change. A matching phone page stays
+  when a sheet opens; a new phone push waits until every AppSheet completes. User Back clears the
+  selection, while Flow-owned removal preserves it. See [budgets.md](budgets.md) for the route
+  completion and subscription contracts (`app/lib/ui/budgets/budget_list/budgets_flow.dart`).
   Trends is an in-page exception to this managed selected-detail presentation:
   open and desktop modes compose its selected-period content in `TrendsOpenLayout`,
   while Category Detail remains a nested route opened by the Trends Flow
@@ -309,9 +299,9 @@ value, which then overwrites it. (issue #38)
   (`app/lib/ui/format/amount_style.dart`)
 - **Amount input** - sanitizer strips to digits and one `.`, max 2 fraction digits, dropped not
   rounded; only the balance field allows a leading `-`.
-- **colorHex** — parses `#RRGGBB` or `RRGGBB`; malformed falls back to gray; writing back emits
+- **colorHex** - parses `#RRGGBB` or `RRGGBB`; malformed falls back to gray; writing back emits
   `#RRGGBB` uppercase, components clamped 0–255.
-- **Dates** — day header, month/year label, week range (exclusive end → subtract a day), and plan
+- **Dates** - day header, month/year label, week range (exclusive end → subtract a day), and plan
   next-occurrence formats; percentages via `.percent`.
 - **Neutral vs semantic color** - neutral label text uses theme `onSurface`; amount roles use the
   income, expense and text tokens through `AmountStyle`, never fixed hex or `Colors.*`.
@@ -332,43 +322,56 @@ value, which then overwrites it. (issue #38)
 
 ## Sheet and component kit
 
-- **AppSheet** (`app/lib/ui/common/sheets/app_sheet.dart`) is the shared kit sheet surface.
-  `showAppSheet<T>(context, presentation:, builder:, presentationResolver:)` pushes an
-  `AppSheetRoute` on the root navigator, so its barrier covers the window even when opened from
-  a nested Flow. `presentation` is a required plain `AppSheetPresentation`
-  (`phone`, `open`, `desktop`) value; every caller supplies it, and `ui/common` reads
-  no Riverpod state and no window width. An optional `presentationResolver` maps the route
-  context to a live presentation; omitted resolvers keep the captured static presentation, and
-  resizing a static sheet changes available geometry, never its presentation. The route keeps
-  the captured value as the fallback and publishes the resolved value through a retained
-  `effectivePresentation` notifier that also drives the barrier color without replacing the
-  route: phone and desktop dim the window, open uses a transparent dismissible full-window
-  barrier with the underlying page visible and inert. The page resolves the live presentation
-  on every build through one stable `Align` ancestry that varies only alignment, box size and
-  chrome around the caller's builder subtree, so a keyed form keeps its `State`, controllers,
-  selection and focus across presentation changes. Phone spans the full available width at the
-  bottom, desktop centres a dialog no wider than 440 while fitting the viewport, and open docks
-  a full-height surface in the safe right half starting at half the window width with an 82 dp
-  right content inset reserving rail clearance, no grab handle and no height cap. The `form`
-  variant (Add) instead leaves the rail gutter outside its surface with a 10 dp content inset, and
-  Add lifts its phone sheet above the phone bar. Phone and
-  desktop size to content up to `0.66 * (window height - top safe padding - bottom keyboard
-  inset)` by default. `phoneMaxHeightFraction` and `desktopMaxHeightFraction` let callers
-  change their respective caps; Add grows its phone cap to 1.0 for input and uses 1.0 on desktop.
-  When the header, footer and input surface fit, `SheetPinnedLayout` pins them and scrolls
-  only the body. If those pinned regions exceed available height, the body takes its natural
-  height and the enclosing scroller scrolls the whole sheet to keep controls reachable.
-  (`app/lib/ui/common/sheets/sheet_pinned_layout.dart`)
-  The route lifts the sheet above the keyboard, and the surface keeps
-  its footer/input above the bottom safe inset while the phone background fills
-  that inset.
-  On desktop, `AppShell` keeps one `DesktopSidebar` mounted while Add is presented, and Add's normal
-  full-window modal barrier covers it. Any sidebar tap dismisses Add without changing the selected
-  destination. Phone and open navigation behavior remains unchanged. (`app/lib/ui/shell/app_shell.dart`,
-  `app/lib/ui/common/sheets/app_sheet_route.dart`,
-  `app/test/ui/transactions/entry/new_entry_navigation_test.dart`)
+- **AppSheet** (`app/lib/ui/common/sheets/app_sheet.dart`) is the shared sheet surface.
+  `showAppSheet<T>(context, presentation:, builder:, presentationResolver:, onRouteCreated:)` pushes
+  on the root Navigator, returns the popped result and exposes the exact route through its optional
+  callback. Callers supply `AppSheetPresentation.phone`, `open` or `desktop`; an optional resolver
+  reads live configuration, with the captured value as fallback. `AppSheetRoute` retains one resolved
+  state containing `presentation`, `isDocked` and placement bounds. It publishes presentation and
+  `isDocked` through `AppSheetAlertSlot`, and its barrier reads that same resolved state.
+  Open always docks. Desktop docks only when this route covers the shell and the active host exposes
+  a detail; otherwise it centers. Phone remains a bottom sheet. Docked surfaces use a transparent,
+  dismissible full-window barrier; centered desktop and phone sheets dim the window.
+  Docked desktop fills its safe right column and height, with no dialog cap, grab handle or rail
+  reserve. Its presentation remains `desktop`, so Add input and picker content retain desktop
+  behavior. Open standard sheets reserve 82 dp of right content space; the form variant leaves
+  that clearance outside its surface and uses a 10 dp content inset. Add clears the phone bar.
+  The route keeps stable placement ancestry around the caller's keyed subtree through live resize.
+  Centered desktop standard sheets are capped at 440 dp wide, while the form variant uses 340 dp.
+  Undocked phone and desktop height caps default to 0.66 of the available height; callers may set
+  `phoneMaxHeightFraction` and `desktopMaxHeightFraction`. Add uses 1.0 on desktop and grows the
+  phone cap to 1.0 while the pad is visible or the keyboard inset is positive.
+  `SheetPinnedLayout` pins header, footer and input when they fit; otherwise the outer scroller
+  keeps the whole sheet reachable. The route clears the keyboard and docked placement consumes
+  safe insets once. (`app/lib/ui/common/sheets/app_sheet_route.dart`,
+  `app/lib/ui/common/sheets/sheet_pinned_layout.dart`)
+- **Route-owned shell presentation** - `ShellWindowBinding` places the container-local
+  `ShellPresentationController` in `ShellPresentationScope` above the root Navigator.
+  `AppSheetRoute.install` registers the route and releases it at `route.completed`, retaining
+  occupancy through exit. A created route reserves nothing before installation. Registration is
+  optional when a bare MaterialApp has no controller, preserving explicit sheet presentation.
+  Each route records its actual predecessor, and `nearestNonSheetPredecessor` skips nested
+  AppSheets. `AppSheetRouteObserver.didPush` initializes that link; `didChangePrevious` updates
+  it idempotently. `SpendWiseApp` registers the observer in `MaterialApp.navigatorObservers`;
+  harnesses using the shell binding must also register it. A registered route with an uninitialized
+  predecessor fails a debug assertion. The observer owns no foreground-page classification or
+  global route stack. (`app/lib/main.dart`, `app/lib/ui/shell/shell_binding.dart`,
+  `app/lib/ui/common/sheets/app_sheet_route.dart`)
+  The controller exposes installed/exiting occupancy, shell coverage and one current detail-exposure
+  signal. `_DestinationStacks` resets exposure, and only the active `ShellPaneHost` publishes its
+  current non-phone detail. Value comparison and frame-coalesced notifications apply the latest
+  exposure without lifecycle-time provider writes. Restoration follows the next build, allowing a
+  completion continuation to install the next sheet first. The shell derives navigation suppression
+  from installed routes' `showShellNavigation`; those routes render the phone/open navigation
+  overlay. Desktop keeps one sidebar beneath the modal barrier, so tapping it dismisses the sheet
+  without selecting a destination. (`app/lib/ui/shell/shell_presentation_controller.dart`,
+  `app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_pane_host.dart`)
+  Sheets dismiss through their mounted route context or captured exact route. A retained Flow's
+  `navigatorContext` can refer to a different Navigator. Future #425 editors must use exact-route
+  dismissal and install their next loading route from the previous route's completion continuation
+  before awaiting initialization, preserving composition without a timer or captured pane owner.
 - **Add form surface** - `AppSheetVariant.form` is used by the Add loading and loaded forms.
-  In light mode its canvas backing uses `SpendWiseColors.base`; desktop form chrome is a 340 dp dialog with
+  In light mode its canvas backing uses `SpendWiseColors.base`; centered desktop form chrome is a 340 dp dialog with
   no grab handle. Standard sheets retain their existing chrome. Phone Add enables
   `dragToDismiss`; `SheetDismissPhysics` shares drag displacement between the body and enclosing
   sheet scrollers, so handle/header drags and body drags at minimum scroll offset move the sheet.
@@ -382,10 +385,10 @@ value, which then overwrites it. (issue #38)
   Today, Save). `AppPickerSheet` enables `dragToDismiss` for the Add pickers. This deliberately
   differs from the approved reference frames, which draw Cancel. Dialogs (delete and purge
   confirmations) keep their Cancel. (`app/lib/ui/common/pickers/app_picker_sheet.dart`)
-- **Sheet alerts** - the presentation kit owns no Riverpod state. `AppSheetRoute` owns
-  alert and action `ValueNotifier`s plus the captured presentation, exposed
-  through `AppSheetAlertSlot`; `AppSheet` publishes them post-frame and clears
-  them on dispose. The route renders `SheetAlert` outside the sheet, so errors
+- **Sheet alerts** - the `AppSheet` surface owns no Riverpod state. `AppSheetRoute` owns
+  alert and action `ValueNotifier`s plus the resolved presentation and docking state, exposed
+  through `AppSheetAlertSlot`; `AppSheet` publishes alerts post-frame and the route disposes
+  the notifiers. The route renders `SheetAlert` outside the sheet, so errors
   and warnings never change sheet height. A View passes its ViewModel's alert
   and callback down. A standalone `AppSheet` needs the route slot with an
   explicit presentation to display anything; a missing slot is a caller error

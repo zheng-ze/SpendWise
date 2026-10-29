@@ -51,7 +51,7 @@ and computes the counted entries itself from the live ledger.
 `MoneyFlow` hosts `BudgetsFlow` in the Money Budgets segment (`app/lib/ui/money/money_flow.dart`).
 `selectedBudgetProvider` (`app/lib/ui/budgets/budget_list/budget_selection.dart`) is the single
 selected-budget state, a nullable budget ID. The list writes it on a tap, `MoneyFlow` reads it to
-supply the open-layout pane, and `BudgetsFlow` reconciles one detail page against it.
+supply the active open/desktop pane, and `BudgetsFlow` reconciles one phone detail page against it.
 
 ## Budget model
 
@@ -157,41 +157,44 @@ notifier holding the selected budget ID or null. It watches no query. `select` s
 removes it. `budgetDetailContextProvider(budgetID)`, `budgetDetailViewModelProvider(budgetID)` and
 `budgetLimitViewModelProvider(budgetID)` are autoDispose families.
 
-**Selection and presentation.** A tap on a tray always sets `selectedBudgetProvider`. A detail page
-route exists exactly when a selection exists and the layout is not `ShellLayoutMode.open`. In open
-layout the pane shows the selected budget and no page exists. Selection survives fold and unfold:
-the other presentation reopens the same budget.
+**Selection and presentation.** A tray tap always sets `selectedBudgetProvider`. Open and desktop
+present the selected budget as a pane; only phone uses a managed root detail page. Selection survives
+fold and unfold. `BudgetsFlow` schedules post-frame reconciliation on selection, mode and installed
+AppSheet occupancy changes, on mount and when the destination becomes active again.
 
-`BudgetsFlow` runs one post-frame reconciliation when the selection or the shell layout mode changes
-and when the Flow mounts (a layout change that swaps the shell Scaffold remounts it). It tracks a
-single page route and its budget ID, then:
+`_reconcilePage` reads the current selection and mode and compares the desired phone budget with the
+tracked route. An existing matching phone page remains in place when a sheet opens. Otherwise it
+removes the old managed page as a presentation-only change, then pushes a new phone page only while
+the Flow is active, its navigator context exists and no AppSheet remains installed or exiting.
+The shared controller's last-sheet completion notification schedules reconciliation, which re-reads
+selection, mode and activity before pushing. Folding therefore cannot put a new phone page above a
+live sheet. Unfolding removes only the managed phone page and preserves selection.
+(`app/lib/ui/budgets/budget_list/budgets_flow.dart`: `_scheduleReconcile`, `_reconcilePage`)
 
-- In open layout it removes the tracked page programmatically and keeps the selection.
-- Outside open layout it pushes the page for the selected budget once on the root navigator. If a
-  cover, history page or sheet is on top, the page goes on top; there is no deferral and no
-  restoration after a cover closes. A different selection removes the old page and pushes the new one.
-- It does nothing while the Budgets destination is inactive; resuming reconciles again.
-
-The page's route-completed handler compares route identity with the tracked page and only then clears
-the selection, so a programmatic removal or an old page's completion never clears a newer selection.
-Back or swipe-back on the page, the pane's empty-space tap, pane Back, and replacing the ledger
-instance (`ledgerProvider`) clear the selection. Flow disposal removes its tracked page after the
-frame and keeps the selection, because the remounted Flow reconciles it again.
+`_clearSelectionWhenPopped` waits for the managed route's completion. `_flowRemovedPages` exempts
+Flow-owned presentation removals; a user-popped page clears selection only when the selected budget
+still matches that page's budget ID. A completed old route cannot clear a different selection. Back
+or swipe-back on the phone page, empty-space pane dismissal, pane Back and replacement of the ledger
+instance clear selection. Flow disposal removes its tracked page after the frame and preserves
+selection for a later mount. (`budgets_flow.dart`: `_removePage`, `_clearSelectionWhenPopped`,
+`_removePageAfterFrame`)
 
 **Owners.** While a selection exists, `BudgetsFlow` holds three subscriptions for that budget: the
 context, the detail view model (its Steps) and the limit view model (its Steps). They open when the
-selection is set, are replaced when it changes to another budget, and close when it clears. Fold,
-unfold and Flow remount do not release them. The detail view model is therefore alive for as long as a
+selection is set, are replaced when it changes to another budget, and close when it clears. Fold and
+unfold preserve them within the retained Flow. Disposal closes them, and a later Flow mount reopens
+them from the retained selection. The detail view model is therefore alive for as long as a
 budget is shown, and the context (month and year) survives conversion. The pane title and subtitle come
 from `budgetPaneHeaderProvider` (`budget_pane.dart`), which reads the ledger and the context only;
 `MoneyFlow` does not watch the detail view model. `BudgetPaneBody` is the pane's consumer of detail
 state.
 
 The pane has no Close button. Tapping empty Budgets list space outside every category and All
-spending tray clears selection in open mode while Add is absent. The complete tray, including padding
-and the All spending title, handles selection; Add actions retain their own behavior. System Back
+spending tray clears selection on open or desktop while no AppSheet is installed or exiting. The
+complete tray, including padding and the All spending title, handles selection; Add actions retain
+their own behavior. System Back
 clears selection through a `PopScope` in `MoneyFlow` only while the destination and Budgets segment
-are active in open mode. Covering routes pop first. Phone and desktop retain page Back.
+are active on open or desktop. Covering routes pop first. Phone retains page Back.
 
 A limit sheet result applies only when the Flow is mounted, the same budget is still shown and the
 ledger instance captured before the sheet is unchanged. One flag blocks a second limit sheet while one
@@ -242,9 +245,10 @@ The list has an **All spending** tray followed by **Category budgets**, whose ca
 ranked by the overview's utilization order. Tapping the All spending tray (when an unscoped budget
 exists) or a category tray selects that budget through `selectedBudgetProvider`. The selected tray uses
 the selected border and fill. In open layout with a selection, the list uses one column. Otherwise open
-layout uses two columns for multiple category trays, and phone and desktop use one column. When an Add
-sheet is presented in the open layout, category trays return to one column and the list hides its Add
-button. (`budgets_list_view.dart`, `budgets_list_view_model.dart`, `budget_overview.dart`)
+layout uses two columns for multiple category trays, and phone and desktop use one column. While
+any AppSheet is installed or exiting in open layout, category trays use one column and the list
+hides its floating Add action. This occupancy is exposed by the retained `ShellPaneScope.addPresented`
+name and includes nested pickers. (`budgets_list_view.dart`, `budgets_list_view_model.dart`, `budget_overview.dart`)
 
 Add budget is available from the empty-state action, from a compact labelled floating button when
 budgets exist on phone/open layouts, and from a button above the list on desktop. The list reserves
@@ -261,12 +265,12 @@ category and creation month. An unknown budget id yields a detail with a null su
 
 ## Detail page and pane
 
-In open layout the selected budget appears in the shell's right pane. `MoneyFlow` supplies a
-`ShellDetail` whose title is the budget's category name or Overall, whose subtitle is the selected
+In open and desktop layouts the selected budget appears in the shell's right pane. `MoneyFlow`
+supplies a `ShellDetail` whose title is the budget's category name or Overall, whose subtitle is the selected
 month (both from `budgetPaneHeaderProvider`), whose only header action is Edit, and whose body is
 `BudgetPaneBody`, the shared `BudgetDetailContent` in one `ListView` without a second app bar. Empty list space closes the pane; the pane has no Close
 control. `ShellDetail.onClose` is optional, and callers that supply it retain their Close control.
-Phone and desktop layouts show the same content as a page, with its own app bar and an Edit action
+Phone shows the same content as a managed page, with its own app bar and an Edit action
 with the tooltip "Edit limit history". Failed detail reads show the actual reason from `AnalysisQueryResult.failure`; the detail view model
 has no local fallback re-evaluation. Both Edit actions call
 `requestLimitEdit`, which opens the existing limit history page (`BudgetLimitScreen`). That history
@@ -274,6 +278,44 @@ page and its view model are unchanged in this slice. #425 replaces the Edit acti
 sheet, and #570 removes the history page and its past-limit logic after #425. The deleted-budget
 frame remains the "Budget deleted" text until #425. (`budget_detail_content.dart`,
 `budget_detail_screen.dart`, `app/lib/ui/money/money_flow.dart`)
+
+## Sheet coverage and foreground history
+
+`ShellPaneHost` shifts the current budget detail into the left column whenever a shell-covering
+AppSheet is installed or exiting on open or desktop. Its stable page isolation wrappers hide the
+list from focus, semantics and pointers while retaining Money, Budgets and Accounts Flows and their
+Navigators. The detail keeps its keyed State through shifting. Clearing selection removes that
+detail and exposes the list; restoring selection shifts the current detail, including a different
+budget, while the sheet and draft remain. Inactive Money segments supply no budget pane.
+(`app/lib/ui/shell/shell_pane_host.dart`, `app/lib/ui/money/money_flow.dart`)
+
+`ShellPresentationController` distinguishes any installed/exiting sheet from shell coverage.
+`AppSheetRouteObserver.didPush` initializes the predecessor, `didChangePrevious` updates it and
+`nearestNonSheetPredecessor` skips nested AppSheets. Registration lasts from installation through
+`route.completed`; frame-coalesced occupancy and active-host exposure restore the layout on the
+next build. Desktop docking uses `AppSheetAlertSlot.isDocked` and the shared geometry after the
+sidebar and safe insets; desktop presentation and input behavior remain desktop.
+(`app/lib/ui/common/sheets/app_sheet_route.dart`,
+`app/lib/ui/shell/shell_presentation_controller.dart`, `app/lib/ui/shell/shell_pane_geometry.dart`)
+
+`BudgetLimitScreen` remains a full-window root page. An AppSheet above it has that history page as
+its nearest non-AppSheet predecessor, so the shell underneath stays unshifted. The sheet is
+right-docked on open, centered on desktop and bottom-aligned on phone. Existing budget form and
+limit-editor handlers remain legacy paths. Future #425 sheets must dismiss through their mounted
+route context or captured exact route, because the retained Flow's `navigatorContext` can target
+another Navigator. For an action-sheet-to-editor sequence, install the next loading route from the
+previous route's completion continuation before awaiting initialization. The shared controller
+coalesces layout updates; it adds no timer or pane ownership to hide an asynchronous gap.
+(`budgets_flow.dart`: `_handleDetailStep`, `_handleFormStep`,
+`app/lib/ui/common/sheets/app_sheet_route.dart`: `showAppSheet`, `AppSheetRoute`)
+
+The direct foreground-sheet regression in `app/test/ui/budgets/budget_list/budgets_pane_test.dart`
+invokes `showAppSheet<String>` above `BudgetLimitScreen` with open/iOS and desktop/macOS fixtures.
+It checks foreground predecessor and coverage, route/slot docking policy, preserved history route,
+Element and chosen year after dismissal, and the retained budget pane after history Back. This is
+automated fixture coverage, not real-app runtime or visual proof. #425 must supply a reachable
+foreground-sheet trigger for runtime verification or retain direct-test coverage if none exists.
+
 ## Gotchas and invariants
 
 - Budget spend math is deliberately outside the domain; a domain change must not introduce it.

@@ -12,30 +12,30 @@ including posting a balance-adjustment delta entry.
 
 ## Money host
 
-`MoneyFlow` hosts Budgets, Accounts and Plans in that order, with Budgets selected initially.
-Each segment mounts on its first visit and retains its child state across segment, destination
-and phone/open layout changes. The shared root header shows Money and one segmented control;
-only Budgets shows the shared month selector. Accounts adds its Add account action to this header,
-and Plans adds its existing Edit/Done action. The Accounts and Plans roots have no header of
-their own. In open layout, a selected budget in the Budgets segment supplies the shell detail pane
-through `ShellPaneHost` (title from a light provider, body owned by the pane); the Accounts and Plans segments supply no detail. (`money_flow.dart`,
-`app/lib/ui/budgets/budget_list/budgets_flow.dart`) The Money header always renders for the selected
-segment; a nested Accounts page currently shows beneath it until the Accounts restyle (#304). (`app/lib/ui/money/money_flow.dart`,
-`accounts_flow.dart`, `accounts_screen.dart`, `app/lib/ui/settings/plan/plan_list_screen.dart`)
+`MoneyFlow` hosts Budgets, Accounts and Plans in that order. `moneySegmentProvider` defaults to
+Accounts; Budgets is previsited, and each other segment mounts on its first visit. Visited children
+retain their state across segment, destination and phone/open layout changes. The shared root header
+shows Money and one segmented control; only Budgets shows the month selector. Accounts supplies Add
+account, and Plans supplies Edit/Done. The Accounts and Plans roots have no header of their own.
+`MoneyFlow` hides the shared header while `MoneyNavigatorObserver.hasScopedTransactionsRoute` is true,
+so scoped Transactions owns its heading. On open and desktop, only the active Budgets segment supplies
+`ShellPaneHost` with a budget detail; Accounts and Plans supply none. (`app/lib/ui/money/money_flow.dart`,
+`app/lib/ui/budgets/budget_detail/budget_pane.dart`, `accounts_flow.dart`, `accounts_screen.dart`,
+`app/lib/ui/settings/plan/plan_list_screen.dart`)
 
 `DestinationActivity` combines the selected shell destination with the selected Money segment and
 only stops an inactive child's Back handling. Plans now has one presentation owner in Money; Settings has no recurring-plan entry. (`money_flow.dart`, `accounts_flow.dart`, `plan_list_screen.dart`)
 
 ## Key files
 
-- `app/lib/ui/accounts/accounts_view_model.dart`, `accounts_flow.dart`, `accounts_screen.dart` —
+- `app/lib/ui/accounts/accounts_view_model.dart`, `accounts_flow.dart`, `accounts_screen.dart` -
   the screen view model, Flow, and screen.
-- `app/lib/ui/accounts/account_sections.dart`, `account_row.dart` — section grouping and row
+- `app/lib/ui/accounts/account_sections.dart`, `account_row.dart` - section grouping and row
   rendering.
-- `app/lib/ui/accounts/account_form/` — the New Account / New Subpocket sheet.
-- `app/lib/ui/accounts/source_edit/` — the Edit Account / Edit Subpocket sheet.
-- `app/lib/ui/common/pickers/` — the account type and day pickers.
-- `packages/domain/lib/src/accounting.dart` — `accountTotal`, `netWorth`, `balance` (see
+- `app/lib/ui/accounts/account_form/` - the New Account / New Subpocket sheet.
+- `app/lib/ui/accounts/source_edit/` - the Edit Account / Edit Subpocket sheet.
+- `app/lib/ui/common/pickers/` - the account type and day pickers.
+- `packages/domain/lib/src/accounting.dart` - `accountTotal`, `netWorth`, `balance` (see
   `recurring-plans-and-accounting.md`).
 
 
@@ -68,6 +68,18 @@ stack. The boot-created observer remains attached to that same Accounts navigato
 (`app/lib/ui/money/money_flow.dart`: `activeMoneySourceProvider`,
 `app/lib/ui/accounts/money_navigation.dart`)
 
+Account and source-edit forms use root `showAppSheet` routes with `accountSheetPresentation` as the
+live resolver. `showAccountFormSheet` and `showSourceEditFormSheet` capture the exact route and wait
+for `route.completed` before invalidating their form providers. Installed/exiting AppSheet occupancy
+comes from the shared `ShellPresentationController`; callers set no manual presentation flag.
+Accounts root actions have no detail to shift, so forms remain right-docked on open, centered on
+desktop and bottom sheets on phone. Nested account type, day and parent AppSheets inherit coverage
+through their nearest non-AppSheet predecessor. The page slot's stable isolation wrappers retain
+Money, Budgets and Accounts Flow State when a budget detail shifts under another sheet.
+(`app/lib/ui/accounts/account_form/account_form.dart`, `source_edit/source_edit_form.dart`,
+`account_sheet_presentation.dart`, `app/lib/ui/common/sheets/app_sheet_route.dart`,
+`app/lib/ui/shell/shell_pane_host.dart`)
+
 ## Screens and flows
 
 - **Accounts root** - no header row (the Money header owns the title and the `+` that opens the account
@@ -80,12 +92,12 @@ stack. The boot-created observer remains attached to that same Accounts navigato
   (negated negative non-transfer entries since the statement cut). Expanding one account shows an
   "Excluding subpockets" row and one row per pocket. Swipe start-to-end edits the account or pocket;
   swipe end-to-start opens a "Delete \<name\>?" dialog with body "N transactions keep this name".
-- **Card math** — payable is what you owe overall; outstanding is spend since the last statement,
+- **Card math** - payable is what you owe overall; outstanding is spend since the last statement,
   excluding transfers (repayments reduce payable via the balance, not outstanding). Statement cut
   anchors to the current month if `today.day ≥ d` else the previous month, clamped into the month via
   `addMonthsClamped` so an imported `d` of 29–31 does not roll over.
-- **Account form** — segmented Account | Subpocket (Subpocket disabled when no pocketable accounts
-  exist; pocketable = active, non-card, sorted by name — cards cannot hold pockets). Account mode:
+- **Account form** - segmented Account | Subpocket (Subpocket disabled when no pocketable accounts
+  exist; pocketable = active, non-card, sorted by name - cards cannot hold pockets). Account mode:
   name, type picker (all `AccountType` values), statement-day picker (1–28, cards only),
   optional opening balance.
   Subpocket mode: name, parent account picker presented by `AppPickerSheet` with the live Accounts
@@ -95,7 +107,7 @@ stack. The boot-created observer remains attached to that same Accounts navigato
   ancestor. Save: `addAccount` (statement day only for cards),
   then `setOpeningBalance` if the balance ≠ 0 (posts the synthetic excluded opening-balance entry);
   Subpocket: `addPocket`.
-- **Source edit form** — reached from an account-header or pocket-row Edit action. Name; for
+- **Source edit form** - reached from an account-header or pocket-row Edit action. Name; for
   accounts a balance section (allows negatives) whose edit posts a "Balance adjustment" entry for the
   delta with `includeInAnalysis: false` (no delta produces no entry); toggles "Transfers in count as
   expenses" (`incomingTransfersAsExpenses`) and, accounts only, "Include in net worth".

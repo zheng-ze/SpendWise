@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-25
+Last reconciled: 2026-10-29
 
 ## Feature overview
 
@@ -11,19 +11,19 @@ account-scoped with a custom title and source filter. The entry form creates, vi
 
 ## Key files
 
-- `app/lib/ui/transactions/transactions_view_model.dart` — screen state (`selectedDate`, optional
+- `app/lib/ui/transactions/transactions_view_model.dart` - screen state (`selectedDate`, optional
   source scope); the visible register is derived from `(LedgerState, params)`.
 - `app/lib/ui/transactions/top_categories_view_model.dart` and
-  `top_categories_view_state.dart` — the History top-categories period key, immutable projection,
+  `top_categories_view_state.dart` - the History top-categories period key, immutable projection,
   state variants and Retry interface; the card widget and History placement are separate.
 - `app/lib/ui/transactions/daily_list/daily_transactions_screen.dart` - History-local heading,
   month controls and day-sectioned register host.
 - `app/lib/ui/transactions/daily_list/transactions_summary.dart` - `TransactionsSummary`, the
   state-free responsive Net/Spent/Income band shared by unscoped History and scoped Money routes.
-- `app/lib/ui/transactions/monthly/month_summaries.dart` — shared month/week projection helper;
+- `app/lib/ui/transactions/monthly/month_summaries.dart` - shared month/week projection helper;
   it remains available to other consumers although Transactions no longer presents that view.
-- `app/lib/ui/transactions/entry/` — the entry form sheet.
-- `app/lib/ui/transactions/entry/new_entry_presenter.dart` — the shared Add presenter
+- `app/lib/ui/transactions/entry/` - the entry form sheet.
+- `app/lib/ui/transactions/entry/new_entry_presenter.dart` - the shared Add presenter
   (`openNewEntry`): reads `shellLayoutModeProvider` from the caller-side ref, opens the null-key
   entry form in `AppSheet` on the root navigator, and delegates to the container-local
   `NewEntryPresentationController`. Its private Add session owns the duplicate guard, the exact
@@ -35,11 +35,11 @@ account-scoped with a custom title and source filter. The entry form creates, vi
   is invalidated in a deferred microtask. Route pop retires the session at `route.popped`;
   presentation ownership and its completion release at `route.completed`. A failed save keeps
   the session and draft.
-- `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart` — the shared source, destination,
+- `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart` - the shared source, destination,
   category, recurrence, date, end-date and document-crop Step handlers used by both the presenter
   and `TransactionsFlow`, presented above the sheet through the root navigator.
-- `app/lib/ui/transactions/receipt_scan/` — the OCR entry hook (see `ocr-receipt-entry.md`).
-- `app/lib/ui/transactions/transactions_flow.dart` — the Flow that owns this list's nested navigator.
+- `app/lib/ui/transactions/receipt_scan/` - the OCR entry hook (see `ocr-receipt-entry.md`).
+- `app/lib/ui/transactions/transactions_flow.dart` - the Flow that owns this list's nested navigator.
   It takes an optional `backLabel` passed through to the screen's back control; the shell
   History slot (always mounted, every layout) and scoped lists set none. `TransactionsFlow`
   handles and clears its screen `Step`s directly. `HistoryTrendsRequested` pushes one tracked
@@ -53,8 +53,8 @@ account-scoped with a custom title and source filter. The entry form creates, vi
 - `app/lib/ui/common/navigation/labelled_back_button.dart` - the back control with an optional
   accessible label, shared by `TransactionsScreen` and `TrendsScreen`.
 - `app/lib/ui/common/lists/day_sectioned_entry_list.dart`, `form_scaffold.dart`,
-  `swipe_row.dart`, `pickers/` — shared components and picker sheets.
-- `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
+  `swipe_row.dart`, `pickers/` - shared components and picker sheets.
+- `app/lib/ui/symbol_map.dart` - symbol-to-IconData mapping.
 
 ## Module interactions
 
@@ -88,24 +88,40 @@ category/source picker sheets, and the receipt scan screen. New entries open onl
 Add control and shared presenter. The Transactions screen has no local Add or Edit source control.
 When Money is selected, the shell reads the top scoped Money route's preferred source through its
 constructor-injected observer getter; every other destination and an unscoped Money route open Add
-without a source. The presenter captures that source at invocation, installs the sheet route first,
-invalidates the null-key form and receipt providers once, binds that initialization attempt to the
-session lifetime, and applies the scoped prefill once after the first successful attempt, maps the shell layout mode to the
-`AppSheet` presentation (phone, open or desktop), and releases its presentation state and
-subscription when the sheet completes or presentation fails. Add keeps shell navigation unobscured: on phone the form sheet sits above the phone bar
-(`_PhoneBarClearance`), and in open mode the form-variant surface stops short of the rail gutter.
-The route barrier stays modal and full-window, so a tap on navigation or anywhere outside the sheet
-dismisses Add and is consumed; it never navigates. (`app/lib/ui/transactions/entry/new_entry_presenter.dart`,
-`app/lib/ui/common/sheets/app_sheet.dart`) The Add route re-resolves its
+without a source. The presenter captures that source at invocation, invalidates the null-key form
+and receipt providers, starts an attempt bound to the session lifetime and installs the loading sheet
+before awaiting the attempt. Scoped prefill applies once on the first success; Retry starts a fresh
+form attempt on the same route. It maps the shell mode to phone, open or desktop and releases its
+private session after route completion and deferred receipt cleanup.
+
+Add's phone/open route uses `showShellNavigation`: the shell suppresses its original chrome and
+the route renders the navigation overlay, whose destination action selects and dismisses the sheet.
+Phone placement clears the bar, and open form chrome clears the rail. The remaining full-window
+barrier consumes outside taps and dismisses. Desktop keeps the sidebar beneath that barrier;
+tapping it dismisses Add without navigating. (`app/lib/ui/transactions/entry/new_entry_presenter.dart`,
+`app/lib/ui/common/sheets/app_sheet_route.dart`, `app/lib/ui/common/sheets/app_sheet.dart`) The Add route re-resolves its
 presentation live through a resolver reading `ShellLayoutModeScope`, so a
 phone/open resize changes only the sheet geometry, alignment and chrome around the retained keyed
 form and never replaces the route. A late receipt finish after invalidation writes no state
 (`ReceiptEntryCoordinator` checks `ref.mounted` in its asynchronous finally). The account-scoped
 screen reuses the same screen with a custom title and `sourceIDs` filter. Back-stack behavior per
 destination survives switching because each destination keeps its own navigator. A labelled back
-control keeps the existing `BackButton` and `goBack` behavior —
-inner child routes pop first — and only changes its accessible label; unlabelled flows render a
+control keeps the existing `BackButton` and `goBack` behavior -
+inner child routes pop first - and only changes its accessible label; unlabelled flows render a
 plain back control.
+
+Shared sheet composition follows installed routes rather than an Add-specific presentation provider.
+`AppSheetRoute.install` registers with the optional `ShellPresentationController` until
+`route.completed`, including exit animation. Nearest-non-AppSheet predecessor coverage preserves
+composition through picker stacks. On open and desktop, Add over the shell shifts the current exposed
+detail left while retaining the isolated list's Flow and Navigator State. Clearing selection exposes
+the list without replacing Add or losing its draft. Desktop docking uses `AppSheetAlertSlot.isDocked`
+and shared safe pane geometry, while `AppSheetPresentation.desktop` keeps desktop input behavior.
+With no exposed detail, desktop Add remains centered; open stays right-docked. A sheet over a
+foreground root page such as `BudgetLimitScreen` keeps that page as its predecessor and leaves the
+shell unshifted. (`app/lib/ui/shell/shell_presentation_controller.dart`,
+`app/lib/ui/shell/shell_pane_host.dart`, `app/lib/ui/shell/shell_pane_geometry.dart`,
+`app/lib/ui/common/sheets/app_sheet_route.dart`)
 
 ## Screens and flows
 
@@ -166,11 +182,11 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   `NewEntryHeader` shows only the title on phone and desktop, and the title with Save in open
   layout (a spacer of equal width keeps the title centered). There is no Cancel in any layout.
   `NewEntrySaveFooter` supplies Save entry in all layouts, driven by `canSave`.
-  Desktop uses a dialog without a grab handle; phone supports drag and barrier dismissal, and
+  Desktop uses centered or docked form chrome without a grab handle; phone supports drag and barrier dismissal, and
   open and desktop dismiss by tapping the barrier.
   (`new_entry_form.dart`, `new_entry_chrome.dart`, `fields/entry_fields.dart`,
   `app/lib/ui/common/sheets/app_sheet.dart`)
-  The Add session installs its route before the form loads: a disabled shell with loading
+  The Add session installs its route before awaiting form initialization: a disabled shell with loading
   placeholders while initializing, the same shell with a "Couldn't load the entry form" alert and
   Retry on failure. `entryFormViewModelProvider` opts out of automatic retry
   (`retry: (_, _) => null`), so only the session's explicit Retry re-initializes; scoped source
@@ -213,7 +229,7 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   Date, Repeat, Ends) carry trailing chevrons, Edit rows do not.
   (`app/lib/ui/common/pickers/`, `app/lib/ui/transactions/entry/new_entry_presenter.dart`,
   `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart`)
-- **Shell Add** — phone bar, open rail and desktop sidebar share one callback to the presenter. Transactions
+- **Shell Add** - phone bar, open rail and desktop sidebar share one callback to the presenter. Transactions
   retains date selection, filtering, row view/edit and Back behavior.
 
 ## Add input and dismissal
@@ -261,7 +277,7 @@ and focus node beside Name's; Note focus alone does not change the phone sheet h
 
 ## Gotchas and invariants
 
-- The entry form is read-only-first for existing entries — a memory-pinned design fact, not to be
+- The entry form is read-only-first for existing entries - a memory-pinned design fact, not to be
   "improved" into edit-first.
 - Amount sanitizer strips to digits and one `.`, max 2 fraction digits, dropped not rounded; only
   the balance field allows a leading `-`.

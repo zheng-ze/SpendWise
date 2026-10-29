@@ -117,13 +117,17 @@ void _useWideView(WidgetTester tester) {
 ProviderContainer _shellContainer({
   required Ledger ledger,
   ComputeRunner? runner,
+  TargetPlatform? platform,
 }) {
   final observer = MoneyNavigatorObserver();
-  return _container(
-    ledger: ledger,
-    runner: runner,
-    overrides: [moneyNavigatorObserverProvider.overrideWithValue(observer)],
-  );
+  final overrides = <Override>[
+    moneyNavigatorObserverProvider.overrideWithValue(observer),
+  ];
+  if (platform != null) {
+    final facts = (isWeb: false, targetPlatform: platform);
+    overrides.add(shellPlatformProvider.overrideWithValue(facts));
+  }
+  return _container(ledger: ledger, runner: runner, overrides: overrides);
 }
 
 Widget _shellApp(ProviderContainer container) {
@@ -144,11 +148,13 @@ Future<ProviderContainer> _pumpShell(
   required ShellLayoutMode mode,
   ComputeRunner? runner,
   Ledger? ledger,
+  TargetPlatform? platform,
 }) async {
   _useWideView(tester);
   final container = _shellContainer(
     ledger: ledger ?? _ledger(),
     runner: runner,
+    platform: platform,
   );
   container.read(_modeFixture.notifier).state = mode;
   container.read(selectedDestinationProvider.notifier).state =
@@ -218,6 +224,11 @@ void main() {
   }, timeout: uiTestTimeout);
 
   for (final mode in [ShellLayoutMode.open, ShellLayoutMode.desktop]) {
+    testWidgets(
+      '${mode.name} AppSheet over BudgetLimitScreen preserves foreground history',
+      (tester) => _verifyDirectHistorySheet(tester, mode),
+      timeout: uiTestTimeout,
+    );
     testWidgets(
       '${mode.name} shell Add retains the pane and draft through a picker',
       (tester) => _verifyShellAdd(tester, mode),
@@ -1050,4 +1061,68 @@ Future<void> _verifyInactiveDeferredPhonePage(WidgetTester tester) async {
   container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
   await tester.pumpAndSettle();
   expect(find.byType(BudgetDetailScreen), findsOneWidget);
+}
+
+Widget _directHistorySheet(BuildContext context) => const AppSheet(
+  header: Text('History draft'),
+  body: TextField(key: _sheetDraftKey),
+);
+
+Future<void> _verifyDirectHistorySheet(
+  WidgetTester tester,
+  ShellLayoutMode mode,
+) async {
+  final platform = mode == ShellLayoutMode.open
+      ? TargetPlatform.iOS
+      : TargetPlatform.macOS;
+  final container = await _pumpShell(tester, mode: mode, platform: platform);
+  await _openHistoryFromPane(tester);
+  final historyFinder = find.byType(BudgetLimitScreen);
+  final historyContext = tester.element(historyFinder);
+  final historyRoute = ModalRoute.of(historyContext)!;
+  final history = container.read(budgetLimitViewModelProvider('b2').notifier);
+  history.changeYear(DateTime.utc(2027));
+  await tester.pumpAndSettle();
+  final controller = ShellPresentationScope.read(historyContext)!;
+  expect(controller.exposesDetail, isTrue);
+  late AppSheetRoute<String> sheet;
+  final result = showAppSheet<String>(
+    historyContext,
+    presentation: _sheetPresentation(historyContext),
+    presentationResolver: _sheetPresentation,
+    onRouteCreated: (created) => sheet = created,
+    builder: _directHistorySheet,
+  );
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byKey(_sheetDraftKey), 'history draft');
+  expect(sheet.nearestNonSheetPredecessor, same(historyRoute));
+  expect(controller.hasSheets, isTrue);
+  expect(controller.isCovered(controller.shellRoute), isFalse);
+  expect(sheet.isDocked, mode == ShellLayoutMode.open);
+  expect(sheet.dimsBackground, mode == ShellLayoutMode.desktop);
+  expect(sheet.barrierDismissible, isTrue);
+  final sheetContext = tester.element(find.byKey(_sheetDraftKey));
+  final slot = AppSheetAlertSlot.maybeOf(sheetContext)!;
+  expect(slot.isDocked, sheet.isDocked);
+  expect(slot.presentation, _sheetPresentation(historyContext));
+  final listContext = tester.element(
+    find.byType(BudgetsRoot, skipOffstage: false),
+  );
+  expect(ShellPaneScope.of(listContext).sheetCovered, isFalse);
+  expect(tester.element(historyFinder), same(historyContext));
+  expect(historyRoute.isActive, isTrue);
+  await _dismissTestSheet(tester, sheet);
+  expect(await result.timeout(_sheetCompletionTimeout), isNull);
+  expect(historyRoute.isCurrent, isTrue);
+  expect(tester.element(historyFinder), same(historyContext));
+  final historyState = container
+      .read(budgetLimitViewModelProvider('b2'))
+      .requireValue;
+  expect(historyState.displayedYear, DateTime.utc(2027));
+  expect(container.read(selectedBudgetProvider), 'b2');
+  historyRoute.navigator!.pop();
+  await tester.pumpAndSettle();
+  await historyRoute.completed.timeout(_sheetCompletionTimeout);
+  expect(find.byKey(shellDetailPaneKey), findsOneWidget);
+  expect(container.read(selectedBudgetProvider), 'b2');
 }
