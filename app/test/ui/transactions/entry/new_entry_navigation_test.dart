@@ -38,6 +38,13 @@ void main() {
     );
   }, timeout: uiTestTimeout);
 
+  testWidgets('open Add shows exactly one rail', (tester) async {
+    final harness = await pumpShell(tester, size: openSize);
+    await openAdd(tester, harness);
+
+    expect(find.byKey(openRailKey), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
   testWidgets('open rail tap selects destination and dismisses Add', (
     tester,
   ) async {

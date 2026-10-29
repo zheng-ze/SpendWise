@@ -4,6 +4,12 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+namespace {
+constexpr int kMinimumClientWidth = 900;
+constexpr int kMinimumClientHeight = 600;
+constexpr double kBaseDpi = 96.0;
+}  // namespace
+
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
@@ -65,6 +71,20 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
       break;
+    case WM_GETMINMAXINFO: {
+      const UINT dpi = GetDpiForWindow(hwnd);
+      if (dpi == 0) break;
+      const double scale = dpi / kBaseDpi;
+      RECT frame = {0, 0, static_cast<LONG>(kMinimumClientWidth * scale),
+                    static_cast<LONG>(kMinimumClientHeight * scale)};
+      AdjustWindowRectExForDpi(
+          &frame, static_cast<DWORD>(GetWindowLong(hwnd, GWL_STYLE)), FALSE,
+          static_cast<DWORD>(GetWindowLong(hwnd, GWL_EXSTYLE)), dpi);
+      MINMAXINFO* info = reinterpret_cast<MINMAXINFO*>(lparam);
+      info->ptMinTrackSize.x = frame.right - frame.left;
+      info->ptMinTrackSize.y = frame.bottom - frame.top;
+      return 0;
+    }
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);

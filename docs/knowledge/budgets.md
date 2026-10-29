@@ -246,8 +246,8 @@ ranked by the overview's utilization order. Tapping the All spending tray (when 
 exists) or a category tray selects that budget through `selectedBudgetProvider`. The selected tray uses
 the selected border and fill. In open layout with a selection, the list uses one column. Otherwise open
 layout uses two columns for multiple category trays, and phone and desktop use one column. While
-any AppSheet is installed or exiting in open layout, category trays use one column and the list
-hides its floating Add action. This occupancy is exposed by the retained `ShellPaneScope.addPresented`
+any AppSheet is installed or exiting, the list hides its floating Add action in every mode, and in
+open layout category trays use one column. This occupancy is exposed by the retained `ShellPaneScope.addPresented`
 name and includes nested pickers. (`budgets_list_view.dart`, `budgets_list_view_model.dart`, `budget_overview.dart`)
 
 Add budget is available from the empty-state action, from a compact labelled floating button when

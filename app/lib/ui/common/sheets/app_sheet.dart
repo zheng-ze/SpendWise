@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
@@ -142,11 +144,13 @@ class _AppSheetState extends State<AppSheet> {
     final available =
         media.size.height - media.padding.top - media.viewInsets.bottom;
     final cap = widget.phoneMaxHeightFraction * available;
-    final openHeight =
-        media.size.height -
-        media.padding.top -
-        media.padding.bottom -
-        media.viewInsets.bottom;
+    final openHeight = math.max(
+      _noSheetInset,
+      media.size.height -
+          media.padding.top -
+          media.padding.bottom -
+          media.viewInsets.bottom,
+    );
     final hasBottom = widget.footer != null || widget.inputSurface != null;
     final top = _SheetTop(header: widget.header, showHandle: phone);
     final bottom = hasBottom

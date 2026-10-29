@@ -7,6 +7,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/lists/responsive_summary_card.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
@@ -89,6 +90,12 @@ void main() {
         'Spent',
         'Income',
       ]);
+      expect(card.metrics.map((metric) => metric.kind).toList(), [
+        null,
+        AmountKind.expense,
+        AmountKind.income,
+      ]);
+      expect(card.metrics.first.emphasis, SummaryMetricEmphasis.primary);
       sheet.navigator!.pop();
       await tester.pumpAndSettle();
       await sheet.completed.timeout(_completionTimeout);

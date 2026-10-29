@@ -138,7 +138,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   facts (`shellPlatformProvider` captures `isWeb` and `TargetPlatform` once
   per root container) plus the current logical window size
   (`shellWindowSizeProvider`). Web, macOS, Windows and Linux always resolve
-  to desktop at any window size; the Fuchsia desktop fallback is preserved.
+  to desktop at any window size; the Fuchsia desktop fallback is preserved. Native desktop windows have a 900 by 600 logical minimum so a docked sheet column stays usable.
   On iOS and Android the mode is open exactly when the window is at least
   600 dp wide and at least 480 dp high (`openModeMinWidth`,
   `openModeMinHeight`, both inclusive), otherwise phone, following window
