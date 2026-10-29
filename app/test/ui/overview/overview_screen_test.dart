@@ -82,7 +82,7 @@ Future<ProviderContainer> _pumpOpenOverview(
   WidgetTester tester,
   LedgerState state, {
   required Brightness brightness,
-  bool addPresented = false,
+  bool sheetPresented = false,
   ShellDetail? detail,
   OverviewViewState? viewState,
   ComputeRunner runner = syncComputeRunner,
@@ -108,7 +108,7 @@ Future<ProviderContainer> _pumpOpenOverview(
     _OpenApp(
       container: container,
       brightness: brightness,
-      addPresented: addPresented,
+      sheetPresented: sheetPresented,
       pageWidth: size.width,
       child: overview,
     ),
@@ -136,14 +136,14 @@ class _OpenApp extends StatelessWidget {
   const _OpenApp({
     required this.container,
     required this.brightness,
-    required this.addPresented,
+    required this.sheetPresented,
     required this.pageWidth,
     required this.child,
   });
 
   final ProviderContainer container;
   final Brightness brightness;
-  final bool addPresented;
+  final bool sheetPresented;
   final double pageWidth;
   final Widget child;
 
@@ -152,8 +152,8 @@ class _OpenApp extends StatelessWidget {
     final shell = ShellPaneScope(
       mode: ShellLayoutMode.open,
       splitOffset: pageWidth / 2,
-      addPresented: addPresented,
-      sheetCovered: addPresented,
+      sheetPresented: sheetPresented,
+      sheetCovered: sheetPresented,
       child: child,
     );
     return UncontrolledProviderScope(
@@ -502,7 +502,7 @@ void main() {
             tester,
             defaultState(),
             brightness: brightness,
-            addPresented: true,
+            sheetPresented: true,
           );
           final pageWidth = _openSize.width / 2;
           _expectSingleColumn(tester, pageWidth);

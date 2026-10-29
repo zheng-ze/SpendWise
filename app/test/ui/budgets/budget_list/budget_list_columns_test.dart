@@ -6,7 +6,7 @@ void main() {
     expect(
       budgetListColumnCount(
         openLayout: true,
-        addPresented: false,
+        sheetPresented: false,
         selectionPresent: false,
       ),
       2,
@@ -17,7 +17,7 @@ void main() {
     expect(
       budgetListColumnCount(
         openLayout: true,
-        addPresented: false,
+        sheetPresented: false,
         selectionPresent: true,
       ),
       1,
@@ -28,7 +28,7 @@ void main() {
     expect(
       budgetListColumnCount(
         openLayout: true,
-        addPresented: true,
+        sheetPresented: true,
         selectionPresent: false,
       ),
       1,
@@ -39,7 +39,7 @@ void main() {
     expect(
       budgetListColumnCount(
         openLayout: false,
-        addPresented: false,
+        sheetPresented: false,
         selectionPresent: false,
       ),
       1,

@@ -68,7 +68,7 @@ class _AccountsList extends StatelessWidget {
     final wideComposition =
         pane != null &&
         pane.mode != ShellLayoutMode.phone &&
-        !pane.addPresented;
+        !pane.sheetPresented;
     final summary = ResponsiveSummaryCard(
       metrics: [
         SummaryMetric(

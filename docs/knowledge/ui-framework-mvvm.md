@@ -174,8 +174,8 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   destination switches and resizes. Overview's View History selects History
   on every layout and pushes no route. There is no Trends destination in the
   shell. There is no header gear and no shell Add FAB.
-  `ShellPaneScope` supplies the mode, shared `splitOffset`, `sheetCovered` and `addPresented`.
-  The retained name `addPresented` means at least one AppSheet is installed or exiting, including
+  `ShellPaneScope` supplies the mode, shared `splitOffset`, `sheetCovered` and `sheetPresented`.
+  `sheetPresented` means at least one AppSheet is installed or exiting, including
   forms and pickers. Coverage is narrower: a sheet covers the shell only when its nearest
   non-AppSheet predecessor is the shell route. A sheet over a foreground root page therefore
   contributes occupancy without shifting the shell beneath it.

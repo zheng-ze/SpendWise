@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
+import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
@@ -149,8 +150,8 @@ class _PaneHarness {
 
   AppSheetRoute<void> push({Key key = _sheetKey}) {
     final route = AppSheetRoute<void>(
-      presentation: _livePresentation(context),
-      presentationResolver: _livePresentation,
+      presentation: accountSheetPresentation(context),
+      presentationResolver: accountSheetPresentation,
       builder: (_) => AppSheet(
         header: const Text('Draft'),
         body: _StateProbe(key: key, label: 'draft'),
@@ -169,13 +170,6 @@ ShellDetail _probeDetail(String id) => ShellDetail(
   title: id,
   bodyBuilder: (_) => _StateProbe(key: ValueKey('detail-$id'), label: id),
 );
-
-AppSheetPresentation _livePresentation(BuildContext context) =>
-    switch (ShellLayoutModeScope.of(context)) {
-      ShellLayoutMode.phone => AppSheetPresentation.phone,
-      ShellLayoutMode.open => AppSheetPresentation.open,
-      ShellLayoutMode.desktop => AppSheetPresentation.desktop,
-    };
 
 Future<_PaneHarness> _pumpPane(
   WidgetTester tester,

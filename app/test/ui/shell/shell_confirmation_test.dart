@@ -6,6 +6,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/common/feedback/delete_confirmation.dart';
+import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_purge_dialog.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
@@ -169,12 +170,7 @@ void main() {
     final addRoute = showAppSheet<void>(
       pageContext,
       presentation: AppSheetPresentation.open,
-      presentationResolver: (context) =>
-          switch (ShellLayoutModeScope.maybeOf(context)) {
-            ShellLayoutMode.open => AppSheetPresentation.open,
-            ShellLayoutMode.desktop => AppSheetPresentation.desktop,
-            _ => AppSheetPresentation.phone,
-          },
+      presentationResolver: accountSheetPresentation,
       builder: (routeContext) => StatefulBuilder(
         builder: (context, setState) => Material(
           child: Column(

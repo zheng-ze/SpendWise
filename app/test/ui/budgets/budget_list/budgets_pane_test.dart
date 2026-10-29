@@ -20,6 +20,7 @@ import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
+import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
@@ -893,18 +894,11 @@ void main() {
 const _sheetDraftKey = ValueKey('sheet-draft');
 const _sheetCompletionTimeout = Duration(seconds: 5);
 
-AppSheetPresentation _sheetPresentation(BuildContext context) =>
-    switch (ShellLayoutModeScope.of(context)) {
-      ShellLayoutMode.phone => AppSheetPresentation.phone,
-      ShellLayoutMode.open => AppSheetPresentation.open,
-      ShellLayoutMode.desktop => AppSheetPresentation.desktop,
-    };
-
 AppSheetRoute<void> _pushTestSheet(WidgetTester tester) {
   final navigator = _rootNavigator(tester);
   final route = AppSheetRoute<void>(
-    presentation: _sheetPresentation(navigator.context),
-    presentationResolver: _sheetPresentation,
+    presentation: accountSheetPresentation(navigator.context),
+    presentationResolver: accountSheetPresentation,
     builder: (_) => const AppSheet(
       header: Text('Draft'),
       body: TextField(key: _sheetDraftKey),
@@ -1084,8 +1078,8 @@ Future<void> _verifyDirectHistorySheet(
   late AppSheetRoute<String> sheet;
   final result = showAppSheet<String>(
     historyContext,
-    presentation: _sheetPresentation(historyContext),
-    presentationResolver: _sheetPresentation,
+    presentation: accountSheetPresentation(historyContext),
+    presentationResolver: accountSheetPresentation,
     onRouteCreated: (created) => sheet = created,
     builder: _directHistorySheet,
   );
@@ -1101,7 +1095,7 @@ Future<void> _verifyDirectHistorySheet(
   expect(sheet.dimsBackground, isFalse);
   final sheetContext = tester.element(find.byKey(_sheetDraftKey));
   final slot = AppSheetAlertSlot.maybeOf(sheetContext)!;
-  expect(slot.presentation, _sheetPresentation(historyContext));
+  expect(slot.presentation, accountSheetPresentation(historyContext));
   final listContext = tester.element(
     find.byType(BudgetsRoot, skipOffstage: false),
   );

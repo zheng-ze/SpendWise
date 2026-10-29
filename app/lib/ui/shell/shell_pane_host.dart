@@ -31,14 +31,14 @@ class ShellPaneScope extends InheritedWidget {
     super.key,
     required this.mode,
     required this.splitOffset,
-    required this.addPresented,
-    this.sheetCovered = false,
+    required this.sheetPresented,
+    required this.sheetCovered,
     required super.child,
   });
 
   final ShellLayoutMode mode;
   final double splitOffset;
-  final bool addPresented;
+  final bool sheetPresented;
   final bool sheetCovered;
 
   static ShellPaneScope of(BuildContext context) {
@@ -54,7 +54,7 @@ class ShellPaneScope extends InheritedWidget {
   bool updateShouldNotify(ShellPaneScope oldWidget) =>
       mode != oldWidget.mode ||
       splitOffset != oldWidget.splitOffset ||
-      addPresented != oldWidget.addPresented ||
+      sheetPresented != oldWidget.sheetPresented ||
       sheetCovered != oldWidget.sheetCovered;
 }
 
@@ -100,91 +100,121 @@ class ShellPaneHost extends StatelessWidget {
     final showFloatingAction =
         floatingAction != null &&
         scope.mode == ShellLayoutMode.open &&
-        !scope.addPresented &&
+        !scope.sheetPresented &&
         pageActive &&
         routeCurrent;
 
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = scope.mode != ShellLayoutMode.phone;
-        final hasDetailPane = wide && detail != null;
-        final shifted = hasDetailPane && scope.sheetCovered;
-        final splitPage = hasDetailPane || (wide && scope.sheetCovered);
-        final splitOffset = scope.splitOffset.clamp(0.0, constraints.maxWidth);
-        final pageWidth = splitPage ? splitOffset : constraints.maxWidth;
-        final detailWidth = math.max(
-          _minimumDetailPaneWidth,
-          constraints.maxWidth - splitOffset,
-        );
-        final presentation = pageWidth < constraints.maxWidth
-            ? ShellPagePresentation.singleColumn
-            : ShellPagePresentation.fullPage;
+      builder: (context, constraints) => _ShellPaneLayout(
+        scope: scope,
+        constraints: constraints,
+        detail: detail,
+        pageBuilder: pageBuilder,
+        floatingAction: showFloatingAction ? floatingAction : null,
+      ),
+    );
+  }
+}
 
-        final pageContent = pageBuilder(context, presentation);
-        final pageForPresentation = MediaQuery.removePadding(
-          context: context,
-          removeRight: presentation == ShellPagePresentation.singleColumn,
-          child: pageContent,
-        );
-        final page = Align(
-          key: _pageSlotKey,
-          alignment: Alignment.topLeft,
-          child: SizedBox(
-            width: pageWidth,
-            height: constraints.maxHeight,
-            child: _InactivePaneIsolation(
-              active: !shifted,
-              child: pageForPresentation,
+class _ShellPaneLayout extends StatelessWidget {
+  const _ShellPaneLayout({
+    required this.scope,
+    required this.constraints,
+    required this.detail,
+    required this.pageBuilder,
+    required this.floatingAction,
+  });
+
+  final ShellPaneScope scope;
+  final BoxConstraints constraints;
+  final ShellDetail? detail;
+  final Widget Function(
+    BuildContext context,
+    ShellPagePresentation presentation,
+  )
+  pageBuilder;
+  final Widget? floatingAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final wide = scope.mode != ShellLayoutMode.phone;
+    final hasDetailPane = wide && detail != null;
+    final shifted = hasDetailPane && scope.sheetCovered;
+    final splitPage = hasDetailPane || (wide && scope.sheetCovered);
+    final splitOffset = scope.splitOffset.clamp(0.0, constraints.maxWidth);
+    final pageWidth = splitPage ? splitOffset : constraints.maxWidth;
+    final detailWidth = math.max(
+      _minimumDetailPaneWidth,
+      constraints.maxWidth - splitOffset,
+    );
+    final presentation = pageWidth < constraints.maxWidth
+        ? ShellPagePresentation.singleColumn
+        : ShellPagePresentation.fullPage;
+
+    final pageContent = pageBuilder(context, presentation);
+    final pageForPresentation = MediaQuery.removePadding(
+      context: context,
+      removeRight: presentation == ShellPagePresentation.singleColumn,
+      child: pageContent,
+    );
+    final page = Align(
+      key: _pageSlotKey,
+      alignment: Alignment.topLeft,
+      child: SizedBox(
+        width: pageWidth,
+        height: constraints.maxHeight,
+        child: _InactivePaneIsolation(
+          active: !shifted,
+          child: pageForPresentation,
+        ),
+      ),
+    );
+    final currentDetail = detail;
+    final detailSlot = currentDetail == null
+        ? null
+        : Align(
+            key: _detailSlotKey,
+            alignment: shifted ? Alignment.topLeft : Alignment.topRight,
+            child: SizedBox(
+              width: shifted ? splitOffset : detailWidth,
+              height: constraints.maxHeight,
+              child: _InactivePaneIsolation(
+                active: hasDetailPane,
+                child: _DetailPane(
+                  key: ValueKey(currentDetail.id),
+                  detail: currentDetail,
+                ),
+              ),
             ),
-          ),
-        );
-        final currentDetail = detail;
-        final detailSlot = currentDetail == null
-            ? null
-            : Align(
-                key: _detailSlotKey,
-                alignment: shifted ? Alignment.topLeft : Alignment.topRight,
-                child: SizedBox(
-                  width: shifted ? splitOffset : detailWidth,
-                  height: constraints.maxHeight,
-                  child: _InactivePaneIsolation(
-                    active: hasDetailPane,
-                    child: _DetailPane(
-                      key: ValueKey(currentDetail.id),
-                      detail: currentDetail,
-                    ),
-                  ),
-                ),
-              );
-        final dividerLine = SizedBox(
-          width: _detailDividerWidth,
-          height: constraints.maxHeight,
-          child: ColoredBox(color: context.colors.edge),
-        );
-        final divider = !hasDetailPane || shifted
-            ? null
-            : Align(
-                key: shellDetailDividerKey,
-                alignment: Alignment.topLeft,
-                child: Padding(
-                  padding: EdgeInsets.only(left: splitOffset),
-                  child: dividerLine,
-                ),
-              );
-        final action = !showFloatingAction
-            ? null
-            : Positioned(
-                key: _floatingActionSlotKey,
-                right: _floatingActionRightInset,
-                bottom: _floatingActionBottomInset,
-                child: floatingAction!,
-              );
+          );
+    final dividerLine = SizedBox(
+      width: _detailDividerWidth,
+      height: constraints.maxHeight,
+      child: ColoredBox(color: context.colors.edge),
+    );
+    final divider = !hasDetailPane || shifted
+        ? null
+        : Align(
+            key: shellDetailDividerKey,
+            alignment: Alignment.topLeft,
+            child: Padding(
+              padding: EdgeInsets.only(left: splitOffset),
+              child: dividerLine,
+            ),
+          );
+    final action = floatingAction;
+    final floating = action == null
+        ? null
+        : Positioned(
+            key: _floatingActionSlotKey,
+            right: _floatingActionRightInset,
+            bottom: _floatingActionBottomInset,
+            child: action,
+          );
 
-        return Stack(
-          fit: StackFit.expand,
-          children: [page, ?detailSlot, ?divider, ?action],
-        );
-      },
+    return Stack(
+      fit: StackFit.expand,
+      children: [page, ?detailSlot, ?divider, ?floating],
     );
   }
 }

@@ -69,7 +69,7 @@ void main() {
       );
       Navigator.of(context, rootNavigator: true).push(sheet);
       await tester.pumpAndSettle();
-      expect(ShellPaneScope.of(context).addPresented, isTrue);
+      expect(ShellPaneScope.of(context).sheetPresented, isTrue);
       final shellRoute = ModalRoute.of(tester.element(find.byType(AppShell)));
       expect(
         ProviderScope.containerOf(context)
@@ -101,7 +101,7 @@ void main() {
       sheet.navigator!.pop();
       await tester.pumpAndSettle();
       await sheet.completed.timeout(_completionTimeout);
-      expect(ShellPaneScope.of(context).addPresented, isFalse);
+      expect(ShellPaneScope.of(context).sheetPresented, isFalse);
       expect(tester.state(flowFinder), same(flow));
       expect(tester.state(navigatorFinder), same(navigator));
       expect(tester.takeException(), isNull);

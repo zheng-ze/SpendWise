@@ -41,7 +41,8 @@ class _TrendsApp extends StatelessWidget {
     final scope = ShellPaneScope(
       mode: mode,
       splitOffset: size.width / 2,
-      addPresented: false,
+      sheetPresented: false,
+      sheetCovered: false,
       child: const TrendsFlow(),
     );
     final app = MaterialApp(

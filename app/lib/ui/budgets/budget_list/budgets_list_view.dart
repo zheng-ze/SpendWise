@@ -27,10 +27,10 @@ const _openColumns = 2;
 
 int budgetListColumnCount({
   required bool openLayout,
-  required bool addPresented,
+  required bool sheetPresented,
   required bool selectionPresent,
 }) {
-  if (openLayout && !addPresented && !selectionPresent) return _openColumns;
+  if (openLayout && !sheetPresented && !selectionPresent) return _openColumns;
   return _singleColumn;
 }
 
@@ -43,7 +43,8 @@ class BudgetsRoot extends ConsumerWidget {
     final viewModel = ref.watch(budgetsListViewModelProvider.notifier);
     final mode = ref.watch(shellLayoutModeProvider);
     final desktop = mode == ShellLayoutMode.desktop;
-    final addPresented = ShellPaneScope.maybeOf(context)?.addPresented ?? false;
+    final sheetPresented =
+        ShellPaneScope.maybeOf(context)?.sheetPresented ?? false;
     final open = mode == ShellLayoutMode.open;
     final body = state.when(
       data: (value) => BudgetsListView(
@@ -52,10 +53,10 @@ class BudgetsRoot extends ConsumerWidget {
         desktop: desktop,
         columns: budgetListColumnCount(
           openLayout: open,
-          addPresented: addPresented,
+          sheetPresented: sheetPresented,
           selectionPresent: value.selectedBudgetID != null,
         ),
-        showFloatingAction: !addPresented,
+        showFloatingAction: !sheetPresented,
         actionPadding: open ? _openActionPadding : _actionPadding,
       ),
       loading: () =>
@@ -63,7 +64,7 @@ class BudgetsRoot extends ConsumerWidget {
       error: (error, _) =>
           BudgetListError(error: error, onRetry: viewModel.retry),
     );
-    final dismissSelection = (open || desktop) && !addPresented
+    final dismissSelection = (open || desktop) && !sheetPresented
         ? ref.read(selectedBudgetProvider.notifier).clear
         : null;
     return Material(

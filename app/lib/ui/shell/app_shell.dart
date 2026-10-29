@@ -87,7 +87,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     final sheetCovered = ref.watch(
       shellSheetOccupancyProvider.select((o) => o.isCovered(shellRoute)),
     );
-    final addPresented = ref.watch(
+    final sheetPresented = ref.watch(
       shellSheetOccupancyProvider.select((o) => o.hasSheets),
     );
     final suppressNavigation = ref.watch(
@@ -109,7 +109,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       selected: selected,
       bodies: widget.bodies,
       mode: mode,
-      addPresented: addPresented,
+      sheetPresented: sheetPresented,
       splitOffset: geometry.splitOffset,
       sheetCovered: sheetCovered,
       rail: rail,
@@ -152,7 +152,7 @@ class _ShellStack extends StatelessWidget {
     required this.bodies,
     required this.rail,
     required this.mode,
-    required this.addPresented,
+    required this.sheetPresented,
     required this.splitOffset,
     required this.sheetCovered,
   });
@@ -161,7 +161,7 @@ class _ShellStack extends StatelessWidget {
   final Map<ShellDestination, WidgetBuilder> bodies;
   final Widget? rail;
   final ShellLayoutMode mode;
-  final bool addPresented;
+  final bool sheetPresented;
   final double splitOffset;
   final bool sheetCovered;
 
@@ -203,7 +203,7 @@ class _ShellStack extends StatelessWidget {
       mode: mode,
       splitOffset: splitOffset,
       sheetCovered: sheetCovered,
-      addPresented: addPresented,
+      sheetPresented: sheetPresented,
       child: content,
     );
   }

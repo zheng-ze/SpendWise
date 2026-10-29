@@ -350,7 +350,7 @@ void main() {
       final presentation = ProviderScope.containerOf(sheetContext)
           .read(shellSheetOccupancyProvider);
       expect(presentation.hasSheets, isTrue);
-      expect(_accountsPaneScope(tester).addPresented, isTrue);
+      expect(_accountsPaneScope(tester).sheetPresented, isTrue);
       expectAccountsSummaryConfiguration(
         tester,
         container,
@@ -376,9 +376,9 @@ void main() {
 
       Navigator.of(sheetContext, rootNavigator: true).pop();
       await tester.pump();
-      expect(_accountsPaneScope(tester).addPresented, isTrue);
+      expect(_accountsPaneScope(tester).sheetPresented, isTrue);
       await tester.pumpAndSettle();
-      expect(_accountsPaneScope(tester).addPresented, isFalse);
+      expect(_accountsPaneScope(tester).sheetPresented, isFalse);
     }
   }, timeout: uiTestTimeout);
 
