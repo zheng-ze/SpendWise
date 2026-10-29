@@ -23,6 +23,7 @@ import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
 
 import '../../support/ui_test_timeout.dart';
 
@@ -60,6 +61,32 @@ void expectAccountsSummaryConfiguration(
     SummaryMetricEmphasis.supporting,
   ]);
   expect(summary.wideComposition, wideComposition);
+}
+
+ShellPaneScope _accountsPaneScope(WidgetTester tester) {
+  final context = tester.element(find.byType(AccountsScreen));
+  return ShellPaneScope.of(context);
+}
+
+Future<void> _pumpAccountsShell(
+  WidgetTester tester,
+  ProviderContainer container,
+  MoneyNavigatorObserver observer, {
+  String? Function()? moneySourceId,
+}) async {
+  final shell = AppShell(
+    moneySourceId: moneySourceId,
+    bodies: {ShellDestination.money: (_) => MoneyFlow(moneyObserver: observer)},
+  );
+  final app = MaterialApp(
+    builder: buildShellAppContent,
+    navigatorObservers: [AppSheetRouteObserver()],
+    home: shell,
+  );
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: app),
+  );
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -253,47 +280,31 @@ void main() {
       container.read(selectedDestinationProvider.notifier).state =
           ShellDestination.money;
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: ShellLayoutModeScope(
-            mode: ShellLayoutMode.open,
-            child: MaterialApp(
-              home: AppShell(
-                moneySourceId: container.read(activeMoneySourceProvider),
-                bodies: {
-                  ShellDestination.money: (_) =>
-                      MoneyFlow(moneyObserver: observer),
-                },
-              ),
-            ),
-          ),
-        ),
+      await _pumpAccountsShell(
+        tester,
+        container,
+        observer,
+        moneySourceId: container.read(activeMoneySourceProvider),
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Main Checking'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
       expect(find.text('Main Checking'), findsOneWidget);
       expect(observer.sourceId, checking.id);
 
       await tester.tap(find.text('Add'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
       expect(find.byType(AppSheet), findsOneWidget);
 
       await tester.tapAt(const Offset(120, 120));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
       expect(find.byType(AppSheet), findsNothing);
       expect(find.text('Main Checking'), findsOneWidget);
       expect(observer.sourceId, checking.id);
 
       await tester.tap(find.byTooltip('Back'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
       expect(find.byType(AccountsScreen), findsOneWidget);
     },
     timeout: uiTestTimeout,
@@ -317,24 +328,8 @@ void main() {
     addTearDown(container.dispose);
     container.read(selectedDestinationProvider.notifier).state =
         ShellDestination.money;
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: ShellLayoutModeScope(
-          mode: ShellLayoutMode.open,
-          child: MaterialApp(
-            home: AppShell(
-              bodies: {
-                ShellDestination.money: (_) =>
-                    MoneyFlow(moneyObserver: observer),
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
+    await _pumpAccountsShell(tester, container, observer);
+    await tester.pumpAndSettle();
 
     final viewModel = container.read(accountsViewModelProvider.notifier);
     for (final request in [
@@ -342,28 +337,21 @@ void main() {
       () => viewModel.requestSourceEdit(checking.id),
     ]) {
       request();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
 
-      expect(container.read(accountSheetPresentedProvider), isTrue);
-      expect(
-        ShellPaneScope.of(tester.element(find.byType(AccountsScreen)))
-            .addPresented,
-        isTrue,
-      );
+      final sheetContext = tester.element(find.byType(AppSheet).last);
+      final presentation = ShellPresentationScope.read(sheetContext)!;
+      expect(presentation.hasSheets, isTrue);
+      expect(_accountsPaneScope(tester).addPresented, isTrue);
       expectAccountsSummaryConfiguration(
         tester,
         container,
         wideComposition: false,
       );
-      expect(
-        tester
-            .widget<SegmentedControl<MoneySegment>>(
-              find.byType(SegmentedControl<MoneySegment>),
-            )
-            .small,
-        isTrue,
+      final segments = tester.widget<SegmentedControl<MoneySegment>>(
+        find.byType(SegmentedControl<MoneySegment>),
       );
+      expect(segments.small, isTrue);
       expect(find.text('Money'), findsNWidgets(2));
       expect(find.text('Budgets'), findsOneWidget);
       expect(find.text('Accounts'), findsOneWidget);
@@ -378,13 +366,11 @@ void main() {
       expect(container.read(moneySegmentProvider), MoneySegment.accounts);
       expect(tester.takeException(), isNull);
 
-      Navigator.of(
-        tester.element(find.byType(AppSheet).last),
-        rootNavigator: true,
-      ).pop();
+      Navigator.of(sheetContext, rootNavigator: true).pop();
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(container.read(accountSheetPresentedProvider), isFalse);
+      expect(_accountsPaneScope(tester).addPresented, isTrue);
+      await tester.pumpAndSettle();
+      expect(_accountsPaneScope(tester).addPresented, isFalse);
     }
   }, timeout: uiTestTimeout);
 
@@ -406,32 +392,17 @@ void main() {
     container.read(selectedDestinationProvider.notifier).state =
         ShellDestination.money;
 
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: ShellLayoutModeScope(
-          mode: ShellLayoutMode.desktop,
-          child: MaterialApp(
-            home: AppShell(
-              bodies: {
-                ShellDestination.money: (_) =>
-                    MoneyFlow(moneyObserver: observer),
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
+    await _pumpAccountsShell(tester, container, observer);
+    await tester.pumpAndSettle();
 
     container.read(accountsViewModelProvider.notifier).requestNewAccount();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
 
     expect(find.byType(AppSheet), findsOneWidget);
     expect(find.text('New Account'), findsOneWidget);
-    expect(container.read(accountSheetPresentedProvider), isTrue);
+    final sheetContext = tester.element(find.byType(AppSheet).last);
+    final presentation = ShellPresentationScope.read(sheetContext)!;
+    expect(presentation.hasSheets, isTrue);
     expectAccountsSummaryConfiguration(
       tester,
       container,

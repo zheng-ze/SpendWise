@@ -19,8 +19,10 @@ import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
+import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
@@ -126,7 +128,11 @@ Widget _shellApp(ProviderContainer container) {
     ShellDestination.money: (_) => MoneyFlow(moneyObserver: observer),
   };
   final shell = AppShell(bodies: bodies);
-  return MaterialApp(home: shell);
+  return MaterialApp(
+    builder: buildShellAppContent,
+    navigatorObservers: [AppSheetRouteObserver()],
+    home: shell,
+  );
 }
 
 Future<ProviderContainer> _pumpShell(
@@ -314,7 +320,15 @@ void main() {
       final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
       await _tapBudget(tester, 'b2');
 
-      container.read(accountSheetPresentedProvider.notifier).state = true;
+      final sheet = AppSheetRoute<void>(
+        presentation: AppSheetPresentation.open,
+        builder: (_) =>
+            const AppSheet(header: Text('Form'), body: Text('Draft')),
+      );
+      Navigator.of(
+        tester.element(find.byType(AppShell)),
+        rootNavigator: true,
+      ).push(sheet);
       await tester.pumpAndSettle();
       expect(find.byKey(shellDetailPaneKey), findsNothing);
       expect(container.read(selectedBudgetProvider), 'b2');
@@ -322,7 +336,7 @@ void main() {
       expect(container.exists(budgetDetailContextProvider('b2')), isTrue);
       expect(container.exists(budgetLimitViewModelProvider('b2')), isTrue);
 
-      container.read(accountSheetPresentedProvider.notifier).state = false;
+      sheet.navigator!.pop();
       await tester.pumpAndSettle();
       expect(find.byKey(shellDetailPaneKey), findsOneWidget);
     },
@@ -334,7 +348,15 @@ void main() {
     (tester) async {
       final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
       await _tapBudget(tester, 'b2');
-      container.read(accountSheetPresentedProvider.notifier).state = true;
+      final sheet = AppSheetRoute<void>(
+        presentation: AppSheetPresentation.open,
+        builder: (_) =>
+            const AppSheet(header: Text('Form'), body: Text('Draft')),
+      );
+      Navigator.of(
+        tester.element(find.byType(AppShell)),
+        rootNavigator: true,
+      ).push(sheet);
       await tester.pumpAndSettle();
 
       container
@@ -350,7 +372,7 @@ void main() {
           );
       await tester.pumpAndSettle();
 
-      container.read(accountSheetPresentedProvider.notifier).state = false;
+      sheet.navigator!.pop();
       await tester.pumpAndSettle();
       expect(container.read(selectedBudgetProvider), 'b2');
       expect(_inPane(find.text(_groceriesName)), findsOneWidget);

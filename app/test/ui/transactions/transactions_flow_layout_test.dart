@@ -5,17 +5,38 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/lists/responsive_summary_card.dart';
-import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
+import 'package:spendwise/ui/shell/shell_binding.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/transactions/daily_list/transactions_summary.dart';
-import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
+import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
+
+import '../../support/ui_test_timeout.dart';
+
+const _completionTimeout = Duration(seconds: 5);
+
+Future<void> _pumpHistory(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  final app = MaterialApp(
+    builder: buildShellAppContent,
+    navigatorObservers: [AppSheetRouteObserver()],
+    home: AppShell(
+      bodies: {ShellDestination.history: (_) => const TransactionsFlow()},
+    ),
+  );
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: app),
+  );
+  await tester.pumpAndSettle();
+}
 
 void main() {
   testWidgets(
-    'History uses a single-column page while Add occupies the right pane',
+    'History retains its Flow and Navigator through sheet occupancy',
     (tester) async {
       tester.view.physicalSize = const Size(640, 800);
       tester.view.devicePixelRatio = 1;
@@ -30,47 +51,38 @@ void main() {
       addTearDown(container.dispose);
       container.read(selectedDestinationProvider.notifier).state =
           ShellDestination.history;
-      container.read(newEntryPresentationProvider.notifier).state =
-          NewEntryPresentation.presented;
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            home: AppShell(
-              bodies: {
-                ShellDestination.history: (_) => const TransactionsFlow(),
-              },
-            ),
-          ),
-        ),
+      await _pumpHistory(tester, container);
+      final flowFinder = find.byType(TransactionsFlow);
+      final flow = tester.state(flowFinder);
+      final navigatorFinder = find.descendant(
+        of: flowFinder,
+        matching: find.byType(Navigator),
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
-
-      final summary = tester.widget<TransactionsSummary>(
-        find.byType(TransactionsSummary),
+      final navigator = tester.state(navigatorFinder);
+      final context = tester.element(flowFinder);
+      final sheet = AppSheetRoute<void>(
+        presentation: AppSheetPresentation.open,
+        builder: (_) =>
+            const AppSheet(header: Text('Form'), body: Text('Draft')),
       );
-      final card = tester.widget<ResponsiveSummaryCard>(
-        find.byType(ResponsiveSummaryCard),
+      Navigator.of(context, rootNavigator: true).push(sheet);
+      await tester.pumpAndSettle();
+      expect(ShellPaneScope.of(context).addPresented, isTrue);
+      final shellRoute = ModalRoute.of(tester.element(find.byType(AppShell)));
+      expect(
+        ShellPresentationScope.read(context)!.isCovered(shellRoute),
+        isTrue,
       );
-      expect(summary.wideComposition, isFalse);
-      expect(card.metrics.map((metric) => metric.label).toList(), [
-        'Net',
-        'Spent',
-        'Income',
-      ]);
-      expect(card.metrics.map((metric) => metric.kind).toList(), [
-        null,
-        AmountKind.expense,
-        AmountKind.income,
-      ]);
-      expect(card.metrics.first.emphasis, SummaryMetricEmphasis.primary);
-      expect(card.wideComposition, isFalse);
-      expect(find.text('Net'), findsOneWidget);
-      expect(find.text('Spent'), findsOneWidget);
-      expect(find.text('Income'), findsOneWidget);
+      expect(tester.state(flowFinder), same(flow));
+      expect(tester.state(navigatorFinder), same(navigator));
+      sheet.navigator!.pop();
+      await tester.pumpAndSettle();
+      await sheet.completed.timeout(_completionTimeout);
+      expect(ShellPaneScope.of(context).addPresented, isFalse);
+      expect(tester.state(flowFinder), same(flow));
+      expect(tester.state(navigatorFinder), same(navigator));
       expect(tester.takeException(), isNull);
     },
+    timeout: uiTestTimeout,
   );
 }

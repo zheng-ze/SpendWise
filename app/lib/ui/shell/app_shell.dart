@@ -10,6 +10,7 @@ import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
 
 // MARK: - Constants
@@ -77,11 +78,9 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
     final mode = ref.watch(shellLayoutModeProvider);
-    final newEntryPresented =
-        ref.watch(newEntryPresentationProvider) ==
-        NewEntryPresentation.presented;
-    final addPresented =
-        newEntryPresented || ref.watch(accountSheetPresentedProvider);
+    final presentation = ShellPresentationScope.maybeOf(context);
+    final addPresented = presentation?.hasSheets ?? false;
+    final suppressNavigation = presentation?.suppressesShellNavigation ?? false;
     _ensureTicker(ref.watch(clockProvider));
 
     if (mode == ShellLayoutMode.desktop) {
@@ -117,7 +116,7 @@ class _AppShellState extends ConsumerState<AppShell> {
         mode: mode,
         addPresented: addPresented,
         rail: open
-            ? newEntryPresented
+            ? suppressNavigation
                   ? const SizedBox(width: openRailWidth)
                   : OpenRail(
                       selected: selected,
@@ -126,7 +125,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                     )
             : null,
       ),
-      bottomNavigationBar: open || newEntryPresented
+      bottomNavigationBar: open || suppressNavigation
           ? null
           : PhoneBar(
               selected: selected,

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:spendwise/ui/common/pickers/receipt_choice_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
@@ -12,13 +11,6 @@ import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_step_handlers.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
-
-// MARK: - Presentation State
-enum NewEntryPresentation { closed, opening, presented }
-
-final newEntryPresentationProvider = StateProvider<NewEntryPresentation>(
-  (ref) => NewEntryPresentation.closed,
-);
 
 final newEntryPresentationControllerProvider =
     Provider<NewEntryPresentationController>((ref) {
@@ -62,7 +54,6 @@ class NewEntryPresentationController {
     if (_disposed || _session != null) return Future<void>.value();
     final session = _AddSession(_container, this, context, ref);
     _session = session;
-    _setPresentation(NewEntryPresentation.opening);
     unawaited(_start(context, session, sourceId));
     return session.completion.future;
   }
@@ -131,7 +122,6 @@ class NewEntryPresentationController {
         builder: buildEntryForm,
       ),
     );
-    _setPresentation(NewEntryPresentation.presented);
     WidgetsBinding.instance.addPostFrameCallback((_) => session.markMounted());
     await session.finishAttempt(attempt);
     if (!session.eligible) session.close();
@@ -156,17 +146,12 @@ class NewEntryPresentationController {
   void _finish(_AddSession session) {
     if (!identical(_session, session)) return;
     _session = null;
-    if (!_disposed) _setPresentation(NewEntryPresentation.closed);
     if (!session.completion.isCompleted) session.completion.complete();
   }
 
   void _invalidateReceiptCoordinator() {
     if (_disposed) return;
     _container.invalidate(receiptEntryCoordinatorProvider(null));
-  }
-
-  void _setPresentation(NewEntryPresentation value) {
-    _container.read(newEntryPresentationProvider.notifier).state = value;
   }
 
   void _report(Object error, StackTrace stack) {

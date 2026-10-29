@@ -138,17 +138,6 @@ final class LifecycleLog extends ProviderObserver {
       events.add('coordinator-invalidated');
     }
   }
-
-  @override
-  void didUpdateProvider(
-    ProviderObserverContext context,
-    Object? previousValue,
-    Object? newValue,
-  ) {
-    if (context.provider == newEntryPresentationProvider) {
-      events.add('presentation-${(newValue as NewEntryPresentation).name}');
-    }
-  }
 }
 
 class ThrowingNavigator extends Navigator {
@@ -191,9 +180,6 @@ class EntryHarness {
       container.read(entryFormViewModelProvider(null).notifier) as CountingForm;
 
   Future<void> open() => openNewEntry(context: context, ref: ref);
-
-  NewEntryPresentation get presentation =>
-      container.read(newEntryPresentationProvider);
 
   Map<String, Object?> get draft {
     final state = container.read(entryFormViewModelProvider(null)).value!;
@@ -297,7 +283,7 @@ Future<EntryHarness> pumpShell(
   Widget appContent(BuildContext context, Widget? child) {
     final root = failPush
         ? ThrowingNavigator(
-            observers: [recorder],
+            observers: [AppSheetRouteObserver(), recorder],
             onGenerateRoute: (_) =>
                 MaterialPageRoute<void>(builder: (_) => home),
           )
@@ -311,7 +297,7 @@ Future<EntryHarness> pumpShell(
       child: MaterialApp(
         theme: theme,
         builder: appContent,
-        navigatorObservers: [recorder],
+        navigatorObservers: [AppSheetRouteObserver(), recorder],
         home: home,
       ),
     ),

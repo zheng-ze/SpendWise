@@ -6,6 +6,7 @@ import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
 
 // MARK: - Constants
 
@@ -35,6 +36,15 @@ Future<T?> showAppSheet<T>(
 }
 
 // MARK: - Route
+
+class AppSheetRouteObserver extends NavigatorObserver {
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is AppSheetRoute<dynamic>) {
+      route.initializePredecessor(previousRoute);
+    }
+  }
+}
 
 class AppSheetRoute<T> extends ModalRoute<T> {
   AppSheetRoute({
@@ -70,6 +80,45 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   late final ValueNotifier<AppSheetPresentation> effectivePresentation;
 
   bool _disposed = false;
+  ShellPresentationController? _presentationController;
+  Route<dynamic>? _predecessor;
+  bool _predecessorInitialized = false;
+
+  bool get predecessorInitialized => _predecessorInitialized;
+
+  Route<dynamic>? get nearestNonSheetPredecessor {
+    assert(_presentationController == null || _predecessorInitialized);
+    final predecessor = _predecessor;
+    if (predecessor is AppSheetRoute<dynamic>) {
+      return predecessor.nearestNonSheetPredecessor;
+    }
+    return predecessor;
+  }
+
+  void initializePredecessor(Route<dynamic>? previousRoute) {
+    if (_predecessorInitialized && identical(_predecessor, previousRoute)) {
+      return;
+    }
+    _predecessorInitialized = true;
+    _predecessor = previousRoute;
+    _presentationController?.routesChanged();
+  }
+
+  @override
+  void didChangePrevious(Route<dynamic>? previousRoute) {
+    super.didChangePrevious(previousRoute);
+    initializePredecessor(previousRoute);
+  }
+
+  @override
+  void install() {
+    super.install();
+    final context = navigator?.context;
+    if (context == null) return;
+    _presentationController = ShellPresentationScope.read(context);
+    _presentationController?.register(this);
+    completed.then((_) => _presentationController?.release(this));
+  }
 
   AppSheetPresentation resolveLive(BuildContext context) =>
       presentationResolver?.call(context) ?? presentation;

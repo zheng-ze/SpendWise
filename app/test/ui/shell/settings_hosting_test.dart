@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
@@ -105,6 +106,7 @@ void main() {
           container: created,
           child: MaterialApp(
             builder: buildShellAppContent,
+            navigatorObservers: [AppSheetRouteObserver()],
             home: AppShell(
               bodies: {
                 ShellDestination.history: (context) =>
