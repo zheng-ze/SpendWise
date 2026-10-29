@@ -7,8 +7,6 @@ import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/money_navigation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_pane.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
-import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
@@ -35,7 +33,6 @@ final activeMoneySourceProvider = Provider<String? Function()>((ref) {
 });
 
 const _headerRowMinHeight = 48.0;
-const _budgetEditLabel = 'Edit';
 const _headerPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
 const _segmentPadding = EdgeInsets.symmetric(horizontal: 16);
 const _options = [
@@ -91,16 +88,8 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
     final segment = ref.watch(moneySegmentProvider);
     _visited.add(segment);
     final active = DestinationActivity.of(context);
-    final mode = ref.watch(shellLayoutModeProvider);
-    final selectedBudgetID = ref.watch(selectedBudgetProvider);
-    final budgetPaneActive =
-        active &&
-        segment == MoneySegment.budgets &&
-        mode == ShellLayoutMode.open &&
-        selectedBudgetID != null;
-    final budgetDetail = selectedBudgetID != null && budgetPaneActive
-        ? _budgetDetail(selectedBudgetID)
-        : null;
+    final budgetsVisible = active && segment == MoneySegment.budgets;
+    final budgetPane = budgetsVisible ? ref.watch(budgetPaneProvider) : null;
     final children = MoneySegment.values.map((value) {
       final child = switch (value) {
         _ when !_visited.contains(value) => const SizedBox.shrink(),
@@ -134,36 +123,14 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
         ? moneyPage(ShellPagePresentation.fullPage)
         : ShellPaneHost(
             pageBuilder: (_, presentation) => moneyPage(presentation),
-            detail: budgetDetail,
+            detail: budgetPane?.detail,
           );
     return PopScope<Object?>(
-      canPop: !budgetPaneActive,
+      canPop: budgetPane == null,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && budgetPaneActive) {
-          ref.read(selectedBudgetProvider.notifier).clear();
-        }
+        if (!didPop) budgetPane?.close();
       },
       child: page,
-    );
-  }
-
-  ShellDetail _budgetDetail(String budgetID) {
-    final header = ref.watch(budgetPaneHeaderProvider(budgetID));
-    void requestEdit() => ref
-        .read(budgetDetailViewModelProvider(budgetID).notifier)
-        .requestLimitEdit();
-    return ShellDetail(
-      id: budgetID,
-      title: header.title,
-      subtitle: header.subtitle,
-      bodyBuilder: (_) => BudgetPaneBody(budgetID: budgetID),
-      headerActions: [
-        TextButton.icon(
-          onPressed: requestEdit,
-          icon: const Icon(Icons.edit_outlined),
-          label: const Text(_budgetEditLabel),
-        ),
-      ],
     );
   }
 }
