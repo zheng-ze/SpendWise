@@ -83,7 +83,6 @@ class BudgetDetailSpendBars extends StatelessWidget {
   static const _unselectedBarAlpha = 0.5;
   static const _barWidth = 18.0;
   static const _barCornerRadius = 4.0;
-  static const _stubFraction = 0.09;
   static const _outlineWidth = 1.0;
 
   @override
@@ -148,11 +147,9 @@ class BudgetDetailSpendBars extends StatelessWidget {
     required double maxY,
   }) {
     final radius = BorderRadius.circular(_barCornerRadius);
-    final stubHeight = maxY * _stubFraction;
     if (selected) {
       final selectedHeight = switch (slot.status) {
-        MonthBarStatus.blank => _chartBaseline,
-        MonthBarStatus.gap => stubHeight,
+        MonthBarStatus.blank || MonthBarStatus.gap => _chartBaseline,
         MonthBarStatus.value || MonthBarStatus.incomplete => slot.value,
       };
       return BarChartRodData(
