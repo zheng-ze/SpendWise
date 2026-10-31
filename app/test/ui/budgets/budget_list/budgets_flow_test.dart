@@ -17,6 +17,7 @@ import '../budget_shell_test_support.dart';
 
 const _editTooltip = 'Edit';
 const _changeLimitLabel = 'Change limit';
+const _deleteLabel = 'Delete budget';
 const _limitEditor = BudgetLimitEditSheet;
 
 final _budget = Budget(id: 'b1', categoryID: null, limit: Decimal.parse('100'));
@@ -168,6 +169,8 @@ void main() {
       active.value = true;
       await tester.pumpAndSettle();
       expect(find.byType(_limitEditor), findsNothing);
+      expect(find.text(_changeLimitLabel), findsNothing);
+      expect(find.text(_deleteLabel), findsNothing);
 
       await _openDetail(tester, container, _other.id);
       await tester.tap(find.byTooltip(_editTooltip));
@@ -199,6 +202,30 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(_limitEditor), findsNothing);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets(
+    'Change limit chosen after the destination went inactive opens no editor',
+    (tester) async {
+      final ledger = Ledger(state: LedgerState(budgets: {_budget.id: _budget}));
+      final (container, active) = await _pumpTogglableFlow(tester, ledger);
+      await _openDetail(tester, container, _budget.id);
+      container
+          .read(budgetDetailViewModelProvider(_budget.id).notifier)
+          .requestEdit();
+      await tester.pumpAndSettle();
+      final revision = ledger.revision;
+
+      active.value = false;
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(_changeLimitLabel));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(_limitEditor), findsNothing);
+      expect(ledger.revision, revision);
+      expect(ledger.state.budgets[_budget.id]!.limit, _budget.limit);
     },
     timeout: uiTestTimeout,
   );

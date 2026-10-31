@@ -371,8 +371,9 @@ value, which then overwrites it. (issue #38)
   `navigatorContext` can refer to a different Navigator. Budgets ships this exact-route session
   pattern: `_FormSession` and `_EditSession` in `budgets_flow.dart` capture the sheet's
   `AppSheetRoute` through `onRouteCreated`, dismiss it with `pop` when current or `removeRoute`
-  when covered, end at `route.completed`, and install the next surface in the previous route's
-  completion continuation before any await. Retirement removes the route after the frame ends.
+  when covered, and end at `route.completed`. The Edit flow installs its next surface from the action
+  sheet's pop-result continuation, before that route's `completed` fires, so shell occupancy stays
+  continuous. Retirement removes the route after the frame ends.
   No timer or captured pane owner is involved. See [budgets.md](budgets.md).
 - **Add form surface** - `AppSheetVariant.form` is used by the Add loading and loaded forms.
   In light mode its canvas backing uses `SpendWiseColors.base`; desktop form chrome docks in the right column with

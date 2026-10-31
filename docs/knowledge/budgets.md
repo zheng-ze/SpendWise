@@ -268,11 +268,13 @@ limit" and "Delete budget", and returns a `BudgetEditAction`. Dismissing it retu
 
 `_EditSession` holds the budget ID, the ledger instance captured at start, the current sheet route,
 the editor subscription and a `retired` flag. `_handleDetailStep` creates it, so the session is
-single-flight, and ends it in a `finally`. `_editStillValid` reruns after every await: the Flow must
-be mounted, the session not retired, the destination active, the same budget shown, the ledger
-instance unchanged and the live limit still present. The Flow pushes the next surface (the limit
-editor sheet or the delete confirmation) in the same continuation that receives the action, before
-any further await, so there is no gap in which the shell uncovers the pane.
+single-flight, and ends it in a `finally`. `_editStillValid` runs at two points: after the action
+sheet returns an action, and after the delete dialog returns. It requires the Flow to be mounted, the
+session not retired, the destination active, the same budget shown, the ledger instance unchanged
+and the live limit still present. The change-limit path has no recheck after its await, because the
+limit editor writes through its own view model. The Flow pushes the next surface (the limit editor
+sheet or the delete confirmation) in the same continuation that receives the action, before any
+further await, so there is no gap in which the shell uncovers the pane.
 
 - **Change limit.** `_openLimitEditor` builds a `BudgetLimitDraftKey` (budget ID and initial limit
   read from the live ledger) and listens to `budgetLimitEditorViewModelProvider(draftKey)`. The
@@ -309,7 +311,11 @@ When the shown budget disappears from the ledger without a local delete (another
 budget's name. The body is an `EmptyState` titled "This budget was deleted" with the text "It was
 removed on another screen or device." and a "Back to Budgets" action, which calls `closeDeleted`
 and clears selection. The phone screen and the pane hide Edit in this state. A local delete never
-renders it, because `_confirmDelete` clears selection first.
+renders it. `showBudgetDeleteConfirmation` returns only after the dialog route has finished its exit
+animation: it awaits the dialog route's `completed`. The Navigator cannot dispose the detail page
+route while the dialog above it is still popping, so awaiting that exit is required for this
+ordering. `_confirmDelete` then calls `deleteBudget()`, clears selection and removes the page in the
+same synchronous turn, so the detail page is gone before it can rebuild into the deleted phase.
 (`budget_detail_view_model.dart`: `closeDeleted`, `BudgetDetailPhase`; `budget_detail_content.dart`,
 `budget_detail_screen.dart`, `budget_pane.dart`)
 
@@ -401,9 +407,9 @@ register with `ShellSheetOccupancy` and shift the pane. The delete confirmation 
 route and is not tracked. A sheet over a foreground root page leaves the shell unshifted, which
 `app/test/ui/shell/shell_sheet_occupancy_test.dart` covers independently of Budgets. Budget sheets
 dismiss through their captured exact route, because the retained Flow's `navigatorContext` can
-target another Navigator. The Edit flow installs the next surface in the previous route's
-completion continuation before any await, and the shared controller adds no timer or pane ownership
-to hide an asynchronous gap. (`budgets_flow.dart`: `_handleDetailStep`, `_dismissSheetRoute`,
+target another Navigator. The Edit flow pushes the next surface from the action sheet's
+pop-result continuation, before that route's `completed` fires, so shell occupancy stays continuous.
+The shared controller adds no timer or pane ownership to hide an asynchronous gap. (`budgets_flow.dart`: `_handleDetailStep`, `_dismissSheetRoute`,
 `app/lib/ui/common/sheets/app_sheet_route.dart`: `showAppSheet`, `AppSheetRoute`)
 
 ## Gotchas and invariants
@@ -412,6 +418,7 @@ to hide an asynchronous gap. (`budgets_flow.dart`: `_handleDetailStep`, `_dismis
 - Deleting a budget removes the row entirely - no tombstone, no restore.
 - Each month stands alone: spend compares to the one limit with no carry-over between months.
 - The overview cap counts a category budget only when its parent category has no budget of its own, so a parent and its child are never added together.
+- A delete confirmation dialog that is open when the ledger is replaced or the shown budget changes is not dismissed by session retirement. Its Delete then does nothing, because `_editStillValid` fails after the dialog returns. Nothing in the app can change the ledger while the dialog blocks the screen, since sync runs only on explicit calls today. Revisit this if sync becomes constant live updates.
 
 ## Requirements
 
@@ -426,8 +433,8 @@ to hide an asynchronous gap. (`budgets_flow.dart`: `_handleDetailStep`, `_dismis
 - Invariant clause 17: every stored budget has `limit > 0`.
   (`ledger_state_invariants_budgets.dart`)
 - `BudgetEditRequested` is payload-free. `BudgetsFlow` runs one `_EditSession` at a time, rechecks
-  `_editStillValid` after every await and retires the session on budget change, ledger replacement
-  and disposal. (`budgets_flow.dart:_handleDetailStep`)
+  `_editStillValid` after the action sheet and after the delete dialog return, and retires the
+  session on budget change, ledger replacement and disposal. (`budgets_flow.dart:_handleDetailStep`)
 - The Add form uses one `_FormSession` that ends at `route.completed` and dismisses its exact route.
   (`budgets_flow.dart:_openBudgetForm`)
 - Budget deletion is owned by `BudgetDetailViewModel.deleteBudget` behind the budget-specific

@@ -69,11 +69,14 @@ void main() {
     expect(find.text('Applies from'), findsNothing);
     expect(find.text('Cancel'), findsNothing);
 
+    final revision = ledger.revision;
+
     await _replaceAmount(tester, '250');
     await tester.tap(find.text(_saveLabel));
     await tester.pumpAndSettle();
 
     expect(find.byType(BudgetLimitEditSheet), findsNothing);
+    expect(ledger.revision, revision + 1);
     expect(ledger.state.budgets[_budgetID]!.limit, Decimal.fromInt(250));
   }, timeout: uiTestTimeout);
 

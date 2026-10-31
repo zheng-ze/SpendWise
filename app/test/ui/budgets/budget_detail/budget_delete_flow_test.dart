@@ -206,10 +206,14 @@ void main() {
     _expectUntouched(replacement);
   }, timeout: uiTestTimeout);
 
-  testWidgets('a budget deleted remotely while the dialog is up gets no '
-      'second delete', (tester) async {
+  testWidgets('a budget deleted remotely while the dialog is up leaves '
+      'the ledger as the remote delete left it', (tester) async {
     final ledger = buildShellLedger();
-    await _pumpConfirmation(tester, ShellLayoutMode.open, ledger: ledger);
+    final container = await _pumpConfirmation(
+      tester,
+      ShellLayoutMode.open,
+      ledger: ledger,
+    );
 
     ledger.deleteBudget(_budgetID);
     await tester.pumpAndSettle();
@@ -219,6 +223,8 @@ void main() {
 
     expect(ledger.revision, revision);
     expect(ledger.state.budgets.keys, [_otherBudgetID]);
+    expect(_confirmButton, findsNothing);
+    expect(container.read(selectedBudgetProvider), _budgetID);
   }, timeout: uiTestTimeout);
 
   for (final mode in [ShellLayoutMode.phone, ShellLayoutMode.open]) {

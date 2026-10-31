@@ -71,10 +71,12 @@ void main() {
   test('save writes the limit once and emits BudgetLimitSaved', () {
     final ledger = _ledger();
     final fixture = _open(ledger);
+    final revision = ledger.revision;
 
     fixture.viewModel.setAmount('250.50');
     fixture.viewModel.save();
 
+    expect(ledger.revision, revision + 1);
     expect(ledger.state.budgets[_budgetID]!.limit, Decimal.parse('250.50'));
     expect(_read(fixture).step, isA<BudgetLimitSaved>());
     expect(_read(fixture).error, isNull);
