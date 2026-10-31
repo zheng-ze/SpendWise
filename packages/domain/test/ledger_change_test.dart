@@ -35,14 +35,7 @@ Entry entry({String id = entryID, String name = 'e'}) => Entry(
 Budget budget({String id = budgetID, Decimal? amount}) => Budget(
   id: id,
   categoryID: categoryID,
-  limitEvents: [
-    LimitEvent(
-      effectiveFromMonth: null,
-      value: amount ?? Decimal.fromInt(100),
-      kind: LimitEventKind.defaultLimit,
-    ),
-  ],
-  createdAtMonth: const YearMonth(2026, 1),
+  limit: amount ?? Decimal.fromInt(100),
 );
 
 void main() {

@@ -77,18 +77,7 @@ void main() {
         ),
       ),
       UpsertBudget(
-        Budget(
-          id: uuid(6),
-          categoryID: uuid(2),
-          limitEvents: [
-            LimitEvent(
-              effectiveFromMonth: null,
-              value: Decimal.fromInt(100),
-              kind: LimitEventKind.defaultLimit,
-            ),
-          ],
-          createdAtMonth: const YearMonth(2026, 1),
-        ),
+        Budget(id: uuid(6), categoryID: uuid(2), limit: Decimal.fromInt(100)),
       ),
     ]);
 

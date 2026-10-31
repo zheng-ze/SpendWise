@@ -1,7 +1,7 @@
 part of '../ledger_state.dart';
 
 const _clauseBudgetCategory = 16;
-const _clauseBudgetLimitEvents = 17;
+const _clauseBudgetLimit = 17;
 
 extension LedgerStateBudgetInvariants on LedgerState {
   // MARK: - Category scope
@@ -20,39 +20,15 @@ extension LedgerStateBudgetInvariants on LedgerState {
     }
   }
 
-  // MARK: - Limit event shape
+  // MARK: - Limit
 
-  void _assertBudgetLimitEventShape() {
+  void _assertBudgetLimitPositive() {
     for (final budget in _budgets.values) {
-      final events = budget.limitEvents;
-      if (events.isEmpty) {
+      if (budget.limit <= Decimal.zero) {
         throw _violation(
-          _clauseBudgetLimitEvents,
-          'budget ${budget.id} has no limit events',
+          _clauseBudgetLimit,
+          'budget ${budget.id} has a nonpositive limit',
         );
-      }
-
-      final first = events.first;
-      if (first.effectiveFromMonth != null) {
-        throw _violation(
-          _clauseBudgetLimitEvents,
-          'budget ${budget.id} first event names a month',
-        );
-      }
-      if (first.kind != LimitEventKind.defaultLimit) {
-        throw _violation(
-          _clauseBudgetLimitEvents,
-          'budget ${budget.id} first event is not a default',
-        );
-      }
-
-      for (final event in events.skip(1)) {
-        if (event.effectiveFromMonth == null) {
-          throw _violation(
-            _clauseBudgetLimitEvents,
-            'budget ${budget.id} has a later event with no month',
-          );
-        }
       }
     }
   }

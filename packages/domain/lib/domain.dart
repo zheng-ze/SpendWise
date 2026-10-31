@@ -13,8 +13,6 @@ export 'src/analysis/card_statement_computation.dart';
 export 'src/analysis/net_worth.dart';
 export 'src/analysis/synthetic_buckets.dart';
 export 'src/budgets/budget.dart';
-export 'src/budgets/budget_limits.dart';
-export 'src/budgets/limit_event.dart';
 export 'src/entries/category_kind.dart';
 export 'src/entries/category_resolution.dart';
 export 'src/entries/entry.dart';

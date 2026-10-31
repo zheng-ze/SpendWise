@@ -3,73 +3,28 @@ part of '../ledger_state.dart';
 extension LedgerStateBudgets on LedgerState {
   // MARK: - Mutators
 
-  List<LedgerChange> addBudget(
-    String? categoryID,
-    Decimal initialAmount, {
-    required DateTime now,
-  }) {
+  List<LedgerChange> addBudget(String? categoryID, Decimal limit) {
     final normalizedCategoryID = normalizedOptionalID(categoryID);
     _validateCategoryReference(normalizedCategoryID);
     _validateCategoryUniqueness(normalizedCategoryID);
-    if (initialAmount <= Decimal.zero) throw const ZeroAmount();
+    if (limit <= Decimal.zero) throw const ZeroAmount();
 
-    final createdAtMonth = YearMonth.fromUtc(startOfDayUtc(now));
-    final budget = Budget(
-      categoryID: normalizedCategoryID,
-      limitEvents: [
-        LimitEvent(
-          effectiveFromMonth: null,
-          value: initialAmount,
-          kind: LimitEventKind.defaultLimit,
-        ),
-      ],
-      createdAtMonth: createdAtMonth,
-    );
+    final budget = Budget(categoryID: normalizedCategoryID, limit: limit);
     _budgets[budget.id] = budget;
     return _checked([UpsertBudget(budget)]);
   }
 
-  List<LedgerChange> updateBudgetAmount(
-    String rawBudgetID,
-    Decimal newAmount,
-    YearMonth effectiveFromMonth,
-  ) {
+  List<LedgerChange> updateBudgetLimit(String rawBudgetID, Decimal limit) {
     final budgetID = normalizedID(rawBudgetID);
     final stored = _budgets[budgetID];
     if (stored == null) throw UnknownBudget(budgetID);
 
-    if (newAmount <= Decimal.zero) throw const ZeroAmount();
+    if (limit <= Decimal.zero) throw const ZeroAmount();
 
-    final updated = _appendEvent(
-      stored,
-      LimitEvent(
-        effectiveFromMonth: effectiveFromMonth,
-        value: newAmount,
-        kind: LimitEventKind.defaultLimit,
-      ),
-    );
-    _budgets[updated.id] = updated;
-    return _checked([UpsertBudget(updated)]);
-  }
-
-  List<LedgerChange> setBudgetMonthOverride(
-    String rawBudgetID,
-    YearMonth month,
-    Decimal value,
-  ) {
-    final budgetID = normalizedID(rawBudgetID);
-    final stored = _budgets[budgetID];
-    if (stored == null) throw UnknownBudget(budgetID);
-
-    if (value <= Decimal.zero) throw const ZeroAmount();
-
-    final updated = _appendEvent(
-      stored,
-      LimitEvent(
-        effectiveFromMonth: month,
-        value: value,
-        kind: LimitEventKind.override,
-      ),
+    final updated = Budget(
+      id: stored.id,
+      categoryID: stored.categoryID,
+      limit: limit,
     );
     _budgets[updated.id] = updated;
     return _checked([UpsertBudget(updated)]);
@@ -83,13 +38,6 @@ extension LedgerStateBudgets on LedgerState {
   }
 
   // MARK: - Helpers
-
-  Budget _appendEvent(Budget stored, LimitEvent event) => Budget(
-    id: stored.id,
-    categoryID: stored.categoryID,
-    limitEvents: [...stored.limitEvents, event],
-    createdAtMonth: stored.createdAtMonth,
-  );
 
   void _validateCategoryReference(String? categoryID) {
     if (categoryID == null) return;
