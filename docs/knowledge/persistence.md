@@ -61,7 +61,8 @@ tables in `app/lib/sync/sync_tables.dart` follow their own keys; their table doc
 schema. The `entries` table carries nullable `note` (`TEXT`) and `system_kind` (`INTEGER`)
 columns alongside the other entry fields. `plans` flattens
 the `EntryTemplate` into `template_*` scalar columns, including nullable
-`template_note` (`TEXT`).
+`template_note` (`TEXT`). `budgets` holds `id`, nullable `category_id` and `limit_amount` (`TEXT`, the
+budget's one limit).
 
 ## Write pipeline
 
@@ -189,6 +190,25 @@ while other nullable plan columns keep their existing omission behavior, through
 writes, stamped writes and orphan-version branches alike. (tests `plan note persistence` in
 `drift_ledger_store_test.dart`, noted and absent-note plan mapping tests in `mappers_test.dart`,
 schema-7 migration tests in `sync_migration_test.dart`)
+
+## Single budget limit and schema 8
+
+A `Budget` has one `Decimal limit`. The `budgets` table stores `id`, `category_id` (nullable) and
+`limit_amount` `TEXT`; the column name avoids the SQL keyword `LIMIT`. `budgetFromRow` parses
+`row.limitAmount` with `Decimal.parse` and `budgetToRow` writes `limit.toString()`
+(`app/lib/persistence/mappers/mappers_plans_budgets.dart`).
+
+Schema 8 is the current `schemaVersion`. Its `from < 8` branch runs last in
+`app/lib/persistence/database/ledger_database.dart`. It drops and recreates `budgets` and runs
+`DELETE ... WHERE collection = 'budgets'` on `sync_staged_siblings`, `sync_staged_conflicts`,
+`sync_acknowledged_vectors` and `sync_orphan_tombstones`. No data migration exists: the former
+`limit_events` and `created_at_month` columns are not converted, and existing budgets are discarded.
+The sync clearing prevents a staged old-format budget sibling from failing payload decoding when
+`DriftSyncStagingStore.open` reloads staged rows. `sync_meta.budgets_cursor` and
+`sync_pending_acknowledgements` are intentionally kept: they are pull checkpoints, and resetting the
+cursor would re-pull remote rows in the old payload format that no longer decode. Row models are
+regenerated through `build_runner`, never edited by hand. (tests in `sync_migration_test.dart` and
+`schema_test.dart`)
 
 ## Seeding
 
