@@ -44,6 +44,27 @@ Future<ProviderContainer> _pumpFlow(
   return container;
 }
 
+Widget _destinationWrapper(ValueNotifier<bool> active, Widget flow) =>
+    ValueListenableBuilder<bool>(
+      valueListenable: active,
+      builder: (_, isActive, _) =>
+          DestinationActivity(active: isActive, child: flow),
+    );
+
+Future<(ProviderContainer, ValueNotifier<bool>)> _pumpTogglableFlow(
+  WidgetTester tester,
+  Ledger ledger,
+) async {
+  final active = ValueNotifier(true);
+  addTearDown(active.dispose);
+  final container = await _pumpFlow(
+    tester,
+    ledger,
+    wrap: (flow) => _destinationWrapper(active, flow),
+  );
+  return (container, active);
+}
+
 Future<void> _openDetail(
   WidgetTester tester,
   ProviderContainer container,
@@ -112,17 +133,7 @@ void main() {
   testWidgets('a retained step opens the editor with the live limit after the '
       'destination returns', (tester) async {
     final ledger = Ledger(state: LedgerState(budgets: {_budget.id: _budget}));
-    final active = ValueNotifier(true);
-    addTearDown(active.dispose);
-    final container = await _pumpFlow(
-      tester,
-      ledger,
-      wrap: (flow) => ValueListenableBuilder<bool>(
-        valueListenable: active,
-        builder: (_, isActive, _) =>
-            DestinationActivity(active: isActive, child: flow),
-      ),
-    );
+    final (container, active) = await _pumpTogglableFlow(tester, ledger);
     await _openDetail(tester, container, _budget.id);
     active.value = false;
     await tester.pumpAndSettle();
@@ -147,17 +158,7 @@ void main() {
       final ledger = Ledger(
         state: LedgerState(budgets: {_budget.id: _budget, _other.id: _other}),
       );
-      final active = ValueNotifier(true);
-      addTearDown(active.dispose);
-      final container = await _pumpFlow(
-        tester,
-        ledger,
-        wrap: (flow) => ValueListenableBuilder<bool>(
-          valueListenable: active,
-          builder: (_, isActive, _) =>
-              DestinationActivity(active: isActive, child: flow),
-        ),
-      );
+      final (container, active) = await _pumpTogglableFlow(tester, ledger);
       await _openDetail(tester, container, _budget.id);
       active.value = false;
       await tester.pumpAndSettle();

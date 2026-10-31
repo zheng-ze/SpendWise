@@ -175,6 +175,12 @@ Future<void> _openLimitEditorFromPane(WidgetTester tester) async {
 
 final _limitEditor = find.byType(BudgetLimitEditSheet);
 
+Future<void> _expectEditOpensEditor(WidgetTester tester) async {
+  await tester.tap(find.text(_editLabel));
+  await tester.pumpAndSettle();
+  expect(_limitEditor, findsOneWidget);
+}
+
 void _selectSegment(ProviderContainer container, MoneySegment segment) {
   container.read(moneySegmentProvider.notifier).state = segment;
 }
@@ -697,6 +703,7 @@ void main() {
       expect(ledger.state.budgets['b2']!.limit, Decimal.fromInt(50));
       expect(ledger.state.budgets['b1']!.limit, Decimal.fromInt(100));
       expect(container.read(selectedBudgetProvider), 'b1');
+      await _expectEditOpensEditor(tester);
     },
     timeout: uiTestTimeout,
   );
@@ -718,6 +725,8 @@ void main() {
       expect(oldLedger.state.budgets['b2']!.limit, Decimal.fromInt(50));
       expect(replacement.state.budgets['b2']!.limit, Decimal.fromInt(50));
       expect(container.read(selectedBudgetProvider), isNull);
+      await _tapBudget(tester, 'b2');
+      await _expectEditOpensEditor(tester);
     },
     timeout: uiTestTimeout,
   );
