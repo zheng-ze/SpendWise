@@ -111,7 +111,6 @@ abstract class BudgetsListViewModel {
   void requestBudgetDetail(String budgetID);
   void requestNewBudget();
 
-  void deleteBudget(String id);
   void retry();
   void clearStep();
 }
@@ -184,9 +183,6 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
     _step = BudgetFormRequested();
     emitStep(BudgetFormRequested());
   }
-
-  @override
-  void deleteBudget(String id) => ledger.deleteBudget(id);
 
   @override
   void clearStep() {

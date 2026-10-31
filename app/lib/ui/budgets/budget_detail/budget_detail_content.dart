@@ -18,7 +18,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 // MARK: - Constants
 const _contentPadding = EdgeInsets.all(12);
 const _sectionGap = 10.0;
-const _chartHeight = 220.0;
 const _progressGap = 10.0;
 const _progressHeight = 7.0;
 const _progressRadius = 4.0;
@@ -28,7 +27,10 @@ const _entriesSuffix = ' ENTRIES';
 const _emptyIcon = Icons.receipt_long_outlined;
 const _failureTitle = "Couldn't load this budget";
 const _retryLabel = 'Try again';
-const _deletedText = 'Budget deleted';
+const _deletedIcon = Icons.speed_outlined;
+const _deletedTitle = 'This budget was deleted';
+const _deletedBody = 'It was removed on another screen or device.';
+const _deletedActionLabel = 'Back to Budgets';
 const _failureGap = 8.0;
 
 // MARK: - BudgetDetailContent
@@ -46,9 +48,15 @@ class BudgetDetailContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final presentation = budgetDetailPresentation(viewState);
     if (presentation.body == BudgetDetailBody.deleted) {
-      return const Padding(
+      return Padding(
         padding: _contentPadding,
-        child: Center(child: Text(_deletedText)),
+        child: EmptyState(
+          icon: _deletedIcon,
+          title: _deletedTitle,
+          body: _deletedBody,
+          actionLabel: _deletedActionLabel,
+          onAction: viewModel.closeDeleted,
+        ),
       );
     }
 
@@ -191,17 +199,13 @@ class _ChartTray extends StatelessWidget {
         onChanged: viewModel.changeYear,
       ),
     );
-    final chart = SizedBox(
-      height: _chartHeight,
-      child: BudgetDetailChart(
-        months: projection.months,
-        slots: budgetMonthBarSlots(projection.slots),
-        limit: projection.limit,
-        maxY: projection.chartMaxYValue,
-        selectedMonth: viewState.selectedMonth,
-        onSelectMonth: viewModel.selectMonth,
-        barColor: AmountStyle.of(context, kind: AmountKind.expense).color,
-      ),
+    final chart = BudgetDetailChart(
+      months: projection.months,
+      slots: budgetMonthBarSlots(projection.slots),
+      limit: projection.limit,
+      maxY: projection.chartMaxYValue,
+      selectedMonth: viewState.selectedMonth,
+      onSelectMonth: viewModel.selectMonth,
     );
 
     return Tray(
@@ -227,10 +231,6 @@ class _EntriesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final copy = emptyCopy;
-    if (copy != null) {
-      return EmptyState(icon: _emptyIcon, title: copy.title, body: copy.body);
-    }
-
     final theme = Theme.of(context);
     final label = Padding(
       padding: _entriesLabelPadding,
@@ -241,15 +241,17 @@ class _EntriesSection extends StatelessWidget {
         ),
       ),
     );
-    final entryList = BudgetCountedEntryList(
-      ledger: viewState.ledger,
-      state: viewState.ledgerState,
-      counted: viewState.countedEntries,
-    );
+    final Widget content = copy == null
+        ? BudgetCountedEntryList(
+            ledger: viewState.ledger,
+            state: viewState.ledgerState,
+            counted: viewState.countedEntries,
+          )
+        : EmptyState(icon: _emptyIcon, title: copy.title, body: copy.body);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [label, entryList],
+      children: [label, content],
     );
   }
 }

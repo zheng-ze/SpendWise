@@ -51,9 +51,11 @@ class _BudgetDetailPage extends StatelessWidget {
     );
 
     return Scaffold(
-      appBar: isDeleted
-          ? null
-          : _BudgetDetailAppBar(title: viewState.title, viewModel: viewModel),
+      appBar: _BudgetDetailAppBar(
+        title: viewState.title,
+        viewModel: viewModel,
+        showEdit: !isDeleted,
+      ),
       body: SafeArea(
         child: ListView(
           physics: const ClampingScrollPhysics(),
@@ -67,27 +69,28 @@ class _BudgetDetailPage extends StatelessWidget {
 // MARK: - App Bar
 class _BudgetDetailAppBar extends StatelessWidget
     implements PreferredSizeWidget {
-  const _BudgetDetailAppBar({required this.title, required this.viewModel});
+  const _BudgetDetailAppBar({
+    required this.title,
+    required this.viewModel,
+    required this.showEdit,
+  });
 
-  static const _editTooltip = 'Edit limit';
+  static const _editTooltip = 'Edit';
 
   final String title;
   final BudgetDetailViewModel viewModel;
+  final bool showEdit;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
   @override
   Widget build(BuildContext context) {
-    return AppBar(
-      title: Text(title),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.edit_outlined),
-          tooltip: _editTooltip,
-          onPressed: viewModel.requestLimitEdit,
-        ),
-      ],
+    final edit = IconButton(
+      icon: const Icon(Icons.edit_outlined),
+      tooltip: _editTooltip,
+      onPressed: viewModel.requestEdit,
     );
+    return AppBar(title: Text(title), actions: showEdit ? [edit] : const []);
   }
 }

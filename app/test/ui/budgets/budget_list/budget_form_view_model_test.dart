@@ -6,137 +6,219 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_scope_options.dart';
+
+TransactionCategory _category(String name) => TransactionCategory(
+  name: name,
+  kind: CategoryKind.expense,
+  colorHex: '#00AA00',
+  includeInAnalysis: true,
+  parentID: null,
+  symbol: 'restaurant',
+);
+
+typedef _Fixture = ({
+  ProviderContainer container,
+  BudgetDraftKey key,
+  BudgetFormNotifier viewModel,
+});
+
+BudgetFormViewState _read(_Fixture fixture) => fixture.container
+    .read(budgetFormViewModelProvider(fixture.key))
+    .requireValue;
+
+Future<_Fixture> _open(Ledger? ledger) async {
+  final container = ProviderContainer(
+    overrides: [ledgerProvider.overrideWithValue(ledger)],
+  );
+  addTearDown(container.dispose);
+  final key = BudgetDraftKey();
+  final provider = budgetFormViewModelProvider(key);
+  container.listen(provider, (_, _) {});
+  await container.read(provider.future).then((_) {}, onError: (_) {});
+  return (
+    container: container,
+    key: key,
+    viewModel: container.read(provider.notifier),
+  );
+}
 
 void main() {
-  final draftKey = BudgetDraftKey();
+  test('a fresh draft selects All spending when that slot is free', () async {
+    final fixture = await _open(Ledger(state: LedgerState()));
 
-  Decimal dec(String value) => Decimal.parse(value);
+    final state = _read(fixture);
 
-  Budget buildBudget({String? categoryID, String id = 'stale'}) {
-    return Budget(id: id, categoryID: categoryID, limit: dec('100'));
-  }
-
-  ProviderContainer buildContainer(Ledger ledger) {
-    final container = ProviderContainer(
-      overrides: [ledgerProvider.overrideWithValue(ledger)],
-    );
-    addTearDown(container.dispose);
-    return container;
-  }
-
-  test('build starts with an empty amount and Overall selected', () async {
-    final container = buildContainer(Ledger(state: LedgerState()));
-
-    final state = await container.read(
-      budgetFormViewModelProvider(draftKey).future,
-    );
-
-    expect(state.categoryID, isNull);
+    expect(state.scope, const AllSpendingChosen());
     expect(state.amountText, '');
     expect(state.canSave, isFalse);
   });
 
-  test('setAmount updates the amount text and recomputes canSave', () async {
-    final container = buildContainer(Ledger(state: LedgerState()));
-    await container.read(budgetFormViewModelProvider(draftKey).future);
-    final viewModel = container.read(
-      budgetFormViewModelProvider(draftKey).notifier,
-    );
+  test('a fresh draft has no scope when All spending is budgeted', () async {
+    final overall = Budget(categoryID: null, limit: Decimal.fromInt(10));
+    final ledger = Ledger(state: LedgerState(budgets: {overall.id: overall}));
+    final fixture = await _open(ledger);
 
-    viewModel.setAmount('250.00');
+    final state = _read(fixture);
 
-    final state = container.read(budgetFormViewModelProvider(draftKey)).value;
-    expect(state?.amountText, '250.00');
-    expect(state?.canSave, isTrue);
+    expect(state.scope, isNull);
+    expect(state.scopeLabel, 'Choose');
+  });
+
+  for (final (raw, saveable) in [
+    ('', false),
+    ('.', false),
+    ('0', false),
+    ('-5', false),
+    ('0.01', true),
+    ('250.00', true),
+  ]) {
+    test('canSave is $saveable for amount "$raw"', () async {
+      final fixture = await _open(Ledger(state: LedgerState()));
+
+      fixture.viewModel.setAmount(raw);
+
+      expect(_read(fixture).canSave, saveable);
+    });
+  }
+
+  test('canSave is false without a scope even with a valid amount', () async {
+    final overall = Budget(categoryID: null, limit: Decimal.fromInt(10));
+    final ledger = Ledger(state: LedgerState(budgets: {overall.id: overall}));
+    final fixture = await _open(ledger);
+
+    fixture.viewModel.setAmount('5');
+
+    expect(_read(fixture).canSave, isFalse);
   });
 
   test('requestPickCategory emits PickCategoryRequested', () async {
-    final container = buildContainer(Ledger(state: LedgerState()));
-    await container.read(budgetFormViewModelProvider(draftKey).future);
-    final viewModel = container.read(
-      budgetFormViewModelProvider(draftKey).notifier,
-    );
+    final fixture = await _open(Ledger(state: LedgerState()));
 
-    viewModel.requestPickCategory();
+    fixture.viewModel.requestPickCategory();
 
-    expect(
-      container.read(budgetFormViewModelProvider(draftKey)).value?.step,
-      isA<PickCategoryRequested>(),
-    );
+    expect(_read(fixture).step, isA<PickCategoryRequested>());
   });
 
-  test('applyPickedCategory sets the category and clears the step', () async {
-    final container = buildContainer(Ledger(state: LedgerState()));
-    await container.read(budgetFormViewModelProvider(draftKey).future);
-    final viewModel = container.read(
-      budgetFormViewModelProvider(draftKey).notifier,
-    );
+  test('applyPickedScope sets the scope label and clears the step', () async {
+    final food = _category('Food');
+    final ledger = Ledger(state: LedgerState(categories: {food.id: food}));
+    final fixture = await _open(ledger);
 
-    viewModel.requestPickCategory();
-    viewModel.applyPickedCategory('c1');
+    fixture.viewModel.requestPickCategory();
+    fixture.viewModel.applyPickedScope(CategoryChosen(food.id));
 
-    final state = container.read(budgetFormViewModelProvider(draftKey)).value;
-    expect(state?.categoryID, 'c1');
-    expect(state?.step, isNull);
+    expect(_read(fixture).scopeLabel, 'Food');
+    expect(_read(fixture).step, isNull);
+  });
+
+  test('save writes exactly one budget with the chosen category', () async {
+    final food = _category('Food');
+    final ledger = Ledger(state: LedgerState(categories: {food.id: food}));
+    final fixture = await _open(ledger);
+
+    fixture.viewModel.applyPickedScope(CategoryChosen(food.id));
+    fixture.viewModel.setAmount('250.50');
+    await fixture.viewModel.save();
+
+    final budget = ledger.state.budgets.values.single;
+    expect(budget.categoryID, food.id);
+    expect(budget.limit, Decimal.parse('250.50'));
+    expect(_read(fixture).step, isA<BudgetFormSaved>());
+    expect(_read(fixture).error, isNull);
+  });
+
+  test('save with All spending writes an unscoped budget', () async {
+    final ledger = Ledger(state: LedgerState());
+    final fixture = await _open(ledger);
+
+    fixture.viewModel.setAmount('10');
+    await fixture.viewModel.save();
+
+    expect(ledger.state.budgets.values.single.categoryID, isNull);
+  });
+
+  test('save does nothing while the draft cannot be saved', () async {
+    final ledger = Ledger(state: LedgerState());
+    final fixture = await _open(ledger);
+
+    fixture.viewModel.setAmount('-5');
+    await fixture.viewModel.save();
+
+    expect(ledger.state.budgets, isEmpty);
+    expect(_read(fixture).step, isNull);
   });
 
   test(
-    'save rejects a duplicate Overall budget, keeping the entered amount',
+    'a budget added elsewhere keeps the draft and a retry writes once',
     () async {
-      final existingOverall = buildBudget(categoryID: null, id: 'b1');
-      final ledger = Ledger(
-        state: LedgerState(budgets: {existingOverall.id: existingOverall}),
-      );
-      final container = buildContainer(ledger);
-      await container.read(budgetFormViewModelProvider(draftKey).future);
-      final viewModel = container.read(
-        budgetFormViewModelProvider(draftKey).notifier,
-      );
+      final food = _category('Food');
+      final ledger = Ledger(state: LedgerState(categories: {food.id: food}));
+      final fixture = await _open(ledger);
+      fixture.viewModel.setAmount('250.00');
+      ledger.addBudget(null, Decimal.fromInt(10));
 
-      viewModel.setAmount('250.00');
-      await viewModel.save();
+      await fixture.viewModel.save();
 
-      final state = container.read(budgetFormViewModelProvider(draftKey)).value;
-      expect(state?.error, isA<LedgerError>());
-      expect(state?.amountText, '250.00');
-      expect(state?.step, isNull);
+      expect(_read(fixture).error, isA<CategoryAlreadyBudgeted>());
+      expect(_read(fixture).amountText, '250.00');
+      expect(_read(fixture).step, isNull);
+
+      fixture.viewModel.applyPickedScope(CategoryChosen(food.id));
+      await fixture.viewModel.save();
+
+      expect(ledger.state.budgets, hasLength(2));
+      expect(_read(fixture).error, isNull);
     },
   );
 
-  test('save adds the budget and emits BudgetFormSaved on success', () async {
-    final ledger = Ledger(state: LedgerState());
-    final container = buildContainer(ledger);
-    await container.read(budgetFormViewModelProvider(draftKey).future);
-    final viewModel = container.read(
-      budgetFormViewModelProvider(draftKey).notifier,
-    );
+  test(
+    'a category archived after the pick keeps the draft and the error',
+    () async {
+      final food = _category('Food');
+      final ledger = Ledger(state: LedgerState(categories: {food.id: food}));
+      final fixture = await _open(ledger);
+      fixture.viewModel.applyPickedScope(CategoryChosen(food.id));
+      fixture.viewModel.setAmount('20');
+      ledger.deleteCategory(food.id);
 
-    viewModel.setAmount('250.00');
-    await viewModel.save();
+      await fixture.viewModel.save();
 
-    expect(ledger.state.budgets, hasLength(1));
-    final state = container.read(budgetFormViewModelProvider(draftKey)).value;
-    expect(state?.step, isA<BudgetFormSaved>());
-    expect(state?.error, isNull);
-  });
+      expect(_read(fixture).error, isA<InactiveReference>());
+      expect(_read(fixture).amountText, '20');
+      expect(ledger.state.budgets, isEmpty);
+    },
+  );
+
+  test(
+    'an initialization failure becomes an error and retry reloads once',
+    () async {
+      final container = ProviderContainer(
+        overrides: [ledgerProvider.overrideWithValue(null)],
+      );
+      addTearDown(container.dispose);
+      final provider = budgetFormViewModelProvider(BudgetDraftKey());
+      final seen = <AsyncValue<BudgetFormViewState>>[];
+      container.listen(provider, (_, next) => seen.add(next));
+      await container.read(provider.future).then((_) {}, onError: (_) {});
+      expect(container.read(provider).error, isA<StateError>());
+      seen.clear();
+
+      container.read(provider.notifier).retry();
+      await container.read(provider.future).then((_) {}, onError: (_) {});
+
+      expect(seen.first.isLoading, isTrue);
+      expect(seen.where((value) => value.isLoading), hasLength(1));
+      expect(container.read(provider).error, isA<StateError>());
+    },
+  );
 
   test('clearStep resets the step to null', () async {
-    final container = buildContainer(Ledger(state: LedgerState()));
-    await container.read(budgetFormViewModelProvider(draftKey).future);
-    final viewModel = container.read(
-      budgetFormViewModelProvider(draftKey).notifier,
-    );
+    final fixture = await _open(Ledger(state: LedgerState()));
+    fixture.viewModel.requestPickCategory();
 
-    viewModel.requestPickCategory();
-    expect(
-      container.read(budgetFormViewModelProvider(draftKey)).value?.step,
-      isNotNull,
-    );
+    fixture.viewModel.clearStep();
 
-    viewModel.clearStep();
-    expect(
-      container.read(budgetFormViewModelProvider(draftKey)).value?.step,
-      isNull,
-    );
+    expect(_read(fixture).step, isNull);
   });
 }

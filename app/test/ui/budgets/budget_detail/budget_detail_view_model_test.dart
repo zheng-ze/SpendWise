@@ -9,6 +9,7 @@ import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_presentation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 
 import 'budget_detail_test_support.dart';
 
@@ -452,27 +453,6 @@ void main() {
     expect(state.projection?.chartMaxYValue, closeTo(115.0, 1e-9));
   });
 
-  test(
-    'requestLimitEdit emits BudgetLimitEditRequested, clearStep resets it',
-    () async {
-      final container = detailContainer(
-        ledger: detailLedger(budgets: [detailBudget()]),
-        clock: DetailClock(october),
-      );
-      keepDetailAlive(container);
-      await settledDetail(container);
-      final viewModel = container.read(
-        budgetDetailViewModelProvider(detailBudgetID).notifier,
-      );
-
-      viewModel.requestLimitEdit();
-      expect(detailState(container).step, isA<BudgetLimitEditRequested>());
-
-      viewModel.clearStep();
-      expect(detailState(container).step, isNull);
-    },
-  );
-
   BudgetDetailViewModel keepViewModel(ProviderContainer container) {
     keepDetailAlive(container);
     return container.read(
@@ -485,23 +465,84 @@ void main() {
     clock: DetailClock(october),
   );
 
-  Decimal? storedLimit(ProviderContainer container) =>
-      container.read(ledgerProvider)!.state.budgets[detailBudgetID]?.limit;
-
-  test('requestLimitEdit emits only when the budget exists', () async {
+  test('requestEdit emits only when the budget exists', () async {
     final present = limitContainer();
-    keepViewModel(present).requestLimitEdit();
+    keepViewModel(present).requestEdit();
     final missing = limitContainer(withBudget: false);
-    keepViewModel(missing).requestLimitEdit();
+    keepViewModel(missing).requestEdit();
 
-    expect(detailState(present).step, isA<BudgetLimitEditRequested>());
+    expect(detailState(present).step, isA<BudgetEditRequested>());
     expect(detailState(missing).step, isNull);
   });
 
-  test('clearStep resets the limit edit step', () async {
+  test('deleteBudget deletes the budget once and leaves entries', () {
+    final entry = lunch(DateTime.utc(2026, 10, 3));
+    final other = detailBudget(id: 'b2', categoryID: foodCategory.id);
+    final ledger = detailLedger(
+      budgets: [detailBudget(), other],
+      entries: [entry],
+    );
+    final container = detailContainer(
+      ledger: ledger,
+      clock: DetailClock(october),
+    );
+
+    final revision = ledger.revision;
+
+    keepViewModel(container).deleteBudget();
+
+    expect(ledger.revision, revision + 1);
+    expect(ledger.state.budgets.keys, [other.id]);
+    expect(ledger.state.entries.containsKey(entry.id), isTrue);
+  });
+
+  test('the deleted phase keeps the last ready title', () async {
+    final ledger = detailLedger(budgets: [detailBudget()]);
+    final container = detailContainer(
+      ledger: ledger,
+      clock: DetailClock(october),
+    );
+    keepDetailAlive(container);
+    final ready = await settledDetail(container);
+
+    ledger.deleteBudget(detailBudgetID);
+    final deleted = await settledDetail(container);
+
+    expect(ready.phase, BudgetDetailPhase.ready);
+    expect(deleted.phase, BudgetDetailPhase.deleted);
+    expect(deleted.title, ready.title);
+    expect(deleted.title, isNotEmpty);
+  });
+
+  test('closeDeleted clears the budget selection', () {
+    final container = limitContainer(withBudget: false);
+    final viewModel = keepViewModel(container);
+    container.read(selectedBudgetProvider.notifier).select(detailBudgetID);
+
+    viewModel.closeDeleted();
+
+    expect(container.read(selectedBudgetProvider), isNull);
+  });
+
+  test('deleteBudget does nothing when the budget is missing', () {
+    final ledger = detailLedger(budgets: [detailBudget(id: 'b2')]);
+    final container = detailContainer(
+      ledger: ledger,
+      clock: DetailClock(october),
+    );
+    final viewModel = keepViewModel(container);
+    final revision = ledger.revision;
+
+    viewModel.deleteBudget();
+
+    expect(ledger.revision, revision);
+    expect(ledger.state.budgets.keys, ['b2']);
+  });
+
+  test('clearStep resets the edit step', () async {
     final container = limitContainer();
     final viewModel = keepViewModel(container);
-    viewModel.requestLimitEdit();
+    viewModel.requestEdit();
 
     viewModel.clearStep();
 
@@ -517,44 +558,6 @@ void main() {
     container.read(ledgerProvider)!.updateBudgetLimit(detailBudgetID, dec('7'));
     expect(viewModel.liveLimit, dec('7'));
     expect(missing.liveLimit, isNull);
-  });
-
-  test('applyLimit updates the budget limit', () {
-    final container = limitContainer();
-
-    keepViewModel(container).applyLimit(dec('250'));
-
-    expect(storedLimit(container), dec('250'));
-  });
-
-  test('applyLimit ignores null and nonpositive amounts', () {
-    final container = limitContainer();
-    final viewModel = keepViewModel(container);
-
-    viewModel.applyLimit(null);
-    viewModel.applyLimit(Decimal.zero);
-    viewModel.applyLimit(dec('-5'));
-
-    expect(storedLimit(container), dec('100'));
-  });
-
-  test('applyLimit ignores a missing budget', () {
-    final container = limitContainer(withBudget: false);
-
-    keepViewModel(container).applyLimit(dec('250'));
-
-    expect(storedLimit(container), isNull);
-  });
-
-  test('applyLimit ignores an unmounted view model', () {
-    final container = limitContainer();
-    final viewModel = keepViewModel(container);
-    final ledger = container.read(ledgerProvider)!;
-    container.dispose();
-
-    viewModel.applyLimit(dec('250'));
-
-    expect(ledger.state.budgets[detailBudgetID]?.limit, dec('100'));
   });
 
   test('a deleted budget reports the deleted phase', () async {

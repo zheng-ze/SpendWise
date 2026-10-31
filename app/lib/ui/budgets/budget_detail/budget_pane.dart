@@ -11,11 +11,10 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 
 // MARK: - Constants
 const _paneScrollPhysics = ClampingScrollPhysics();
-const _deletedBudgetTitle = '';
 const _editLabel = 'Edit';
 
 // MARK: - BudgetPaneHeader
-typedef BudgetPaneHeader = ({String title, String subtitle});
+typedef BudgetPaneHeader = ({String title, String subtitle, bool deleted});
 
 final budgetPaneHeaderProvider = Provider.autoDispose
     .family<BudgetPaneHeader, String>((ref, budgetID) {
@@ -25,11 +24,17 @@ final budgetPaneHeaderProvider = Provider.autoDispose
       final month = ref.watch(
         budgetDetailContextProvider(budgetID).select((c) => c.selectedMonth),
       );
+      final deleted = budget == null || state == null;
+      final lastTitle = deleted
+          ? ref.watch(
+              budgetDetailViewModelProvider(budgetID)
+                  .select((s) => s.value?.title),
+            )
+          : null;
       return (
-        title: budget == null || state == null
-            ? _deletedBudgetTitle
-            : budgetTitle(budget, state),
+        title: deleted ? lastTitle ?? '' : budgetTitle(budget, state),
         subtitle: formatMonthLabel(month),
+        deleted: deleted,
       );
     });
 
@@ -41,9 +46,8 @@ final budgetPaneProvider = Provider.autoDispose<BudgetPane?>((ref) {
   final phone = ref.watch(shellLayoutModeProvider) == ShellLayoutMode.phone;
   if (budgetID == null || phone) return null;
   final header = ref.watch(budgetPaneHeaderProvider(budgetID));
-  void requestEdit() => ref
-      .read(budgetDetailViewModelProvider(budgetID).notifier)
-      .requestLimitEdit();
+  void requestEdit() =>
+      ref.read(budgetDetailViewModelProvider(budgetID).notifier).requestEdit();
   final edit = TextButton.icon(
     onPressed: requestEdit,
     icon: const Icon(Icons.edit_outlined),
@@ -54,7 +58,7 @@ final budgetPaneProvider = Provider.autoDispose<BudgetPane?>((ref) {
     title: header.title,
     subtitle: header.subtitle,
     bodyBuilder: (_) => BudgetPaneBody(budgetID: budgetID),
-    headerActions: [edit],
+    headerActions: header.deleted ? const [] : [edit],
   );
   void close() => ref.read(selectedBudgetProvider.notifier).clear();
   return (detail: detail, close: close);

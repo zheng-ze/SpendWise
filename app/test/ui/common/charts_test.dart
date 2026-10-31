@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ui/common/charts/donut_chart.dart';
+import 'package:spendwise/ui/common/charts/month_bar_chart.dart';
 import 'package:spendwise/ui/common/charts/month_bars.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
@@ -45,6 +46,47 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
     expect(selections, [3]);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('month bar chart axis selects any month and tolerates a limit', (
+    tester,
+  ) async {
+    final selections = <int>[];
+    final columns = [
+      const MonthBarColumn(
+        slot: MonthBarSlot(value: 50),
+        label: 'J',
+        semanticLabel: 'January 2026',
+      ),
+      const MonthBarColumn(
+        slot: MonthBarSlot(status: MonthBarStatus.gap),
+        label: 'F',
+        semanticLabel: 'February 2026',
+      ),
+      const MonthBarColumn(
+        slot: MonthBarSlot(status: MonthBarStatus.blank),
+        label: 'M',
+        semanticLabel: 'March 2026',
+      ),
+    ];
+    await tester.pumpWidget(
+      _host(
+        MonthBarChart(
+          columns: columns,
+          limit: 40,
+          maxValue: 60,
+          selectedIndex: 1,
+          onSelect: selections.add,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.bySemanticsLabel('February 2026'));
+    await tester.tap(find.bySemanticsLabel('March 2026'));
+    await tester.pumpAndSettle();
+    expect(selections, [1, 2]);
   }, timeout: uiTestTimeout);
 
   testWidgets('donut slices select only on a completed tap', (tester) async {

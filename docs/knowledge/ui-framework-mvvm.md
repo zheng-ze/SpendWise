@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-29
+Last reconciled: 2026-10-31
 
 ## Feature overview
 
@@ -312,8 +312,11 @@ value, which then overwrites it. (issue #38)
   the rail, while an IgnorePointer layer dims only the pane region. The open
   dialog has a 308 dp maximum width and bounded scrolling. Phone and desktop
   remain centred over the full window. Delete and recycle-bin purge helpers
-  use this route and map null to false, preserving their wording and results.
+  use this route and map null to false, preserving their wording and results. The budget delete
+  confirmation (`showBudgetDeleteConfirmation`) also uses it; it is a plain modal route that shell
+  occupancy does not track.
   (`app/lib/ui/shell/shell_confirmation.dart`,
+  `app/lib/ui/budgets/budget_detail/budget_delete_confirmation.dart`,
   `app/lib/ui/common/feedback/delete_confirmation.dart`,
   `app/lib/ui/settings/recycle_bin/recycle_bin_purge_dialog.dart`)
 - **Destructive confirmation styling** - the confirm action is a filled button
@@ -365,9 +368,13 @@ value, which then overwrites it. (issue #38)
   without selecting a destination. (`app/lib/ui/shell/shell_sheet_occupancy.dart`,
   `app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_pane_host.dart`)
   Sheets dismiss through their mounted route context or captured exact route. A retained Flow's
-  `navigatorContext` can refer to a different Navigator. Future #425 editors must use exact-route
-  dismissal and install their next loading route from the previous route's completion continuation
-  before awaiting initialization, preserving composition without a timer or captured pane owner.
+  `navigatorContext` can refer to a different Navigator. Budgets ships this exact-route session
+  pattern: `_FormSession` and `_EditSession` in `budgets_flow.dart` capture the sheet's
+  `AppSheetRoute` through `onRouteCreated`, dismiss it with `pop` when current or `removeRoute`
+  when covered, and end at `route.completed`. The Edit flow installs its next surface from the action
+  sheet's pop-result continuation, before that route's `completed` fires, so shell occupancy stays
+  continuous. Retirement removes the route after the frame ends.
+  No timer or captured pane owner is involved. See [budgets.md](budgets.md).
 - **Add form surface** - `AppSheetVariant.form` is used by the Add loading and loaded forms.
   In light mode its canvas backing uses `SpendWiseColors.base`; desktop form chrome docks in the right column with
   no grab handle. Standard sheets retain their existing chrome. Phone Add enables
@@ -400,11 +407,12 @@ value, which then overwrites it. (issue #38)
   coloured through `AmountStyle`), `SegmentedControl`, `CompactLabelledFab` with `FabReserveSpace`,
   `NoticeCard`, `EmptyState`, `LoadingTrays` and `ErrorSection` with an optional filled retry.
 - **Selection** - `SegmentedControl` and the selectable charts report choices through
-  callbacks; the caller supplies the selected value/index on rebuild. `MonthBars` and
-  `DonutChart` use `selectedMark` fill with no selection stroke. Month blanks stay zero-height
-  even when selected; unselected gaps are dashed stubs and incomplete bars retain their
-  distinct fill/outline. (`app/lib/ui/common/inputs/segmented_control.dart`,
-  `app/lib/ui/common/charts/month_bars.dart`, `app/lib/ui/common/charts/donut_chart.dart`)
+  callbacks; the caller supplies the selected value/index on rebuild. `MonthBarChart` (baseline, `MonthBars` and the month axis cells, used by `TrendsChart` and
+  `BudgetDetailChart`) and `DonutChart` use `selectedMark` fill with no selection stroke. Gap and blank
+  months draw no bar, selected or not, and incomplete months draw like any value month. Tapping an axis
+  cell selects its month even when it has no bar. `MonthBarChart` optionally draws a dashed limit line,
+  the only difference between the budget chart and the Trends chart. (`app/lib/ui/common/inputs/segmented_control.dart`,
+  `app/lib/ui/common/charts/month_bar_chart.dart`, `app/lib/ui/common/charts/month_bars.dart`, `app/lib/ui/common/charts/donut_chart.dart`)
 - **CategoryMap** (`app/lib/ui/common/charts/category_map.dart`) uses pure squarified
   `layoutCategoryMap`; returned rectangles and selection callbacks preserve input indices
   despite sorting for layout. Labels pair the category name with its share, never a bare

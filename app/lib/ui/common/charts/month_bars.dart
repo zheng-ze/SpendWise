@@ -33,6 +33,7 @@ class MonthBars extends StatelessWidget {
     this.onSelect,
     this.maxValue,
     this.height = _defaultHeight,
+    this.limit,
   });
 
   static const _defaultHeight = 92.0;
@@ -43,23 +44,21 @@ class MonthBars extends StatelessWidget {
 
   static const _barWidth = 16.0;
 
-  static const _stubFraction = 0.09;
-
-  static const _outlineWidth = 1.0;
-
-  static const _dashLength = 4;
-
-  static const _dashGap = 3;
-
   static const _transparent = Color(0x00000000);
 
   static const _noStroke = BorderSide(width: 0, color: _transparent);
 
+  static const _limitLineWidth = 2.0;
+
+  static const _limitDashLength = 6;
+
+  static const _limitDashGap = 4;
+
+  static const _limitDashPattern = [_limitDashLength, _limitDashGap];
+
   static const _barRadius = BorderRadius.vertical(
     top: Radius.circular(_topRadius),
   );
-
-  static const _dashPattern = [_dashLength, _dashGap];
 
   static const _tooltipTransparent = Color(0x00000000);
 
@@ -72,6 +71,8 @@ class MonthBars extends StatelessWidget {
   final double? maxValue;
 
   final double height;
+
+  final double? limit;
 
   @override
   Widget build(BuildContext context) {
@@ -96,6 +97,19 @@ class MonthBars extends StatelessWidget {
         if (index != null) onSelect!(index);
       },
     );
+    final limitLine = limit;
+    final lineColor = Theme.of(context).colorScheme.onSurface;
+    final extraLines = ExtraLinesData(
+      horizontalLines: [
+        if (limitLine != null)
+          HorizontalLine(
+            y: limitLine,
+            color: lineColor,
+            strokeWidth: _limitLineWidth,
+            dashArray: _limitDashPattern,
+          ),
+      ],
+    );
     final chartData = BarChartData(
       minY: _emptyValue,
       maxY: top,
@@ -103,6 +117,7 @@ class MonthBars extends StatelessWidget {
       gridData: const FlGridData(show: false),
       borderData: FlBorderData(show: false),
       titlesData: const FlTitlesData(show: false),
+      extraLinesData: extraLines,
       barTouchData: touchData,
       barGroups: groups,
     );
@@ -130,49 +145,39 @@ class MonthBars extends StatelessWidget {
     double top,
   ) {
     const radius = _barRadius;
-    const noStroke = _noStroke;
     const barWidth = _barWidth;
-    final stubHeight = top * _stubFraction;
-    if (selected) {
-      final selectedHeight = switch (slot.status) {
-        MonthBarStatus.blank => _emptyValue,
-        MonthBarStatus.gap => stubHeight,
-        MonthBarStatus.value || MonthBarStatus.incomplete => slot.value,
-      };
+    final drawsBar = switch (slot.status) {
+      MonthBarStatus.value || MonthBarStatus.incomplete => true,
+      MonthBarStatus.gap || MonthBarStatus.blank => false,
+    };
+    final touchArea = BackgroundBarChartRodData(
+      show: true,
+      toY: top,
+      color: _transparent,
+    );
+    if (!drawsBar) {
       return BarChartRodData(
-        toY: selectedHeight,
+        toY: _emptyValue,
+        width: barWidth,
+        backDrawRodData: touchArea,
+      );
+    }
+    if (selected) {
+      return BarChartRodData(
+        toY: slot.value,
         width: barWidth,
         color: colors.selectedMark,
         borderRadius: radius,
-        borderSide: noStroke,
+        borderSide: _noStroke,
+        backDrawRodData: touchArea,
       );
     }
-    return switch (slot.status) {
-      MonthBarStatus.value => BarChartRodData(
-        toY: slot.value,
-        width: barWidth,
-        color: colors.action,
-        borderRadius: radius,
-      ),
-      MonthBarStatus.incomplete => BarChartRodData(
-        toY: slot.value,
-        width: barWidth,
-        color: colors.incomplete,
-        borderRadius: radius,
-        borderSide: BorderSide(color: colors.action, width: _outlineWidth),
-      ),
-      MonthBarStatus.gap => BarChartRodData(
-        toY: stubHeight,
-        width: barWidth,
-        color: _transparent,
-        borderRadius: radius,
-        borderSide: BorderSide(color: colors.gap, width: _outlineWidth),
-        borderDashArray: _dashPattern,
-      ),
-      MonthBarStatus.blank => BarChartRodData(
-        toY: _emptyValue,
-        width: barWidth,
-      ),
-    };
+    return BarChartRodData(
+      toY: slot.value,
+      width: barWidth,
+      color: colors.action,
+      borderRadius: radius,
+      backDrawRodData: touchArea,
+    );
   }
 }
