@@ -10,7 +10,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 // MARK: - Constants
 
 const _chartBaseline = 0.0;
-const _transparent = Color(0x00000000);
 
 // MARK: - Chart
 
@@ -86,7 +85,6 @@ class BudgetDetailSpendBars extends StatelessWidget {
   static const _barCornerRadius = 4.0;
   static const _stubFraction = 0.09;
   static const _outlineWidth = 1.0;
-  static const _dashPattern = [4, 3];
 
   @override
   Widget build(BuildContext context) {
@@ -178,15 +176,7 @@ class BudgetDetailSpendBars extends StatelessWidget {
         borderRadius: radius,
         borderSide: BorderSide(color: colors.action, width: _outlineWidth),
       ),
-      MonthBarStatus.gap => BarChartRodData(
-        toY: stubHeight,
-        width: _barWidth,
-        color: _transparent,
-        borderRadius: radius,
-        borderSide: BorderSide(color: colors.gap, width: _outlineWidth),
-        borderDashArray: _dashPattern,
-      ),
-      MonthBarStatus.blank => BarChartRodData(
+      MonthBarStatus.gap || MonthBarStatus.blank => BarChartRodData(
         toY: _chartBaseline,
         width: _barWidth,
       ),

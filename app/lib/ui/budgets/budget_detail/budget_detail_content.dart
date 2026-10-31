@@ -236,10 +236,6 @@ class _EntriesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final copy = emptyCopy;
-    if (copy != null) {
-      return EmptyState(icon: _emptyIcon, title: copy.title, body: copy.body);
-    }
-
     final theme = Theme.of(context);
     final label = Padding(
       padding: _entriesLabelPadding,
@@ -250,15 +246,17 @@ class _EntriesSection extends StatelessWidget {
         ),
       ),
     );
-    final entryList = BudgetCountedEntryList(
-      ledger: viewState.ledger,
-      state: viewState.ledgerState,
-      counted: viewState.countedEntries,
-    );
+    final Widget content = copy == null
+        ? BudgetCountedEntryList(
+            ledger: viewState.ledger,
+            state: viewState.ledgerState,
+            counted: viewState.countedEntries,
+          )
+        : EmptyState(icon: _emptyIcon, title: copy.title, body: copy.body);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [label, entryList],
+      children: [label, content],
     );
   }
 }

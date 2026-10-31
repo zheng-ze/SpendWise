@@ -131,7 +131,10 @@ The detail shows no limit-changes row and no chart caption.
 The detail always shows the summary, the year selector and the chart. When no counted entry falls in
 the selected month, only the entries section shows the empty copy, whether the budget has entries in
 other months or none at all (`budgetDetailPresentation`, `budget_detail_presentation.dart`). There is
-no whole-budget fresh state.
+no whole-budget fresh state. The entries section always shows the selected month's label (for example
+"OCT 2026 ENTRIES"), including above the empty copy, so the selected month stays visible when the
+month has no entries. A month with no data draws no bar in the chart; only the selected month shows a
+stub, and the invisible tap overlay still selects it.
 
 `BudgetCountedEntryList` groups rows by `startOfDayUtc(entry.date)` and displays days newest first.
 Each day header shows the negative folded expense contribution for its rows. It builds its own rows
