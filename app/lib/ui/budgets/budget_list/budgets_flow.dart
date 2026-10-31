@@ -13,10 +13,12 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_limit_edit_sheet.dart'
 import 'package:spendwise/ui/budgets/budget_list/budget_category_picker.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_scope_options.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 
@@ -45,8 +47,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   late final ProviderSubscription<Ledger?> _ledgerSubscription;
   late final ProviderSubscription<ShellSheetOccupancy> _occupancySubscription;
 
-  ProviderSubscription<AsyncValue<BudgetFormViewState>>? _formSubscription;
-  BudgetDraftKey? _openDraftKey;
+  _FormSession? _formSession;
 
   // MARK: - Lifecycle
 
@@ -84,7 +85,8 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     _ledgerSubscription.close();
     _showBudget(null);
     _removePageAfterFrame();
-    _closeFormSubscription();
+    _formSession?.subscription?.close();
+    _formSession = null;
     super.dispose();
   }
 
@@ -273,54 +275,87 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   // MARK: - Form Navigation
 
-  void _closeFormSubscription() {
-    _formSubscription?.close();
-    _formSubscription = null;
-    _openDraftKey = null;
+  void _endFormSession(_FormSession session) {
+    session.subscription?.close();
+    session.subscription = null;
+    if (identical(_formSession, session)) _formSession = null;
   }
 
   void _openBudgetForm(BuildContext context) {
-    _closeFormSubscription();
+    if (_formSession != null) return;
     final draftKey = BudgetDraftKey();
-    _openDraftKey = draftKey;
-    _formSubscription = ref.listenManual(
+    final session = _FormSession(draftKey);
+    _formSession = session;
+    session.subscription = ref.listenManual(
       budgetFormViewModelProvider(draftKey),
-      (previous, next) => _handleFormStep(draftKey, next.value?.step),
+      (previous, next) => unawaited(_handleFormStep(session, next.value?.step)),
     );
-    showBudgetFormSheet(context: context, draftKey: draftKey).whenComplete(() {
-      if (identical(_openDraftKey, draftKey)) _closeFormSubscription();
-    });
+    unawaited(
+      showBudgetFormSheet(
+        context: context,
+        draftKey: draftKey,
+        onRouteCreated: (route) {
+          session.route = route;
+          unawaited(route.completed.then((_) => _endFormSession(session)));
+        },
+      ),
+    );
   }
 
-  Future<void> _handleFormStep(
-    BudgetDraftKey draftKey,
-    BudgetsStep? step,
-  ) async {
-    if (step == null) return;
-    final context = navigatorContext;
-    if (context == null) return;
+  void _dismissFormRoute(_FormSession session) {
+    final route = session.route;
+    final navigator = route?.navigator;
+    if (route == null || navigator == null || !route.isActive) return;
+    // A non-current form route sits under the picker; pop() would close the picker instead.
+    if (route.isCurrent) {
+      navigator.pop();
+    } else {
+      navigator.removeRoute(route);
+    }
+  }
 
+  Future<void> _handleFormStep(_FormSession session, BudgetsStep? step) async {
+    if (step == null) return;
     switch (step) {
       case PickCategoryRequested():
-        final formState = ref.read(budgetFormViewModelProvider(draftKey)).value;
-        if (formState == null) return;
-        final chosen = await showBudgetCategoryPickerSheet(
-          context: context,
-          formState: formState,
-        );
-        if (!context.mounted || !identical(_openDraftKey, draftKey)) return;
-        _formViewModel(draftKey).applyPickedCategory(
-          chosen == budgetFormOverallSentinel ? null : chosen,
-        );
+        await _pickScope(session);
       case BudgetFormSaved():
-        if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-        _formViewModel(draftKey).clearStep();
+        _dismissFormRoute(session);
+        _formViewModel(session.draftKey).clearStep();
       case BudgetFormRequested():
       case BudgetLimitEditRequested():
         break;
     }
   }
 
+  Future<void> _pickScope(_FormSession session) async {
+    final context = navigatorContext;
+    final formState = ref
+        .read(budgetFormViewModelProvider(session.draftKey))
+        .value;
+    if (context == null || formState == null) return;
+    _formViewModel(session.draftKey).clearStep();
+
+    final chosen = await showBudgetCategoryPickerSheet(
+      context: context,
+      options: budgetScopeOptions(formState.ledgerState),
+      selected: formState.scope,
+    );
+    final formRoute = session.route;
+    if (chosen == null || !mounted || !identical(_formSession, session)) return;
+    if (formRoute == null || !formRoute.isActive) return;
+    _formViewModel(session.draftKey).applyPickedScope(chosen);
+  }
+
   @override
   Widget buildRoot(BuildContext context) => const BudgetsRoot();
+}
+
+// MARK: - FormSession
+class _FormSession {
+  _FormSession(this.draftKey);
+
+  final BudgetDraftKey draftKey;
+  AppSheetRoute<void>? route;
+  ProviderSubscription<AsyncValue<BudgetFormViewState>>? subscription;
 }
