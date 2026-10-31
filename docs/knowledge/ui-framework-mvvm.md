@@ -408,9 +408,9 @@ value, which then overwrites it. (issue #38)
   `NoticeCard`, `EmptyState`, `LoadingTrays` and `ErrorSection` with an optional filled retry.
 - **Selection** - `SegmentedControl` and the selectable charts report choices through
   callbacks; the caller supplies the selected value/index on rebuild. `MonthBars` and
-  `DonutChart` use `selectedMark` fill with no selection stroke. Month blanks stay zero-height
-  even when selected; unselected gaps are dashed stubs and incomplete bars retain their
-  distinct fill/outline. (`app/lib/ui/common/inputs/segmented_control.dart`,
+  `DonutChart` use `selectedMark` fill with no selection stroke. Gap and blank months draw no
+  bar, selected or not, and incomplete bars retain their distinct fill/outline. `MonthBars`
+  optionally draws a dashed limit line and month axis labels. (`app/lib/ui/common/inputs/segmented_control.dart`,
   `app/lib/ui/common/charts/month_bars.dart`, `app/lib/ui/common/charts/donut_chart.dart`)
 - **CategoryMap** (`app/lib/ui/common/charts/category_map.dart`) uses pure squarified
   `layoutCategoryMap`; returned rectangles and selection callbacks preserve input indices

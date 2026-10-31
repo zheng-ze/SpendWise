@@ -47,6 +47,45 @@ void main() {
     expect(selections, [3]);
   }, timeout: uiTestTimeout);
 
+  testWidgets('month bars select a gap or blank slot and tolerate a limit', (
+    tester,
+  ) async {
+    final selections = <int>[];
+    final slots = [
+      const MonthBarSlot(value: 50),
+      const MonthBarSlot(status: MonthBarStatus.gap),
+      const MonthBarSlot(status: MonthBarStatus.blank),
+      const MonthBarSlot(value: 30, status: MonthBarStatus.incomplete),
+    ];
+    final months = [for (var m = 1; m <= 4; m++) DateTime.utc(2026, m)];
+    await tester.pumpWidget(
+      _host(
+        MonthBars(
+          slots: slots,
+          months: months,
+          limit: 40,
+          touchFullHeight: true,
+          maxValue: 60,
+          selectedIndex: 1,
+          onSelect: selections.add,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final chartRect = tester.getRect(find.byType(BarChart));
+    Offset column(int index) => Offset(
+      chartRect.left + chartRect.width * (index + 0.5) / slots.length,
+      chartRect.bottom - 40,
+    );
+    await tester.tapAt(column(1));
+    await tester.pumpAndSettle();
+    await tester.tapAt(column(2));
+    await tester.pumpAndSettle();
+    expect(selections, [1, 2]);
+  }, timeout: uiTestTimeout);
+
   testWidgets('donut slices select only on a completed tap', (tester) async {
     final selections = <int>[];
     final donut = DonutChart(
