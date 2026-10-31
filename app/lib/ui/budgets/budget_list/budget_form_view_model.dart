@@ -153,11 +153,7 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
     if (amount == null) return;
 
     try {
-      ledger.addBudget(
-        current.categoryID,
-        amount.abs(),
-        now: startOfDayUtc(DateTime.now()),
-      );
+      ledger.addBudget(current.categoryID, amount.abs());
       updateState(
         (s) => s.copyWith(error: () => null, step: () => BudgetFormSaved()),
       );
