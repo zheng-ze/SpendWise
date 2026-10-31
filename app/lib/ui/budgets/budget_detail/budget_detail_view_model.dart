@@ -86,25 +86,21 @@ class BudgetDetailProjection {
     required this.displayedYear,
     required this.selectedMonth,
     required this.projection,
-    required this.selectedLimit,
-    required this.currentLimit,
+    required this.limit,
   });
 
   final Ledger ledger;
   final DateTime displayedYear;
   final DateTime selectedMonth;
   final BudgetDetail projection;
-  final Decimal selectedLimit;
-  final Decimal currentLimit;
+  final Decimal limit;
 
   List<DateTime> get months => trendMonths(displayedYear, isYearRange: true);
 
   List<BudgetMonthSlot> get slots => projection.slots;
 
-  double get chartMaxYValue => chartMaxY(
-    [for (final slot in projection.slots) slot.spend],
-    [currentLimit],
-  );
+  double get chartMaxYValue =>
+      chartMaxY([for (final slot in projection.slots) slot.spend], [limit]);
 
   bool belongsTo(Ledger currentLedger, BudgetDetailContext context) =>
       identical(ledger, currentLedger) &&
@@ -117,7 +113,6 @@ BudgetDetailProjection _captureProjection({
   required Budget budget,
   required BudgetDetail projection,
   required BudgetDetailContext context,
-  required DateTime today,
 }) {
   final summary = projection.summary;
   if (summary == null) {
@@ -128,8 +123,7 @@ BudgetDetailProjection _captureProjection({
     displayedYear: context.displayedYear,
     selectedMonth: context.selectedMonth,
     projection: projection,
-    selectedLimit: summary.limit,
-    currentLimit: effectiveLimit(budget, YearMonth.fromUtc(today)),
+    limit: summary.limit,
   );
 }
 
@@ -296,7 +290,6 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
           budget: budget,
           projection: detail,
           context: context,
-          today: today,
         );
         _accepted = accepted;
         return (

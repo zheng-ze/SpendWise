@@ -166,8 +166,6 @@ void main() {
   }) => BudgetMonthSlot(
     month: const YearMonth(2026, 10),
     spend: dec(spend),
-    limit: dec('100'),
-    isOverride: false,
     recordCount: recordCount,
     completeness: completeness,
   );

@@ -133,9 +133,7 @@ BudgetsOverview budgetsOverview({
   final rows = [
     for (final b in scoped) _row(b, b.categoryID ?? '', month, items, state),
   ]..sort(_compareUtilization);
-  final cap = unscoped == null
-      ? _aggregateCap(scoped, month, state)
-      : _positiveLimit(unscoped, month);
+  final cap = unscoped == null ? _aggregateCap(scoped, state) : unscoped.limit;
   final spent = monthExpenseSpend(month, items);
   final allSpending = AllSpending(
     cap: cap,
@@ -149,14 +147,6 @@ BudgetsOverview budgetsOverview({
     allSpending: allSpending,
     categoryBudgets: rows,
   );
-}
-
-Decimal _positiveLimit(Budget budget, YearMonth month) {
-  final limit = effectiveLimit(budget, month);
-  if (limit <= Decimal.zero) {
-    throw StateError('Budget ${budget.id} has a nonpositive limit for $month.');
-  }
-  return limit;
 }
 
 CategoryBudgetRow _row(
@@ -176,7 +166,7 @@ CategoryBudgetRow _row(
     categoryID: categoryID,
     name: category.name,
     parentName: parentID == null ? null : state.categories[parentID]?.name,
-    limit: _positiveLimit(budget, month),
+    limit: budget.limit,
     spend: budgetSpend(budget, month, items, state),
   );
 }
@@ -191,20 +181,13 @@ int _compareUtilization(CategoryBudgetRow a, CategoryBudgetRow b) {
   return normalizedID(a.budgetID).compareTo(normalizedID(b.budgetID));
 }
 
-Decimal? _aggregateCap(
-  List<Budget> scoped,
-  YearMonth month,
-  LedgerState state,
-) {
+Decimal? _aggregateCap(List<Budget> scoped, LedgerState state) {
   if (scoped.isEmpty) return null;
   final budgeted = {for (final b in scoped) b.categoryID};
   final topLevel = scoped.where(
     (b) => !budgeted.contains(state.categories[b.categoryID]?.parentID),
   );
-  return topLevel.fold<Decimal>(
-    Decimal.zero,
-    (sum, b) => sum + _positiveLimit(b, month),
-  );
+  return topLevel.fold<Decimal>(Decimal.zero, (sum, b) => sum + b.limit);
 }
 
 Decimal? _dailyAllowance(

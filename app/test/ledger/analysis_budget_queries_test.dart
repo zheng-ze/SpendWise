@@ -41,7 +41,7 @@ void main() {
   });
 
   String addDiningBudget() {
-    fixture.ledger.addBudget(testId(1), dec('350'), now: _today);
+    fixture.ledger.addBudget(testId(1), dec('350'));
     return fixture.ledger.state.budgets.values.single.id;
   }
 
@@ -140,22 +140,17 @@ void main() {
     final slot = BudgetMonthSlot(
       month: month,
       spend: dec('12'),
-      limit: dec('30'),
-      isOverride: true,
       recordCount: 1,
       completeness: PeriodCompleteness.complete,
     );
     final sameSlot = BudgetMonthSlot(
       month: month,
       spend: dec('12'),
-      limit: dec('30'),
-      isOverride: true,
       recordCount: 1,
       completeness: PeriodCompleteness.complete,
     );
     final summary = BudgetDetailSummary(
       categoryID: testId(1),
-      createdAtMonth: YearMonth(2026, 1),
       spent: dec('12'),
       limit: dec('30'),
     );

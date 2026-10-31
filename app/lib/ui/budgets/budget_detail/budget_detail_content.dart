@@ -196,7 +196,7 @@ class _ChartTray extends StatelessWidget {
       child: BudgetDetailChart(
         months: projection.months,
         slots: budgetMonthBarSlots(projection.slots),
-        limit: projection.currentLimit,
+        limit: projection.limit,
         maxY: projection.chartMaxYValue,
         selectedMonth: viewState.selectedMonth,
         onSelectMonth: viewModel.selectMonth,

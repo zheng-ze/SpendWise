@@ -24,18 +24,8 @@ TransactionCategory category(String id, String name, {String? parentID}) =>
       symbol: 'restaurant',
     );
 
-Budget budget(String? categoryID, String limit, {String? id}) => Budget(
-  id: id,
-  categoryID: categoryID,
-  limitEvents: [
-    LimitEvent(
-      effectiveFromMonth: null,
-      value: dec(limit),
-      kind: LimitEventKind.defaultLimit,
-    ),
-  ],
-  createdAtMonth: _month,
-);
+Budget budget(String? categoryID, String limit, {String? id}) =>
+    Budget(id: id, categoryID: categoryID, limit: dec(limit));
 
 LedgerState ledgerWith(List<Budget> budgets) {
   final categories = [
@@ -132,39 +122,19 @@ void main() {
       expect(result.allSpending.cap, dec('65'));
     });
 
-    test('a month override changes the cap for that month only', () {
-      final overridden = Budget(
-        categoryID: null,
-        limitEvents: [
-          LimitEvent(
-            effectiveFromMonth: null,
-            value: dec('500'),
-            kind: LimitEventKind.defaultLimit,
-          ),
-          LimitEvent(
-            effectiveFromMonth: _month,
-            value: dec('650'),
-            kind: LimitEventKind.override,
-          ),
-        ],
-        createdAtMonth: _month,
-      );
+    test('past, current and future months all use the one limit', () {
+      final single = budget(null, '500');
 
-      final october = overview([overridden]);
-      final november = overview([overridden], month: const YearMonth(2026, 11));
+      final months = [
+        for (final m in [
+          const YearMonth(2025, 1),
+          _month,
+          const YearMonth(2027, 3),
+        ])
+          overview([single], month: m).allSpending.cap,
+      ];
 
-      expect(october.allSpending.cap, dec('650'));
-      expect(november.allSpending.cap, dec('500'));
-    });
-
-    test('a budget without a default event fails the read', () {
-      final bare = Budget(
-        categoryID: _foodID,
-        limitEvents: const [],
-        createdAtMonth: _month,
-      );
-
-      expect(() => overview([bare]), throwsStateError);
+      expect(months, [dec('500'), dec('500'), dec('500')]);
     });
 
     test('no budgets leaves the cap and allowance absent', () {
@@ -175,10 +145,6 @@ void main() {
       expect(result.allSpending.remaining, isNull);
       expect(result.allSpending.dailyAllowance, isNull);
       expect(result.allSpending.spent, dec('12'));
-    });
-
-    test('a zero limit fails the read instead of imposing a ratio', () {
-      expect(() => overview([budget(_foodID, '0')]), throwsStateError);
     });
   });
 

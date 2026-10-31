@@ -15,8 +15,6 @@ class BudgetMonthSlot {
   const BudgetMonthSlot({
     required this.month,
     required this.spend,
-    required this.limit,
-    required this.isOverride,
     required this.recordCount,
     required this.completeness,
   });
@@ -24,10 +22,6 @@ class BudgetMonthSlot {
   final YearMonth month;
 
   final Decimal spend;
-
-  final Decimal limit;
-
-  final bool isOverride;
 
   final int recordCount;
 
@@ -38,29 +32,23 @@ class BudgetMonthSlot {
     return other is BudgetMonthSlot &&
         other.month == month &&
         other.spend == spend &&
-        other.limit == limit &&
-        other.isOverride == isOverride &&
         other.recordCount == recordCount &&
         other.completeness == completeness;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(month, spend, limit, isOverride, recordCount, completeness);
+  int get hashCode => Object.hash(month, spend, recordCount, completeness);
 }
 
 @immutable
 class BudgetDetailSummary {
   const BudgetDetailSummary({
     required this.categoryID,
-    required this.createdAtMonth,
     required this.spent,
     required this.limit,
   });
 
   final String? categoryID;
-
-  final YearMonth createdAtMonth;
 
   final Decimal spent;
 
@@ -72,13 +60,12 @@ class BudgetDetailSummary {
   bool operator ==(Object other) {
     return other is BudgetDetailSummary &&
         other.categoryID == categoryID &&
-        other.createdAtMonth == createdAtMonth &&
         other.spent == spent &&
         other.limit == limit;
   }
 
   @override
-  int get hashCode => Object.hash(categoryID, createdAtMonth, spent, limit);
+  int get hashCode => Object.hash(categoryID, spent, limit);
 }
 
 @immutable
@@ -148,9 +135,8 @@ BudgetDetail budgetDetail({
   ];
   final summary = BudgetDetailSummary(
     categoryID: budget.categoryID,
-    createdAtMonth: budget.createdAtMonth,
     spent: budgetSpend(budget, selectedMonth, items, state),
-    limit: effectiveLimit(budget, selectedMonth),
+    limit: budget.limit,
   );
 
   return BudgetDetail(
@@ -175,10 +161,6 @@ BudgetMonthSlot _slot(
   return BudgetMonthSlot(
     month: month,
     spend: matching.fold(Decimal.zero, (sum, item) => sum + item.amount),
-    limit: effectiveLimit(budget, month),
-    isOverride: budget.limitEvents.any(
-      (e) => e.kind == LimitEventKind.override && e.effectiveFromMonth == month,
-    ),
     recordCount: matching.length,
     completeness: classifyPeriod(
       window: window,

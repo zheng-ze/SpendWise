@@ -83,7 +83,7 @@ BudgetDetailPresentation budgetDetailPresentation(BudgetDetailViewState state) {
     failure: failure,
     summary: BudgetDetailSummaryValues(
       spent: state.spent,
-      limit: projection.selectedLimit,
+      limit: projection.limit,
     ),
     emptyCopy: emptyCopy,
   );

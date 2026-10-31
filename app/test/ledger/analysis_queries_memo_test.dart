@@ -325,18 +325,10 @@ void main() {
   });
 
   test('calculationFailureFailsOnlyItsQueryAndChangedInputRecovers', () async {
-    final state = LedgerState();
-    state.addBudget(null, Decimal.parse('300'), now: DateTime.utc(2027, 4, 2));
-    final stored = state.budgets.values.single;
-    final invalid = Budget(
-      id: stored.id,
-      categoryID: stored.categoryID,
-      limitEvents: const [],
-      createdAtMonth: stored.createdAtMonth,
-    );
+    final first = Budget(categoryID: null, limit: Decimal.parse('300'));
+    final invalid = Budget(categoryID: null, limit: Decimal.parse('400'));
     final invalidState = LedgerState(
-      moneySources: state.moneySources,
-      budgets: {invalid.id: invalid},
+      budgets: {first.id: first, invalid.id: invalid},
     );
     final ledger = Ledger(state: invalidState);
     final cache = AnalysisCache(runner: syncComputeRunner)
@@ -381,6 +373,6 @@ void main() {
 
     final recovered = queries.readToday();
     expect(recovered.state, AnalysisQueryState.ready);
-    expect(recovered.value?.dailyGuide, isNull);
+    expect(recovered.value?.dailyGuide, isNotNull);
   });
 }
