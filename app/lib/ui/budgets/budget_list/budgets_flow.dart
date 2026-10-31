@@ -8,6 +8,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_edit_actions_sheet.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_edit_sheet.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_editor_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_category_picker.dart';
@@ -129,7 +130,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     switch (step) {
       case BudgetFormRequested():
         _openBudgetForm(context);
-      case BudgetLimitEditRequested():
+      case BudgetEditRequested():
       case PickCategoryRequested():
       case BudgetFormSaved():
       case BudgetLimitSaved():
@@ -250,7 +251,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   }
 
   Future<void> _handleDetailStep(String budgetID, BudgetsStep? step) async {
-    if (step is! BudgetLimitEditRequested) return;
+    if (step is! BudgetEditRequested) return;
     if (!_destinationActive || _shownBudgetID != budgetID) return;
     final context = navigatorContext;
     if (context == null) return;
@@ -258,34 +259,58 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     final detail = _detailViewModel(budgetID);
     detail.clearStep();
     if (_editSession != null) return;
-    final current = detail.liveLimit;
     final ledger = ref.read(ledgerProvider);
-    if (current == null || ledger == null) return;
+    if (detail.liveLimit == null || ledger == null) return;
+
+    final session = _EditSession(budgetID, ledger);
+    _editSession = session;
+    try {
+      final action = await showBudgetEditActionsSheet(
+        context: context,
+        onRouteCreated: (route) => session.route = route,
+      );
+      if (action == null || !_editStillValid(session)) return;
+      switch (action) {
+        case BudgetEditAction.changeLimit:
+          await _openLimitEditor(session);
+        case BudgetEditAction.delete:
+          break;
+      }
+    } finally {
+      _endEditSession(session);
+    }
+  }
+
+  bool _editStillValid(_EditSession session) {
+    if (!mounted || session.retired || !_destinationActive) return false;
+    if (_shownBudgetID != session.budgetID) return false;
+    if (!identical(ref.read(ledgerProvider), session.ledger)) return false;
+    return _detailViewModel(session.budgetID).liveLimit != null;
+  }
+
+  Future<void> _openLimitEditor(_EditSession session) async {
+    final context = navigatorContext;
+    final current = _detailViewModel(session.budgetID).liveLimit;
+    if (context == null || current == null) return;
 
     final draftKey = BudgetLimitDraftKey(
-      budgetID: budgetID,
+      budgetID: session.budgetID,
       initialLimit: current,
     );
     final provider = budgetLimitEditorViewModelProvider(draftKey);
-    final session = _EditSession(budgetID, ledger);
-    _editSession = session;
     session.subscription = ref.listenManual(provider, (_, next) {
       if (session.retired || next.value?.step is! BudgetLimitSaved) return;
       _dismissSheetRoute(session.route);
       ref.read(provider.notifier).clearStep();
     });
-    try {
-      await showBudgetLimitEditSheet(
-        context: context,
-        draftKey: draftKey,
-        onRouteCreated: (route) {
-          session.route = route;
-          unawaited(route.completed.then((_) => _endEditSession(session)));
-        },
-      );
-    } finally {
-      _endEditSession(session);
-    }
+    await showBudgetLimitEditSheet(
+      context: context,
+      draftKey: draftKey,
+      onRouteCreated: (route) {
+        session.route = route;
+        unawaited(route.completed.then((_) => _endEditSession(session)));
+      },
+    );
   }
 
   void _endEditSession(_EditSession session) {
@@ -358,7 +383,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
         _dismissSheetRoute(session.route);
         _formViewModel(session.draftKey).clearStep();
       case BudgetFormRequested():
-      case BudgetLimitEditRequested():
+      case BudgetEditRequested():
       case BudgetLimitSaved():
         break;
     }

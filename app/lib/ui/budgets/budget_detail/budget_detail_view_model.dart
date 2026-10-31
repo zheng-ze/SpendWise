@@ -187,7 +187,7 @@ abstract class BudgetDetailViewModel {
   void selectMonth(DateTime month);
   void changeYear(DateTime year);
   Decimal? get liveLimit;
-  void requestLimitEdit();
+  void requestEdit();
   void retry();
   void clearStep();
 }
@@ -348,10 +348,10 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
   Decimal? get liveLimit => ledger.state.budgets[_budgetID]?.limit;
 
   @override
-  void requestLimitEdit() {
+  void requestEdit() {
     if (liveLimit == null) return;
-    _step = BudgetLimitEditRequested();
-    emitStep(BudgetLimitEditRequested());
+    _step = BudgetEditRequested();
+    emitStep(BudgetEditRequested());
   }
 
   @override

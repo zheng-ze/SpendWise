@@ -45,7 +45,7 @@ void main() {
     expect(state.projection?.projection.summary?.spent, state.spent);
   }, timeout: uiTestTimeout);
 
-  testWidgets('Edit requests the limit edit step from the page', (
+  testWidgets('Edit requests the edit step from the page', (
     tester,
   ) async {
     final container = await pumpDetailScreen(
@@ -53,10 +53,10 @@ void main() {
       ledger: detailLedger(budgets: [detailBudget()]),
     );
 
-    await tester.tap(find.byTooltip('Edit limit'));
+    await tester.tap(find.byTooltip('Edit'));
     await tester.pump();
 
-    expect(detailState(container).step, isA<BudgetLimitEditRequested>());
+    expect(detailState(container).step, isA<BudgetEditRequested>());
   }, timeout: uiTestTimeout);
 
   testWidgets('tapping a counted register row opens its entry form', (

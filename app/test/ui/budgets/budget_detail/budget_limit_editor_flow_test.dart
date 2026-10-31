@@ -13,6 +13,7 @@ import '../../../support/number_pad_support.dart';
 import '../../../support/pump_app.dart';
 import '../../../support/sheet_contract.dart';
 import '../../../support/ui_test_timeout.dart';
+import '../budget_shell_test_support.dart';
 
 const _budgetID = 'b1';
 const _title = 'Change limit';
@@ -42,8 +43,8 @@ Future<void> _openEditor(WidgetTester tester, Ledger ledger) async {
   await tester.pumpAndSettle();
   container
       .read(budgetDetailViewModelProvider(_budgetID).notifier)
-      .requestLimitEdit();
-  await tester.pumpAndSettle();
+      .requestEdit();
+  await chooseEditAction(tester, 'Change limit');
 }
 
 Future<void> _replaceAmount(WidgetTester tester, String digits) async {

@@ -4,7 +4,7 @@ sealed class BudgetsStep {}
 
 // MARK: - Navigation Steps
 
-class BudgetLimitEditRequested extends BudgetsStep {}
+class BudgetEditRequested extends BudgetsStep {}
 
 class BudgetFormRequested extends BudgetsStep {}
 

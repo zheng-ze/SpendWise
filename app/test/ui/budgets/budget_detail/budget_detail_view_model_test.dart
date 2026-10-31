@@ -452,27 +452,6 @@ void main() {
     expect(state.projection?.chartMaxYValue, closeTo(115.0, 1e-9));
   });
 
-  test(
-    'requestLimitEdit emits BudgetLimitEditRequested, clearStep resets it',
-    () async {
-      final container = detailContainer(
-        ledger: detailLedger(budgets: [detailBudget()]),
-        clock: DetailClock(october),
-      );
-      keepDetailAlive(container);
-      await settledDetail(container);
-      final viewModel = container.read(
-        budgetDetailViewModelProvider(detailBudgetID).notifier,
-      );
-
-      viewModel.requestLimitEdit();
-      expect(detailState(container).step, isA<BudgetLimitEditRequested>());
-
-      viewModel.clearStep();
-      expect(detailState(container).step, isNull);
-    },
-  );
-
   BudgetDetailViewModel keepViewModel(ProviderContainer container) {
     keepDetailAlive(container);
     return container.read(
@@ -485,20 +464,20 @@ void main() {
     clock: DetailClock(october),
   );
 
-  test('requestLimitEdit emits only when the budget exists', () async {
+  test('requestEdit emits only when the budget exists', () async {
     final present = limitContainer();
-    keepViewModel(present).requestLimitEdit();
+    keepViewModel(present).requestEdit();
     final missing = limitContainer(withBudget: false);
-    keepViewModel(missing).requestLimitEdit();
+    keepViewModel(missing).requestEdit();
 
-    expect(detailState(present).step, isA<BudgetLimitEditRequested>());
+    expect(detailState(present).step, isA<BudgetEditRequested>());
     expect(detailState(missing).step, isNull);
   });
 
-  test('clearStep resets the limit edit step', () async {
+  test('clearStep resets the edit step', () async {
     final container = limitContainer();
     final viewModel = keepViewModel(container);
-    viewModel.requestLimitEdit();
+    viewModel.requestEdit();
 
     viewModel.clearStep();
 

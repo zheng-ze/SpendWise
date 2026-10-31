@@ -43,7 +43,7 @@ final budgetPaneProvider = Provider.autoDispose<BudgetPane?>((ref) {
   final header = ref.watch(budgetPaneHeaderProvider(budgetID));
   void requestEdit() => ref
       .read(budgetDetailViewModelProvider(budgetID).notifier)
-      .requestLimitEdit();
+      .requestEdit();
   final edit = TextButton.icon(
     onPressed: requestEdit,
     icon: const Icon(Icons.edit_outlined),

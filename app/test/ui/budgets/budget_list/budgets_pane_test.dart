@@ -35,6 +35,7 @@ const _outsideSheetOffset = Offset(5, 5);
 const _seededAmountLength = 5;
 const _trayInteriorOffset = Offset(2, 2);
 const _editLabel = 'Edit';
+const _changeLimitLabel = 'Change limit';
 const _newerLabel = 'Newer';
 const _saveErrorTitle = 'Could not save budget limit';
 
@@ -65,7 +66,7 @@ Widget _flowHost(ProviderContainer container, {required bool showFlow}) {
 Future<void> _openLimitEditorFromPane(WidgetTester tester) async {
   await tapBudget(tester, 'b2');
   await tester.tap(find.text(_editLabel));
-  await tester.pumpAndSettle();
+  await chooseEditAction(tester, _changeLimitLabel);
 }
 
 final _limitEditor = find.byType(BudgetLimitEditSheet);
@@ -81,7 +82,7 @@ Future<void> _replaceEditorAmount(WidgetTester tester, String digits) async {
 
 Future<void> _expectEditOpensEditor(WidgetTester tester) async {
   await tester.tap(find.text(_editLabel));
-  await tester.pumpAndSettle();
+  await chooseEditAction(tester, _changeLimitLabel);
   expect(_limitEditor, findsOneWidget);
 }
 
@@ -559,12 +560,12 @@ void main() {
 
       container
           .read(budgetDetailViewModelProvider('b2').notifier)
-          .requestLimitEdit();
+          .requestEdit();
       await tester.pumpAndSettle();
       expect(_limitEditor, findsNothing);
 
       _selectSegment(container, MoneySegment.budgets);
-      await tester.pumpAndSettle();
+      await chooseEditAction(tester, _changeLimitLabel);
       expect(_limitEditor, findsOneWidget);
     },
     timeout: uiTestTimeout,
@@ -845,7 +846,7 @@ void main() {
     await _openLimitEditorFromPane(tester);
     container
         .read(budgetDetailViewModelProvider('b2').notifier)
-        .requestLimitEdit();
+        .requestEdit();
     ledger.addEntry(_entry(0));
     await tester.pumpAndSettle();
     expect(_limitEditor, findsOneWidget);

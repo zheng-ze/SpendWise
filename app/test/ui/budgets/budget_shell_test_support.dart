@@ -130,6 +130,12 @@ Future<ProviderContainer> pumpBudgetShell(
   return container;
 }
 
+Future<void> chooseEditAction(WidgetTester tester, String label) async {
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
+}
+
 Future<void> tapBudget(WidgetTester tester, String budgetID) async {
   await tester.tap(find.byKey(ValueKey('budget-$budgetID')));
   await tester.pumpAndSettle();
