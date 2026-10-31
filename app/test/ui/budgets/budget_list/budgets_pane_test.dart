@@ -36,6 +36,7 @@ const _seededAmountLength = 5;
 const _trayInteriorOffset = Offset(2, 2);
 const _editLabel = 'Edit';
 const _newerLabel = 'Newer';
+const _saveErrorTitle = 'Could not save budget limit';
 
 Finder _inPane(Finder finder) =>
     find.descendant(of: find.byKey(shellDetailPaneKey), matching: finder);
@@ -658,7 +659,7 @@ void main() {
   );
 
   testWidgets(
-    'a delayed editor result after selection replacement cannot mutate',
+    'selection replacement removes the open editor and writes nothing',
     (tester) async {
       final ledger = buildShellLedger();
       final container = await pumpBudgetShell(
@@ -667,10 +668,11 @@ void main() {
         ledger: ledger,
       );
       await _openLimitEditorFromPane(tester);
+
       container.read(selectedBudgetProvider.notifier).select('b1');
-      await tester.pump();
-      _rootNavigator(tester).pop(Decimal.fromInt(75));
       await tester.pumpAndSettle();
+
+      expect(_limitEditor, findsNothing);
       expect(ledger.state.budgets['b2']!.limit, Decimal.fromInt(50));
       expect(ledger.state.budgets['b1']!.limit, Decimal.fromInt(100));
       expect(container.read(selectedBudgetProvider), 'b1');
@@ -680,7 +682,7 @@ void main() {
   );
 
   testWidgets(
-    'a delayed editor result after ledger replacement cannot mutate either ledger',
+    'ledger replacement removes the open editor and writes to neither ledger',
     (tester) async {
       final oldLedger = buildShellLedger();
       final container = await pumpBudgetShell(
@@ -689,10 +691,12 @@ void main() {
         ledger: oldLedger,
       );
       await _openLimitEditorFromPane(tester);
+
       final replacement = buildShellLedger();
       container.read(budgetShellLedgerFixture.notifier).state = replacement;
-      _rootNavigator(tester).pop(Decimal.fromInt(75));
       await tester.pumpAndSettle();
+
+      expect(_limitEditor, findsNothing);
       expect(oldLedger.state.budgets['b2']!.limit, Decimal.fromInt(50));
       expect(replacement.state.budgets['b2']!.limit, Decimal.fromInt(50));
       expect(container.read(selectedBudgetProvider), isNull);
@@ -701,6 +705,36 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
+
+  testWidgets('reopening after a save shows a fresh seed and no alert', (
+    tester,
+  ) async {
+    await pumpBudgetShell(tester, mode: ShellLayoutMode.open);
+    await _openLimitEditorFromPane(tester);
+    await _replaceEditorAmount(tester, '75');
+    await tester.tap(find.widgetWithText(FilledButton, _saveLabel));
+    await tester.pumpAndSettle();
+
+    await _expectEditOpensEditor(tester);
+
+    expect(find.textContaining('75'), findsWidgets);
+    expect(find.textContaining(_saveErrorTitle), findsNothing);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('reopening after a dismissal drops the abandoned amount', (
+    tester,
+  ) async {
+    await pumpBudgetShell(tester, mode: ShellLayoutMode.open);
+    await _openLimitEditorFromPane(tester);
+    await _replaceEditorAmount(tester, '12');
+    await tester.tapAt(_outsideSheetOffset);
+    await tester.pumpAndSettle();
+
+    await _expectEditOpensEditor(tester);
+
+    expect(find.textContaining('12'), findsNothing);
+    expect(find.textContaining(_saveErrorTitle), findsNothing);
+  }, timeout: uiTestTimeout);
 
   testWidgets('reopening after terminal closure uses the new Money month', (
     tester,
@@ -815,6 +849,7 @@ void main() {
     ledger.addEntry(_entry(0));
     await tester.pumpAndSettle();
     expect(_limitEditor, findsOneWidget);
+    expect(find.byType(AppSheet), findsOneWidget);
 
     await _replaceEditorAmount(tester, '75');
     await tester.tap(find.widgetWithText(FilledButton, _saveLabel));

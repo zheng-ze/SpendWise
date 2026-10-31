@@ -34,7 +34,6 @@ class BudgetsFlow extends FlowBase<BudgetsStep> {
 class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   bool _destinationActive = true;
   bool _reconcileScheduled = false;
-  bool _limitEditorOpen = false;
   String? _shownBudgetID;
   List<ProviderSubscription<Object?>> _shownSubscriptions = const [];
   ModalRoute<Object?>? _page;
@@ -48,6 +47,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   late final ProviderSubscription<ShellSheetOccupancy> _occupancySubscription;
 
   _FormSession? _formSession;
+  _EditSession? _editSession;
 
   // MARK: - Lifecycle
 
@@ -67,6 +67,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     );
     _ledgerSubscription = ref.listenManual(ledgerProvider, (previous, next) {
       if (identical(previous, next)) return;
+      _retireEditSession();
       ref.read(selectedBudgetProvider.notifier).clear();
     });
     _occupancySubscription = ref.listenManual(
@@ -84,6 +85,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     _modeSubscription.close();
     _ledgerSubscription.close();
     _showBudget(null);
+    _retireEditSession();
     _removePageAfterFrame();
     _formSession?.subscription?.close();
     _formSession = null;
@@ -219,6 +221,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     for (final subscription in _shownSubscriptions) {
       subscription.close();
     }
+    _retireEditSession();
     _shownBudgetID = budgetID;
     _shownSubscriptions = budgetID == null ? const [] : _openOwners(budgetID);
   }
@@ -254,32 +257,56 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
     final detail = _detailViewModel(budgetID);
     detail.clearStep();
-    if (_limitEditorOpen) return;
+    if (_editSession != null) return;
     final current = detail.liveLimit;
-    if (current == null) return;
+    final ledger = ref.read(ledgerProvider);
+    if (current == null || ledger == null) return;
 
-    _limitEditorOpen = true;
     final draftKey = BudgetLimitDraftKey(
       budgetID: budgetID,
       initialLimit: current,
     );
     final provider = budgetLimitEditorViewModelProvider(draftKey);
-    AppSheetRoute<void>? route;
-    final subscription = ref.listenManual(provider, (_, next) {
-      if (next.value?.step is! BudgetLimitSaved) return;
-      _dismissSheetRoute(route);
+    final session = _EditSession(budgetID, ledger);
+    _editSession = session;
+    session.subscription = ref.listenManual(provider, (_, next) {
+      if (session.retired || next.value?.step is! BudgetLimitSaved) return;
+      _dismissSheetRoute(session.route);
       ref.read(provider.notifier).clearStep();
     });
     try {
       await showBudgetLimitEditSheet(
         context: context,
         draftKey: draftKey,
-        onRouteCreated: (created) => route = created,
+        onRouteCreated: (route) {
+          session.route = route;
+          unawaited(route.completed.then((_) => _endEditSession(session)));
+        },
       );
     } finally {
-      subscription.close();
-      _limitEditorOpen = false;
+      _endEditSession(session);
     }
+  }
+
+  void _endEditSession(_EditSession session) {
+    session.subscription?.close();
+    session.subscription = null;
+    if (identical(_editSession, session)) _editSession = null;
+  }
+
+  void _retireEditSession() {
+    final session = _editSession;
+    if (session == null || session.retired) return;
+    session.retired = true;
+    session.subscription?.close();
+    session.subscription = null;
+    final route = session.route;
+    final navigator = route?.navigator;
+    if (route == null || navigator == null) return;
+    // The removal waits for the frame end so it never runs inside a provider notification or tree finalization.
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (navigator.mounted && route.isActive) navigator.removeRoute(route);
+    });
   }
 
   // MARK: - Form Navigation
@@ -367,4 +394,15 @@ class _FormSession {
   final BudgetDraftKey draftKey;
   AppSheetRoute<void>? route;
   ProviderSubscription<AsyncValue<BudgetFormViewState>>? subscription;
+}
+
+// MARK: - EditSession
+class _EditSession {
+  _EditSession(this.budgetID, this.ledger);
+
+  final String budgetID;
+  final Ledger ledger;
+  AppSheetRoute<void>? route;
+  ProviderSubscription<AsyncValue<BudgetLimitEditorState>>? subscription;
+  bool retired = false;
 }
