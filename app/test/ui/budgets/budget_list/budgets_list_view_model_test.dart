@@ -46,18 +46,7 @@ void main() {
     required String id,
     String amount = '100',
   }) {
-    return Budget(
-      id: id,
-      categoryID: categoryID,
-      limitEvents: [
-        LimitEvent(
-          effectiveFromMonth: null,
-          value: dec(amount),
-          kind: LimitEventKind.defaultLimit,
-        ),
-      ],
-      createdAtMonth: const YearMonth(2026, 1),
-    );
+    return Budget(id: id, categoryID: categoryID, limit: dec(amount));
   }
 
   Ledger buildLedger({Map<String, Budget> budgets = const {}}) {
@@ -183,7 +172,7 @@ void main() {
     viewModel.requestBudgetDetail(overall.id);
 
     fail = true;
-    ledger.updateBudgetAmount(overall.id, dec('200'), const YearMonth(2026, 1));
+    ledger.updateBudgetLimit(overall.id, dec('200'));
     await cache.refresh(ledger.state, sourceRevision: ledger.revision);
     await container.pump();
     final failed = container.read(budgetsListViewModelProvider).requireValue;
@@ -391,7 +380,7 @@ void main() {
       dec('100'),
     );
     fail = true;
-    ledger.updateBudgetAmount(overall.id, dec('200'), const YearMonth(2026, 1));
+    ledger.updateBudgetLimit(overall.id, dec('200'));
     await cache.refresh(ledger.state, sourceRevision: ledger.revision);
     await container.pump();
     final failed = container.read(budgetsListViewModelProvider).requireValue;
@@ -404,18 +393,5 @@ void main() {
     final recovered = container.read(budgetsListViewModelProvider).requireValue;
     expect(recovered.error, isNull);
     expect(recovered.overview!.allSpending.cap, dec('200'));
-  });
-  test('malformed limits expose their actual projection failure', () async {
-    final invalid = budget(id: 'b1', amount: '0');
-    final ledger = buildLedger(budgets: {invalid.id: invalid});
-    final container = buildContainer(ledger);
-    await container
-        .read(ledgerSessionProvider)!
-        .analysisCache
-        .refresh(ledger.state, sourceRevision: ledger.revision);
-    final state = await container.read(budgetsListViewModelProvider.future);
-    expect(state.overview, isNull);
-    expect(state.error, isA<StateError>());
-    expect(state.error.toString(), contains('nonpositive limit'));
   });
 }
