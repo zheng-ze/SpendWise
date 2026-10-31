@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-29
+Last reconciled: 2026-10-31
 
 ## Feature overview
 
@@ -312,8 +312,11 @@ value, which then overwrites it. (issue #38)
   the rail, while an IgnorePointer layer dims only the pane region. The open
   dialog has a 308 dp maximum width and bounded scrolling. Phone and desktop
   remain centred over the full window. Delete and recycle-bin purge helpers
-  use this route and map null to false, preserving their wording and results.
+  use this route and map null to false, preserving their wording and results. The budget delete
+  confirmation (`showBudgetDeleteConfirmation`) also uses it; it is a plain modal route that shell
+  occupancy does not track.
   (`app/lib/ui/shell/shell_confirmation.dart`,
+  `app/lib/ui/budgets/budget_detail/budget_delete_confirmation.dart`,
   `app/lib/ui/common/feedback/delete_confirmation.dart`,
   `app/lib/ui/settings/recycle_bin/recycle_bin_purge_dialog.dart`)
 - **Destructive confirmation styling** - the confirm action is a filled button
@@ -365,9 +368,12 @@ value, which then overwrites it. (issue #38)
   without selecting a destination. (`app/lib/ui/shell/shell_sheet_occupancy.dart`,
   `app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_pane_host.dart`)
   Sheets dismiss through their mounted route context or captured exact route. A retained Flow's
-  `navigatorContext` can refer to a different Navigator. Future #425 editors must use exact-route
-  dismissal and install their next loading route from the previous route's completion continuation
-  before awaiting initialization, preserving composition without a timer or captured pane owner.
+  `navigatorContext` can refer to a different Navigator. Budgets ships this exact-route session
+  pattern: `_FormSession` and `_EditSession` in `budgets_flow.dart` capture the sheet's
+  `AppSheetRoute` through `onRouteCreated`, dismiss it with `pop` when current or `removeRoute`
+  when covered, end at `route.completed`, and install the next surface in the previous route's
+  completion continuation before any await. Retirement removes the route after the frame ends.
+  No timer or captured pane owner is involved. See [budgets.md](budgets.md).
 - **Add form surface** - `AppSheetVariant.form` is used by the Add loading and loaded forms.
   In light mode its canvas backing uses `SpendWiseColors.base`; desktop form chrome docks in the right column with
   no grab handle. Standard sheets retain their existing chrome. Phone Add enables
