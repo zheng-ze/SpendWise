@@ -16,6 +16,7 @@ const _saveLabel = 'Save';
 const _loadErrorTitle = "Couldn't load the budget limit";
 const _saveErrorTitle = 'Could not save budget limit';
 const _footerWidth = double.infinity;
+const _amountAlignment = AlignmentDirectional.centerStart;
 
 // MARK: - Sheet Presenter
 Future<void> showBudgetLimitEditSheet({
@@ -114,11 +115,12 @@ class _BudgetLimitBody extends StatelessWidget {
       amountController.text = editorState.amountText;
     }
 
-    final amount = BudgetAmountInput(
+    final amountInput = BudgetAmountInput(
       controller: amountController,
       amountText: editorState.amountText,
       onChanged: viewModel.setAmount,
     );
+    final amount = Align(alignment: _amountAlignment, child: amountInput);
     final save = SizedBox(
       width: _footerWidth,
       child: PrimaryButton(
