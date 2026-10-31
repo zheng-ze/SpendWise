@@ -29,60 +29,37 @@ void main() {
     return state;
   }
 
-  group('addBudget validation', () {
+  Budget createBudget(LedgerState state, [String? forCategory]) {
+    final changes = state.addBudget(forCategory, Decimal.fromInt(100));
+    return (changes.single as UpsertBudget).budget;
+  }
+
+  group('addBudget', () {
     test('creates a budget on an active category', () {
       final state = seeded();
 
-      final changes = state.addBudget(
-        categoryID,
-        Decimal.fromInt(100),
-        now: DateTime.utc(2026, 1, 1),
-      );
+      final changes = state.addBudget(categoryID, Decimal.fromInt(100));
 
       expect(changes, hasLength(1));
       final change = changes.single as UpsertBudget;
       expect(change.budget.categoryID, categoryID);
-      expect(state.budgets[change.budget.id], isNotNull);
+      expect(change.budget.limit, Decimal.fromInt(100));
+      expect(state.budgets[change.budget.id], change.budget);
     });
-
-    test(
-      'stamps createdAtMonth from the caller-supplied now, not the system clock',
-      () {
-        final state = seeded();
-
-        final changes = state.addBudget(
-          categoryID,
-          Decimal.fromInt(100),
-          now: DateTime.utc(2020, 3, 15),
-        );
-
-        final change = changes.single as UpsertBudget;
-        expect(change.budget.createdAtMonth, const YearMonth(2020, 3));
-      },
-    );
 
     test('creates an overall budget when categoryID is null', () {
       final state = seeded();
 
-      final changes = state.addBudget(
-        null,
-        Decimal.fromInt(100),
-        now: DateTime.utc(2026, 1, 1),
-      );
+      final change = state.addBudget(null, Decimal.fromInt(100)).single;
 
-      final change = changes.single as UpsertBudget;
-      expect(change.budget.categoryID, isNull);
+      expect((change as UpsertBudget).budget.categoryID, isNull);
     });
 
     test('rejects an unknown category', () {
       final state = seeded();
 
       expect(
-        () => state.addBudget(
-          uuid(9),
-          Decimal.fromInt(100),
-          now: DateTime.utc(2026, 1, 1),
-        ),
+        () => state.addBudget(uuid(9), Decimal.fromInt(100)),
         throwsA(isA<UnknownCategory>()),
       );
       expect(state.budgets, isEmpty);
@@ -93,11 +70,7 @@ void main() {
       state.deleteCategory(categoryID);
 
       expect(
-        () => state.addBudget(
-          categoryID,
-          Decimal.fromInt(100),
-          now: DateTime.utc(2026, 1, 1),
-        ),
+        () => state.addBudget(categoryID, Decimal.fromInt(100)),
         throwsA(isA<InactiveReference>()),
       );
       expect(state.budgets, isEmpty);
@@ -105,18 +78,10 @@ void main() {
 
     test('rejects a duplicate category', () {
       final state = seeded();
-      state.addBudget(
-        categoryID,
-        Decimal.fromInt(100),
-        now: DateTime.utc(2026, 1, 1),
-      );
+      createBudget(state, categoryID);
 
       expect(
-        () => state.addBudget(
-          categoryID,
-          Decimal.fromInt(50),
-          now: DateTime.utc(2026, 1, 1),
-        ),
+        () => state.addBudget(categoryID, Decimal.fromInt(50)),
         throwsA(isA<CategoryAlreadyBudgeted>()),
       );
       expect(state.budgets, hasLength(1));
@@ -124,18 +89,10 @@ void main() {
 
     test('rejects a duplicate null category', () {
       final state = seeded();
-      state.addBudget(
-        null,
-        Decimal.fromInt(100),
-        now: DateTime.utc(2026, 1, 1),
-      );
+      createBudget(state);
 
       expect(
-        () => state.addBudget(
-          null,
-          Decimal.fromInt(50),
-          now: DateTime.utc(2026, 1, 1),
-        ),
+        () => state.addBudget(null, Decimal.fromInt(50)),
         throwsA(isA<CategoryAlreadyBudgeted>()),
       );
       expect(state.budgets, hasLength(1));
@@ -145,11 +102,7 @@ void main() {
       final state = seeded();
 
       expect(
-        () => state.addBudget(
-          categoryID,
-          Decimal.zero,
-          now: DateTime.utc(2026, 1, 1),
-        ),
+        () => state.addBudget(categoryID, Decimal.zero),
         throwsA(isA<ZeroAmount>()),
       );
       expect(state.budgets, isEmpty);
@@ -159,157 +112,96 @@ void main() {
       final state = seeded();
 
       expect(
-        () => state.addBudget(
-          categoryID,
-          Decimal.fromInt(-1),
-          now: DateTime.utc(2026, 1, 1),
-        ),
+        () => state.addBudget(categoryID, Decimal.fromInt(-1)),
         throwsA(isA<ZeroAmount>()),
       );
       expect(state.budgets, isEmpty);
     });
+
+    test('reports the category error before the limit error', () {
+      final state = seeded();
+
+      expect(
+        () => state.addBudget(uuid(9), Decimal.zero),
+        throwsA(isA<UnknownCategory>()),
+      );
+    });
+
+    test('reports the duplicate error before the limit error', () {
+      final state = seeded();
+      createBudget(state, categoryID);
+
+      expect(
+        () => state.addBudget(categoryID, Decimal.zero),
+        throwsA(isA<CategoryAlreadyBudgeted>()),
+      );
+    });
   });
 
-  group('updateBudgetAmount', () {
-    test('appends a new default event', () {
+  group('updateBudgetLimit', () {
+    test('replaces the limit and keeps id and category', () {
       final state = seeded();
-      final created =
-          (state
-                      .addBudget(
-                        categoryID,
-                        Decimal.fromInt(100),
-                        now: DateTime.utc(2026, 1, 1),
-                      )
-                      .single
-                  as UpsertBudget)
-              .budget;
+      final created = createBudget(state, categoryID);
 
-      final changes = state.updateBudgetAmount(
-        created.id,
+      final changes = state.updateBudgetLimit(created.id, Decimal.fromInt(200));
+
+      final updated = (changes.single as UpsertBudget).budget;
+      expect(updated.id, created.id);
+      expect(updated.categoryID, categoryID);
+      expect(updated.limit, Decimal.fromInt(200));
+      expect(state.budgets[created.id], updated);
+      expect(state.budgets, hasLength(1));
+    });
+
+    test('normalizes a raw uppercase budget id', () {
+      final state = seeded();
+      final created = createBudget(state, categoryID);
+
+      final changes = state.updateBudgetLimit(
+        created.id.toUpperCase(),
         Decimal.fromInt(200),
-        const YearMonth(2026, 6),
       );
 
       final updated = (changes.single as UpsertBudget).budget;
-      expect(updated.limitEvents, hasLength(2));
-      expect(
-        effectiveLimit(updated, const YearMonth(2026, 6)),
-        Decimal.fromInt(200),
-      );
-      expect(
-        effectiveLimit(updated, const YearMonth(2026, 1)),
-        Decimal.fromInt(100),
-      );
+      expect(updated.id, created.id);
+      expect(state.budgets[created.id]?.limit, Decimal.fromInt(200));
     });
 
     test('rejects an unknown budget id', () {
       final state = seeded();
 
       expect(
-        () => state.updateBudgetAmount(
-          uuid(9),
-          Decimal.fromInt(200),
-          const YearMonth(2026, 6),
-        ),
+        () => state.updateBudgetLimit(uuid(9), Decimal.fromInt(200)),
         throwsA(isA<UnknownBudget>()),
       );
     });
 
-    test('rejects a non-positive amount', () {
+    test('rejects a zero limit and keeps the stored limit', () {
       final state = seeded();
-      final created =
-          (state
-                      .addBudget(
-                        categoryID,
-                        Decimal.fromInt(100),
-                        now: DateTime.utc(2026, 1, 1),
-                      )
-                      .single
-                  as UpsertBudget)
-              .budget;
+      final created = createBudget(state, categoryID);
 
       expect(
-        () => state.updateBudgetAmount(
-          created.id,
-          Decimal.zero,
-          const YearMonth(2026, 6),
-        ),
+        () => state.updateBudgetLimit(created.id, Decimal.zero),
+        throwsA(isA<ZeroAmount>()),
+      );
+      expect(state.budgets[created.id]?.limit, Decimal.fromInt(100));
+    });
+
+    test('rejects a negative limit', () {
+      final state = seeded();
+      final created = createBudget(state, categoryID);
+
+      expect(
+        () => state.updateBudgetLimit(created.id, Decimal.fromInt(-5)),
         throwsA(isA<ZeroAmount>()),
       );
     });
-  });
 
-  group('setBudgetMonthOverride', () {
-    test('appends an override event that wins for its month', () {
-      final state = seeded();
-      final created =
-          (state
-                      .addBudget(
-                        categoryID,
-                        Decimal.fromInt(100),
-                        now: DateTime.utc(2026, 1, 1),
-                      )
-                      .single
-                  as UpsertBudget)
-              .budget;
-
-      final changes = state.setBudgetMonthOverride(
-        created.id,
-        const YearMonth(2026, 6),
-        Decimal.fromInt(999),
-      );
-
-      final updated = (changes.single as UpsertBudget).budget;
-      expect(
-        effectiveLimit(updated, const YearMonth(2026, 6)),
-        Decimal.fromInt(999),
-      );
-      expect(
-        effectiveLimit(updated, const YearMonth(2026, 7)),
-        Decimal.fromInt(100),
-      );
-    });
-
-    test('a new override on the same month replaces the previous one', () {
-      final state = seeded();
-      final created =
-          (state
-                      .addBudget(
-                        categoryID,
-                        Decimal.fromInt(100),
-                        now: DateTime.utc(2026, 1, 1),
-                      )
-                      .single
-                  as UpsertBudget)
-              .budget;
-      state.setBudgetMonthOverride(
-        created.id,
-        const YearMonth(2026, 6),
-        Decimal.fromInt(500),
-      );
-
-      final changes = state.setBudgetMonthOverride(
-        created.id,
-        const YearMonth(2026, 6),
-        Decimal.fromInt(700),
-      );
-
-      final updated = (changes.single as UpsertBudget).budget;
-      expect(
-        effectiveLimit(updated, const YearMonth(2026, 6)),
-        Decimal.fromInt(700),
-      );
-    });
-
-    test('rejects an unknown budget id', () {
+    test('reports the unknown budget before the limit error', () {
       final state = seeded();
 
       expect(
-        () => state.setBudgetMonthOverride(
-          uuid(9),
-          const YearMonth(2026, 6),
-          Decimal.fromInt(100),
-        ),
+        () => state.updateBudgetLimit(uuid(9), Decimal.zero),
         throwsA(isA<UnknownBudget>()),
       );
     });
@@ -319,13 +211,7 @@ void main() {
     test('removes an existing budget', () {
       final state = seeded();
       final created =
-          (state
-                      .addBudget(
-                        categoryID,
-                        Decimal.fromInt(100),
-                        now: DateTime.utc(2026, 1, 1),
-                      )
-                      .single
+          (state.addBudget(categoryID, Decimal.fromInt(100)).single
                   as UpsertBudget)
               .budget;
 

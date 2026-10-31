@@ -136,10 +136,7 @@ class Budgets extends Table with SyncedRow {
 
   TextColumn get categoryId => text().named('category_id').nullable()();
 
-  /// JSON array of {effectiveFromMonth, value, kind}.
-  TextColumn get limitEvents => text().named('limit_events')();
-
-  TextColumn get createdAtMonth => text().named('created_at_month')();
+  TextColumn get limitAmount => text().named('limit_amount')();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

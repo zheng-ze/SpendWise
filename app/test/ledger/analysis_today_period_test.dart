@@ -91,7 +91,7 @@ Future<void> _accept(AnalysisCache cache, Ledger ledger) async {
 void main() {
   test('summary value equality preserves calculated money fields', () {
     final state = _state();
-    state.addBudget(null, Decimal.parse('300'), now: _today);
+    state.addBudget(null, Decimal.parse('300'));
     final items = [
       AnalysisItem(
         bucketID: _foodID,
@@ -125,19 +125,26 @@ void main() {
     expect(firstPeriod.spent, Decimal.parse('12.50'));
   });
 
+  test('today cap is the one limit in every month', () {
+    final budget = Budget(categoryID: null, limit: Decimal.parse('300'));
+    final ledger = LedgerState(budgets: {budget.id: budget});
+    final days = [
+      DateTime.utc(2020, 1, 15),
+      DateTime.utc(2027, 4, 7),
+      DateTime.utc(2031, 9, 30),
+    ];
+
+    final caps = [
+      for (final day in days)
+        todaySummary(ledger: ledger, items: const [], today: day).monthlyCap,
+    ];
+
+    expect(caps, List.filled(3, Decimal.parse('300')));
+  });
+
   test('today summary rejects malformed duplicate applicable caps', () {
-    Budget cap(String id) => Budget(
-      id: id,
-      categoryID: null,
-      limitEvents: [
-        LimitEvent(
-          effectiveFromMonth: null,
-          value: Decimal.parse('300'),
-          kind: LimitEventKind.defaultLimit,
-        ),
-      ],
-      createdAtMonth: const YearMonth(2027, 4),
-    );
+    Budget cap(String id) =>
+        Budget(id: id, categoryID: null, limit: Decimal.parse('300'));
     final ledger = LedgerState(
       budgets: {
         'a0000000-0000-0000-0000-000000000001': cap(
@@ -573,15 +580,9 @@ void main() {
     expect(flaggedOnly.value?.moved, Decimal.parse('40.00'));
   });
 
-  test('dailyGuideUsesOverrideAndWholeDollarHalfUpRounding', () async {
+  test('dailyGuideUsesWholeDollarHalfUpRounding', () async {
     final state = _state();
-    state.addBudget(null, Decimal.parse('300'), now: DateTime.utc(2027, 4, 2));
-    final budgetID = state.budgets.values.single.id;
-    state.setBudgetMonthOverride(
-      budgetID,
-      const YearMonth(2027, 4),
-      Decimal.parse('315'),
-    );
+    state.addBudget(null, Decimal.parse('315'));
     final ledger = Ledger(state: state);
     final ready = _readyQueries(ledger);
     await _accept(ready.cache, ledger);
@@ -589,21 +590,10 @@ void main() {
     expect(ready.queries.readToday().value?.dailyGuide, Decimal.parse('11'));
   });
 
-  test('dailyGuideIsNullWithoutAnApplicableBudget', () async {
+  test('dailyGuideIsNullWithoutABudget', () async {
     final withoutBudget = Ledger(state: _state());
     final readyWithout = _readyQueries(withoutBudget);
     await _accept(readyWithout.cache, withoutBudget);
     expect(readyWithout.queries.readToday().value?.dailyGuide, isNull);
-
-    final mayState = _state();
-    mayState.addBudget(
-      null,
-      Decimal.parse('300'),
-      now: DateTime.utc(2027, 5, 2),
-    );
-    final mayLedger = Ledger(state: mayState);
-    final readyMay = _readyQueries(mayLedger);
-    await _accept(readyMay.cache, mayLedger);
-    expect(readyMay.queries.readToday().value?.dailyGuide, isNull);
   });
 }

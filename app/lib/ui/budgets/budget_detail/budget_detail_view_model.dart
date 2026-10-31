@@ -86,25 +86,21 @@ class BudgetDetailProjection {
     required this.displayedYear,
     required this.selectedMonth,
     required this.projection,
-    required this.selectedLimit,
-    required this.currentLimit,
+    required this.limit,
   });
 
   final Ledger ledger;
   final DateTime displayedYear;
   final DateTime selectedMonth;
   final BudgetDetail projection;
-  final Decimal selectedLimit;
-  final Decimal currentLimit;
+  final Decimal limit;
 
   List<DateTime> get months => trendMonths(displayedYear, isYearRange: true);
 
   List<BudgetMonthSlot> get slots => projection.slots;
 
-  double get chartMaxYValue => chartMaxY(
-    [for (final slot in projection.slots) slot.spend],
-    [currentLimit],
-  );
+  double get chartMaxYValue =>
+      chartMaxY([for (final slot in projection.slots) slot.spend], [limit]);
 
   bool belongsTo(Ledger currentLedger, BudgetDetailContext context) =>
       identical(ledger, currentLedger) &&
@@ -117,7 +113,6 @@ BudgetDetailProjection _captureProjection({
   required Budget budget,
   required BudgetDetail projection,
   required BudgetDetailContext context,
-  required DateTime today,
 }) {
   final summary = projection.summary;
   if (summary == null) {
@@ -128,8 +123,7 @@ BudgetDetailProjection _captureProjection({
     displayedYear: context.displayedYear,
     selectedMonth: context.selectedMonth,
     projection: projection,
-    selectedLimit: summary.limit,
-    currentLimit: effectiveLimit(budget, YearMonth.fromUtc(today)),
+    limit: summary.limit,
   );
 }
 
@@ -192,7 +186,9 @@ class BudgetDetailViewState
 abstract class BudgetDetailViewModel {
   void selectMonth(DateTime month);
   void changeYear(DateTime year);
+  Decimal? get liveLimit;
   void requestLimitEdit();
+  void applyLimit(Decimal? amount);
   void retry();
   void clearStep();
 }
@@ -296,7 +292,6 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
           budget: budget,
           projection: detail,
           context: context,
-          today: today,
         );
         _accepted = accepted;
         return (
@@ -351,9 +346,21 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
   void retry() => ref.read(analysisQueriesProvider)?.retry();
 
   @override
+  Decimal? get liveLimit => ledger.state.budgets[_budgetID]?.limit;
+
+  @override
   void requestLimitEdit() {
+    if (liveLimit == null) return;
     _step = BudgetLimitEditRequested();
     emitStep(BudgetLimitEditRequested());
+  }
+
+  @override
+  void applyLimit(Decimal? amount) {
+    if (!ref.mounted) return;
+    if (amount == null || amount <= Decimal.zero) return;
+    if (liveLimit == null) return;
+    ledger.updateBudgetLimit(_budgetID, amount);
   }
 
   @override

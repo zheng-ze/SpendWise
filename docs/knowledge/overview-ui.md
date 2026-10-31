@@ -58,7 +58,7 @@ the retained History flow keeps its stack, date and mode. History has no back-to
 ## Read definitions
 
 - Today: expense items dated today. The daily guide and `monthlyCap` come from the unscoped
-  budget's effective limit for the month. Without an unscoped budget both are null and the tray
+  budget's limit. Without an unscoped budget both are null and the tray
   shows 'Set a monthly cap to see a daily guide.' with a 'Set a monthly cap' link.
 - Today shows 'Nothing recorded today' instead of an amount when no active entry is dated today
   (`OverviewViewState.recordedToday`), so an unknown day is never drawn as zero spending.

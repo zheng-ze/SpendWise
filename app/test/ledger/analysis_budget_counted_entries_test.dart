@@ -34,17 +34,8 @@ void main() {
   const flaggedID = 'b0000000-0000-0000-0000-000000000002';
   const otherFlaggedID = 'b0000000-0000-0000-0000-000000000003';
 
-  Budget budget(String? categoryID) => Budget(
-    categoryID: categoryID,
-    limitEvents: [
-      LimitEvent(
-        kind: LimitEventKind.defaultLimit,
-        value: dec('100'),
-        effectiveFromMonth: null,
-      ),
-    ],
-    createdAtMonth: month,
-  );
+  Budget budget(String? categoryID) =>
+      Budget(categoryID: categoryID, limit: dec('100'));
 
   Entry expense(String name, String amount, {String? categoryID, int d = 5}) =>
       Entry(

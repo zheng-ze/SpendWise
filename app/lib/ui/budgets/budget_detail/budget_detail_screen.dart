@@ -69,7 +69,7 @@ class _BudgetDetailAppBar extends StatelessWidget
     implements PreferredSizeWidget {
   const _BudgetDetailAppBar({required this.title, required this.viewModel});
 
-  static const _editTooltip = 'Edit limit history';
+  static const _editTooltip = 'Edit limit';
 
   final String title;
   final BudgetDetailViewModel viewModel;

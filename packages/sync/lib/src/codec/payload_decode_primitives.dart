@@ -59,14 +59,6 @@ extension PayloadCodecDecodePrimitives on PayloadCodec {
     return value;
   }
 
-  Map<String, Object?> _object(Map<String, Object?> map, String key) {
-    final value = map[key];
-    if (value is! Map<String, Object?>) {
-      throw PayloadDecodeError('Field $key must be an object.');
-    }
-    return value;
-  }
-
   List<String> _stringList(Map<String, Object?> map, String key) {
     final values = _list(map, key);
     return <String>[

@@ -38,6 +38,76 @@ void main() {
     });
   });
 
+  group('budget limit', () {
+    Map<String, Object?> encodedBudgetData(Budget budget) {
+      final decoded = jsonDecode(utf8.decode(
+        codec.encodeChange(UpsertBudget(budget)),
+      )) as Map<String, Object?>;
+      return Map<String, Object?>.of(decoded['data']! as Map<String, Object?>);
+    }
+
+    List<int> budgetPayload(Map<String, Object?> data) => utf8.encode(
+          canonicalJson(<String, Object?>{
+            'version': 1,
+            'entity': 'budget',
+            'data': data,
+          }),
+        );
+
+    Matcher decodeFailsWith(String message) => throwsA(
+          isA<PayloadDecodeError>().having(
+            (error) => error.message,
+            'message',
+            contains(message),
+          ),
+        );
+
+    test('round-trips a category budget with a fractional limit', () {
+      final change = UpsertBudget(Budget(
+        id: uuidBudgets,
+        categoryID: uuidCategories,
+        limit: Decimal.parse('1234.56'),
+      ));
+      expect(codec.decodeChange(codec.encodeChange(change)), change);
+    });
+
+    test('round-trips an unscoped budget', () {
+      final change = UpsertBudget(Budget(
+        id: uuidBudgets,
+        categoryID: null,
+        limit: Decimal.parse('500'),
+      ));
+      expect(codec.decodeChange(codec.encodeChange(change)), change);
+    });
+
+    test('encodes the limit as its decimal string', () {
+      final data = encodedBudgetData(Budget(
+        id: uuidBudgets,
+        categoryID: uuidCategories,
+        limit: Decimal.parse('1234.56'),
+      ));
+      expect(data['limit'], '1234.56');
+    });
+
+    test('rejects a missing limit', () {
+      final data = encodedBudgetData(testBudget())..remove('limit');
+      expect(() => codec.decodeChange(budgetPayload(data)),
+          decodeFailsWith('Field limit must be a string'));
+    });
+
+    test('rejects a non-string limit', () {
+      final data = encodedBudgetData(testBudget())..['limit'] = 250;
+      expect(() => codec.decodeChange(budgetPayload(data)),
+          decodeFailsWith('Field limit must be a string'));
+    });
+
+    test('rejects a malformed decimal limit', () {
+      final data = encodedBudgetData(testBudget())..['limit'] = 'twelve';
+      expect(() => codec.decodeChange(budgetPayload(data)),
+          decodeFailsWith('Field limit is invalid'));
+    });
+  });
+
   group('entry note', () {
     Map<String, Object?> decodedData(LedgerChange change) {
       final decoded = jsonDecode(utf8.decode(codec.encodeChange(change)));

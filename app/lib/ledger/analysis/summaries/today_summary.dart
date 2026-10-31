@@ -41,7 +41,7 @@ TodaySummary todaySummary({
   required DateTime today,
 }) {
   final day = startOfDayUtc(today);
-  final monthlyCap = _monthlyCap(ledger, day);
+  final monthlyCap = _monthlyCap(ledger);
   var spent = Decimal.zero;
   for (final item in items) {
     if (item.kind == CategoryKind.expense && item.date == day) {
@@ -65,17 +65,15 @@ Decimal? _dailyGuide(Decimal? limit, DateTime day) {
   return Decimal.fromBigInt(padded ~/ Decimal.fromInt(days));
 }
 
-Decimal? _monthlyCap(LedgerState ledger, DateTime day) {
-  final month = YearMonth.fromUtc(day);
+Decimal? _monthlyCap(LedgerState ledger) {
   Budget? budget;
   for (final candidate in ledger.budgets.values) {
     if (candidate.categoryID != null) continue;
-    if (candidate.createdAtMonth > month) continue;
     if (budget != null) {
-      throw StateError('More than one unscoped budget applies to $month.');
+      throw StateError('More than one unscoped budget exists.');
     }
     budget = candidate;
   }
   if (budget == null) return null;
-  return effectiveLimit(budget, month);
+  return budget.limit;
 }

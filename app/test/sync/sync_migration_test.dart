@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart';
@@ -105,6 +109,7 @@ LedgerDatabase _openUpgradedSyncMeta({
   final executor = NativeDatabase.memory(
     setup: (raw) {
       raw.execute(_v5SyncMeta);
+      if (fromVersion >= 5) _createV7SyncStateTables(raw);
       final backendSql = backend == null ? 'NULL' : "'$backend'";
       final endpointSql = endpoint == null ? 'NULL' : "'$endpoint'";
       raw.execute(
@@ -118,6 +123,182 @@ LedgerDatabase _openUpgradedSyncMeta({
     },
   );
   return LedgerDatabase(executor);
+}
+
+const _v7Budgets = """
+CREATE TABLE budgets (
+  id TEXT NOT NULL PRIMARY KEY,
+  category_id TEXT NULL,
+  limit_events TEXT NOT NULL,
+  created_at_month TEXT NOT NULL,
+  version_data BLOB NOT NULL,
+  lifecycle INTEGER NOT NULL
+);
+""";
+
+const _v7AcknowledgedVectors = """
+CREATE TABLE sync_acknowledged_vectors (
+  collection TEXT NOT NULL,
+  row_id TEXT NOT NULL,
+  version_data BLOB NOT NULL,
+  PRIMARY KEY (collection, row_id)
+);
+""";
+
+const _v7OrphanTombstones = """
+CREATE TABLE sync_orphan_tombstones (
+  collection TEXT NOT NULL,
+  row_id TEXT NOT NULL,
+  version_data BLOB NOT NULL,
+  PRIMARY KEY (collection, row_id)
+);
+""";
+
+const _v7StagedConflicts = """
+CREATE TABLE sync_staged_conflicts (
+  collection TEXT NOT NULL,
+  row_id TEXT NOT NULL,
+  PRIMARY KEY (collection, row_id)
+);
+""";
+
+const _v7StagedSiblings = """
+CREATE TABLE sync_staged_siblings (
+  collection TEXT NOT NULL,
+  row_id TEXT NOT NULL,
+  sibling_id TEXT NOT NULL,
+  version_data BLOB NOT NULL,
+  payload BLOB NOT NULL,
+  lifecycle INTEGER NOT NULL,
+  position INTEGER NOT NULL,
+  PRIMARY KEY (collection, row_id, sibling_id)
+);
+""";
+
+const _budgetRowID = 'b0b0b0b0-0000-4000-8000-000000000001';
+const _entryRowID = 'eeeeeeee-0000-1111-2222-777777777777';
+const _staleSiblingA = 'sibling-a';
+const _staleSiblingB = 'sibling-b';
+
+const _legacyBudgetRow =
+    'INSERT INTO budgets (id, category_id, limit_events, created_at_month, '
+    'version_data, lifecycle) VALUES '
+    "('$_budgetRowID', NULL, "
+    '\'[{"effectiveFromMonth":null,"value":"500","kind":0}]\', '
+    "'2024-01', X'7B7D', 0)";
+
+final _oldFormatBudgetPayload = Uint8List.fromList(
+  utf8.encode(
+    json.encode({
+      'version': 1,
+      'entity': 'budget',
+      'data': {
+        'id': _budgetRowID,
+        'categoryID': null,
+        'limitEvents': [
+          {'effectiveFromMonth': null, 'value': '500', 'kind': 0},
+        ],
+        'createdAtMonth': '2024-01',
+      },
+    }),
+  ),
+);
+
+const _staleSyncCollections = ['budgets', 'entries'];
+
+void _createV7SyncStateTables(dynamic raw) {
+  raw.execute(_v7AcknowledgedVectors);
+  raw.execute(_v7OrphanTombstones);
+  raw.execute(_v7StagedConflicts);
+  raw.execute(_v7StagedSiblings);
+}
+
+void _seedConcurrentSiblings(dynamic raw, String collection) {
+  final isBudget = collection == 'budgets';
+  final lifecycle = isBudget ? 0 : 1;
+  final payload = isBudget ? "X'${_hex(_oldFormatBudgetPayload)}'" : "X''";
+  for (final (position, sibling) in [_staleSiblingA, _staleSiblingB].indexed) {
+    final vector = _hex(utf8.encode('{"device-$position":1}'));
+    raw.execute(
+      'INSERT INTO sync_staged_siblings VALUES '
+      "('$collection', '$_entryRowID', '$sibling', X'$vector', $payload, "
+      '$lifecycle, $position)',
+    );
+  }
+}
+
+void _seedV7BudgetsAndSyncState(dynamic raw) {
+  raw.execute(_v7Budgets);
+  raw.execute(_legacyBudgetRow);
+  _createV7SyncStateTables(raw);
+  for (final collection in _staleSyncCollections) {
+    raw.execute(
+      "INSERT INTO sync_acknowledged_vectors VALUES "
+      "('$collection', '$_entryRowID', X'7B7D')",
+    );
+    raw.execute(
+      "INSERT INTO sync_orphan_tombstones VALUES "
+      "('$collection', '$_entryRowID', X'7B7D')",
+    );
+    raw.execute(
+      "INSERT INTO sync_staged_conflicts VALUES ('$collection', '$_entryRowID')",
+    );
+    _seedConcurrentSiblings(raw, collection);
+  }
+  raw.execute(_v5SyncMeta);
+  raw.execute(
+    "INSERT INTO sync_meta (id, budgets_cursor) VALUES (0, 'cursor-1')",
+  );
+  raw.execute(
+    'CREATE TABLE sync_pending_acknowledgements ('
+    'collection TEXT NOT NULL PRIMARY KEY, checkpoint TEXT NOT NULL)',
+  );
+  raw.execute(
+    "INSERT INTO sync_pending_acknowledgements VALUES ('budgets', 'cp-1')",
+  );
+}
+
+String _hex(List<int> bytes) =>
+    bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+
+LedgerDatabase _openV7WithBudgetState() => LedgerDatabase(
+  NativeDatabase.memory(
+    setup: (raw) {
+      _seedV7BudgetsAndSyncState(raw);
+      raw.execute('PRAGMA user_version = 7');
+    },
+  ),
+);
+
+Future<void> _expectOneLimitBudgetsTable(LedgerDatabase db) async {
+  final columns = await db.customSelect('PRAGMA table_info(budgets)').get();
+  final byName = {for (final row in columns) row.read<String>('name'): row};
+  expect(byName.keys, {
+    'id',
+    'category_id',
+    'limit_amount',
+    'version_data',
+    'lifecycle',
+  });
+  expect(byName['limit_amount']!.read<String>('type'), 'TEXT');
+  expect(byName['limit_amount']!.read<int>('notnull'), 1);
+  expect(byName['category_id']!.read<int>('notnull'), 0);
+  final rows = await db.customSelect('SELECT id FROM budgets').get();
+  expect(rows, isEmpty);
+}
+
+Future<int> _countRows(
+  LedgerDatabase db,
+  String table,
+  String collection,
+) async {
+  final row = await db
+      .customSelect(
+        'SELECT COUNT(*) AS n FROM $table WHERE collection = ?',
+        variables: [Variable<String>(collection)],
+      )
+      .getSingle();
+  return row.read<int>('n');
 }
 
 typedef _RemapCase = ({
@@ -589,6 +770,7 @@ void main() {
         raw.execute(_v3StoreMeta);
         raw.execute(_v5SyncMeta);
         raw.execute(_v6Plans);
+        _createV7SyncStateTables(raw);
         raw.execute(_legacyPlanRow);
         raw.execute('PRAGMA user_version = 6');
       },
@@ -653,5 +835,112 @@ void main() {
         .getSingle();
     expect(row.read<int>('device_binding_state'), 0);
     expect(row.readNullable<int>('reauth_resume_phase'), isNull);
+  });
+
+  test('a 7-to-8 upgrade replaces the budgets table with the one-limit '
+      'schema and drops old rows', () async {
+    final db = LedgerDatabase(
+      NativeDatabase.memory(
+        setup: (raw) {
+          raw.execute(_v7Budgets);
+          raw.execute(_legacyBudgetRow);
+          _createV7SyncStateTables(raw);
+          raw.execute('PRAGMA user_version = 7');
+        },
+      ),
+    );
+    addTearDown(db.close);
+
+    await _expectOneLimitBudgetsTable(db);
+  });
+
+  test('a 7-to-8 upgrade clears budget sync state and keeps other '
+      'collections', () async {
+    final db = _openV7WithBudgetState();
+    addTearDown(db.close);
+
+    await db.customSelect('SELECT 1').get();
+
+    for (final table in [
+      'sync_staged_siblings',
+      'sync_staged_conflicts',
+      'sync_acknowledged_vectors',
+      'sync_orphan_tombstones',
+    ]) {
+      expect(await _countRows(db, table, 'budgets'), 0, reason: table);
+      expect(
+        await _countRows(db, table, 'entries'),
+        greaterThan(0),
+        reason: table,
+      );
+    }
+    final staging = await DriftSyncStagingStore.open(db);
+    expect(await staging.pendingConflictList(), hasLength(1));
+  });
+
+  test('a 7-to-8 upgrade keeps the budgets cursor and pending '
+      'acknowledgement', () async {
+    final db = _openV7WithBudgetState();
+    addTearDown(db.close);
+
+    final meta = await db
+        .customSelect('SELECT budgets_cursor FROM sync_meta WHERE id = 0')
+        .getSingle();
+    expect(meta.read<String>('budgets_cursor'), 'cursor-1');
+    expect(await _countRows(db, 'sync_pending_acknowledgements', 'budgets'), 1);
+  });
+
+  test('a 6-to-8 upgrade reaches the one-limit budgets table', () async {
+    final db = LedgerDatabase(
+      NativeDatabase.memory(
+        setup: (raw) {
+          raw.execute(_v7Budgets);
+          raw.execute(_v5SyncMeta);
+          raw.execute(_v6Plans);
+          _createV7SyncStateTables(raw);
+          raw.execute('PRAGMA user_version = 6');
+        },
+      ),
+    );
+    addTearDown(db.close);
+
+    await _expectOneLimitBudgetsTable(db);
+  });
+
+  test('a 5-to-8 upgrade reaches the one-limit budgets table', () async {
+    final db = _openUpgradedSyncMeta(fromVersion: 5);
+    addTearDown(db.close);
+
+    await _expectOneLimitBudgetsTable(db);
+  });
+
+  test('a 4-to-8 upgrade reaches the one-limit budgets table', () async {
+    final db = _openUpgradedSyncMeta(fromVersion: 4);
+    addTearDown(db.close);
+
+    await _expectOneLimitBudgetsTable(db);
+  });
+
+  test('a 3-to-8 upgrade reaches the one-limit budgets table', () async {
+    final db = LedgerDatabase(
+      NativeDatabase.memory(
+        setup: (raw) {
+          raw.execute(_v3Accounts);
+          raw.execute(_v3Entries);
+          raw.execute(_v3StoreMeta);
+          raw.execute('PRAGMA user_version = 3');
+        },
+      ),
+    );
+    addTearDown(db.close);
+
+    await _expectOneLimitBudgetsTable(db);
+  });
+
+  test('a fresh database has the one-limit budgets table', () async {
+    final db = LedgerDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    await _expectOneLimitBudgetsTable(db);
   });
 }

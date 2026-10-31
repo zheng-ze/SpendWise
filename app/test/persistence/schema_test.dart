@@ -19,6 +19,19 @@ void main() {
   test('money columns are text so amounts round-trip exactly', () async {
     expect((await columnTypes('entries'))['amount'], 'TEXT');
     expect((await columnTypes('plans'))['template_amount'], 'TEXT');
+    expect((await columnTypes('budgets'))['limit_amount'], 'TEXT');
+  });
+
+  test('budgets hold one limit and no limit history columns', () async {
+    final columns = await columnTypes('budgets');
+
+    expect(columns.keys, {
+      'id',
+      'category_id',
+      'limit_amount',
+      'version_data',
+      'lifecycle',
+    });
   });
 
   test('every synced table carries a version vector and a lifecycle', () async {
@@ -28,6 +41,7 @@ void main() {
       'categories',
       'entries',
       'plans',
+      'budgets',
     ]) {
       final columns = await columnTypes(table);
       expect(columns['version_data'], 'BLOB', reason: table);

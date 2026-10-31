@@ -129,10 +129,9 @@ void main() {
     ledger.addListener(() => notifications++);
 
     expect(
-      () => ledger.updateBudgetAmount(
+      () => ledger.updateBudgetLimit(
         '4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43',
         Decimal.fromInt(10),
-        YearMonth(2026, 1),
       ),
       throwsA(isA<UnknownBudget>()),
     );
@@ -140,6 +139,47 @@ void main() {
     expect(batches, isEmpty);
     expect(notifications, 0);
     expect(ledger.state.budgets, isEmpty);
+  });
+
+  test('updateBudgetLimitReplacesLimitAndPublishesBudget', () {
+    final ledger = Ledger();
+    final batches = _batchesOf(ledger);
+
+    final added = ledger.addBudget(null, Decimal.fromInt(100));
+    final budget = (added.single as UpsertBudget).budget;
+    ledger.updateBudgetLimit(budget.id, Decimal.fromInt(250));
+
+    final updated = Budget(
+      id: budget.id,
+      categoryID: null,
+      limit: Decimal.fromInt(250),
+    );
+    expect(batches, hasLength(2));
+    expect(batches[1], [UpsertBudget(updated)]);
+    expect(ledger.state.budgets[budget.id], updated);
+  });
+
+  test('applySyncBatchRejectsZeroLimitBudgetWithoutChangingState', () {
+    final ledger = Ledger();
+    final batches = _batchesOf(ledger);
+    var notifications = 0;
+    ledger.addListener(() => notifications++);
+    final before = ledger.state;
+
+    final zeroLimit = Budget(
+      id: '4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43',
+      categoryID: null,
+      limit: Decimal.zero,
+    );
+    expect(
+      () => ledger.applySyncBatch([UpsertBudget(zeroLimit)], {}),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(identical(ledger.state, before), isTrue);
+    expect(ledger.state.budgets, isEmpty);
+    expect(batches, isEmpty);
+    expect(notifications, 0);
   });
 
   test('sequentialMutationsPublishInOrder', () {

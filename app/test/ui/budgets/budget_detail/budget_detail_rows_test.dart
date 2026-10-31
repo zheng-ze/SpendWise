@@ -45,7 +45,7 @@ void main() {
     expect(state.projection?.projection.summary?.spent, state.spent);
   }, timeout: uiTestTimeout);
 
-  testWidgets('Edit requests the existing limit history step from the page', (
+  testWidgets('Edit requests the limit edit step from the page', (
     tester,
   ) async {
     final container = await pumpDetailScreen(
@@ -53,7 +53,7 @@ void main() {
       ledger: detailLedger(budgets: [detailBudget()]),
     );
 
-    await tester.tap(find.byTooltip('Edit limit history'));
+    await tester.tap(find.byTooltip('Edit limit'));
     await tester.pump();
 
     expect(detailState(container).step, isA<BudgetLimitEditRequested>());

@@ -13,18 +13,7 @@ void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
   Budget buildBudget({String? categoryID, String id = 'stale'}) {
-    return Budget(
-      id: id,
-      categoryID: categoryID,
-      limitEvents: [
-        LimitEvent(
-          effectiveFromMonth: null,
-          value: dec('100'),
-          kind: LimitEventKind.defaultLimit,
-        ),
-      ],
-      createdAtMonth: const YearMonth(2026, 1),
-    );
+    return Budget(id: id, categoryID: categoryID, limit: dec('100'));
   }
 
   ProviderContainer buildContainer(Ledger ledger) {

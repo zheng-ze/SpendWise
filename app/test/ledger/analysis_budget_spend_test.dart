@@ -43,17 +43,8 @@ void main() {
 
   final month = const YearMonth(2026, 7);
 
-  Budget budget(String? categoryID) => Budget(
-    categoryID: categoryID,
-    limitEvents: [
-      LimitEvent(
-        kind: LimitEventKind.defaultLimit,
-        value: dec('100'),
-        effectiveFromMonth: null,
-      ),
-    ],
-    createdAtMonth: month,
-  );
+  Budget budget(String? categoryID) =>
+      Budget(categoryID: categoryID, limit: dec('100'));
 
   AnalysisItem item(String? bucketID, String amount, {CategoryKind? kind}) =>
       AnalysisItem(

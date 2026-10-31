@@ -48,12 +48,9 @@ produces facts (entries); a budget is pure configuration.
 **Occurrence** — one due date of a recurring plan, identified by a deterministic
 `OccurrenceID` (UUIDv5 over the plan id and the due date). See ADR-0004.
 
-**Budget** — a monthly spending cap on one category (or on every category, if its `categoryID` is
-null), configured as an append-only timeline of `LimitEvent`s rather than a single mutable field.
-See ADR-0038.
-
-**LimitEvent** — one entry in a budget's timeline: either a `default` (changes the ongoing limit
-from a month forward) or an `override` (pins exactly one month). See ADR-0038.
+**Budget** - a monthly spending cap on one category (or on every category, if its `categoryID` is
+null). A budget holds exactly one limit. Every month, past, current and future, compares its spend
+against that same limit, and updating the limit replaces it for all months.
 
 **Lifecycle state** (`LifecycleState`) — where a row sits in its life: `active`, `archived`
 (user-hidden but still referenced), `referenceOnly` (unreferenced and pending purge), or

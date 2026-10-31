@@ -15,18 +15,8 @@ import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import '../../../support/pump_app.dart';
 import '../../../support/ui_test_timeout.dart';
 
-Budget _overall() => Budget(
-  id: 'b1',
-  categoryID: null,
-  limitEvents: [
-    LimitEvent(
-      effectiveFromMonth: null,
-      value: Decimal.fromInt(100),
-      kind: LimitEventKind.defaultLimit,
-    ),
-  ],
-  createdAtMonth: const YearMonth(2026, 1),
-);
+Budget _overall() =>
+    Budget(id: 'b1', categoryID: null, limit: Decimal.fromInt(100));
 
 void main() {
   testWidgets('fr-budgets Add budget opens the existing form', (tester) async {

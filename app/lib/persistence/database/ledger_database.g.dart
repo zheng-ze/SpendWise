@@ -3216,23 +3216,12 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _limitEventsMeta = const VerificationMeta(
-    'limitEvents',
+  static const VerificationMeta _limitAmountMeta = const VerificationMeta(
+    'limitAmount',
   );
   @override
-  late final GeneratedColumn<String> limitEvents = GeneratedColumn<String>(
-    'limit_events',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _createdAtMonthMeta = const VerificationMeta(
-    'createdAtMonth',
-  );
-  @override
-  late final GeneratedColumn<String> createdAtMonth = GeneratedColumn<String>(
-    'created_at_month',
+  late final GeneratedColumn<String> limitAmount = GeneratedColumn<String>(
+    'limit_amount',
     aliasedName,
     false,
     type: DriftSqlType.string,
@@ -3244,8 +3233,7 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
     lifecycle,
     id,
     categoryId,
-    limitEvents,
-    createdAtMonth,
+    limitAmount,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3289,27 +3277,16 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
         categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
       );
     }
-    if (data.containsKey('limit_events')) {
+    if (data.containsKey('limit_amount')) {
       context.handle(
-        _limitEventsMeta,
-        limitEvents.isAcceptableOrUnknown(
-          data['limit_events']!,
-          _limitEventsMeta,
+        _limitAmountMeta,
+        limitAmount.isAcceptableOrUnknown(
+          data['limit_amount']!,
+          _limitAmountMeta,
         ),
       );
     } else if (isInserting) {
-      context.missing(_limitEventsMeta);
-    }
-    if (data.containsKey('created_at_month')) {
-      context.handle(
-        _createdAtMonthMeta,
-        createdAtMonth.isAcceptableOrUnknown(
-          data['created_at_month']!,
-          _createdAtMonthMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_createdAtMonthMeta);
+      context.missing(_limitAmountMeta);
     }
     return context;
   }
@@ -3336,13 +3313,9 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
         DriftSqlType.string,
         data['${effectivePrefix}category_id'],
       ),
-      limitEvents: attachedDatabase.typeMapping.read(
+      limitAmount: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}limit_events'],
-      )!,
-      createdAtMonth: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}created_at_month'],
+        data['${effectivePrefix}limit_amount'],
       )!,
     );
   }
@@ -3358,17 +3331,13 @@ class Budget extends DataClass implements Insertable<Budget> {
   final int lifecycle;
   final String id;
   final String? categoryId;
-
-  /// JSON array of {effectiveFromMonth, value, kind}.
-  final String limitEvents;
-  final String createdAtMonth;
+  final String limitAmount;
   const Budget({
     required this.versionData,
     required this.lifecycle,
     required this.id,
     this.categoryId,
-    required this.limitEvents,
-    required this.createdAtMonth,
+    required this.limitAmount,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3379,8 +3348,7 @@ class Budget extends DataClass implements Insertable<Budget> {
     if (!nullToAbsent || categoryId != null) {
       map['category_id'] = Variable<String>(categoryId);
     }
-    map['limit_events'] = Variable<String>(limitEvents);
-    map['created_at_month'] = Variable<String>(createdAtMonth);
+    map['limit_amount'] = Variable<String>(limitAmount);
     return map;
   }
 
@@ -3392,8 +3360,7 @@ class Budget extends DataClass implements Insertable<Budget> {
       categoryId: categoryId == null && nullToAbsent
           ? const Value.absent()
           : Value(categoryId),
-      limitEvents: Value(limitEvents),
-      createdAtMonth: Value(createdAtMonth),
+      limitAmount: Value(limitAmount),
     );
   }
 
@@ -3407,8 +3374,7 @@ class Budget extends DataClass implements Insertable<Budget> {
       lifecycle: serializer.fromJson<int>(json['lifecycle']),
       id: serializer.fromJson<String>(json['id']),
       categoryId: serializer.fromJson<String?>(json['categoryId']),
-      limitEvents: serializer.fromJson<String>(json['limitEvents']),
-      createdAtMonth: serializer.fromJson<String>(json['createdAtMonth']),
+      limitAmount: serializer.fromJson<String>(json['limitAmount']),
     );
   }
   @override
@@ -3419,8 +3385,7 @@ class Budget extends DataClass implements Insertable<Budget> {
       'lifecycle': serializer.toJson<int>(lifecycle),
       'id': serializer.toJson<String>(id),
       'categoryId': serializer.toJson<String?>(categoryId),
-      'limitEvents': serializer.toJson<String>(limitEvents),
-      'createdAtMonth': serializer.toJson<String>(createdAtMonth),
+      'limitAmount': serializer.toJson<String>(limitAmount),
     };
   }
 
@@ -3429,15 +3394,13 @@ class Budget extends DataClass implements Insertable<Budget> {
     int? lifecycle,
     String? id,
     Value<String?> categoryId = const Value.absent(),
-    String? limitEvents,
-    String? createdAtMonth,
+    String? limitAmount,
   }) => Budget(
     versionData: versionData ?? this.versionData,
     lifecycle: lifecycle ?? this.lifecycle,
     id: id ?? this.id,
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
-    limitEvents: limitEvents ?? this.limitEvents,
-    createdAtMonth: createdAtMonth ?? this.createdAtMonth,
+    limitAmount: limitAmount ?? this.limitAmount,
   );
   Budget copyWithCompanion(BudgetsCompanion data) {
     return Budget(
@@ -3449,12 +3412,9 @@ class Budget extends DataClass implements Insertable<Budget> {
       categoryId: data.categoryId.present
           ? data.categoryId.value
           : this.categoryId,
-      limitEvents: data.limitEvents.present
-          ? data.limitEvents.value
-          : this.limitEvents,
-      createdAtMonth: data.createdAtMonth.present
-          ? data.createdAtMonth.value
-          : this.createdAtMonth,
+      limitAmount: data.limitAmount.present
+          ? data.limitAmount.value
+          : this.limitAmount,
     );
   }
 
@@ -3465,8 +3425,7 @@ class Budget extends DataClass implements Insertable<Budget> {
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('categoryId: $categoryId, ')
-          ..write('limitEvents: $limitEvents, ')
-          ..write('createdAtMonth: $createdAtMonth')
+          ..write('limitAmount: $limitAmount')
           ..write(')'))
         .toString();
   }
@@ -3477,8 +3436,7 @@ class Budget extends DataClass implements Insertable<Budget> {
     lifecycle,
     id,
     categoryId,
-    limitEvents,
-    createdAtMonth,
+    limitAmount,
   );
   @override
   bool operator ==(Object other) =>
@@ -3488,8 +3446,7 @@ class Budget extends DataClass implements Insertable<Budget> {
           other.lifecycle == this.lifecycle &&
           other.id == this.id &&
           other.categoryId == this.categoryId &&
-          other.limitEvents == this.limitEvents &&
-          other.createdAtMonth == this.createdAtMonth);
+          other.limitAmount == this.limitAmount);
 }
 
 class BudgetsCompanion extends UpdateCompanion<Budget> {
@@ -3497,16 +3454,14 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
   final Value<int> lifecycle;
   final Value<String> id;
   final Value<String?> categoryId;
-  final Value<String> limitEvents;
-  final Value<String> createdAtMonth;
+  final Value<String> limitAmount;
   final Value<int> rowid;
   const BudgetsCompanion({
     this.versionData = const Value.absent(),
     this.lifecycle = const Value.absent(),
     this.id = const Value.absent(),
     this.categoryId = const Value.absent(),
-    this.limitEvents = const Value.absent(),
-    this.createdAtMonth = const Value.absent(),
+    this.limitAmount = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BudgetsCompanion.insert({
@@ -3514,21 +3469,18 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     required int lifecycle,
     required String id,
     this.categoryId = const Value.absent(),
-    required String limitEvents,
-    required String createdAtMonth,
+    required String limitAmount,
     this.rowid = const Value.absent(),
   }) : versionData = Value(versionData),
        lifecycle = Value(lifecycle),
        id = Value(id),
-       limitEvents = Value(limitEvents),
-       createdAtMonth = Value(createdAtMonth);
+       limitAmount = Value(limitAmount);
   static Insertable<Budget> custom({
     Expression<Uint8List>? versionData,
     Expression<int>? lifecycle,
     Expression<String>? id,
     Expression<String>? categoryId,
-    Expression<String>? limitEvents,
-    Expression<String>? createdAtMonth,
+    Expression<String>? limitAmount,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3536,8 +3488,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
       if (lifecycle != null) 'lifecycle': lifecycle,
       if (id != null) 'id': id,
       if (categoryId != null) 'category_id': categoryId,
-      if (limitEvents != null) 'limit_events': limitEvents,
-      if (createdAtMonth != null) 'created_at_month': createdAtMonth,
+      if (limitAmount != null) 'limit_amount': limitAmount,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3547,8 +3498,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     Value<int>? lifecycle,
     Value<String>? id,
     Value<String?>? categoryId,
-    Value<String>? limitEvents,
-    Value<String>? createdAtMonth,
+    Value<String>? limitAmount,
     Value<int>? rowid,
   }) {
     return BudgetsCompanion(
@@ -3556,8 +3506,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
       lifecycle: lifecycle ?? this.lifecycle,
       id: id ?? this.id,
       categoryId: categoryId ?? this.categoryId,
-      limitEvents: limitEvents ?? this.limitEvents,
-      createdAtMonth: createdAtMonth ?? this.createdAtMonth,
+      limitAmount: limitAmount ?? this.limitAmount,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3577,11 +3526,8 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     if (categoryId.present) {
       map['category_id'] = Variable<String>(categoryId.value);
     }
-    if (limitEvents.present) {
-      map['limit_events'] = Variable<String>(limitEvents.value);
-    }
-    if (createdAtMonth.present) {
-      map['created_at_month'] = Variable<String>(createdAtMonth.value);
+    if (limitAmount.present) {
+      map['limit_amount'] = Variable<String>(limitAmount.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -3596,8 +3542,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('categoryId: $categoryId, ')
-          ..write('limitEvents: $limitEvents, ')
-          ..write('createdAtMonth: $createdAtMonth, ')
+          ..write('limitAmount: $limitAmount, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7686,8 +7631,7 @@ typedef $$BudgetsTableCreateCompanionBuilder = BudgetsCompanion Function({
   required int lifecycle,
   required String id,
   Value<String?> categoryId,
-  required String limitEvents,
-  required String createdAtMonth,
+  required String limitAmount,
   Value<int> rowid,
 });
 typedef $$BudgetsTableUpdateCompanionBuilder = BudgetsCompanion Function({
@@ -7695,8 +7639,7 @@ typedef $$BudgetsTableUpdateCompanionBuilder = BudgetsCompanion Function({
   Value<int> lifecycle,
   Value<String> id,
   Value<String?> categoryId,
-  Value<String> limitEvents,
-  Value<String> createdAtMonth,
+  Value<String> limitAmount,
   Value<int> rowid,
 });
 
@@ -7729,13 +7672,8 @@ class $$BudgetsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get limitEvents => $composableBuilder(
-    column: $table.limitEvents,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get createdAtMonth => $composableBuilder(
-    column: $table.createdAtMonth,
+  ColumnFilters<String> get limitAmount => $composableBuilder(
+    column: $table.limitAmount,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7769,13 +7707,8 @@ class $$BudgetsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get limitEvents => $composableBuilder(
-    column: $table.limitEvents,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get createdAtMonth => $composableBuilder(
-    column: $table.createdAtMonth,
+  ColumnOrderings<String> get limitAmount => $composableBuilder(
+    column: $table.limitAmount,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -7805,13 +7738,8 @@ class $$BudgetsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get limitEvents => $composableBuilder(
-    column: $table.limitEvents,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get createdAtMonth => $composableBuilder(
-    column: $table.createdAtMonth,
+  GeneratedColumn<String> get limitAmount => $composableBuilder(
+    column: $table.limitAmount,
     builder: (column) => column,
   );
 }
@@ -7848,16 +7776,14 @@ class $$BudgetsTableTableManager
                 Value<int> lifecycle = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String?> categoryId = const Value.absent(),
-                Value<String> limitEvents = const Value.absent(),
-                Value<String> createdAtMonth = const Value.absent(),
+                Value<String> limitAmount = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BudgetsCompanion(
                 versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 categoryId: categoryId,
-                limitEvents: limitEvents,
-                createdAtMonth: createdAtMonth,
+                limitAmount: limitAmount,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7866,16 +7792,14 @@ class $$BudgetsTableTableManager
                 required int lifecycle,
                 required String id,
                 Value<String?> categoryId = const Value.absent(),
-                required String limitEvents,
-                required String createdAtMonth,
+                required String limitAmount,
                 Value<int> rowid = const Value.absent(),
               }) => BudgetsCompanion.insert(
                 versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 categoryId: categoryId,
-                limitEvents: limitEvents,
-                createdAtMonth: createdAtMonth,
+                limitAmount: limitAmount,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

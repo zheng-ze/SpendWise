@@ -41,22 +41,9 @@ final foodCategory = TransactionCategory(
 Budget detailBudget({
   String id = detailBudgetID,
   String? categoryID,
-  List<LimitEvent>? limitEvents,
+  Decimal? limit,
 }) {
-  return Budget(
-    id: id,
-    categoryID: categoryID,
-    limitEvents:
-        limitEvents ??
-        [
-          LimitEvent(
-            effectiveFromMonth: null,
-            value: dec('100'),
-            kind: LimitEventKind.defaultLimit,
-          ),
-        ],
-    createdAtMonth: const YearMonth(2026, 1),
-  );
+  return Budget(id: id, categoryID: categoryID, limit: limit ?? dec('100'));
 }
 
 Ledger detailLedger({

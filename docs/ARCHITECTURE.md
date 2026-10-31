@@ -56,9 +56,8 @@ document is the wide-angle view that ties those entries together.
   `AnalysisCache` recomputes this off the main isolate, guarded by a generation counter so a stale
   result is discarded if a newer mutation has already superseded it.
 - **Budgets** - a monthly spending cap hosted by the Money Budgets segment. A budget attaches to at most one
-  category (a null category means "overall", spanning every category); its limit is an append-only timeline of `LimitEvent`s — a default plus optional
-  per-month `override`s — and `effectiveLimit` resolves the limit for a month by taking a matching
-  override or, if none applies, the latest default at or before that month. Budget spend math lives
+  category (a null category means "overall", spanning every category); it holds one `Decimal` limit that applies to every month, and editing it replaces the value
+  (`updateBudgetLimit`). Budget spend math lives
   in the app layer, not the domain (ADR-0042). A budget is created only from its form (ADR-0046),
   hard-deletes without a tombstone (ADR-0041), and its category rolls up to its parent (ADR-0039).
   See `docs/knowledge/budgets.md` and ADR-0038 onward for the full behavior contract.
@@ -123,7 +122,7 @@ one flat folder. A change lands in the smallest folder that owns the behavior it
 
 Core domain types: `LedgerState`, `LedgerChange`, `Entry`, `MoneySource`, `Account`, `SubPocket`,
 `TransactionCategory`, `RecurringPlan`, `EntryTemplate`, `LifecycleState`, `Budget`,
-`LimitEvent`, `EntryKind`, `SystemEntryKind`, `AnalysisItem`, `NetWorth`, `Accounting`.
+`EntryKind`, `SystemEntryKind`, `AnalysisItem`, `NetWorth`, `Accounting`.
 
 ## 3. Stack decisions
 
@@ -181,10 +180,9 @@ separator input is a recorded non-goal until localization work begins.
   checked is never asserted against a later snapshot.
 - The model has 10 account types; `loan` and `overdraft`, like savings, investment, insurance, and
   other, treat incoming transfers as expenses (see `AccountType.allowsTransfersAsExpense`).
-- **Budgets in the domain.** A `Budget` owns a nullable category, a `createdAtMonth`, and an
-  immutable, append-only `List<LimitEvent>`; the pure function `effectiveLimit` resolves the limit
-  for a month from that timeline. The domain enforces budget invariants (the category resolves, each
-  limit event has a valid shape) but performs no spend math — that stays in the app layer.
+- **Budgets in the domain.** A `Budget` owns a nullable category and one `Decimal limit`.
+  The domain enforces budget invariants (the category resolves, the limit is positive) but performs
+  no spend math — that stays in the app layer.
 - Entries carry an `EntryKind` (income, expense, transfer) and an optional `SystemEntryKind`
   (`openingBalance`, `balanceAdjustment`); system entries are protected from user edits by
   `systemEntryLocked`.
@@ -234,8 +232,7 @@ separator input is a recorded non-goal until localization work begins.
   `sync_staged_conflicts`, `sync_staged_siblings`) follow their own keys instead; their table
   doc comments in `app/lib/sync/sync_tables.dart` own that schema, with the coordination
   behavior covered in `docs/knowledge/sync-durable-stores.md`. Amount and other decimal columns are stored as
-  `TEXT`. Budgets store an append-only `limit_events` column (a JSON array of `effectiveFromMonth`,
-  `value`, and `kind`) alongside a nullable `category_id` and `created_at_month`. `load()` filters
+  `TEXT`. Budgets store a nullable `category_id` and a `limit_amount` `TEXT` column. `load()` filters
   out rows with `lifecycle == tombstoned` and rebuilds `LedgerState` by replaying upserts.
   `entries.note TEXT` remains reserved ahead of a future split-payment wizard's principal/interest
   breakdown; a `system_kind INT` column, by contrast, is now written (0 opening balance, 1

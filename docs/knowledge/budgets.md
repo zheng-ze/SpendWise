@@ -1,26 +1,23 @@
 # Budgets
 
-Last reconciled: 2026-10-29
+Last reconciled: 2026-10-31
 
 ## Feature overview
 
 A monthly spending cap the user sets against one category or, if unscoped, against every category.
-A budget is configured as an append-only timeline of `LimitEvent`s rather than a single mutable
-field, so its limit can change over time with a full history. Budgets are pure configuration; they
-produce facts (entries) only indirectly, via the spend math the app layer runs against analysis.
+A budget has exactly one `Decimal` limit that applies to every month, past, current and future.
+Editing the limit replaces it. Budgets are pure configuration; they produce facts (entries) only
+indirectly, via the spend math the app layer runs against analysis.
 
 ## Key files
 
-- `packages/domain/lib/src/budgets/budget.dart` - the `Budget` model: `categoryID`, an
-  immutable `List<LimitEvent>`, and `createdAtMonth`.
-- `packages/domain/lib/src/budgets/limit_event.dart` - `LimitEvent`, a `default` (changes the
-  ongoing limit from a month forward) or an `override` (pins exactly one month).
+- `packages/domain/lib/src/budgets/budget.dart` - the `Budget` model: `id`, nullable `categoryID`
+  and the single `Decimal limit`.
 - `packages/domain/lib/src/ledger_state/mutators/ledger_state_budgets.dart` - the budget mutators on
-  `LedgerState`: create, update, delete, duplicate-guard, and the category sweep.
+  `LedgerState`: create, update the limit, delete, duplicate-guard, and the category sweep.
 - `app/lib/ui/budgets/budget_list/` - budget list view model, form, card, and `budgets_flow.dart`.
-- `app/lib/ui/budgets/budget_detail/` - detail and limit screens with their view models.
-- `packages/domain/lib/src/budgets/budget_limits.dart` - `effectiveLimit(budget, month)`, the limit
-  that applies to a month.
+- `app/lib/ui/budgets/budget_detail/` - the detail screen, pane, view model, and
+  `budget_limit_edit_sheet.dart`, the limit editor.
 - `app/lib/ledger/analysis/budgets/budget_spend.dart` - the app-layer spend math: `budgetItems`,
   `budgetSpend`, `monthExpenseSpend`, and the shared `budgetCountsItem` predicate.
 - `app/lib/ledger/analysis/budgets/budget_counted_entries.dart` - `BudgetCountedEntry`,
@@ -58,41 +55,33 @@ supply the active open/desktop pane, and `BudgetsFlow` reconciles one phone deta
 - **Uniqueness.** At most one budget per category, and at most one unscoped (no-category) budget at
   a time. Creating a budget on a category that already has one, or a second unscoped budget, is
   rejected with `CategoryAlreadyBudgeted`. (`ledger_state_budgets.dart` `_validateCategoryUniqueness`)
-- **Starting limit.** `addBudget` seeds the budget with a single `defaultLimit` event whose
-  `effectiveFromMonth` is null, so the starting limit applies retroactively to every past month for
-  its category, with no earliest month enforced, so activity recorded before the budget existed
-  still counts against it.
-- **`LimitEvent` timeline.** `default` events change the ongoing limit from their month forward;
-  `override` events pin exactly one month. The timeline is append-only; updates append a new event
-  rather than rewriting history.
+- **One limit.** A `Budget` holds `id`, `categoryID` and one `Decimal limit`. The limit applies to
+  every month, so activity recorded before the budget existed counts against it and a changed limit
+  applies to past and future months alike. No creation month, month-specific value or record of past limits
+  exists.
 - **Category scope.** A budget names a single category or none (covers every category). A category's
   parent rollup and single-nullable scope are inherent to the model.
 
 ## Mutators - `ledger_state_budgets.dart`
 
-All amounts are `Decimal`; all reject `<= 0` with `ZeroAmount`.
+All amounts are `Decimal`; both mutators reject a limit `<= 0` with `ZeroAmount`.
 
-- **`addBudget(String? categoryID, Decimal initialAmount, {required DateTime now})`** - validates the
-  category reference (`UnknownCategory` for missing, `InactiveReference` for inactive; null is the
-  unscoped slot), then uniqueness (`CategoryAlreadyBudgeted` when a budget already exists for that
-  category or the no-category slot). Builds a `Budget` whose first event is a `defaultLimit`
-  `LimitEvent(effectiveFromMonth: null, value: initialAmount)` and returns `[UpsertBudget(budget)]`.
-- **`updateBudgetAmount(String rawBudgetID, Decimal newAmount, YearMonth effectiveFromMonth)`** -
-  throws `UnknownBudget` on a missing id, then appends a `defaultLimit` event
-  (`LimitEvent(effectiveFromMonth: effectiveFromMonth, value: newAmount, kind: defaultLimit)`)
-  and returns `[UpsertBudget(updated)]`.
-- **`setBudgetMonthOverride(String rawBudgetID, YearMonth month, Decimal value)`** - throws
-  `UnknownBudget`, then appends an `override` event and returns `[UpsertBudget(updated)]`.
+- **`addBudget(String? categoryID, Decimal limit)`** - validates the category reference
+  (`UnknownCategory` for missing, `InactiveReference` for inactive; null is the unscoped slot), then
+  uniqueness (`CategoryAlreadyBudgeted` when a budget already exists for that category or the
+  no-category slot), then the limit (`ZeroAmount`). Returns `[UpsertBudget(budget)]`.
+- **`updateBudgetLimit(String rawBudgetID, Decimal limit)`** - normalizes the id, throws
+  `UnknownBudget` on a missing id, then `ZeroAmount`, then replaces the limit and returns
+  `[UpsertBudget(updated)]`. It always upserts.
 - **`deleteBudget(String rawID)`** - hard delete, no tombstone: plans are regenerable config and so
   are budgets. Normalizes the id; a missing id returns `[]`, else `[DeleteBudget(id)]`.
 - **`_removeBudgetCategorized(categoryID)`** - removes every budget for a category; wired only for a
   future category-delete cascade, not yet called.
 
-**Append-only timeline.** `addBudget`/`updateBudgetAmount`/`setBudgetMonthOverride` append a new
-`LimitEvent` via `_appendEvent`; no mutator rewrites an existing event. `LimitEvent`
-(`budgets/limit_event.dart`) carries a `LimitEventKind` (`defaultLimit` / `override`, explicit
-codes 0/1), a `Decimal value`, and a nullable `YearMonth? effectiveFromMonth` (null for the ongoing
-`default`, a specific month for an `override`).
+**Invariant.** Clause 16 requires every budget's category to resolve. Clause 17
+(`_assertBudgetLimitPositive`, `ledger_state_invariants_budgets.dart`) requires every stored budget to
+have `limit > 0` and fails with "budget <id> has a nonpositive limit". `LedgerState.replaying` and
+`Ledger.applySyncBatch` run the invariants, so load and sync apply reject a nonpositive limit.
 
 ## Spend math (app layer)
 
@@ -100,9 +89,9 @@ codes 0/1), a `Decimal value`, and a nullable `YearMonth? effectiveFromMonth` (n
 items dated in the month's half-open window whose kind is expense. An unscoped budget matches every
 such item. A category budget matches items whose bucket is its category or a direct child of it.
 `budgetItems` selects items with this predicate, `budgetSpend` sums them, and `monthExpenseSpend`
-sums every expense item in the month. There is no rollover and no threshold logic in the spend math.
-The budget form is create-only: the limit is edited by
-appending events, not by editing an existing one in place.
+sums every expense item in the month. There is no carry-over between months and no threshold logic in the spend math.
+The budget form is create-only: an existing limit is edited from the budget detail through the
+limit editor.
 
 `budgetCountedEntries(budget, month, state)` calls `Accounting.classify` once for each ledger entry,
 using all money-source ids. It filters the resulting items through `budgetCountsItem`, omits entries
@@ -125,16 +114,15 @@ build, using `budgetCountedEntries` for the selected month. The headline spend i
 rows and totals reconcile by construction, including transfers treated as expenses. Rows are never
 retained.
 
-Only the asynchronous projection (the twelve month slots, the selected limit and the current limit)
-is retained. While a refresh is pending or has failed, the detail keeps the last accepted projection
+Only the asynchronous projection (the twelve month slots and the budget's one limit) is retained. While a refresh is pending or has failed, the detail keeps the last accepted projection
 for the same budget, month and displayed year, and the chart may briefly lag the rows.
 `BudgetDetailProjection.belongsTo` discards a retained projection when the displayed month or year
 changes or the ledger instance is replaced.
 
-The chart draws one dashed horizontal line at `effectiveLimit(budget, YearMonth.fromUtc(today))`
-(`_captureProjection`, `_ChartTray` in `budget_detail_content.dart`). It does not depend on the
-displayed year or the selected month. The selected-month summary keeps its own applicable limit
-(`projection.selectedLimit`). The detail shows no limit-changes row and no chart caption.
+The chart draws one dashed horizontal line at the budget's limit and the selected-month summary
+compares spend against the same value (`BudgetDetailProjection.limit`, `_ChartTray` in
+`budget_detail_content.dart`). The limit does not depend on the displayed year or the selected month.
+The detail shows no limit-changes row and no chart caption.
 
 The detail always shows the summary, the year selector and the chart. When no counted entry falls in
 the selected month, only the entries section shows the empty copy, whether the budget has entries in
@@ -154,8 +142,8 @@ to a negative expense day total. (`budget_counted_entry_list.dart`,
 
 `budgetsListViewModelProvider` is non-autoDispose. `selectedBudgetProvider` is a non-autoDispose
 notifier holding the selected budget ID or null. It watches no query. `select` sets the ID and `clear`
-removes it. `budgetDetailContextProvider(budgetID)`, `budgetDetailViewModelProvider(budgetID)` and
-`budgetLimitViewModelProvider(budgetID)` are autoDispose families.
+removes it. `budgetDetailContextProvider(budgetID)` and `budgetDetailViewModelProvider(budgetID)`
+are autoDispose families.
 
 **Selection and presentation.** A tray tap always sets `selectedBudgetProvider`. Open and desktop
 present the selected budget as a pane; only phone uses a managed root detail page. Selection survives
@@ -179,8 +167,8 @@ instance clear selection. Flow disposal removes its tracked page after the frame
 selection for a later mount. (`budgets_flow.dart`: `_removePage`, `_clearSelectionWhenPopped`,
 `_removePageAfterFrame`)
 
-**Owners.** While a selection exists, `BudgetsFlow` holds three subscriptions for that budget: the
-context, the detail view model (its Steps) and the limit view model (its Steps). They open when the
+**Owners.** While a selection exists, `BudgetsFlow` holds two subscriptions for that budget: the
+context and the detail view model (its Steps). They open when the
 selection is set, are replaced when it changes to another budget, and close when it clears. Fold and
 unfold preserve them within the retained Flow. Disposal closes them, and a later Flow mount reopens
 them from the retained selection. The detail view model is therefore alive for as long as a
@@ -196,10 +184,12 @@ their own behavior. System Back
 clears selection through a `PopScope` in `MoneyFlow` only while the destination and Budgets segment
 are active on open or desktop. Covering routes pop first. Phone retains page Back.
 
-A limit sheet result applies only when the Flow is mounted, the same budget is still shown and the
-ledger instance captured before the sheet is unchanged. One flag blocks a second limit sheet while one
-is open, because ledger notifications can re-emit a retained limit Step. Dropped behavior: the
-history page and limit editor are not tracked or removed on conversion or ledger replacement.
+A limit editor result applies only when the Flow is mounted, the same budget is still shown and the
+ledger instance captured before the editor opened is unchanged. The single-flight `_limitEditorOpen`
+flag blocks a second editor while one is open, because ledger notifications can re-emit a retained
+limit Step. The flag is set only after the live limit is read, and a `try`/`finally` resets it
+immediately after the editor closes, before the post-await guards, so a dropped result never leaves it
+set. The editor is not tracked or removed on conversion or ledger replacement.
 (`app/lib/ui/budgets/budget_list/budgets_flow.dart`, `app/lib/ui/money/money_flow.dart`,
 `app/test/ui/budgets/budget_list/budgets_pane_test.dart`)
 
@@ -207,20 +197,30 @@ history page and limit editor are not tracked or removed on conversion or ledger
 
 The list Step belongs to the list provider. `BudgetsFlow.handleStep` handles and clears form steps.
 Opening a detail is no longer a Step: a tap selects the budget, and reconciliation presents it. Detail
-and limit Steps are handled by the Flow only for the shown budget and only while the Budgets
-destination is active. Pending list, detail and limit Steps are reconsidered once when Budgets
-becomes active again. Form Steps and category-picker continuations belong to the open
+Steps are handled by the Flow only for the shown budget and only while the Budgets destination is
+active. Pending list and detail Steps are reconsidered once when Budgets becomes active again.
+
+`BudgetLimitEditRequested` carries no payload, so a retained Step never holds a stale limit.
+`BudgetDetailNotifier.requestLimitEdit` emits it only when the budget exists. When the Flow handles
+it, `_handleDetailStep` checks, in order, that the destination is active, the budget is the shown
+one and a navigator context exists; if any check fails the Step stays retained. It then clears the
+Step, drops it when `_limitEditorOpen` is set, and reads `liveLimit` from the live ledger at open
+time, returning when the budget no longer exists. A Step retained while the destination was inactive
+therefore opens the editor prefilled with the limit current when Budgets returns, not the limit at
+request time. After the editor closes, the Flow calls `BudgetDetailViewModel.applyLimit`, which
+ignores a null or nonpositive amount, a missing budget and an unmounted notifier, and otherwise calls
+`ledger.updateBudgetLimit`. Form Steps and category-picker continuations belong to the open
 `BudgetDraftKey`.
-(`budgets_flow.dart:handleStep`, `_handleDetailStep`, `_handleLimitStep`, `_handleFormStep`,
+(`budgets_flow.dart:handleStep`, `_handleDetailStep`, `_handleFormStep`,
 `app/test/ui/budgets/budget_list/budgets_flow_test.dart`)
 
 ## Overview projection
 
 `budgetsOverview` builds the Budgets overview for one month.
 
-- **All spending cap.** If an unscoped budget exists, the cap is its effective limit for the month.
-  Otherwise the cap is the sum of the effective limits of configured category budgets whose parent
-  category has no configured budget. With neither, the cap is null.
+- **All spending cap.** If an unscoped budget exists, the cap is its limit. Otherwise the cap is
+  the sum of the limits of configured category budgets whose parent category has no configured
+  budget. With neither, the cap is null.
 - **Spent so far.** All expense items in the month, regardless of any budget scope.
 - **Daily pace.** Remaining allowance (cap minus spent, floored at zero) divided by the number of
   calendar days after today, at a scale of 12 digits. It is null when there is no cap, when today is
@@ -228,8 +228,9 @@ becomes active again. Form Steps and category-picker continuations belong to the
 - **Ranking.** Category budgets sort by exact spend/limit descending, compared by cross
   multiplication rather than a rounded ratio. Ties break by trimmed, lowercased category name, then by
   normalized budget id.
-- **Failure.** A budget with no applicable limit event, a nonpositive limit, or a missing category
-  makes the read fail rather than returning a partial overview.
+- **Failure.** A budget with a missing category makes the read fail rather than returning a partial
+  overview. A nonpositive limit cannot occur because invariant clause 17 rejects it at load and
+  sync apply.
 
 ## Budgets list
 
@@ -259,9 +260,8 @@ removed; budget deletion remains a domain mutator but has no action in this list
 ## Detail projection
 
 `budgetDetail` returns twelve month slots for the displayed year. Each slot carries the month's spend,
-effective limit, whether an override pins that month, the matching record count, and the period
-completeness. The summary reports the selected month's spend and limit along with the budget's
-category and creation month. An unknown budget id yields a detail with a null summary and no slots.
+the matching record count, and the period completeness. The summary reports the selected month's
+spend and the budget's limit along with its category. An unknown budget id yields a detail with a null summary and no slots.
 
 ## Detail page and pane
 
@@ -271,15 +271,15 @@ month (both from `budgetPaneHeaderProvider`), whose only header action is Edit, 
 `BudgetPaneBody`, the shared `BudgetDetailContent` in one `ListView` without a second app bar. Empty list space closes the pane; the pane has no Close
 control. `ShellDetail.onClose` is optional, and callers that supply it retain their Close control.
 Phone shows the same content as a managed page, with its own app bar and an Edit action
-with the tooltip "Edit limit history". Failed detail reads show the actual reason from `AnalysisQueryResult.failure`; the detail view model
+with the tooltip "Edit limit". Failed detail reads show the actual reason from `AnalysisQueryResult.failure`; the detail view model
 has no local fallback re-evaluation. Both Edit actions call
-`requestLimitEdit`, which opens the existing limit history page (`BudgetLimitScreen`). That history
-page and its view model are unchanged in this slice. #425 replaces the Edit action with the action
-sheet, and #570 removes the history page and its past-limit logic after #425. The deleted-budget
-frame remains the "Budget deleted" text until #425. (`budget_detail_content.dart`,
+`requestLimitEdit`, which opens the limit editor (`showBudgetLimitEditSheet`), a modal bottom sheet
+titled "Change limit" and prefilled with the current limit; saving replaces the limit. The editor is
+a legacy `showModalBottomSheet`, not an `AppSheet`, until #425 replaces the Edit action with the
+action sheet. The deleted-budget frame remains the "Budget deleted" text until #425. (`budget_detail_content.dart`,
 `budget_detail_screen.dart`, `app/lib/ui/money/money_flow.dart`)
 
-## Sheet coverage and foreground history
+## Sheet coverage
 
 `ShellPaneHost` shifts the current budget detail into the left column whenever a shell-covering
 AppSheet is installed or exiting on open or desktop. Its stable page isolation wrappers hide the
@@ -298,41 +298,35 @@ sidebar and safe insets; desktop presentation and input behavior remain desktop.
 (`app/lib/ui/common/sheets/app_sheet_route.dart`,
 `app/lib/ui/shell/shell_sheet_occupancy.dart`, `app/lib/ui/shell/shell_pane_geometry.dart`)
 
-`BudgetLimitScreen` remains a full-window root page. An AppSheet above it has that history page as
-its nearest non-AppSheet predecessor, so the shell underneath stays unshifted. The sheet is
-right-docked on open and desktop and bottom-aligned on phone. Existing budget form and
-limit-editor handlers remain legacy paths. Future #425 sheets must dismiss through their mounted
-route context or captured exact route, because the retained Flow's `navigatorContext` can target
-another Navigator. For an action-sheet-to-editor sequence, install the next loading route from the
-previous route's completion continuation before awaiting initialization. The shared controller
-coalesces layout updates; it adds no timer or pane ownership to hide an asynchronous gap.
-(`budgets_flow.dart`: `_handleDetailStep`, `_handleFormStep`,
+The limit editor is a modal bottom sheet over the shell, so it does not use `ShellSheetOccupancy` and
+does not shift the pane. A sheet over a foreground root page leaves the shell unshifted, which
+`app/test/ui/shell/shell_sheet_occupancy_test.dart` covers independently of Budgets. Future #425 sheets
+must dismiss through their mounted route context or captured exact route, because the retained
+Flow's `navigatorContext` can target another Navigator. For an action-sheet-to-editor sequence,
+install the next loading route from the previous route's completion continuation before awaiting
+initialization. The shared controller coalesces layout updates; it adds no timer or pane ownership to
+hide an asynchronous gap. (`budgets_flow.dart`: `_handleDetailStep`, `_handleFormStep`,
 `app/lib/ui/common/sheets/app_sheet_route.dart`: `showAppSheet`, `AppSheetRoute`)
-
-The direct foreground-sheet regression in `app/test/ui/budgets/budget_list/budgets_pane_test.dart`
-invokes `showAppSheet<String>` above `BudgetLimitScreen` with open/iOS and desktop/macOS fixtures.
-It checks foreground predecessor and coverage, route barrier policy, preserved history route,
-Element and chosen year after dismissal, and the retained budget pane after history Back. This is
-automated fixture coverage, not real-app runtime or visual proof. #425 must supply a reachable
-foreground-sheet trigger for runtime verification or retain direct-test coverage if none exists.
 
 ## Gotchas and invariants
 
 - Budget spend math is deliberately outside the domain; a domain change must not introduce it.
 - Deleting a budget removes the row entirely - no tombstone, no restore.
-- There is no rollover in the budget model or the spend math.
+- Each month stands alone: spend compares to the one limit with no carry-over between months.
 - The overview cap counts a category budget only when its parent category has no budget of its own, so a parent and its child are never added together.
 
 ## Requirements
 
 - At most one budget per category and one unscoped budget at a time; duplicates are rejected.
   (`ledger_state_budgets.dart`)
-- A budget's starting limit applies to every past month for its category.
-- Limit changes are append-only `LimitEvent`s; a `default` moves the ongoing limit forward and an
-  `override` pins one month.
+- A budget has one limit that applies to every month, past, current and future; editing it replaces
+  the value.
 - Spend math stays in the app layer.
 - Budget delete is a hard delete with no tombstone.
 - `addBudget` rejects `CategoryAlreadyBudgeted`/`UnknownCategory`/`InactiveReference`/`ZeroAmount`;
-  `updateBudgetAmount`/`setBudgetMonthOverride` throw `UnknownBudget`. (`ledger_state_budgets.dart`)
-- The limit timeline is append-only; `defaultLimit` moves the ongoing limit, `override` pins one
-  month. (`budgets/limit_event.dart`, `ledger_state_budgets.dart`)
+  `updateBudgetLimit` throws `UnknownBudget` or `ZeroAmount`. (`ledger_state_budgets.dart`)
+- Invariant clause 17: every stored budget has `limit > 0`.
+  (`ledger_state_invariants_budgets.dart`)
+- `BudgetLimitEditRequested` is payload-free and `BudgetsFlow` reads `liveLimit` when it opens the
+  editor, with a single-flight `_limitEditorOpen` flag reset in a `finally`.
+  (`budgets_flow.dart:_handleDetailStep`)

@@ -118,7 +118,7 @@ composition through picker stacks. On open and desktop, Add over the shell shift
 detail left while retaining the isolated list's Flow and Navigator State. Clearing selection exposes
 the list without replacing Add or losing its draft. Desktop sheets always dock in the right column, like open, using
 shared safe pane geometry, while `AppSheetPresentation.desktop` keeps desktop input behavior. A sheet over a
-foreground root page such as `BudgetLimitScreen` keeps that page as its predecessor and leaves the
+foreground root page keeps that page as its predecessor and leaves the
 shell unshifted. (`app/lib/ui/shell/shell_sheet_occupancy.dart`,
 `app/lib/ui/shell/shell_pane_host.dart`, `app/lib/ui/shell/shell_pane_geometry.dart`,
 `app/lib/ui/common/sheets/app_sheet_route.dart`)

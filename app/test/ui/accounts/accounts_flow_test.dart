@@ -428,14 +428,7 @@ Ledger _retentionLedger() {
   final budget = Budget(
     id: _retainedBudgetId,
     categoryID: null,
-    limitEvents: [
-      LimitEvent(
-        effectiveFromMonth: null,
-        value: Decimal.fromInt(100),
-        kind: LimitEventKind.defaultLimit,
-      ),
-    ],
-    createdAtMonth: const YearMonth(2026, 1),
+    limit: Decimal.fromInt(100),
   );
   return Ledger(state: LedgerState(budgets: {budget.id: budget}));
 }

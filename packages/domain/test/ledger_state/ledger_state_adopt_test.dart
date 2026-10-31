@@ -24,7 +24,7 @@ LedgerState _fiveTableState() {
       lastResolvedDate: DateTime.utc(2026, 1, 10),
     ),
   );
-  state.addBudget(null, Decimal.fromInt(100), now: DateTime.utc(2026, 1, 15));
+  state.addBudget(null, Decimal.fromInt(100));
   state.addEntry(entry(id: uuid(6), sourceID: uuid(1)));
   state.archiveEntry(uuid(6));
   return state;

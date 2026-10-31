@@ -20,6 +20,6 @@ reverted once and re-committed, and some sessions predate later refactors.
 
 - A budget scopes to a single category, or to every category when unscoped. It never spans multiple
   categories.
-- Budgets support create and delete only. Updates are limited to the amount and the rollover setting.
+- Budgets support create, update and delete. An update replaces the budget's single limit and keeps its category.
 - Budget start uses a half-open `[start, end)` window. Guard adding an entry earlier than the current
   earliest entry after the budget exists.

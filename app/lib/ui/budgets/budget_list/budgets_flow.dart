@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,8 +10,6 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_edit_sheet.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budget_limit_screen.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budget_limit_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_category_picker.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
@@ -105,9 +104,6 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   BudgetDetailViewModel _detailViewModel(String budgetID) =>
       ref.read(budgetDetailViewModelProvider(budgetID).notifier);
 
-  BudgetLimitViewModel _limitViewModel(String budgetID) =>
-      ref.read(budgetLimitViewModelProvider(budgetID).notifier);
-
   BudgetFormViewModel _formViewModel(BudgetDraftKey draftKey) =>
       ref.read(budgetFormViewModelProvider(draftKey).notifier);
 
@@ -130,7 +126,6 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       case BudgetFormRequested():
         _openBudgetForm(context);
       case BudgetLimitEditRequested():
-      case PickLimitRequested():
       case PickCategoryRequested():
       case BudgetFormSaved():
         break;
@@ -232,13 +227,9 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     );
     final detail = ref.listenManual(
       budgetDetailViewModelProvider(budgetID),
-      (_, next) => _handleDetailStep(budgetID, next.value?.step),
+      (_, next) => unawaited(_handleDetailStep(budgetID, next.value?.step)),
     );
-    final limit = ref.listenManual(
-      budgetLimitViewModelProvider(budgetID),
-      (_, next) => _handleLimitStep(budgetID, next.value?.step),
-    );
-    return [context, detail, limit];
+    return [context, detail];
   }
 
   void _consumePendingSteps() {
@@ -249,44 +240,35 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     final budgetID = _shownBudgetID;
     if (budgetID == null) return;
     final detail = ref.read(budgetDetailViewModelProvider(budgetID));
-    _handleDetailStep(budgetID, detail.value?.step);
-    final limit = ref.read(budgetLimitViewModelProvider(budgetID));
-    unawaited(_handleLimitStep(budgetID, limit.value?.step));
+    unawaited(_handleDetailStep(budgetID, detail.value?.step));
   }
 
-  void _handleDetailStep(String budgetID, BudgetsStep? step) {
-    if (step == null || !_destinationActive || _shownBudgetID != budgetID) {
-      return;
-    }
+  Future<void> _handleDetailStep(String budgetID, BudgetsStep? step) async {
+    if (step is! BudgetLimitEditRequested) return;
+    if (!_destinationActive || _shownBudgetID != budgetID) return;
     final context = navigatorContext;
     if (context == null) return;
 
-    if (step is BudgetLimitEditRequested) {
-      final route = MaterialPageRoute<Object?>(
-        builder: (_) => BudgetLimitScreen(budgetID: budgetID),
-      );
-      Navigator.of(context, rootNavigator: true).push(route);
-    }
-    _detailViewModel(budgetID).clearStep();
-  }
-
-  Future<void> _handleLimitStep(String budgetID, BudgetsStep? step) async {
-    if (step is! PickLimitRequested) return;
-    if (_limitEditorOpen || !_destinationActive) return;
-    if (_shownBudgetID != budgetID) return;
-    final context = navigatorContext;
-    if (context == null) return;
+    final detail = _detailViewModel(budgetID);
+    detail.clearStep();
+    if (_limitEditorOpen) return;
+    final current = detail.liveLimit;
+    if (current == null) return;
 
     _limitEditorOpen = true;
     final capturedLedger = ref.read(ledgerProvider);
-    final entered = await showBudgetLimitEditSheet(
-      context: context,
-      target: step.target,
-    );
-    _limitEditorOpen = false;
+    final Decimal? entered;
+    try {
+      entered = await showBudgetLimitEditSheet(
+        context: context,
+        current: current,
+      );
+    } finally {
+      _limitEditorOpen = false;
+    }
     if (!mounted || _shownBudgetID != budgetID) return;
     if (!identical(ref.read(ledgerProvider), capturedLedger)) return;
-    _limitViewModel(budgetID).applyPickedLimit(entered);
+    detail.applyLimit(entered);
   }
 
   // MARK: - Form Navigation
@@ -335,7 +317,6 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
         _formViewModel(draftKey).clearStep();
       case BudgetFormRequested():
       case BudgetLimitEditRequested():
-      case PickLimitRequested():
         break;
     }
   }

@@ -551,53 +551,26 @@ void main() {
   });
 
   group('budget', () {
-    LimitEvent defaultEvent({YearMonth? from, String value = '500'}) =>
-        LimitEvent(
-          effectiveFromMonth: from,
-          value: Decimal.parse(value),
-          kind: LimitEventKind.defaultLimit,
-        );
-
-    LimitEvent overrideEvent(YearMonth from, String value) => LimitEvent(
-      effectiveFromMonth: from,
-      value: Decimal.parse(value),
-      kind: LimitEventKind.override,
-    );
-
-    test('a budget with one default event round trips', () {
+    test('a category budget round trips with its exact decimal limit', () {
       final budget = Budget(
         id: budgetID,
         categoryID: categoryID,
-        limitEvents: [defaultEvent(from: const YearMonth(2026, 1))],
-        createdAtMonth: const YearMonth(2026, 1),
+        limit: Decimal.parse('1234.56'),
       );
 
       final row = budgetToRow(budget, version);
+
+      expect(row.categoryId, categoryID);
+      expect(row.limitAmount, '1234.56');
       expect(budgetFromRow(row), budget);
       expect(versionFromRow(row.versionData), version);
-    });
-
-    test('a budget with a default event and an override round trips', () {
-      final budget = Budget(
-        id: budgetID,
-        categoryID: categoryID,
-        limitEvents: [
-          defaultEvent(from: const YearMonth(2026, 1)),
-          overrideEvent(const YearMonth(2026, 3), '750'),
-        ],
-        createdAtMonth: const YearMonth(2026, 1),
-      );
-
-      final row = budgetToRow(budget, version);
-      expect(budgetFromRow(row), budget);
     });
 
     test('an overall budget stores a null categoryID', () {
       final budget = Budget(
         id: budgetID,
         categoryID: null,
-        limitEvents: [defaultEvent()],
-        createdAtMonth: const YearMonth(2026, 1),
+        limit: Decimal.parse('500'),
       );
 
       final row = budgetToRow(budget, version);
@@ -606,67 +579,13 @@ void main() {
       expect(budgetFromRow(row), budget);
     });
 
-    test('a category budget stores the category id', () {
-      final budget = Budget(
-        id: budgetID,
-        categoryID: categoryID,
-        limitEvents: [defaultEvent()],
-        createdAtMonth: const YearMonth(2026, 1),
-      );
-
-      final row = budgetToRow(budget, version);
-
-      expect(row.categoryId, categoryID);
-      expect(budgetFromRow(row), budget);
-    });
-
-    test('limitEvents is stored as a json array', () {
+    test('a malformed stored limit raises rather than defaulting', () {
       final row = budgetToRow(
-        Budget(
-          id: budgetID,
-          categoryID: null,
-          limitEvents: [
-            defaultEvent(from: const YearMonth(2026, 1)),
-            overrideEvent(const YearMonth(2026, 3), '750'),
-          ],
-          createdAtMonth: const YearMonth(2026, 1),
-        ),
+        Budget(id: budgetID, categoryID: null, limit: Decimal.parse('500')),
         version,
-      );
-
-      final decoded = json.decode(row.limitEvents) as List<dynamic>;
-      expect(decoded, [
-        {'effectiveFromMonth': '2026-01', 'value': '500', 'kind': 0},
-        {'effectiveFromMonth': '2026-03', 'value': '750', 'kind': 1},
-      ]);
-    });
-
-    test('malformed json in limitEvents raises rather than defaulting', () {
-      final row = budgetToRow(
-        Budget(
-          id: budgetID,
-          categoryID: null,
-          limitEvents: [defaultEvent()],
-          createdAtMonth: const YearMonth(2026, 1),
-        ),
-        version,
-      ).copyWith(limitEvents: 'not json');
+      ).copyWith(limitAmount: 'not a number');
 
       expect(() => budgetFromRow(row), throwsFormatException);
-    });
-
-    test('limitEvents json missing a required key raises', () {
-      final row = budgetToRow(
-        Budget(
-          id: budgetID,
-          categoryID: null,
-          limitEvents: [defaultEvent()],
-          createdAtMonth: const YearMonth(2026, 1),
-        ),
-        version,
-      ).copyWith(limitEvents: json.encode([<String, dynamic>{}]));
-
-      expect(() => budgetFromRow(row), throwsA(isA<TypeError>()));
     });
   });
 

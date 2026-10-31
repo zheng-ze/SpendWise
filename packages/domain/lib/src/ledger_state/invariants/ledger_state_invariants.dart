@@ -21,7 +21,7 @@ extension LedgerStateInvariants on LedgerState {
     _assertPlansReferenceActiveRows();
     _assertPocketNotMoreAliveThanAccount();
     _assertBudgetCategoryResolves();
-    _assertBudgetLimitEventShape();
+    _assertBudgetLimitPositive();
     _assertEntryInOneTable();
   }
 

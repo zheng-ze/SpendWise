@@ -38,22 +38,10 @@ Decimal balanceOf(Ledger ledger, String name) {
 }
 
 void addSampleBudgets(Ledger ledger) {
-  ledger.addBudget(null, dec('1200'), now: _pinnedDay);
-  ledger.addBudget(
-    categoryNamed(ledger, 'Dining'),
-    dec('350'),
-    now: _pinnedDay,
-  );
-  ledger.addBudget(
-    categoryNamed(ledger, 'Groceries'),
-    dec('450'),
-    now: _pinnedDay,
-  );
-  ledger.addBudget(
-    categoryNamed(ledger, 'Transport'),
-    dec('120'),
-    now: _pinnedDay,
-  );
+  ledger.addBudget(null, dec('1200'));
+  ledger.addBudget(categoryNamed(ledger, 'Dining'), dec('350'));
+  ledger.addBudget(categoryNamed(ledger, 'Groceries'), dec('450'));
+  ledger.addBudget(categoryNamed(ledger, 'Transport'), dec('120'));
 }
 
 Future<AnalysisQueries> queriesFor(Ledger ledger) async {
@@ -130,10 +118,10 @@ void main() {
       expect(percents, [dec('24.0'), dec('16.3'), dec('8.3')]);
     });
 
-    test('a retroactive Dining budget resolves 350 in every month', () async {
+    test('a Dining budget reads one limit with 12 month slots', () async {
       final ledger = seededLedger();
       final dining = categoryNamed(ledger, 'Dining');
-      ledger.addBudget(dining, dec('350'), now: _pinnedDay);
+      ledger.addBudget(dining, dec('350'));
       final budgetID = ledger.state.budgets.values.single.id;
       final queries = await queriesFor(ledger);
 
@@ -146,8 +134,6 @@ void main() {
           .value;
 
       final slots = detail?.slots ?? <BudgetMonthSlot>[];
-      expect([for (final s in slots) s.limit], List.filled(12, dec('350')));
-      expect([for (final s in slots) s.isOverride], List.filled(12, false));
       expect(slots[7].recordCount, 0);
       expect(slots[7].completeness, PeriodCompleteness.complete);
       expect(slots[6].completeness, PeriodCompleteness.preRecord);
@@ -156,36 +142,6 @@ void main() {
       expect(detail?.summary?.limit, dec('350'));
       expect(detail?.summary?.spent, dec('83.90'));
       expect(detail?.summary?.remaining, dec('266.10'));
-    });
-
-    test('an October override marks only that month', () async {
-      final ledger = seededLedger();
-      ledger.addBudget(
-        categoryNamed(ledger, 'Dining'),
-        dec('350'),
-        now: _pinnedDay,
-      );
-      final budgetID = ledger.state.budgets.values.single.id;
-      ledger.setBudgetMonthOverride(
-        budgetID,
-        const YearMonth(2026, 10),
-        dec('500'),
-      );
-      final queries = await queriesFor(ledger);
-
-      final detail = queries
-          .readBudgetDetail(
-            budgetID: budgetID,
-            displayedYear: DateTime.utc(2026),
-            selectedMonth: DateTime.utc(2026, 10),
-          )
-          .value;
-
-      final slots = detail?.slots ?? <BudgetMonthSlot>[];
-      final flags = [for (final s in slots) s.isOverride];
-      expect(flags, [for (var m = 1; m <= 12; m++) m == 10]);
-      expect(slots[9].limit, dec('500'));
-      expect(slots[8].limit, dec('350'));
     });
   });
 }

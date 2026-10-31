@@ -7,16 +7,20 @@ void main() {
 
   final budgetID = uuid(1);
 
-  test('a budget with no limit events violates the timeline invariant', () {
-    final state = LedgerState(
-      budgets: {
-        budgetID: Budget(
-          id: budgetID,
-          categoryID: null,
-          limitEvents: const [],
-          createdAtMonth: const YearMonth(2026, 1),
-        ),
-      },
+  LedgerState stateWith(Budget budget) =>
+      LedgerState(budgets: {budget.id: budget});
+
+  Matcher violationOf(int clause) => throwsA(
+    isA<StateError>().having(
+      (error) => error.message,
+      'message',
+      contains('invariant $clause'),
+    ),
+  );
+
+  test('a budget with a zero limit violates invariant 17', () {
+    final state = stateWith(
+      Budget(id: budgetID, categoryID: null, limit: Decimal.zero),
     );
 
     expect(
@@ -25,137 +29,36 @@ void main() {
         isA<StateError>().having(
           (error) => error.message,
           'message',
-          contains('invariant 17'),
+          allOf(
+            contains('invariant 17'),
+            contains('budget $budgetID has a nonpositive limit'),
+          ),
         ),
       ),
     );
   });
 
-  test('a budget whose first limit event is an override is caught', () {
-    final state = LedgerState(
-      budgets: {
-        budgetID: Budget(
-          id: budgetID,
-          categoryID: null,
-          limitEvents: [
-            LimitEvent(
-              effectiveFromMonth: null,
-              value: Decimal.fromInt(100),
-              kind: LimitEventKind.override,
-            ),
-          ],
-          createdAtMonth: const YearMonth(2026, 1),
-        ),
-      },
+  test('a budget with a negative limit violates invariant 17', () {
+    final state = stateWith(
+      Budget(id: budgetID, categoryID: null, limit: Decimal.fromInt(-1)),
     );
 
-    expect(
-      state.assertInvariants,
-      throwsA(
-        isA<StateError>().having(
-          (error) => error.message,
-          'message',
-          contains('invariant 17'),
-        ),
-      ),
+    expect(state.assertInvariants, violationOf(17));
+  });
+
+  test('a budget with a positive limit passes', () {
+    final state = stateWith(
+      Budget(id: budgetID, categoryID: null, limit: Decimal.parse('0.01')),
     );
+
+    expect(state.assertInvariants, returnsNormally);
   });
 
   test('a budget referencing an unknown category is caught', () {
-    final state = LedgerState(
-      budgets: {
-        budgetID: Budget(
-          id: budgetID,
-          categoryID: uuid(9),
-          limitEvents: [
-            LimitEvent(
-              effectiveFromMonth: null,
-              value: Decimal.fromInt(100),
-              kind: LimitEventKind.defaultLimit,
-            ),
-          ],
-          createdAtMonth: const YearMonth(2026, 1),
-        ),
-      },
+    final state = stateWith(
+      Budget(id: budgetID, categoryID: uuid(9), limit: Decimal.fromInt(100)),
     );
 
-    expect(
-      state.assertInvariants,
-      throwsA(
-        isA<StateError>().having(
-          (error) => error.message,
-          'message',
-          contains('invariant 16'),
-        ),
-      ),
-    );
-  });
-
-  test(
-    'a budget with a non-null effectiveFromMonth on its first event is caught',
-    () {
-      final state = LedgerState(
-        budgets: {
-          budgetID: Budget(
-            id: budgetID,
-            categoryID: null,
-            limitEvents: [
-              LimitEvent(
-                effectiveFromMonth: const YearMonth(2026, 1),
-                value: Decimal.fromInt(100),
-                kind: LimitEventKind.defaultLimit,
-              ),
-            ],
-            createdAtMonth: const YearMonth(2026, 1),
-          ),
-        },
-      );
-
-      expect(
-        state.assertInvariants,
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            contains('invariant 17'),
-          ),
-        ),
-      );
-    },
-  );
-
-  test('a budget with a later event carrying a null month is caught', () {
-    final state = LedgerState(
-      budgets: {
-        budgetID: Budget(
-          id: budgetID,
-          categoryID: null,
-          limitEvents: [
-            LimitEvent(
-              effectiveFromMonth: null,
-              value: Decimal.fromInt(100),
-              kind: LimitEventKind.defaultLimit,
-            ),
-            LimitEvent(
-              effectiveFromMonth: null,
-              value: Decimal.fromInt(200),
-              kind: LimitEventKind.defaultLimit,
-            ),
-          ],
-          createdAtMonth: const YearMonth(2026, 1),
-        ),
-      },
-    );
-
-    expect(
-      state.assertInvariants,
-      throwsA(
-        isA<StateError>().having(
-          (error) => error.message,
-          'message',
-          contains('invariant 17'),
-        ),
-      ),
-    );
+    expect(state.assertInvariants, violationOf(16));
   });
 }

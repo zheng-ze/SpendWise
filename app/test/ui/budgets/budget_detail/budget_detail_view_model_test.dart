@@ -23,19 +23,6 @@ void main() {
     date: date,
   );
 
-  List<LimitEvent> limitsWithRaise() => [
-    LimitEvent(
-      effectiveFromMonth: null,
-      value: dec('100'),
-      kind: LimitEventKind.defaultLimit,
-    ),
-    LimitEvent(
-      effectiveFromMonth: const YearMonth(2026, 11),
-      value: dec('200'),
-      kind: LimitEventKind.defaultLimit,
-    ),
-  ];
-
   void expectRowsCoherent(BudgetDetailViewState state) {
     final dayTotals = <DateTime, Decimal>{};
     for (final row in state.countedEntries) {
@@ -174,7 +161,7 @@ void main() {
     expect(state.countedEntries, hasLength(2));
     expect(state.spent, dec('50'));
     expect(state.projection?.projection.summary?.spent, state.spent);
-    expect(state.projection?.selectedLimit, dec('100'));
+    expect(state.projection?.limit, dec('100'));
   });
 
   test('deleting a counted entry while a refresh is pending removes its row '
@@ -432,36 +419,10 @@ void main() {
     expect(restored.displayedYear, DateTime.utc(2027));
   });
 
-  test('an unresolvable limit reports the thrown reason from the pure '
-      'projection', () async {
-    final futureOnly = detailBudget(
-      limitEvents: [
-        LimitEvent(
-          effectiveFromMonth: const YearMonth(2027, 1),
-          value: dec('100'),
-          kind: LimitEventKind.defaultLimit,
-        ),
-      ],
-    );
+  test('the projection carries the single budget limit across displayed '
+      'years and selected months', () async {
     final container = detailContainer(
-      ledger: detailLedger(budgets: [futureOnly]),
-      clock: DetailClock(october),
-    );
-    keepDetailAlive(container);
-
-    final state = await settledDetail(container);
-
-    expect(state.phase, BudgetDetailPhase.failed);
-    expect('${state.error}', contains('no default limit event'));
-    expect(state.projection, isNull);
-  });
-
-  test('the current-limit scalar stays at today limit across displayed years '
-      'and selected months', () async {
-    final container = detailContainer(
-      ledger: detailLedger(
-        budgets: [detailBudget(limitEvents: limitsWithRaise())],
-      ),
+      ledger: detailLedger(budgets: [detailBudget(limit: dec('150'))]),
       clock: DetailClock(october),
     );
     keepDetailAlive(container);
@@ -475,39 +436,11 @@ void main() {
     viewModel.changeYear(DateTime.utc(2027));
     final nextYear = (await settledDetail(container)).projection!;
 
-    expect(december.currentLimit, dec('100'));
-    expect(december.selectedLimit, dec('200'));
-    expect(nextYear.currentLimit, dec('100'));
-    expect(detailContext(container).selectedMonth, DateTime.utc(2027, 12));
+    expect(december.limit, dec('150'));
+    expect(nextYear.limit, dec('150'));
   });
 
-  test(
-    'calendar rollover moves the current-limit scalar to the new month',
-    () async {
-      final clock = DetailClock(october);
-      final container = detailContainer(
-        ledger: detailLedger(
-          budgets: [detailBudget(limitEvents: limitsWithRaise())],
-        ),
-        clock: clock,
-      );
-      keepDetailAlive(container);
-      expect(
-        (await settledDetail(container)).projection?.currentLimit,
-        dec('100'),
-      );
-
-      clock.now = DateTime.utc(2026, 11, 1);
-      container.invalidate(todayProvider);
-
-      expect(
-        (await settledDetail(container)).projection?.currentLimit,
-        dec('200'),
-      );
-    },
-  );
-
-  test('the chart scale includes the current-limit scalar', () async {
+  test('the chart scale includes the limit', () async {
     final container = detailContainer(
       ledger: detailLedger(budgets: [detailBudget()]),
       clock: DetailClock(october),
@@ -539,6 +472,90 @@ void main() {
       expect(detailState(container).step, isNull);
     },
   );
+
+  BudgetDetailViewModel keepViewModel(ProviderContainer container) {
+    keepDetailAlive(container);
+    return container.read(
+      budgetDetailViewModelProvider(detailBudgetID).notifier,
+    );
+  }
+
+  ProviderContainer limitContainer({bool withBudget = true}) => detailContainer(
+    ledger: detailLedger(budgets: withBudget ? [detailBudget()] : []),
+    clock: DetailClock(october),
+  );
+
+  Decimal? storedLimit(ProviderContainer container) =>
+      container.read(ledgerProvider)!.state.budgets[detailBudgetID]?.limit;
+
+  test('requestLimitEdit emits only when the budget exists', () async {
+    final present = limitContainer();
+    keepViewModel(present).requestLimitEdit();
+    final missing = limitContainer(withBudget: false);
+    keepViewModel(missing).requestLimitEdit();
+
+    expect(detailState(present).step, isA<BudgetLimitEditRequested>());
+    expect(detailState(missing).step, isNull);
+  });
+
+  test('clearStep resets the limit edit step', () async {
+    final container = limitContainer();
+    final viewModel = keepViewModel(container);
+    viewModel.requestLimitEdit();
+
+    viewModel.clearStep();
+
+    expect(detailState(container).step, isNull);
+  });
+
+  test('liveLimit follows the ledger and is null for a missing budget', () {
+    final container = limitContainer();
+    final viewModel = keepViewModel(container);
+    final missing = keepViewModel(limitContainer(withBudget: false));
+
+    expect(viewModel.liveLimit, dec('100'));
+    container.read(ledgerProvider)!.updateBudgetLimit(detailBudgetID, dec('7'));
+    expect(viewModel.liveLimit, dec('7'));
+    expect(missing.liveLimit, isNull);
+  });
+
+  test('applyLimit updates the budget limit', () {
+    final container = limitContainer();
+
+    keepViewModel(container).applyLimit(dec('250'));
+
+    expect(storedLimit(container), dec('250'));
+  });
+
+  test('applyLimit ignores null and nonpositive amounts', () {
+    final container = limitContainer();
+    final viewModel = keepViewModel(container);
+
+    viewModel.applyLimit(null);
+    viewModel.applyLimit(Decimal.zero);
+    viewModel.applyLimit(dec('-5'));
+
+    expect(storedLimit(container), dec('100'));
+  });
+
+  test('applyLimit ignores a missing budget', () {
+    final container = limitContainer(withBudget: false);
+
+    keepViewModel(container).applyLimit(dec('250'));
+
+    expect(storedLimit(container), isNull);
+  });
+
+  test('applyLimit ignores an unmounted view model', () {
+    final container = limitContainer();
+    final viewModel = keepViewModel(container);
+    final ledger = container.read(ledgerProvider)!;
+    container.dispose();
+
+    viewModel.applyLimit(dec('250'));
+
+    expect(ledger.state.budgets[detailBudgetID]?.limit, dec('100'));
+  });
 
   test('a deleted budget reports the deleted phase', () async {
     final container = detailContainer(

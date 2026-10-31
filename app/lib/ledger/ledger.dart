@@ -151,29 +151,11 @@ class Ledger extends ChangeNotifier {
 
   // MARK: - Budgets
 
-  List<LedgerChange> addBudget(
-    String? categoryID,
-    Decimal initialAmount, {
-    required DateTime now,
-  }) =>
-      _mutate((state) => state.addBudget(categoryID, initialAmount, now: now));
+  List<LedgerChange> addBudget(String? categoryID, Decimal limit) =>
+      _mutate((state) => state.addBudget(categoryID, limit));
 
-  List<LedgerChange> updateBudgetAmount(
-    String rawBudgetID,
-    Decimal newAmount,
-    YearMonth effectiveFromMonth,
-  ) => _mutate(
-    (state) =>
-        state.updateBudgetAmount(rawBudgetID, newAmount, effectiveFromMonth),
-  );
-
-  List<LedgerChange> setBudgetMonthOverride(
-    String rawBudgetID,
-    YearMonth month,
-    Decimal value,
-  ) => _mutate(
-    (state) => state.setBudgetMonthOverride(rawBudgetID, month, value),
-  );
+  List<LedgerChange> updateBudgetLimit(String rawBudgetID, Decimal limit) =>
+      _mutate((state) => state.updateBudgetLimit(rawBudgetID, limit));
 
   List<LedgerChange> deleteBudget(String rawID) =>
       _mutate((state) => state.deleteBudget(rawID));
