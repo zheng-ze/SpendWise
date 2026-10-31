@@ -188,8 +188,8 @@ so a later pending or failed read of it returns no previous value
 `analysis_queries_test.dart`: `retryNotifiesListenersWhenItStartsNewWork`).
 
 `TodaySummary` contains the normalized day, that day's analysis-gated expense total, and an
-optional daily guide. The guide uses the applicable unscoped budget's effective monthly limit,
-including overrides, divided by calendar days in the month and rounded half-up to whole dollars.
+optional daily guide. The guide uses the applicable unscoped budget's monthly limit, divided by
+calendar days in the month and rounded half-up to whole dollars.
 It is null without an applicable budget; multiple applicable unscoped budgets fail evaluation
 (`app/lib/ledger/analysis/summaries/today_summary.dart`; `app/test/ledger/analysis_today_period_test.dart`).
 
