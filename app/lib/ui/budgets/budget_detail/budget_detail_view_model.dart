@@ -253,7 +253,7 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
     );
     final categoryName = _categoryName(budget, ledgerState);
     final title = budgetTitle(budget, ledgerState);
-    if (outcome.phase == BudgetDetailPhase.ready) _lastTitle = title;
+    _lastTitle = title;
     return BudgetDetailViewState(
       phase: outcome.phase,
       title: title,
