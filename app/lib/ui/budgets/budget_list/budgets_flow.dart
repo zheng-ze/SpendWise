@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +9,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_edit_sheet.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_limit_editor_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_category_picker.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
@@ -130,6 +130,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       case BudgetLimitEditRequested():
       case PickCategoryRequested():
       case BudgetFormSaved():
+      case BudgetLimitSaved():
         break;
     }
     _listViewModel.clearStep();
@@ -258,19 +259,27 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     if (current == null) return;
 
     _limitEditorOpen = true;
-    final capturedLedger = ref.read(ledgerProvider);
-    final Decimal? entered;
+    final draftKey = BudgetLimitDraftKey(
+      budgetID: budgetID,
+      initialLimit: current,
+    );
+    final provider = budgetLimitEditorViewModelProvider(draftKey);
+    AppSheetRoute<void>? route;
+    final subscription = ref.listenManual(provider, (_, next) {
+      if (next.value?.step is! BudgetLimitSaved) return;
+      _dismissSheetRoute(route);
+      ref.read(provider.notifier).clearStep();
+    });
     try {
-      entered = await showBudgetLimitEditSheet(
+      await showBudgetLimitEditSheet(
         context: context,
-        current: current,
+        draftKey: draftKey,
+        onRouteCreated: (created) => route = created,
       );
     } finally {
+      subscription.close();
       _limitEditorOpen = false;
     }
-    if (!mounted || _shownBudgetID != budgetID) return;
-    if (!identical(ref.read(ledgerProvider), capturedLedger)) return;
-    detail.applyLimit(entered);
   }
 
   // MARK: - Form Navigation
@@ -302,11 +311,10 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     );
   }
 
-  void _dismissFormRoute(_FormSession session) {
-    final route = session.route;
+  void _dismissSheetRoute(AppSheetRoute<void>? route) {
     final navigator = route?.navigator;
     if (route == null || navigator == null || !route.isActive) return;
-    // A non-current form route sits under the picker; pop() would close the picker instead.
+    // A non-current sheet route sits under the picker; pop() would close the picker instead.
     if (route.isCurrent) {
       navigator.pop();
     } else {
@@ -320,10 +328,11 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       case PickCategoryRequested():
         await _pickScope(session);
       case BudgetFormSaved():
-        _dismissFormRoute(session);
+        _dismissSheetRoute(session.route);
         _formViewModel(session.draftKey).clearStep();
       case BudgetFormRequested():
       case BudgetLimitEditRequested():
+      case BudgetLimitSaved():
         break;
     }
   }

@@ -76,13 +76,8 @@ Future<void> _openDetail(
   await tester.pumpAndSettle();
 }
 
-String _editorText(WidgetTester tester) {
-  final field = find.descendant(
-    of: find.byType(_limitEditor),
-    matching: find.byType(EditableText),
-  );
-  return tester.widget<EditableText>(field).controller.text;
-}
+Finder _editorText(String text) =>
+    find.descendant(of: find.byType(_limitEditor), matching: find.text(text));
 
 void main() {
   testWidgets(
@@ -125,7 +120,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(_limitEditor), findsOneWidget);
-      expect(_editorText(tester), '100.00');
+      expect(_editorText('100.00'), findsOneWidget);
     },
     timeout: uiTestTimeout,
   );
@@ -148,7 +143,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(_limitEditor), findsOneWidget);
-    expect(_editorText(tester), '250.00');
+    expect(_editorText('250.00'), findsOneWidget);
   }, timeout: uiTestTimeout);
 
   testWidgets(
@@ -176,7 +171,7 @@ void main() {
       await tester.tap(find.byTooltip(_editTooltip));
       await tester.pumpAndSettle();
       expect(find.byType(_limitEditor), findsOneWidget);
-      expect(_editorText(tester), '30.00');
+      expect(_editorText('30.00'), findsOneWidget);
     },
     timeout: uiTestTimeout,
   );

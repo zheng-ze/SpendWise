@@ -1,93 +1,154 @@
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/inputs/amount_field.dart';
-import 'package:spendwise/ui/format/amount_parse.dart';
-import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/budgets/budget_amount_input.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_limit_editor_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_sheet_presentation.dart';
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 
 // MARK: - Constants
-const _actionWidth = double.infinity;
 const _sheetTitle = 'Change limit';
+const _saveLabel = 'Save';
+const _loadErrorTitle = "Couldn't load the budget limit";
+const _saveErrorTitle = 'Could not save budget limit';
+const _footerWidth = double.infinity;
 
 // MARK: - Sheet Presenter
-Future<Decimal?> showBudgetLimitEditSheet({
+Future<void> showBudgetLimitEditSheet({
   required BuildContext context,
-  required Decimal current,
+  required BudgetLimitDraftKey draftKey,
+  required void Function(AppSheetRoute<void>) onRouteCreated,
 }) {
-  return showModalBottomSheet<Decimal>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    useRootNavigator: true,
-    builder: (_) => BudgetLimitEditSheet(current: current),
+  return showAppSheet<void>(
+    context,
+    presentation: budgetSheetPresentation(context),
+    presentationResolver: budgetSheetPresentation,
+    onRouteCreated: onRouteCreated,
+    builder: (_) => BudgetLimitEditSheet(draftKey: draftKey),
   );
 }
 
 // MARK: - BudgetLimitEditSheet
-class BudgetLimitEditSheet extends StatefulWidget {
-  const BudgetLimitEditSheet({super.key, required this.current});
+class BudgetLimitEditSheet extends ConsumerStatefulWidget {
+  const BudgetLimitEditSheet({super.key, required this.draftKey});
 
-  final Decimal current;
+  final BudgetLimitDraftKey draftKey;
 
   @override
-  State<BudgetLimitEditSheet> createState() => _BudgetLimitEditSheetState();
+  ConsumerState<BudgetLimitEditSheet> createState() =>
+      _BudgetLimitEditSheetState();
 }
 
 // MARK: - BudgetLimitEditSheetState
-class _BudgetLimitEditSheetState extends State<BudgetLimitEditSheet> {
-  static const _fieldGap = 12.0;
-  static const _saveGap = 16.0;
-  static const _sheetPadding = EdgeInsets.all(16);
-
-  late final TextEditingController _controller = TextEditingController(
-    text: formatPlainAmount(widget.current),
-  );
+class _BudgetLimitEditSheetState extends ConsumerState<BudgetLimitEditSheet> {
+  late final TextEditingController _amountController = TextEditingController();
 
   @override
   void dispose() {
-    _controller.dispose();
+    _amountController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final title = Text(_sheetTitle, style: theme.textTheme.titleMedium);
-    final field = AmountField(
-      controller: _controller,
-      allowsNegative: false,
-      hintText: 'Limit',
-      autofocus: true,
+    final provider = budgetLimitEditorViewModelProvider(widget.draftKey);
+    final editorState = ref.watch(provider).value;
+    if (editorState == null) {
+      return _BudgetLimitLoadError(error: ref.watch(provider).error);
+    }
+    return _BudgetLimitBody(
+      editorState: editorState,
+      viewModel: ref.read(provider.notifier),
+      amountController: _amountController,
+    );
+  }
+}
+
+// MARK: - BudgetLimitLoadError
+class _BudgetLimitLoadError extends StatelessWidget {
+  const _BudgetLimitLoadError({required this.error});
+
+  final Object? error;
+
+  @override
+  Widget build(BuildContext context) {
+    const save = SizedBox(
+      width: _footerWidth,
+      child: PrimaryButton(label: _saveLabel, onPressed: null),
+    );
+    final alert = SheetAlertData(
+      message: '$_loadErrorTitle\n$error',
+      severity: SheetAlertSeverity.error,
+    );
+
+    return AppSheet(
+      header: const AppPickerHeader(title: _sheetTitle),
+      body: const SizedBox.shrink(),
+      footer: save,
+      alert: alert,
+      dragToDismiss: true,
+      variant: AppSheetVariant.form,
+    );
+  }
+}
+
+// MARK: - BudgetLimitBody
+class _BudgetLimitBody extends StatelessWidget {
+  const _BudgetLimitBody({
+    required this.editorState,
+    required this.viewModel,
+    required this.amountController,
+  });
+
+  final BudgetLimitEditorState editorState;
+  final BudgetLimitEditorViewModel viewModel;
+  final TextEditingController amountController;
+
+  @override
+  Widget build(BuildContext context) {
+    if (amountController.text != editorState.amountText) {
+      amountController.text = editorState.amountText;
+    }
+
+    final amount = BudgetAmountInput(
+      controller: amountController,
+      amountText: editorState.amountText,
+      onChanged: viewModel.setAmount,
     );
     final save = SizedBox(
-      width: _actionWidth,
-      child: FilledButton(
-        onPressed: () {
-          final amount = parseAmountInput(_controller.text);
-          Navigator.of(context).pop(amount);
-        },
-        child: const Text('Save'),
+      width: _footerWidth,
+      child: PrimaryButton(
+        label: _saveLabel,
+        onPressed: editorState.canSave ? viewModel.save : null,
       ),
     );
-    final column = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        title,
-        const SizedBox(height: _fieldGap),
-        field,
-        const SizedBox(height: _saveGap),
-        save,
-      ],
-    );
-    final padded = Padding(padding: _sheetPadding, child: column);
-    final safe = SafeArea(child: padded);
+    final pad = usesBudgetAmountPad(context)
+        ? BudgetAmountPad(
+            controller: amountController,
+            onChanged: viewModel.setAmount,
+          )
+        : null;
+    final saveError = editorState.error;
+    final alert = saveError == null
+        ? null
+        : SheetAlertData(
+            message:
+                '$_saveErrorTitle\n${friendlyLedgerErrorMessage(saveError)}',
+            severity: SheetAlertSeverity.error,
+          );
 
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: safe,
+    return AppSheet(
+      header: const AppPickerHeader(title: _sheetTitle),
+      body: amount,
+      footer: save,
+      inputSurface: pad,
+      alert: alert,
+      dragToDismiss: true,
+      variant: AppSheetVariant.form,
     );
   }
 }

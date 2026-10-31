@@ -8,6 +8,8 @@ const _inScopeFrameIds = {
   'le-budget-add-load',
   'le-budget-add-err',
   'sf-budget',
+  'mo-budget-edit-default',
+  'sf-limit',
 };
 
 void main() {

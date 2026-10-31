@@ -23,6 +23,7 @@ import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
+import '../../../support/number_pad_support.dart';
 import '../../../support/shell_sheet_harness.dart';
 import '../budget_shell_test_support.dart';
 import '../../../support/ui_test_timeout.dart';
@@ -30,6 +31,8 @@ import '../../../support/ui_test_timeout.dart';
 const _budgetDetailTryAgain = 'Try again';
 const _groceriesName = 'Groceries';
 const _saveLabel = 'Save';
+const _outsideSheetOffset = Offset(5, 5);
+const _seededAmountLength = 5;
 const _trayInteriorOffset = Offset(2, 2);
 const _editLabel = 'Edit';
 const _newerLabel = 'Newer';
@@ -65,6 +68,15 @@ Future<void> _openLimitEditorFromPane(WidgetTester tester) async {
 }
 
 final _limitEditor = find.byType(BudgetLimitEditSheet);
+
+Future<void> _replaceEditorAmount(WidgetTester tester, String digits) async {
+  for (var i = 0; i < _seededAmountLength; i++) {
+    await tapPadBackspace(tester);
+  }
+  for (final digit in digits.split('')) {
+    await tapPadLabel(tester, digit);
+  }
+}
 
 Future<void> _expectEditOpensEditor(WidgetTester tester) async {
   await tester.tap(find.text(_editLabel));
@@ -183,15 +195,33 @@ void main() {
     );
     await _openLimitEditorFromPane(tester);
 
-    await tester.enterText(
-      find.descendant(of: _limitEditor, matching: find.byType(EditableText)),
-      '75',
-    );
+    await _replaceEditorAmount(tester, '75');
     await tester.tap(find.widgetWithText(FilledButton, _saveLabel));
     await tester.pumpAndSettle();
 
     expect(ledger.state.budgets['b2']!.limit, Decimal.fromInt(75));
     expect(_limitEditor, findsNothing);
+    expect(container.read(selectedBudgetProvider), 'b2');
+    expect(find.byKey(shellDetailPaneKey), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('mo-budget-edit-default covers the shell and an outside tap '
+      'dismisses it without a write', (tester) async {
+    final ledger = buildShellLedger();
+    final container = await pumpBudgetShell(
+      tester,
+      mode: ShellLayoutMode.open,
+      ledger: ledger,
+    );
+    await _openLimitEditorFromPane(tester);
+    expect(container.read(shellSheetOccupancyProvider).hasSheets, isTrue);
+    expect(container.read(selectedBudgetProvider), 'b2');
+
+    await tester.tapAt(_outsideSheetOffset);
+    await tester.pumpAndSettle();
+
+    expect(_limitEditor, findsNothing);
+    expect(ledger.state.budgets['b2']!.limit, Decimal.fromInt(50));
     expect(container.read(selectedBudgetProvider), 'b2');
     expect(find.byKey(shellDetailPaneKey), findsOneWidget);
   }, timeout: uiTestTimeout);
@@ -786,7 +816,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(_limitEditor, findsOneWidget);
 
-    _rootNavigator(tester).pop(Decimal.fromInt(75));
+    await _replaceEditorAmount(tester, '75');
+    await tester.tap(find.widgetWithText(FilledButton, _saveLabel));
     await tester.pumpAndSettle();
 
     expect(_limitEditor, findsNothing);

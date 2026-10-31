@@ -485,9 +485,6 @@ void main() {
     clock: DetailClock(october),
   );
 
-  Decimal? storedLimit(ProviderContainer container) =>
-      container.read(ledgerProvider)!.state.budgets[detailBudgetID]?.limit;
-
   test('requestLimitEdit emits only when the budget exists', () async {
     final present = limitContainer();
     keepViewModel(present).requestLimitEdit();
@@ -517,44 +514,6 @@ void main() {
     container.read(ledgerProvider)!.updateBudgetLimit(detailBudgetID, dec('7'));
     expect(viewModel.liveLimit, dec('7'));
     expect(missing.liveLimit, isNull);
-  });
-
-  test('applyLimit updates the budget limit', () {
-    final container = limitContainer();
-
-    keepViewModel(container).applyLimit(dec('250'));
-
-    expect(storedLimit(container), dec('250'));
-  });
-
-  test('applyLimit ignores null and nonpositive amounts', () {
-    final container = limitContainer();
-    final viewModel = keepViewModel(container);
-
-    viewModel.applyLimit(null);
-    viewModel.applyLimit(Decimal.zero);
-    viewModel.applyLimit(dec('-5'));
-
-    expect(storedLimit(container), dec('100'));
-  });
-
-  test('applyLimit ignores a missing budget', () {
-    final container = limitContainer(withBudget: false);
-
-    keepViewModel(container).applyLimit(dec('250'));
-
-    expect(storedLimit(container), isNull);
-  });
-
-  test('applyLimit ignores an unmounted view model', () {
-    final container = limitContainer();
-    final viewModel = keepViewModel(container);
-    final ledger = container.read(ledgerProvider)!;
-    container.dispose();
-
-    viewModel.applyLimit(dec('250'));
-
-    expect(ledger.state.budgets[detailBudgetID]?.limit, dec('100'));
   });
 
   test('a deleted budget reports the deleted phase', () async {

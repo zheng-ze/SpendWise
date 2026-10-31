@@ -13,3 +13,5 @@ class BudgetFormRequested extends BudgetsStep {}
 class PickCategoryRequested extends BudgetsStep {}
 
 class BudgetFormSaved extends BudgetsStep {}
+
+class BudgetLimitSaved extends BudgetsStep {}
