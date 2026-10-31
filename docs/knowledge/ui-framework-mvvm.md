@@ -407,11 +407,12 @@ value, which then overwrites it. (issue #38)
   coloured through `AmountStyle`), `SegmentedControl`, `CompactLabelledFab` with `FabReserveSpace`,
   `NoticeCard`, `EmptyState`, `LoadingTrays` and `ErrorSection` with an optional filled retry.
 - **Selection** - `SegmentedControl` and the selectable charts report choices through
-  callbacks; the caller supplies the selected value/index on rebuild. `MonthBars` and
-  `DonutChart` use `selectedMark` fill with no selection stroke. Gap and blank months draw no
-  bar, selected or not, and incomplete bars retain their distinct fill/outline. `MonthBars`
-  optionally draws a dashed limit line and month axis labels. (`app/lib/ui/common/inputs/segmented_control.dart`,
-  `app/lib/ui/common/charts/month_bars.dart`, `app/lib/ui/common/charts/donut_chart.dart`)
+  callbacks; the caller supplies the selected value/index on rebuild. `MonthBarChart` (baseline, `MonthBars` and the month axis cells, used by `TrendsChart` and
+  `BudgetDetailChart`) and `DonutChart` use `selectedMark` fill with no selection stroke. Gap and blank
+  months draw no bar, selected or not, and incomplete months draw like any value month. Tapping an axis
+  cell selects its month even when it has no bar. `MonthBarChart` optionally draws a dashed limit line,
+  the only difference between the budget chart and the Trends chart. (`app/lib/ui/common/inputs/segmented_control.dart`,
+  `app/lib/ui/common/charts/month_bar_chart.dart`, `app/lib/ui/common/charts/month_bars.dart`, `app/lib/ui/common/charts/donut_chart.dart`)
 - **CategoryMap** (`app/lib/ui/common/charts/category_map.dart`) uses pure squarified
   `layoutCategoryMap`; returned rectangles and selection callbacks preserve input indices
   despite sorting for layout. Labels pair the category name with its share, never a bare

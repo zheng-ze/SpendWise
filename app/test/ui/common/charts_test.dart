@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ui/common/charts/donut_chart.dart';
+import 'package:spendwise/ui/common/charts/month_bar_chart.dart';
 import 'package:spendwise/ui/common/charts/month_bars.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
@@ -47,24 +48,32 @@ void main() {
     expect(selections, [3]);
   }, timeout: uiTestTimeout);
 
-  testWidgets('month bars select a gap or blank slot and tolerate a limit', (
+  testWidgets('month bar chart axis selects any month and tolerates a limit', (
     tester,
   ) async {
     final selections = <int>[];
-    final slots = [
-      const MonthBarSlot(value: 50),
-      const MonthBarSlot(status: MonthBarStatus.gap),
-      const MonthBarSlot(status: MonthBarStatus.blank),
-      const MonthBarSlot(value: 30, status: MonthBarStatus.incomplete),
+    final columns = [
+      const MonthBarColumn(
+        slot: MonthBarSlot(value: 50),
+        label: 'J',
+        semanticLabel: 'January 2026',
+      ),
+      const MonthBarColumn(
+        slot: MonthBarSlot(status: MonthBarStatus.gap),
+        label: 'F',
+        semanticLabel: 'February 2026',
+      ),
+      const MonthBarColumn(
+        slot: MonthBarSlot(status: MonthBarStatus.blank),
+        label: 'M',
+        semanticLabel: 'March 2026',
+      ),
     ];
-    final months = [for (var m = 1; m <= 4; m++) DateTime.utc(2026, m)];
     await tester.pumpWidget(
       _host(
-        MonthBars(
-          slots: slots,
-          months: months,
+        MonthBarChart(
+          columns: columns,
           limit: 40,
-          touchFullHeight: true,
           maxValue: 60,
           selectedIndex: 1,
           onSelect: selections.add,
@@ -74,14 +83,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
-    final chartRect = tester.getRect(find.byType(BarChart));
-    Offset column(int index) => Offset(
-      chartRect.left + chartRect.width * (index + 0.5) / slots.length,
-      chartRect.bottom - 40,
-    );
-    await tester.tapAt(column(1));
-    await tester.pumpAndSettle();
-    await tester.tapAt(column(2));
+    await tester.tap(find.bySemanticsLabel('February 2026'));
+    await tester.tap(find.bySemanticsLabel('March 2026'));
     await tester.pumpAndSettle();
     expect(selections, [1, 2]);
   }, timeout: uiTestTimeout);

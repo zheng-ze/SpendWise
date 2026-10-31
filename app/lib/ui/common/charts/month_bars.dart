@@ -1,7 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/stats/helpers/chart_helpers.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -35,9 +34,6 @@ class MonthBars extends StatelessWidget {
     this.maxValue,
     this.height = _defaultHeight,
     this.limit,
-    this.barColor,
-    this.months,
-    this.touchFullHeight = false,
   });
 
   static const _defaultHeight = 92.0;
@@ -48,15 +44,9 @@ class MonthBars extends StatelessWidget {
 
   static const _barWidth = 16.0;
 
-  static const _outlineWidth = 1.0;
-
   static const _transparent = Color(0x00000000);
 
   static const _noStroke = BorderSide(width: 0, color: _transparent);
-
-  static const _unselectedBarAlpha = 0.5;
-
-  static const _titleInterval = 1.0;
 
   static const _limitLineWidth = 2.0;
 
@@ -84,12 +74,6 @@ class MonthBars extends StatelessWidget {
 
   final double? limit;
 
-  final Color? barColor;
-
-  final List<DateTime>? months;
-
-  final bool touchFullHeight;
-
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -103,7 +87,6 @@ class MonthBars extends StatelessWidget {
     ];
     final touchData = BarTouchData(
       enabled: onSelect != null,
-      allowTouchBarBackDraw: touchFullHeight,
       touchTooltipData: BarTouchTooltipData(
         getTooltipColor: (_) => _tooltipTransparent,
         getTooltipItem: (_, _, _, _) => null,
@@ -115,24 +98,7 @@ class MonthBars extends StatelessWidget {
       },
     );
     final limitLine = limit;
-    final axisMonths = months;
     final lineColor = Theme.of(context).colorScheme.onSurface;
-    final tickStyle = Theme.of(context).textTheme.labelSmall;
-    final titlesData = axisMonths == null
-        ? const FlTitlesData(show: false)
-        : FlTitlesData(
-            topTitles: const AxisTitles(),
-            rightTitles: const AxisTitles(),
-            leftTitles: const AxisTitles(),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                interval: _titleInterval,
-                getTitlesWidget: (value, _) =>
-                    monthAxisTick(tickStyle, axisMonths, value),
-              ),
-            ),
-          );
     final extraLines = ExtraLinesData(
       horizontalLines: [
         if (limitLine != null)
@@ -150,7 +116,7 @@ class MonthBars extends StatelessWidget {
       alignment: BarChartAlignment.spaceAround,
       gridData: const FlGridData(show: false),
       borderData: FlBorderData(show: false),
-      titlesData: titlesData,
+      titlesData: const FlTitlesData(show: false),
       extraLinesData: extraLines,
       barTouchData: touchData,
       barGroups: groups,
@@ -206,24 +172,10 @@ class MonthBars extends StatelessWidget {
         backDrawRodData: touchArea,
       );
     }
-    if (slot.status == MonthBarStatus.incomplete) {
-      return BarChartRodData(
-        toY: slot.value,
-        width: barWidth,
-        color: colors.incomplete,
-        borderRadius: radius,
-        borderSide: BorderSide(color: colors.action, width: _outlineWidth),
-        backDrawRodData: touchArea,
-      );
-    }
-    final custom = barColor;
-    final fill = custom == null
-        ? colors.action
-        : custom.withValues(alpha: _unselectedBarAlpha);
     return BarChartRodData(
       toY: slot.value,
       width: barWidth,
-      color: fill,
+      color: colors.action,
       borderRadius: radius,
       backDrawRodData: touchArea,
     );

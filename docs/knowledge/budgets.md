@@ -123,7 +123,7 @@ for the same budget, month and displayed year, and the chart may briefly lag the
 `BudgetDetailProjection.belongsTo` discards a retained projection when the displayed month or year
 changes or the ledger instance is replaced.
 
-The chart is the shared `MonthBars` with a dashed horizontal limit line at the budget's limit and month axis labels, and the selected-month summary
+The chart is the shared `MonthBarChart` (the Trends chart: baseline, `MonthBars`, one-letter month axis cells) plus a dashed horizontal limit line at the budget's limit, and the selected-month summary
 compares spend against the same value (`BudgetDetailProjection.limit`, `_ChartTray` in
 `budget_detail_content.dart`). The limit does not depend on the displayed year or the selected month.
 The detail shows no limit-changes row and no chart caption.

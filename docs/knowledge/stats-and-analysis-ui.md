@@ -270,7 +270,7 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
   `No entries in this period`
   (`category_detail_screen.dart:_CategoryDetailReadyView`,
   `flat_entry_sliver.dart:FlatEntrySliver`, `category_detail_trend.dart:_selectionSlivers`).
-  The trend reuses `TrendsChart`, shared mode controls and period row inside one `SliverTray`.
+  The trend reuses `TrendsChart` (a thin wrapper over the shared `MonthBarChart`), shared mode controls and period row inside one `SliverTray`.
   Month mode uses the shared January-through-December grid and runtime bounds, including an empty
   scope; year mode contains three calendar years bounded by the first analysis-included record in
   the effective scope and the current year. Scope changes preserve the requested month basis.

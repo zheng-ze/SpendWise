@@ -18,7 +18,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 // MARK: - Constants
 const _contentPadding = EdgeInsets.all(12);
 const _sectionGap = 10.0;
-const _chartHeight = 220.0;
 const _progressGap = 10.0;
 const _progressHeight = 7.0;
 const _progressRadius = 4.0;
@@ -200,17 +199,13 @@ class _ChartTray extends StatelessWidget {
         onChanged: viewModel.changeYear,
       ),
     );
-    final chart = SizedBox(
-      height: _chartHeight,
-      child: BudgetDetailChart(
-        months: projection.months,
-        slots: budgetMonthBarSlots(projection.slots),
-        limit: projection.limit,
-        maxY: projection.chartMaxYValue,
-        selectedMonth: viewState.selectedMonth,
-        onSelectMonth: viewModel.selectMonth,
-        barColor: AmountStyle.of(context, kind: AmountKind.expense).color,
-      ),
+    final chart = BudgetDetailChart(
+      months: projection.months,
+      slots: budgetMonthBarSlots(projection.slots),
+      limit: projection.limit,
+      maxY: projection.chartMaxYValue,
+      selectedMonth: viewState.selectedMonth,
+      onSelectMonth: viewModel.selectMonth,
     );
 
     return Tray(
