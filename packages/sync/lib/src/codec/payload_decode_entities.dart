@@ -116,39 +116,15 @@ extension PayloadCodecDecodeEntities on PayloadCodec {
     );
   }
 
-  LedgerChange _decodeBudget(Map<String, Object?> data) => UpsertBudget(
-        Budget(
-          id: normalizedID(_str(data, 'id')),
-          categoryID: normalizedOptionalID(_strNullable(data, 'categoryID')),
-          limitEvents: <LimitEvent>[
-            for (final raw in _list(data, 'limitEvents'))
-              _decodeLimitEvent(raw),
-          ],
-          createdAtMonth: _yearMonth(_object(data, 'createdAtMonth')),
-        ),
-      );
-
-  LimitEvent _decodeLimitEvent(Object? raw) {
-    final map = raw;
-    if (map is! Map<String, Object?>) {
-      throw const PayloadDecodeError('Limit event must be an object.');
-    }
-    return LimitEvent(
-      effectiveFromMonth: _decodeYearMonth(map['effectiveFromMonth']),
-      value: _fromCode('value', () => Decimal.parse(_str(map, 'value'))),
-      kind: _fromCode('kind', () => LimitEventKind.fromCode(_int(map, 'kind'))),
+  LedgerChange _decodeBudget(Map<String, Object?> data) {
+    final limitText = _str(data, 'limit');
+    return UpsertBudget(
+      Budget(
+        id: normalizedID(_str(data, 'id')),
+        categoryID: normalizedOptionalID(_strNullable(data, 'categoryID')),
+        limit: _fromCode('limit', () => Decimal.parse(limitText)),
+      ),
     );
-  }
-
-  YearMonth _yearMonth(Map<String, Object?> map) =>
-      YearMonth(_int(map, 'year'), _int(map, 'month'));
-
-  YearMonth? _decodeYearMonth(Object? raw) {
-    if (raw == null) return null;
-    if (raw is! Map<String, Object?>) {
-      throw const PayloadDecodeError('YearMonth must be an object or null.');
-    }
-    return YearMonth(_int(raw, 'year'), _int(raw, 'month'));
   }
 
   DateTime _dateTime(String field, String iso) =>

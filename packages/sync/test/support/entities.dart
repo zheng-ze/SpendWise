@@ -83,19 +83,7 @@ RecurringPlan testPlan({
 Budget testBudget({String? id}) => Budget(
       id: id ?? uuidBudgets,
       categoryID: uuidCategories,
-      limitEvents: <LimitEvent>[
-        LimitEvent(
-          effectiveFromMonth: const YearMonth(2024, 1),
-          value: Decimal.parse('100.00'),
-          kind: LimitEventKind.defaultLimit,
-        ),
-        LimitEvent(
-          effectiveFromMonth: null,
-          value: Decimal.parse('250.00'),
-          kind: LimitEventKind.override,
-        ),
-      ],
-      createdAtMonth: const YearMonth(2024, 1),
+      limit: Decimal.parse('250.00'),
     );
 
 /// Every upsert [LedgerChange] the codec must round-trip, keyed by label.

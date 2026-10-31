@@ -73,16 +73,7 @@ extension PayloadCodecEncode on PayloadCodec {
             <String, Object?>{
               'id': budget.id,
               'categoryID': budget.categoryID,
-              'limitEvents': <Object?>[
-                for (final event in budget.limitEvents)
-                  <String, Object?>{
-                    'effectiveFromMonth':
-                        _encodeYearMonth(event.effectiveFromMonth),
-                    'value': event.value.toString(),
-                    'kind': event.kind.code,
-                  },
-              ],
-              'createdAtMonth': _encodeYearMonth(budget.createdAtMonth),
+              'limit': budget.limit.toString(),
             },
           ),
         DeleteMoneySource() => null,
@@ -102,10 +93,6 @@ extension PayloadCodecEncode on PayloadCodec {
         'includeInAnalysis': template.includeInAnalysis,
         if (template.note != null) 'note': template.note,
       };
-
-  Object? _encodeYearMonth(YearMonth? month) => month == null
-      ? null
-      : <String, Object?>{'year': month.year, 'month': month.month};
 }
 
 // MARK: - Encoded Change
