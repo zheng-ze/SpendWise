@@ -41,11 +41,7 @@ rows.Plan planToRow(RecurringPlan plan, VersionVector version) => rows.Plan(
 Budget budgetFromRow(rows.Budget row) => Budget(
   id: row.id,
   categoryID: row.categoryId,
-  limitEvents: [
-    for (final event in json.decode(row.limitEvents) as List<dynamic>)
-      _limitEventFromJson(event as Map<String, dynamic>),
-  ],
-  createdAtMonth: _yearMonthFromString(row.createdAtMonth),
+  limit: Decimal.parse(row.limitAmount),
 );
 
 rows.Budget budgetToRow(Budget budget, VersionVector version) => rows.Budget(
@@ -53,35 +49,5 @@ rows.Budget budgetToRow(Budget budget, VersionVector version) => rows.Budget(
   lifecycle: LifecycleState.active.code,
   id: budget.id,
   categoryId: budget.categoryID,
-  limitEvents: json.encode([
-    for (final event in budget.limitEvents) _limitEventToJson(event),
-  ]),
-  createdAtMonth: _yearMonthToString(budget.createdAtMonth),
+  limitAmount: budget.limit.toString(),
 );
-
-// MARK: - Budget Encoding
-
-YearMonth _yearMonthFromString(String value) {
-  final parts = value.split('-');
-  return YearMonth(int.parse(parts[0]), int.parse(parts[1]));
-}
-
-String _yearMonthToString(YearMonth month) =>
-    '${month.year.toString().padLeft(4, '0')}-'
-    '${month.month.toString().padLeft(2, '0')}';
-
-LimitEvent _limitEventFromJson(Map<String, dynamic> map) => LimitEvent(
-  effectiveFromMonth: map['effectiveFromMonth'] == null
-      ? null
-      : _yearMonthFromString(map['effectiveFromMonth'] as String),
-  value: Decimal.parse(map['value'] as String),
-  kind: LimitEventKind.fromCode(map['kind'] as int),
-);
-
-Map<String, dynamic> _limitEventToJson(LimitEvent event) => {
-  'effectiveFromMonth': event.effectiveFromMonth == null
-      ? null
-      : _yearMonthToString(event.effectiveFromMonth!),
-  'value': event.value.toString(),
-  'kind': event.kind.code,
-};

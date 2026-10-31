@@ -78,18 +78,8 @@ RecurringPlan _plan(String id) => RecurringPlan(
   lastResolvedDate: DateTime.utc(2024, 6, 1),
 );
 
-Budget _budget(String id) => Budget(
-  id: id,
-  categoryID: null,
-  limitEvents: <LimitEvent>[
-    LimitEvent(
-      effectiveFromMonth: const YearMonth(2024, 1),
-      value: Decimal.parse('100.00'),
-      kind: LimitEventKind.defaultLimit,
-    ),
-  ],
-  createdAtMonth: const YearMonth(2024, 1),
-);
+Budget _budget(String id) =>
+    Budget(id: id, categoryID: null, limit: Decimal.parse('100.00'));
 
 LedgerChange _liveChange(SyncCollection collection, String rowID) {
   switch (collection) {

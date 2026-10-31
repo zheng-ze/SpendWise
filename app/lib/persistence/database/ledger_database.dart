@@ -5,6 +5,13 @@ import 'package:sync/sync.dart';
 
 part 'ledger_database.g.dart';
 
+const _budgetScopedSyncTables = [
+  'sync_staged_siblings',
+  'sync_staged_conflicts',
+  'sync_acknowledged_vectors',
+  'sync_orphan_tombstones',
+];
+
 // MARK: - Database
 
 @DriftDatabase(
@@ -28,7 +35,7 @@ class LedgerDatabase extends _$LedgerDatabase {
   LedgerDatabase(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   // MARK: - Migration
 
@@ -74,6 +81,15 @@ class LedgerDatabase extends _$LedgerDatabase {
         };
         if (!names.contains('template_note')) {
           await m.addColumn(plans, plans.templateNote);
+        }
+      }
+      if (from < 8) {
+        await m.deleteTable('budgets');
+        await m.createTable(budgets);
+        for (final table in _budgetScopedSyncTables) {
+          await m.database.customStatement(
+            "DELETE FROM $table WHERE collection = 'budgets'",
+          );
         }
       }
     },

@@ -224,14 +224,7 @@ void main() {
       domain.Budget budget(String amount) => domain.Budget(
         id: 'b1',
         categoryID: 'c1',
-        limitEvents: [
-          LimitEvent(
-            effectiveFromMonth: null,
-            value: Decimal.parse(amount),
-            kind: LimitEventKind.defaultLimit,
-          ),
-        ],
-        createdAtMonth: const YearMonth(2026, 1),
+        limit: Decimal.parse(amount),
       );
 
       store.enqueue([UpsertBudget(budget('10'))]);
@@ -246,7 +239,7 @@ void main() {
       final row = await db.select(db.budgets).getSingle();
       expect(row.lifecycle, LifecycleState.tombstoned.code);
 
-      expect(row.limitEvents, contains('"value":"10"'));
+      expect(row.limitAmount, '10');
     });
 
     test('deleteThenUpsertInOneWindowAppliesOnlyUpsert', () async {
@@ -841,14 +834,7 @@ void main() {
         final budget = domain.Budget(
           id: 'b1',
           categoryID: 'c1',
-          limitEvents: [
-            LimitEvent(
-              effectiveFromMonth: null,
-              value: Decimal.fromInt(500),
-              kind: LimitEventKind.defaultLimit,
-            ),
-          ],
-          createdAtMonth: const YearMonth(2026, 1),
+          limit: Decimal.fromInt(500),
         );
 
         store.enqueue([UpsertBudget(budget)]);
@@ -885,18 +871,8 @@ void main() {
       lastResolvedDate: DateTime.utc(2026, 1, 1),
     );
 
-    domain.Budget budget(String id) => domain.Budget(
-      id: id,
-      categoryID: 'c1',
-      limitEvents: [
-        LimitEvent(
-          effectiveFromMonth: null,
-          value: Decimal.fromInt(500),
-          kind: LimitEventKind.defaultLimit,
-        ),
-      ],
-      createdAtMonth: const YearMonth(2026, 1),
-    );
+    domain.Budget budget(String id) =>
+        domain.Budget(id: id, categoryID: 'c1', limit: Decimal.fromInt(500));
 
     test('loadReturnsWhatWasEnqueued', () async {
       store.enqueue([
