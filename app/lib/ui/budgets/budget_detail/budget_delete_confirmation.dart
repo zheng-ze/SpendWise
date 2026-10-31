@@ -18,26 +18,31 @@ Future<bool> showBudgetDeleteConfirmation(
   BuildContext context, {
   required String title,
 }) async {
+  ModalRoute<bool>? dialogRoute;
   final confirmed = await showShellConfirmation<bool>(
     context,
-    builder: (context) => AlertDialog(
-      title: Text('Delete the $title budget?'),
-      content: const Text(_deleteBodyText),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text(_deleteCancelLabel),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-            foregroundColor: context.colors.onAction,
+    builder: (context) {
+      dialogRoute ??= ModalRoute.of<bool>(context);
+      return AlertDialog(
+        title: Text('Delete the $title budget?'),
+        content: const Text(_deleteBodyText),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(_deleteCancelLabel),
           ),
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text(_deleteConfirmLabel),
-        ),
-      ],
-    ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: context.colors.onAction,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(_deleteConfirmLabel),
+          ),
+        ],
+      );
+    },
   );
+  await dialogRoute?.completed;
   return confirmed ?? false;
 }

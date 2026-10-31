@@ -174,7 +174,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   void _pushPage(BuildContext context, String budgetID) {
     final navigator = Navigator.of(context, rootNavigator: true);
     final route = MaterialPageRoute<Object?>(
-      builder: (_) => _SelectedBudgetPage(budgetID: budgetID),
+      builder: (_) => BudgetDetailScreen(budgetID: budgetID),
     );
     _rootNavigator = navigator;
     _page = route;
@@ -261,7 +261,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     detail.clearStep();
     if (_editSession != null) return;
     final ledger = ref.read(ledgerProvider);
-    if (detail.liveLimit == null || ledger == null) return;
+    if (ledger == null || detail.liveLimit == null) return;
 
     final session = _EditSession(budgetID, ledger);
     _editSession = session;
@@ -324,9 +324,17 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       draftKey: draftKey,
       onRouteCreated: (route) {
         session.route = route;
-        unawaited(route.completed.then((_) => _endEditSession(session)));
+        unawaited(_endWhenCompleted(route, () => _endEditSession(session)));
       },
     );
+  }
+
+  Future<void> _endWhenCompleted(
+    TransitionRoute<Object?> route,
+    void Function() end,
+  ) async {
+    await route.completed;
+    end();
   }
 
   void _endEditSession(_EditSession session) {
@@ -373,7 +381,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
         draftKey: draftKey,
         onRouteCreated: (route) {
           session.route = route;
-          unawaited(route.completed.then((_) => _endFormSession(session)));
+          unawaited(_endWhenCompleted(route, () => _endFormSession(session)));
         },
       ),
     );
@@ -446,19 +454,4 @@ class _EditSession {
   AppSheetRoute<void>? route;
   ProviderSubscription<AsyncValue<BudgetLimitEditorState>>? subscription;
   bool retired = false;
-}
-
-class _SelectedBudgetPage extends ConsumerWidget {
-  const _SelectedBudgetPage({required this.budgetID});
-
-  final String budgetID;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final selected = ref.watch(
-      selectedBudgetProvider.select((id) => id == budgetID),
-    );
-    if (!selected) return const SizedBox.shrink();
-    return BudgetDetailScreen(budgetID: budgetID);
-  }
 }
