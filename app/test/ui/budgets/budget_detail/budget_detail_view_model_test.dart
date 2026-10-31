@@ -9,6 +9,7 @@ import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_presentation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 
 import 'budget_detail_test_support.dart';
 
@@ -493,6 +494,34 @@ void main() {
     expect(ledger.revision, revision + 1);
     expect(ledger.state.budgets.keys, [other.id]);
     expect(ledger.state.entries.containsKey(entry.id), isTrue);
+  });
+
+  test('the deleted phase keeps the last ready title', () async {
+    final ledger = detailLedger(budgets: [detailBudget()]);
+    final container = detailContainer(
+      ledger: ledger,
+      clock: DetailClock(october),
+    );
+    keepDetailAlive(container);
+    final ready = await settledDetail(container);
+
+    ledger.deleteBudget(detailBudgetID);
+    final deleted = await settledDetail(container);
+
+    expect(ready.phase, BudgetDetailPhase.ready);
+    expect(deleted.phase, BudgetDetailPhase.deleted);
+    expect(deleted.title, ready.title);
+    expect(deleted.title, isNotEmpty);
+  });
+
+  test('closeDeleted clears the budget selection', () {
+    final container = limitContainer(withBudget: false);
+    final viewModel = keepViewModel(container);
+    container.read(selectedBudgetProvider.notifier).select(detailBudgetID);
+
+    viewModel.closeDeleted();
+
+    expect(container.read(selectedBudgetProvider), isNull);
   });
 
   test('deleteBudget does nothing when the budget is missing', () {

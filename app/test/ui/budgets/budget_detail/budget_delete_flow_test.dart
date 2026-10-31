@@ -22,6 +22,9 @@ const _confirmTitle = 'Delete the Food budget?';
 const _confirmBody =
     'Your entries stay as they are. Only the limit is removed.';
 const _deletedTitle = 'This budget was deleted';
+const _deletedBody = 'It was removed on another screen or device.';
+const _backToBudgetsLabel = 'Back to Budgets';
+const _foodTitle = 'Food';
 const _outsideOffset = Offset(5, 5);
 const _frames = 20;
 const _frameStep = Duration(milliseconds: 16);
@@ -217,4 +220,42 @@ void main() {
     expect(ledger.revision, revision);
     expect(ledger.state.budgets.keys, [_otherBudgetID]);
   }, timeout: uiTestTimeout);
+
+  for (final mode in [ShellLayoutMode.phone, ShellLayoutMode.open]) {
+    testWidgets('mo-budget-deleted ${mode.name}: a remote delete shows the '
+        'last title, the copy and no Edit', (tester) async {
+      final ledger = buildShellLedger();
+      await pumpBudgetShell(tester, mode: mode, ledger: ledger);
+      await tapBudget(tester, _budgetID);
+
+      ledger.deleteBudget(_budgetID);
+      await tester.pumpAndSettle();
+
+      expect(find.text(_foodTitle), findsWidgets);
+      expect(find.text(_deletedTitle), findsOneWidget);
+      expect(find.text(_deletedBody), findsOneWidget);
+      expect(find.text(_backToBudgetsLabel), findsOneWidget);
+      expect(find.byTooltip(_editLabel), findsNothing);
+      expect(find.text(_editLabel), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('mo-budget-deleted ${mode.name}: Back to Budgets clears the '
+        'selection', (tester) async {
+      final ledger = buildShellLedger();
+      final container = await pumpBudgetShell(
+        tester,
+        mode: mode,
+        ledger: ledger,
+      );
+      await tapBudget(tester, _budgetID);
+      ledger.deleteBudget(_budgetID);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text(_backToBudgetsLabel));
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedBudgetProvider), isNull);
+      expect(find.text(_deletedTitle), findsNothing);
+    }, timeout: uiTestTimeout);
+  }
 }

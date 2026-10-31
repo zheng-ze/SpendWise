@@ -174,7 +174,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   void _pushPage(BuildContext context, String budgetID) {
     final navigator = Navigator.of(context, rootNavigator: true);
     final route = MaterialPageRoute<Object?>(
-      builder: (_) => BudgetDetailScreen(budgetID: budgetID),
+      builder: (_) => _SelectedBudgetPage(budgetID: budgetID),
     );
     _rootNavigator = navigator;
     _page = route;
@@ -446,4 +446,19 @@ class _EditSession {
   AppSheetRoute<void>? route;
   ProviderSubscription<AsyncValue<BudgetLimitEditorState>>? subscription;
   bool retired = false;
+}
+
+class _SelectedBudgetPage extends ConsumerWidget {
+  const _SelectedBudgetPage({required this.budgetID});
+
+  final String budgetID;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(
+      selectedBudgetProvider.select((id) => id == budgetID),
+    );
+    if (!selected) return const SizedBox.shrink();
+    return BudgetDetailScreen(budgetID: budgetID);
+  }
 }

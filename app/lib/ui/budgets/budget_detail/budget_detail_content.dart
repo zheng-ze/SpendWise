@@ -28,7 +28,10 @@ const _entriesSuffix = ' ENTRIES';
 const _emptyIcon = Icons.receipt_long_outlined;
 const _failureTitle = "Couldn't load this budget";
 const _retryLabel = 'Try again';
-const _deletedText = 'Budget deleted';
+const _deletedIcon = Icons.speed_outlined;
+const _deletedTitle = 'This budget was deleted';
+const _deletedBody = 'It was removed on another screen or device.';
+const _deletedActionLabel = 'Back to Budgets';
 const _failureGap = 8.0;
 
 // MARK: - BudgetDetailContent
@@ -46,9 +49,15 @@ class BudgetDetailContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final presentation = budgetDetailPresentation(viewState);
     if (presentation.body == BudgetDetailBody.deleted) {
-      return const Padding(
+      return Padding(
         padding: _contentPadding,
-        child: Center(child: Text(_deletedText)),
+        child: EmptyState(
+          icon: _deletedIcon,
+          title: _deletedTitle,
+          body: _deletedBody,
+          actionLabel: _deletedActionLabel,
+          onAction: viewModel.closeDeleted,
+        ),
       );
     }
 
