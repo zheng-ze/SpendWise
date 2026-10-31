@@ -44,7 +44,7 @@ LedgerState _fullState() {
       lastResolvedDate: DateTime.utc(2026, 1, 10),
     ),
   );
-  state.addBudget(null, Decimal.fromInt(300), now: DateTime.utc(2026, 4, 7));
+  state.addBudget(null, Decimal.fromInt(300));
   return state;
 }
 

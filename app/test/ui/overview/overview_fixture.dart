@@ -92,7 +92,7 @@ RecurringPlan monthlyPlan(String name, String amount, DateTime anchor) =>
 
 LedgerState defaultState() {
   final state = emptyState();
-  state.addBudget(null, Decimal.parse('1200'), now: DateTime.utc(2026, 10, 1));
+  state.addBudget(null, Decimal.parse('1200'));
   state.addEntry(
     entry(
       1,
