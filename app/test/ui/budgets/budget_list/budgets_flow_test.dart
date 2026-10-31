@@ -178,26 +178,28 @@ void main() {
     timeout: uiTestTimeout,
   );
 
-  testWidgets('a second edit request while the action sheet is open is dropped', (
-    tester,
-  ) async {
-    final ledger = Ledger(state: LedgerState(budgets: {_budget.id: _budget}));
-    final container = await _pumpFlow(tester, ledger);
-    await _openDetail(tester, container, _budget.id);
-    final detail = container.read(
-      budgetDetailViewModelProvider(_budget.id).notifier,
-    );
-    detail.requestEdit();
-    await tester.pumpAndSettle();
-    detail.requestEdit();
-    await tester.pumpAndSettle();
-    expect(find.text(_changeLimitLabel), findsOneWidget);
-    await chooseEditAction(tester, _changeLimitLabel);
-    expect(find.byType(_limitEditor), findsOneWidget);
+  testWidgets(
+    'a second edit request while the action sheet is open is dropped',
+    (tester) async {
+      final ledger = Ledger(state: LedgerState(budgets: {_budget.id: _budget}));
+      final container = await _pumpFlow(tester, ledger);
+      await _openDetail(tester, container, _budget.id);
+      final detail = container.read(
+        budgetDetailViewModelProvider(_budget.id).notifier,
+      );
+      detail.requestEdit();
+      await tester.pumpAndSettle();
+      detail.requestEdit();
+      await tester.pumpAndSettle();
+      expect(find.text(_changeLimitLabel), findsOneWidget);
+      await chooseEditAction(tester, _changeLimitLabel);
+      expect(find.byType(_limitEditor), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
 
-    expect(find.byType(_limitEditor), findsNothing);
-  }, timeout: uiTestTimeout);
+      expect(find.byType(_limitEditor), findsNothing);
+    },
+    timeout: uiTestTimeout,
+  );
 }

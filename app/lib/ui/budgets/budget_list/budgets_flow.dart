@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_delete_confirmation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_edit_actions_sheet.dart';
@@ -274,7 +275,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
         case BudgetEditAction.changeLimit:
           await _openLimitEditor(session);
         case BudgetEditAction.delete:
-          break;
+          await _confirmDelete(session);
       }
     } finally {
       _endEditSession(session);
@@ -286,6 +287,21 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     if (_shownBudgetID != session.budgetID) return false;
     if (!identical(ref.read(ledgerProvider), session.ledger)) return false;
     return _detailViewModel(session.budgetID).liveLimit != null;
+  }
+
+  Future<void> _confirmDelete(_EditSession session) async {
+    final context = navigatorContext;
+    final title = ref
+        .read(budgetDetailViewModelProvider(session.budgetID))
+        .value
+        ?.title;
+    if (context == null || title == null) return;
+
+    final confirmed = await showBudgetDeleteConfirmation(context, title: title);
+    if (!confirmed || !_editStillValid(session)) return;
+    _detailViewModel(session.budgetID).deleteBudget();
+    ref.read(selectedBudgetProvider.notifier).clear();
+    _reconcilePage();
   }
 
   Future<void> _openLimitEditor(_EditSession session) async {

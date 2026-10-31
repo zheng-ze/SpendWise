@@ -45,9 +45,7 @@ void main() {
     expect(state.projection?.projection.summary?.spent, state.spent);
   }, timeout: uiTestTimeout);
 
-  testWidgets('Edit requests the edit step from the page', (
-    tester,
-  ) async {
+  testWidgets('Edit requests the edit step from the page', (tester) async {
     final container = await pumpDetailScreen(
       tester,
       ledger: detailLedger(budgets: [detailBudget()]),

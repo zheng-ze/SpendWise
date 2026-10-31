@@ -844,9 +844,7 @@ void main() {
       ledger: ledger,
     );
     await _openLimitEditorFromPane(tester);
-    container
-        .read(budgetDetailViewModelProvider('b2').notifier)
-        .requestEdit();
+    container.read(budgetDetailViewModelProvider('b2').notifier).requestEdit();
     ledger.addEntry(_entry(0));
     await tester.pumpAndSettle();
     expect(_limitEditor, findsOneWidget);

@@ -10,6 +10,7 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
+import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 import '../../../support/pump_app.dart';
@@ -49,6 +50,13 @@ void main() {
       await tester.drag(amount, const Offset(-200, 0));
       await tester.pumpAndSettle();
       expect(ledger.state.budgets.containsKey(budget.id), isTrue);
+      final inList = find.descendant(
+        of: find.byType(BudgetsRoot),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is SwipeRow || widget is Dismissible,
+        ),
+      );
+      expect(inList, findsNothing);
       final container = ProviderScope.containerOf(
         tester.element(find.byType(BudgetsFlow)),
       );

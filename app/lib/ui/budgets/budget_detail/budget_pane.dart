@@ -41,9 +41,8 @@ final budgetPaneProvider = Provider.autoDispose<BudgetPane?>((ref) {
   final phone = ref.watch(shellLayoutModeProvider) == ShellLayoutMode.phone;
   if (budgetID == null || phone) return null;
   final header = ref.watch(budgetPaneHeaderProvider(budgetID));
-  void requestEdit() => ref
-      .read(budgetDetailViewModelProvider(budgetID).notifier)
-      .requestEdit();
+  void requestEdit() =>
+      ref.read(budgetDetailViewModelProvider(budgetID).notifier).requestEdit();
   final edit = TextButton.icon(
     onPressed: requestEdit,
     icon: const Icon(Icons.edit_outlined),

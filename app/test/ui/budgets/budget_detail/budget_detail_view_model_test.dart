@@ -474,6 +474,42 @@ void main() {
     expect(detailState(missing).step, isNull);
   });
 
+  test('deleteBudget deletes the budget once and leaves entries', () {
+    final entry = lunch(DateTime.utc(2026, 10, 3));
+    final other = detailBudget(id: 'b2', categoryID: foodCategory.id);
+    final ledger = detailLedger(
+      budgets: [detailBudget(), other],
+      entries: [entry],
+    );
+    final container = detailContainer(
+      ledger: ledger,
+      clock: DetailClock(october),
+    );
+
+    final revision = ledger.revision;
+
+    keepViewModel(container).deleteBudget();
+
+    expect(ledger.revision, revision + 1);
+    expect(ledger.state.budgets.keys, [other.id]);
+    expect(ledger.state.entries.containsKey(entry.id), isTrue);
+  });
+
+  test('deleteBudget does nothing when the budget is missing', () {
+    final ledger = detailLedger(budgets: [detailBudget(id: 'b2')]);
+    final container = detailContainer(
+      ledger: ledger,
+      clock: DetailClock(october),
+    );
+    final viewModel = keepViewModel(container);
+    final revision = ledger.revision;
+
+    viewModel.deleteBudget();
+
+    expect(ledger.revision, revision);
+    expect(ledger.state.budgets.keys, ['b2']);
+  });
+
   test('clearStep resets the edit step', () async {
     final container = limitContainer();
     final viewModel = keepViewModel(container);

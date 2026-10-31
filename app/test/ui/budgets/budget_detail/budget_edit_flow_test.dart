@@ -31,9 +31,7 @@ final _limitEditor = find.byType(BudgetLimitEditSheet);
 
 Future<void> _openActions(WidgetTester tester, ShellLayoutMode mode) async {
   final phone = mode == ShellLayoutMode.phone;
-  final trigger = phone
-      ? find.byTooltip(_editLabel)
-      : find.text(_editLabel);
+  final trigger = phone ? find.byTooltip(_editLabel) : find.text(_editLabel);
   await tester.tap(trigger);
   await tester.pumpAndSettle();
 }
@@ -106,21 +104,6 @@ void main() {
       expect(container.read(selectedBudgetProvider), _budgetID);
     }, timeout: uiTestTimeout);
   }
-
-  testWidgets('Delete budget opens nothing and the next Edit reopens the '
-      'actions', (tester) async {
-    final ledger = buildShellLedger();
-    await _pumpWithActions(tester, ShellLayoutMode.open, ledger: ledger);
-
-    await tester.tap(find.text(_deleteLabel));
-    await tester.pumpAndSettle();
-    expect(_actionRows, findsNothing);
-    expect(_limitEditor, findsNothing);
-    _expectLimits(ledger);
-
-    await _openActions(tester, ShellLayoutMode.open);
-    expect(_actionRows, findsNWidgets(2));
-  }, timeout: uiTestTimeout);
 
   testWidgets('Edit after dismissing Change limit reopens the actions', (
     tester,

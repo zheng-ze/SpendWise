@@ -188,6 +188,7 @@ abstract class BudgetDetailViewModel {
   void changeYear(DateTime year);
   Decimal? get liveLimit;
   void requestEdit();
+  void deleteBudget();
   void retry();
   void clearStep();
 }
@@ -352,6 +353,12 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
     if (liveLimit == null) return;
     _step = BudgetEditRequested();
     emitStep(BudgetEditRequested());
+  }
+
+  @override
+  void deleteBudget() {
+    if (!ref.mounted || liveLimit == null) return;
+    ledger.deleteBudget(_budgetID);
   }
 
   @override
