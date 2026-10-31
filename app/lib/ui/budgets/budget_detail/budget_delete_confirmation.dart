@@ -23,26 +23,41 @@ Future<bool> showBudgetDeleteConfirmation(
     context,
     builder: (context) {
       dialogRoute ??= ModalRoute.of<bool>(context);
-      return AlertDialog(
-        title: Text('Delete the $title budget?'),
-        content: const Text(_deleteBodyText),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text(_deleteCancelLabel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: context.colors.onAction,
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text(_deleteConfirmLabel),
-          ),
-        ],
-      );
+      return _BudgetDeleteDialog(title: title);
     },
   );
   await dialogRoute?.completed;
   return confirmed ?? false;
+}
+
+// MARK: - BudgetDeleteDialog
+
+class _BudgetDeleteDialog extends StatelessWidget {
+  const _BudgetDeleteDialog({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final navigator = Navigator.of(context);
+    final cancel = TextButton(
+      onPressed: () => navigator.pop(false),
+      child: const Text(_deleteCancelLabel),
+    );
+    final confirmStyle = FilledButton.styleFrom(
+      backgroundColor: Theme.of(context).colorScheme.error,
+      foregroundColor: context.colors.onAction,
+    );
+    final confirm = FilledButton(
+      style: confirmStyle,
+      onPressed: () => navigator.pop(true),
+      child: const Text(_deleteConfirmLabel),
+    );
+
+    return AlertDialog(
+      title: Text('Delete the $title budget?'),
+      content: const Text(_deleteBodyText),
+      actions: [cancel, confirm],
+    );
+  }
 }

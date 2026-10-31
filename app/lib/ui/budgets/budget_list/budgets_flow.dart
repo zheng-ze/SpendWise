@@ -343,10 +343,11 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     if (identical(_editSession, session)) _editSession = null;
   }
 
-  // Removes only the session's sheet route. An open delete confirmation is a plain modal route the
-  // Flow does not track, so it stays up and its Delete fails the _editStillValid gate without writing.
-  // Nothing can replace the ledger or change the shown budget while it blocks the screen, because sync
-  // runs only on explicit calls; revisit this if sync becomes constant live updates.
+  // Removes only the session's sheet route. An open delete confirmation is a plain modal route
+  // the Flow does not track, so it stays up and its Delete fails the _editStillValid gate without
+  // writing. Nothing can replace the ledger or change the shown budget while it blocks the
+  // screen, because sync runs only on explicit calls; revisit this if sync becomes constant
+  // live updates.
   void _retireEditSession() {
     final session = _editSession;
     if (session == null || session.retired) return;
