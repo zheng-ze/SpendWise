@@ -11,7 +11,6 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 
 // MARK: - Constants
 const _paneScrollPhysics = ClampingScrollPhysics();
-const _deletedBudgetTitle = '';
 const _editLabel = 'Edit';
 
 // MARK: - BudgetPaneHeader
@@ -25,12 +24,10 @@ final budgetPaneHeaderProvider = Provider.autoDispose
       final month = ref.watch(
         budgetDetailContextProvider(budgetID).select((c) => c.selectedMonth),
       );
-      return (
-        title: budget == null || state == null
-            ? _deletedBudgetTitle
-            : budgetTitle(budget, state),
-        subtitle: formatMonthLabel(month),
-      );
+      final title = budget == null || state == null
+          ? ''
+          : budgetTitle(budget, state);
+      return (title: title, subtitle: formatMonthLabel(month));
     });
 
 // MARK: - BudgetPane
@@ -41,9 +38,8 @@ final budgetPaneProvider = Provider.autoDispose<BudgetPane?>((ref) {
   final phone = ref.watch(shellLayoutModeProvider) == ShellLayoutMode.phone;
   if (budgetID == null || phone) return null;
   final header = ref.watch(budgetPaneHeaderProvider(budgetID));
-  void requestEdit() => ref
-      .read(budgetDetailViewModelProvider(budgetID).notifier)
-      .requestLimitEdit();
+  void requestEdit() =>
+      ref.read(budgetDetailViewModelProvider(budgetID).notifier).requestEdit();
   final edit = TextButton.icon(
     onPressed: requestEdit,
     icon: const Icon(Icons.edit_outlined),

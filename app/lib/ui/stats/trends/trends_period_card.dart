@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/charts/month_bar_chart.dart';
 import 'package:spendwise/ui/common/charts/month_bars.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
@@ -7,7 +8,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
 const _semiBold = FontWeight.w600;
-const _bold = FontWeight.w700;
 const _captionFontSize = 10.0;
 const _labelFontSize = 12.0;
 
@@ -53,120 +53,21 @@ class TrendsChart extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelect;
 
-  static const _topMargin = 10.0;
-  static const _baselineWidth = 1.0;
-
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final slots = [for (final bar in bars) MonthBarSlot(value: bar.value)];
-    final chart = MonthBars(
-      slots: slots,
+    final columns = [
+      for (final bar in bars)
+        MonthBarColumn(
+          slot: MonthBarSlot(value: bar.value),
+          label: bar.label,
+          semanticLabel: bar.semanticLabel,
+        ),
+    ];
+    return MonthBarChart(
+      columns: columns,
       selectedIndex: selectedIndex,
       onSelect: onSelect,
     );
-    final baseline = DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: colors.control, width: _baselineWidth),
-        ),
-      ),
-      child: chart,
-    );
-    return Padding(
-      padding: const EdgeInsets.only(top: _topMargin),
-      child: Column(
-        children: [
-          baseline,
-          _TrendsAxis(
-            bars: bars,
-            selectedIndex: selectedIndex,
-            onSelect: onSelect,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// MARK: - Axis
-class _TrendsAxis extends StatelessWidget {
-  const _TrendsAxis({
-    required this.bars,
-    required this.selectedIndex,
-    required this.onSelect,
-  });
-
-  final List<TrendsBar> bars;
-  final int selectedIndex;
-  final ValueChanged<int> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final cells = [
-      for (var i = 0; i < bars.length; i++)
-        _AxisCell(
-          bar: bars[i],
-          index: i,
-          selected: i == selectedIndex,
-          onSelect: onSelect,
-        ),
-    ];
-    return Row(children: cells);
-  }
-}
-
-// MARK: - AxisCell
-class _AxisCell extends StatelessWidget {
-  const _AxisCell({
-    required this.bar,
-    required this.index,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  final TrendsBar bar;
-  final int index;
-  final bool selected;
-  final ValueChanged<int> onSelect;
-
-  static const _height = 28.0;
-  static const _labelTopPadding = 4.0;
-  static const _monthFontSize = 10.0;
-  static const _yearFontSize = 12.0;
-  static const _yearLabelLength = 4;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final light = Theme.of(context).brightness == Brightness.light;
-    final selectedColor = light ? colors.action : colors.text;
-    final isYear = bar.label.length == _yearLabelLength;
-    final label = Text(
-      bar.label,
-      style: TextStyle(
-        fontSize: isYear ? _yearFontSize : _monthFontSize,
-        color: selected ? selectedColor : colors.subtext,
-        fontWeight: selected ? _bold : null,
-      ),
-    );
-    final aligned = Padding(
-      padding: const EdgeInsets.only(top: _labelTopPadding),
-      child: Align(alignment: Alignment.topCenter, child: label),
-    );
-    final surface = InkWell(
-      onTap: () => onSelect(index),
-      child: SizedBox(height: _height, child: aligned),
-    );
-    final cell = Semantics(
-      button: true,
-      selected: selected,
-      label: bar.semanticLabel,
-      excludeSemantics: true,
-      onTap: () => onSelect(index),
-      child: surface,
-    );
-    return Expanded(child: cell);
   }
 }
 

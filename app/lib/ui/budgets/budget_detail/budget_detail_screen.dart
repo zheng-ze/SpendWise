@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_content.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budget_detail_presentation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 
 // MARK: - Screen
@@ -43,17 +42,13 @@ class _BudgetDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDeleted =
-        budgetDetailPresentation(viewState).body == BudgetDetailBody.deleted;
     final content = BudgetDetailContent(
       viewState: viewState,
       viewModel: viewModel,
     );
 
     return Scaffold(
-      appBar: isDeleted
-          ? null
-          : _BudgetDetailAppBar(title: viewState.title, viewModel: viewModel),
+      appBar: _BudgetDetailAppBar(title: viewState.title, viewModel: viewModel),
       body: SafeArea(
         child: ListView(
           physics: const ClampingScrollPhysics(),
@@ -69,7 +64,7 @@ class _BudgetDetailAppBar extends StatelessWidget
     implements PreferredSizeWidget {
   const _BudgetDetailAppBar({required this.title, required this.viewModel});
 
-  static const _editTooltip = 'Edit limit';
+  static const _editTooltip = 'Edit';
 
   final String title;
   final BudgetDetailViewModel viewModel;
@@ -79,15 +74,11 @@ class _BudgetDetailAppBar extends StatelessWidget
 
   @override
   Widget build(BuildContext context) {
-    return AppBar(
-      title: Text(title),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.edit_outlined),
-          tooltip: _editTooltip,
-          onPressed: viewModel.requestLimitEdit,
-        ),
-      ],
+    final edit = IconButton(
+      icon: const Icon(Icons.edit_outlined),
+      tooltip: _editTooltip,
+      onPressed: viewModel.requestEdit,
     );
+    return AppBar(title: Text(title), actions: [edit]);
   }
 }

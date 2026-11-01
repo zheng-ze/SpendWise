@@ -187,8 +187,8 @@ abstract class BudgetDetailViewModel {
   void selectMonth(DateTime month);
   void changeYear(DateTime year);
   Decimal? get liveLimit;
-  void requestLimitEdit();
-  void applyLimit(Decimal? amount);
+  void requestEdit();
+  void deleteBudget();
   void retry();
   void clearStep();
 }
@@ -248,9 +248,10 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
       today: today,
     );
     final categoryName = _categoryName(budget, ledgerState);
+    final title = budgetTitle(budget, ledgerState);
     return BudgetDetailViewState(
       phase: outcome.phase,
-      title: budgetTitle(budget, ledgerState),
+      title: title,
       categoryName: categoryName,
       ledger: currentLedger,
       ledgerState: ledgerState,
@@ -349,18 +350,16 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
   Decimal? get liveLimit => ledger.state.budgets[_budgetID]?.limit;
 
   @override
-  void requestLimitEdit() {
+  void requestEdit() {
     if (liveLimit == null) return;
-    _step = BudgetLimitEditRequested();
-    emitStep(BudgetLimitEditRequested());
+    _step = BudgetEditRequested();
+    emitStep(BudgetEditRequested());
   }
 
   @override
-  void applyLimit(Decimal? amount) {
-    if (!ref.mounted) return;
-    if (amount == null || amount <= Decimal.zero) return;
-    if (liveLimit == null) return;
-    ledger.updateBudgetLimit(_budgetID, amount);
+  void deleteBudget() {
+    if (!ref.mounted || liveLimit == null) return;
+    ledger.deleteBudget(_budgetID);
   }
 
   @override

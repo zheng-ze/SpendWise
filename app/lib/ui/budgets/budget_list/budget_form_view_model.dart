@@ -3,55 +3,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart'
     show BudgetFormSaved, BudgetsStep, PickCategoryRequested;
+import 'package:spendwise/ui/budgets/budget_list/budget_scope_options.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 
-// MARK: - Category Grouping
-List<(TransactionCategory, List<TransactionCategory>)> groupedBudgetCategories(
-  LedgerState state,
-) {
-  final budgeted = state.budgets.values
-      .map((budget) => budget.categoryID)
-      .toSet();
-
-  final active = state.categories.values.where(
-    (category) =>
-        category.lifecycle.isActive && category.kind == CategoryKind.expense,
-  );
-
-  final roots = active.where((category) => category.parentID == null).toList()
-    ..sort((a, b) => a.name.compareTo(b.name));
-
-  final childrenByParent = <String, List<TransactionCategory>>{};
-  for (final category in active) {
-    final parentID = category.parentID;
-    if (parentID == null || budgeted.contains(category.id)) continue;
-    (childrenByParent[parentID] ??= []).add(category);
-  }
-  for (final children in childrenByParent.values) {
-    children.sort((a, b) => a.name.compareTo(b.name));
-  }
-
-  return [
-    for (final root in roots)
-      if (!budgeted.contains(root.id) ||
-          (childrenByParent[root.id]?.isNotEmpty ?? false))
-        (root, childrenByParent[root.id] ?? const []),
-  ];
-}
+// MARK: - Constants
+const _scopePlaceholder = 'Choose';
+const _deletedCategoryLabel = '(category deleted)';
 
 // MARK: - BudgetFormViewState
 class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetsStep> {
   const BudgetFormViewState({
-    required this.categoryID,
+    required this.scope,
     required this.amountText,
     required this.ledgerState,
     this.error,
     this.step,
   });
 
-  final String? categoryID;
+  final BudgetScopeChoice? scope;
   final String amountText;
   final LedgerState ledgerState;
   final LedgerError? error;
@@ -62,32 +33,26 @@ class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetsStep> {
 
   bool get canSave {
     final amount = parsedAmount;
-    return amount != null && amount > Decimal.zero;
+    return scope != null && amount != null && amount > Decimal.zero;
   }
 
-  String get categoryLabel {
-    final id = categoryID;
-    if (id == null) return 'Overall';
-    return ledgerState.categories[id]?.name ?? '(category deleted)';
-  }
-
-  Set<String?> get budgetedCategoryIDs =>
-      ledgerState.budgets.values.map((budget) => budget.categoryID).toSet();
-
-  List<(TransactionCategory, List<TransactionCategory>)>
-  get groupedCategories => groupedBudgetCategories(ledgerState);
+  String get scopeLabel => switch (scope) {
+    null => _scopePlaceholder,
+    AllSpendingChosen() => allSpendingLabel,
+    CategoryChosen(:final categoryID) =>
+      ledgerState.categories[categoryID]?.name ?? _deletedCategoryLabel,
+  };
 
   BudgetFormViewState copyWith({
-    String? Function()? categoryID,
+    BudgetScopeChoice? scope,
     String? amountText,
-    LedgerState? ledgerState,
     LedgerError? Function()? error,
     BudgetsStep? Function()? step,
   }) {
     return BudgetFormViewState(
-      categoryID: categoryID == null ? this.categoryID : categoryID(),
+      scope: scope ?? this.scope,
       amountText: amountText ?? this.amountText,
-      ledgerState: ledgerState ?? this.ledgerState,
+      ledgerState: ledgerState,
       error: error == null ? this.error : error(),
       step: step == null ? this.step : step(),
     );
@@ -107,7 +72,8 @@ class BudgetDraftKey {
 abstract class BudgetFormViewModel {
   void setAmount(String raw);
   void requestPickCategory();
-  void applyPickedCategory(String? categoryID);
+  void applyPickedScope(BudgetScopeChoice scope);
+  void retry();
   Future<void> save();
   void clearStep();
 }
@@ -124,10 +90,14 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
 
   @override
   Future<BudgetFormViewState> build() async {
+    final ledgerState = ledger.state;
+    final unscopedTaken = ledgerState.budgets.values.any(
+      (budget) => budget.categoryID == null,
+    );
     return BudgetFormViewState(
-      categoryID: null,
+      scope: unscopedTaken ? null : const AllSpendingChosen(),
       amountText: '',
-      ledgerState: ledger.state,
+      ledgerState: ledgerState,
     );
   }
 
@@ -138,22 +108,23 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
   void requestPickCategory() => emitStep(PickCategoryRequested());
 
   @override
-  void applyPickedCategory(String? categoryID) {
-    if (!ref.mounted) return;
-    updateState(
-      (s) => s.copyWith(categoryID: () => categoryID, step: () => null),
-    );
+  void applyPickedScope(BudgetScopeChoice scope) {
+    updateState((s) => s.copyWith(scope: scope, step: () => null));
   }
+
+  @override
+  void retry() => ref.invalidateSelf();
 
   @override
   Future<void> save() async {
     final current = state.value;
-    if (current == null) return;
-    final amount = current.parsedAmount;
-    if (amount == null) return;
+    final scope = current?.scope;
+    final amount = current?.parsedAmount;
+    if (current == null || scope == null || amount == null) return;
+    if (!current.canSave) return;
 
     try {
-      ledger.addBudget(current.categoryID, amount.abs());
+      ledger.addBudget(scope.categoryID, amount);
       updateState(
         (s) => s.copyWith(error: () => null, step: () => BudgetFormSaved()),
       );
@@ -167,4 +138,5 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
 final budgetFormViewModelProvider = AsyncNotifierProvider.autoDispose
     .family<BudgetFormNotifier, BudgetFormViewState, BudgetDraftKey>(
       BudgetFormNotifier.new,
+      retry: (_, _) => null,
     );

@@ -7,10 +7,11 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
-import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
+import 'package:spendwise/ui/common/lists/swipe_row.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 import '../../../support/pump_app.dart';
 import '../../../support/ui_test_timeout.dart';
@@ -19,12 +20,18 @@ Budget _overall() =>
     Budget(id: 'b1', categoryID: null, limit: Decimal.fromInt(100));
 
 void main() {
-  testWidgets('fr-budgets Add budget opens the existing form', (tester) async {
+  testWidgets('fr-budgets Add budget opens the Add budget sheet', (
+    tester,
+  ) async {
     final ledger = Ledger(state: LedgerState());
     await pumpApp(tester, const BudgetsFlow(), ledger: ledger);
     await tester.tap(find.text('Add budget'));
     await tester.pumpAndSettle();
-    expect(find.byType(BudgetForm), findsOneWidget);
+    final header = find.descendant(
+      of: find.byType(AppSheet),
+      matching: find.text('Add budget'),
+    );
+    expect(header, findsOneWidget);
     expect(ledger.state.budgets, isEmpty);
   }, timeout: uiTestTimeout);
 
@@ -43,6 +50,13 @@ void main() {
       await tester.drag(amount, const Offset(-200, 0));
       await tester.pumpAndSettle();
       expect(ledger.state.budgets.containsKey(budget.id), isTrue);
+      final inList = find.descendant(
+        of: find.byType(BudgetsRoot),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is SwipeRow || widget is Dismissible,
+        ),
+      );
+      expect(inList, findsNothing);
       final container = ProviderScope.containerOf(
         tester.element(find.byType(BudgetsFlow)),
       );

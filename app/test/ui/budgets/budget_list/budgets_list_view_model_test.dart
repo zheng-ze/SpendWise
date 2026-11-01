@@ -227,56 +227,6 @@ void main() {
     expect(container.read(budgetsListViewModelProvider).value?.step, isNull);
   });
 
-  test('deleteBudget removes the budget from the ledger', () async {
-    final overall = budget(categoryID: null, id: 'b1');
-    final ledger = buildLedger(budgets: {overall.id: overall});
-    final container = buildContainer(ledger);
-    await container.read(budgetsListViewModelProvider.future);
-    final viewModel = container.read(budgetsListViewModelProvider.notifier);
-    expect(
-      container.read(budgetsListViewModelProvider).value?.overview?.hasBudgets,
-      isTrue,
-    );
-
-    viewModel.deleteBudget(overall.id);
-    await container
-        .read(ledgerSessionProvider)!
-        .analysisCache
-        .refresh(ledger.state, sourceRevision: ledger.revision);
-    await container.pump();
-
-    expect(ledger.state.budgets.containsKey(overall.id), isFalse);
-    expect(
-      container.read(budgetsListViewModelProvider).value?.overview?.hasBudgets,
-      isFalse,
-    );
-  });
-
-  test('deleteBudget leaves entries untouched', () async {
-    final overall = budget(categoryID: null, id: 'b1');
-    final entry = Entry(
-      amount: dec('-7'),
-      name: 'Misc',
-      sourceID: account.id,
-      date: DateTime.utc(2026, 3, 1),
-    );
-    final ledger = Ledger(
-      state: LedgerState(
-        moneySources: {account.id: MoneySource.account(account)},
-        categories: {food.id: food, hawker.id: hawker},
-        budgets: {overall.id: overall},
-        entries: {entry.id: entry},
-      ),
-    );
-    final container = buildContainer(ledger);
-    await container.read(budgetsListViewModelProvider.future);
-    final viewModel = container.read(budgetsListViewModelProvider.notifier);
-
-    viewModel.deleteBudget(overall.id);
-
-    expect(ledger.state.entries.containsKey(entry.id), isTrue);
-  });
-
   test(
     'overview ranks utilization and excludes child limits from cap',
     () async {
