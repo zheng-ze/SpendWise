@@ -9,7 +9,6 @@ import 'package:spendwise/ledger/analysis/budgets/budget_counted_entries.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_detail.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budgets_steps.dart';
-import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -190,7 +189,6 @@ abstract class BudgetDetailViewModel {
   Decimal? get liveLimit;
   void requestEdit();
   void deleteBudget();
-  void closeDeleted();
   void retry();
   void clearStep();
 }
@@ -215,8 +213,6 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
 
   BudgetDetailProjection? _accepted;
 
-  String? _lastTitle;
-
   @override
   BudgetDetailViewState build() {
     final context = ref.watch(budgetDetailContextProvider(_budgetID));
@@ -232,7 +228,7 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
       _accepted = null;
       return BudgetDetailViewState(
         phase: BudgetDetailPhase.deleted,
-        title: _lastTitle ?? '',
+        title: '',
         categoryName: null,
         ledger: currentLedger,
         ledgerState: ledgerState,
@@ -253,7 +249,6 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
     );
     final categoryName = _categoryName(budget, ledgerState);
     final title = budgetTitle(budget, ledgerState);
-    _lastTitle = title;
     return BudgetDetailViewState(
       phase: outcome.phase,
       title: title,
@@ -366,9 +361,6 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
     if (!ref.mounted || liveLimit == null) return;
     ledger.deleteBudget(_budgetID);
   }
-
-  @override
-  void closeDeleted() => ref.read(selectedBudgetProvider.notifier).clear();
 
   @override
   void clearStep() {

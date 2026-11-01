@@ -306,21 +306,18 @@ and on disposal.
 `budget_limit_editor_view_model.dart`, `budget_delete_confirmation.dart`,
 `budget_detail_view_model.dart`)
 
-## Deleted-elsewhere state
+## Shown budget disappears
 
-When the shown budget disappears from the ledger without a local delete (another screen or device),
-`BudgetDetailNotifier` returns `BudgetDetailPhase.deleted`. It keeps the last ready title in
-`_lastTitle`, so the phone app bar and the pane header (`budgetPaneHeaderProvider`) still show the
-budget's name. The body is an `EmptyState` titled "This budget was deleted" with the text "It was
-removed on another screen or device." and a "Back to Budgets" action, which calls `closeDeleted`
-and clears selection. The phone screen and the pane hide Edit in this state. A local delete never
-renders it. `showBudgetDeleteConfirmation` returns only after the dialog route has finished its exit
-animation: it awaits the dialog route's `completed`. The Navigator cannot dispose the detail page
-route while the dialog above it is still popping, so awaiting that exit is required for this
-ordering. `_confirmDelete` then calls `deleteBudget()`, clears selection and removes the page in the
-same synchronous turn, so the detail page is gone before it can rebuild into the deleted phase.
-(`budget_detail_view_model.dart`: `closeDeleted`, `BudgetDetailPhase`; `budget_detail_content.dart`,
-`budget_detail_screen.dart`, `budget_pane.dart`)
+When the shown budget disappears from the ledger (a purged category, a remote replay, another
+screen or device), `BudgetDetailNotifier` returns `BudgetDetailPhase.deleted`, which renders
+nothing. The Flow listener on `budgetDetailViewModelProvider` sees that phase for the shown budget
+and clears the selection, so the phone page is removed and the open pane closes. No deleted page
+exists. A local delete ends the same way: `showBudgetDeleteConfirmation` returns only after the
+dialog route has finished its exit animation (it awaits the route's `completed`), then
+`_confirmDelete` calls `deleteBudget()`, clears selection and removes the page in the same
+synchronous turn.
+(`budgets_flow.dart`: `_clearSelectionWhenMissing`, `_confirmDelete`;
+`budget_detail_view_model.dart`: `BudgetDetailPhase`)
 
 ## Overview projection
 
@@ -383,7 +380,7 @@ Phone shows the same content as a managed page, with its own app bar and an Edit
 with the tooltip "Edit". Failed detail reads show the actual reason from `AnalysisQueryResult.failure`; the detail view model
 has no local fallback re-evaluation. Both Edit actions call
 `requestEdit`, which opens the Edit actions sheet (see "Edit flow and sheets"). A budget removed
-elsewhere shows the deleted-elsewhere state. (`budget_detail_content.dart`,
+elsewhere closes the detail (see "Shown budget disappears"). (`budget_detail_content.dart`,
 `budget_detail_screen.dart`, `app/lib/ui/money/money_flow.dart`)
 
 ## Sheet coverage

@@ -11,7 +11,6 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 import '../../../support/number_pad_support.dart';
 import '../../../support/pump_app.dart';
-import '../../../support/sheet_contract.dart';
 import '../../../support/ui_test_timeout.dart';
 import '../budget_shell_test_support.dart';
 
@@ -97,23 +96,17 @@ void main() {
     expect(ledger.state.budgets[_budgetID]!.limit, Decimal.fromInt(100));
   }, timeout: uiTestTimeout);
 
-  testWidgets('sf-limit keeps the amount and shows the reason outside', (
+  testWidgets('a budget deleted remotely closes the open limit editor', (
     tester,
   ) async {
     final ledger = _ledger();
     await _openEditor(tester, ledger);
     await _replaceAmount(tester, '75');
-    ledger.deleteBudget(_budgetID);
 
-    await tester.tap(find.text(_saveLabel));
+    ledger.deleteBudget(_budgetID);
     await tester.pumpAndSettle();
 
-    expectAlertOutsideSheet(tester);
-    expect(
-      find.textContaining('Could not save budget limit\n'),
-      findsOneWidget,
-    );
-    expect(find.text('75'), findsOneWidget);
-    expect(find.text(_saveLabel), findsOneWidget);
+    expect(find.text(_saveLabel), findsNothing);
+    expect(ledger.state.budgets.containsKey(_budgetID), isFalse);
   }, timeout: uiTestTimeout);
 }

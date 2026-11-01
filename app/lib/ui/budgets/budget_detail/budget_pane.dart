@@ -14,7 +14,7 @@ const _paneScrollPhysics = ClampingScrollPhysics();
 const _editLabel = 'Edit';
 
 // MARK: - BudgetPaneHeader
-typedef BudgetPaneHeader = ({String title, String subtitle, bool deleted});
+typedef BudgetPaneHeader = ({String title, String subtitle});
 
 final budgetPaneHeaderProvider = Provider.autoDispose
     .family<BudgetPaneHeader, String>((ref, budgetID) {
@@ -24,18 +24,10 @@ final budgetPaneHeaderProvider = Provider.autoDispose
       final month = ref.watch(
         budgetDetailContextProvider(budgetID).select((c) => c.selectedMonth),
       );
-      final deleted = budget == null || state == null;
-      final lastTitle = deleted
-          ? ref.watch(
-              budgetDetailViewModelProvider(budgetID)
-                  .select((s) => s.value?.title),
-            )
-          : null;
-      return (
-        title: deleted ? lastTitle ?? '' : budgetTitle(budget, state),
-        subtitle: formatMonthLabel(month),
-        deleted: deleted,
-      );
+      final title = budget == null || state == null
+          ? ''
+          : budgetTitle(budget, state);
+      return (title: title, subtitle: formatMonthLabel(month));
     });
 
 // MARK: - BudgetPane
@@ -58,7 +50,7 @@ final budgetPaneProvider = Provider.autoDispose<BudgetPane?>((ref) {
     title: header.title,
     subtitle: header.subtitle,
     bodyBuilder: (_) => BudgetPaneBody(budgetID: budgetID),
-    headerActions: header.deleted ? const [] : [edit],
+    headerActions: [edit],
   );
   void close() => ref.read(selectedBudgetProvider.notifier).clear();
   return (detail: detail, close: close);

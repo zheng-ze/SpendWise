@@ -233,11 +233,20 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       budgetDetailContextProvider(budgetID),
       (_, _) {},
     );
-    final detail = ref.listenManual(
-      budgetDetailViewModelProvider(budgetID),
-      (_, next) => unawaited(_handleDetailStep(budgetID, next.value?.step)),
-    );
+    final detail = ref.listenManual(budgetDetailViewModelProvider(budgetID), (
+      _,
+      next,
+    ) {
+      _clearSelectionWhenMissing(budgetID, next.value?.phase);
+      unawaited(_handleDetailStep(budgetID, next.value?.step));
+    });
     return [context, detail];
+  }
+
+  void _clearSelectionWhenMissing(String budgetID, BudgetDetailPhase? phase) {
+    if (phase != BudgetDetailPhase.deleted) return;
+    if (_shownBudgetID != budgetID) return;
+    ref.read(selectedBudgetProvider.notifier).clear();
   }
 
   void _consumePendingSteps() {

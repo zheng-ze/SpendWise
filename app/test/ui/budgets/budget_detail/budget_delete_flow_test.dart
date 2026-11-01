@@ -22,9 +22,6 @@ const _confirmTitle = 'Delete the Food budget?';
 const _confirmBody =
     'Your entries stay as they are. Only the limit is removed.';
 const _deletedTitle = 'This budget was deleted';
-const _deletedBody = 'It was removed on another screen or device.';
-const _backToBudgetsLabel = 'Back to Budgets';
-const _foodTitle = 'Food';
 const _outsideOffset = Offset(5, 5);
 const _frames = 20;
 const _frameStep = Duration(milliseconds: 16);
@@ -51,6 +48,10 @@ Ledger _ledgerWithEntry(Entry entry) {
     ),
   );
 }
+
+Finder _detail(ShellLayoutMode mode) => mode == ShellLayoutMode.phone
+    ? find.byType(BudgetDetailScreen)
+    : find.byType(BudgetPaneBody);
 
 Future<void> _openEdit(WidgetTester tester, ShellLayoutMode mode) async {
   final phone = mode == ShellLayoutMode.phone;
@@ -139,29 +140,30 @@ void main() {
       await _expectEditStillWorks(tester, mode);
     }, timeout: uiTestTimeout);
 
-    testWidgets('mo-budget-delete ${mode.name}: Delete removes the budget '
-        'once, keeps entries and never renders the deleted state', (
-      tester,
-    ) async {
-      final entry = _lunch();
-      final ledger = _ledgerWithEntry(entry);
-      final container = await _pumpConfirmation(tester, mode, ledger: ledger);
-      final revision = ledger.revision;
+    testWidgets(
+      'mo-budget-delete ${mode.name}: Delete removes the budget '
+      'once, keeps entries, closes the detail and never shows a deleted page',
+      (tester) async {
+        final entry = _lunch();
+        final ledger = _ledgerWithEntry(entry);
+        final container = await _pumpConfirmation(tester, mode, ledger: ledger);
+        final revision = ledger.revision;
 
-      await tester.tap(_confirmButton);
-      for (var frame = 0; frame < _frames; frame++) {
-        await tester.pump(_frameStep);
-        expect(find.text(_deletedTitle), findsNothing);
-      }
-      await tester.pumpAndSettle();
+        await tester.tap(_confirmButton);
+        for (var frame = 0; frame < _frames; frame++) {
+          await tester.pump(_frameStep);
+          expect(find.text(_deletedTitle), findsNothing);
+        }
+        await tester.pumpAndSettle();
 
-      expect(ledger.revision, revision + 1);
-      expect(ledger.state.budgets.keys, [_otherBudgetID]);
-      expect(ledger.state.entries.containsKey(entry.id), isTrue);
-      expect(container.read(selectedBudgetProvider), isNull);
-      expect(find.byType(BudgetDetailScreen), findsNothing);
-      expect(find.byType(BudgetPaneBody), findsNothing);
-    }, timeout: uiTestTimeout);
+        expect(ledger.revision, revision + 1);
+        expect(ledger.state.budgets.keys, [_otherBudgetID]);
+        expect(ledger.state.entries.containsKey(entry.id), isTrue);
+        expect(container.read(selectedBudgetProvider), isNull);
+        expect(_detail(mode), findsNothing);
+      },
+      timeout: uiTestTimeout,
+    );
   }
 
   testWidgets('a replaced selection while the dialog is up writes nothing', (
@@ -224,29 +226,12 @@ void main() {
     expect(ledger.revision, revision);
     expect(ledger.state.budgets.keys, [_otherBudgetID]);
     expect(_confirmButton, findsNothing);
-    expect(container.read(selectedBudgetProvider), _budgetID);
+    expect(container.read(selectedBudgetProvider), isNull);
   }, timeout: uiTestTimeout);
 
   for (final mode in [ShellLayoutMode.phone, ShellLayoutMode.open]) {
-    testWidgets('mo-budget-deleted ${mode.name}: a remote delete shows the '
-        'last title, the copy and no Edit', (tester) async {
-      final ledger = buildShellLedger();
-      await pumpBudgetShell(tester, mode: mode, ledger: ledger);
-      await tapBudget(tester, _budgetID);
-
-      ledger.deleteBudget(_budgetID);
-      await tester.pumpAndSettle();
-
-      expect(find.text(_foodTitle), findsWidgets);
-      expect(find.text(_deletedTitle), findsOneWidget);
-      expect(find.text(_deletedBody), findsOneWidget);
-      expect(find.text(_backToBudgetsLabel), findsOneWidget);
-      expect(find.byTooltip(_editLabel), findsNothing);
-      expect(find.text(_editLabel), findsNothing);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('mo-budget-deleted ${mode.name}: Back to Budgets clears the '
-        'selection', (tester) async {
+    testWidgets('${mode.name}: a budget removed through the ledger closes the '
+        'detail and clears the selection', (tester) async {
       final ledger = buildShellLedger();
       final container = await pumpBudgetShell(
         tester,
@@ -254,13 +239,13 @@ void main() {
         ledger: ledger,
       );
       await tapBudget(tester, _budgetID);
+      expect(_detail(mode), findsOneWidget);
+
       ledger.deleteBudget(_budgetID);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text(_backToBudgetsLabel));
-      await tester.pumpAndSettle();
-
       expect(container.read(selectedBudgetProvider), isNull);
+      expect(_detail(mode), findsNothing);
       expect(find.text(_deletedTitle), findsNothing);
     }, timeout: uiTestTimeout);
   }

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_content.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budget_detail_presentation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 
 // MARK: - Screen
@@ -43,19 +42,13 @@ class _BudgetDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDeleted =
-        budgetDetailPresentation(viewState).body == BudgetDetailBody.deleted;
     final content = BudgetDetailContent(
       viewState: viewState,
       viewModel: viewModel,
     );
 
     return Scaffold(
-      appBar: _BudgetDetailAppBar(
-        title: viewState.title,
-        viewModel: viewModel,
-        showEdit: !isDeleted,
-      ),
+      appBar: _BudgetDetailAppBar(title: viewState.title, viewModel: viewModel),
       body: SafeArea(
         child: ListView(
           physics: const ClampingScrollPhysics(),
@@ -69,17 +62,12 @@ class _BudgetDetailPage extends StatelessWidget {
 // MARK: - App Bar
 class _BudgetDetailAppBar extends StatelessWidget
     implements PreferredSizeWidget {
-  const _BudgetDetailAppBar({
-    required this.title,
-    required this.viewModel,
-    required this.showEdit,
-  });
+  const _BudgetDetailAppBar({required this.title, required this.viewModel});
 
   static const _editTooltip = 'Edit';
 
   final String title;
   final BudgetDetailViewModel viewModel;
-  final bool showEdit;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -91,6 +79,6 @@ class _BudgetDetailAppBar extends StatelessWidget
       tooltip: _editTooltip,
       onPressed: viewModel.requestEdit,
     );
-    return AppBar(title: Text(title), actions: showEdit ? [edit] : const []);
+    return AppBar(title: Text(title), actions: [edit]);
   }
 }

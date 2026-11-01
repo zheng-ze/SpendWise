@@ -155,16 +155,15 @@ void main() {
     _expectLimits(replacement);
   }, timeout: uiTestTimeout);
 
-  testWidgets('a budget deleted remotely while the actions are open opens '
-      'no editor', (tester) async {
+  testWidgets('a budget deleted remotely while the actions are open closes '
+      'them and opens no editor', (tester) async {
     final ledger = buildShellLedger();
     await _pumpWithActions(tester, ShellLayoutMode.open, ledger: ledger);
 
     ledger.deleteBudget(_budgetID);
     await tester.pumpAndSettle();
-    await tester.tap(find.text(_changeLimitLabel));
-    await tester.pumpAndSettle();
 
+    expect(find.text(_changeLimitLabel), findsNothing);
     expect(_limitEditor, findsNothing);
     expect(ledger.state.budgets.containsKey(_budgetID), isFalse);
     expect(ledger.state.budgets[_otherBudgetID]!.limit, Decimal.fromInt(100));

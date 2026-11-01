@@ -11,7 +11,6 @@ const _inScopeFrameIds = {
   'mo-budget-edit-default',
   'sf-limit',
   'mo-budget-delete',
-  'mo-budget-deleted',
 };
 
 void main() {
