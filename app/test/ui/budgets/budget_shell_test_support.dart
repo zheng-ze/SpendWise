@@ -5,11 +5,9 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/boot/money_navigation_provider.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/accounts/money_navigation.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
@@ -90,10 +88,7 @@ ProviderContainer _shellContainer({
   ComputeRunner? runner,
   TargetPlatform? platform,
 }) {
-  final observer = MoneyNavigatorObserver();
-  final overrides = <Override>[
-    moneyNavigatorObserverProvider.overrideWithValue(observer),
-  ];
+  final overrides = <Override>[];
   if (platform != null) {
     final facts = (isWeb: false, targetPlatform: platform);
     overrides.add(shellPlatformProvider.overrideWithValue(facts));
@@ -122,9 +117,8 @@ Future<ProviderContainer> pumpBudgetShell(
   container.read(selectedDestinationProvider.notifier).state =
       ShellDestination.money;
   container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
-  final observer = container.read(moneyNavigatorObserverProvider);
   final bodies = <ShellDestination, WidgetBuilder>{
-    ShellDestination.money: (_) => MoneyFlow(moneyObserver: observer),
+    ShellDestination.money: (_) => const MoneyFlow(),
   };
   await pumpShellApp(tester, container, bodies: bodies);
   return container;

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/boot/money_navigation_provider.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
@@ -14,7 +13,6 @@ import 'package:spendwise/ui/accounts/account_form/account_form_view_model.dart'
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
-import 'package:spendwise/ui/accounts/money_navigation.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
 import 'package:spendwise/ui/common/lists/responsive_summary_card.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
@@ -73,14 +71,13 @@ ShellPaneScope _accountsPaneScope(WidgetTester tester) {
 
 Future<void> _pumpAccountsShell(
   WidgetTester tester,
-  ProviderContainer container,
-  MoneyNavigatorObserver observer, {
+  ProviderContainer container, {
   String? Function()? moneySourceId,
 }) => pumpShellApp(
   tester,
   container,
   moneySourceId: moneySourceId,
-  bodies: {ShellDestination.money: (_) => MoneyFlow(moneyObserver: observer)},
+  bodies: {ShellDestination.money: (_) => const MoneyFlow()},
 );
 
 void main() {
@@ -206,19 +203,15 @@ void main() {
     'scoped Transactions fills Money content and Back restores Accounts state',
     (tester) async {
       final ledger = buildLedger();
-      final observer = MoneyNavigatorObserver();
       final container = ProviderContainer(
-        overrides: [
-          ledgerProvider.overrideWithValue(ledger),
-          moneyNavigatorObserverProvider.overrideWithValue(observer),
-        ],
+        overrides: [ledgerProvider.overrideWithValue(ledger)],
       );
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: MaterialApp(home: MoneyFlow(moneyObserver: observer)),
+          child: const MaterialApp(home: MoneyFlow()),
         ),
       );
       await tester.pump();
@@ -267,13 +260,11 @@ void main() {
       tester.view.physicalSize = const Size(1024, 800);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      final observer = MoneyNavigatorObserver();
       late ProviderContainer container;
       container = ProviderContainer(
         overrides: [
           ledgerProvider.overrideWithValue(buildLedger()),
           shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.open),
-          moneyNavigatorObserverProvider.overrideWithValue(observer),
         ],
       );
       addTearDown(container.dispose);
@@ -283,7 +274,6 @@ void main() {
       await _pumpAccountsShell(
         tester,
         container,
-        observer,
         moneySourceId: container.read(activeMoneySourceProvider),
       );
       await tester.pumpAndSettle();
@@ -291,7 +281,7 @@ void main() {
       await tester.tap(find.text('Main Checking'));
       await tester.pumpAndSettle();
       expect(find.text('Main Checking'), findsOneWidget);
-      expect(observer.sourceId, checking.id);
+      expect(container.read(activeMoneySourceProvider)(), checking.id);
 
       await tester.tap(find.text('Add'));
       await tester.pumpAndSettle();
@@ -301,7 +291,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(AppSheet), findsNothing);
       expect(find.text('Main Checking'), findsOneWidget);
-      expect(observer.sourceId, checking.id);
+      expect(container.read(activeMoneySourceProvider)(), checking.id);
 
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
@@ -317,18 +307,16 @@ void main() {
     tester.view.devicePixelRatio = 1;
     tester.view.padding = const FakeViewPadding(left: 54, right: 54);
     addTearDown(tester.view.reset);
-    final observer = MoneyNavigatorObserver();
     final container = ProviderContainer(
       overrides: [
         ledgerProvider.overrideWithValue(buildLedger()),
         shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.open),
-        moneyNavigatorObserverProvider.overrideWithValue(observer),
       ],
     );
     addTearDown(container.dispose);
     container.read(selectedDestinationProvider.notifier).state =
         ShellDestination.money;
-    await _pumpAccountsShell(tester, container, observer);
+    await _pumpAccountsShell(tester, container);
     await tester.pumpAndSettle();
 
     final viewModel = container.read(accountsViewModelProvider.notifier);
@@ -381,19 +369,17 @@ void main() {
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final observer = MoneyNavigatorObserver();
     final container = ProviderContainer(
       overrides: [
         ledgerProvider.overrideWithValue(buildLedger()),
         shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.desktop),
-        moneyNavigatorObserverProvider.overrideWithValue(observer),
       ],
     );
     addTearDown(container.dispose);
     container.read(selectedDestinationProvider.notifier).state =
         ShellDestination.money;
 
-    await _pumpAccountsShell(tester, container, observer);
+    await _pumpAccountsShell(tester, container);
     await tester.pumpAndSettle();
 
     container.read(accountsViewModelProvider.notifier).requestNewAccount();
@@ -456,19 +442,17 @@ Future<void> _verifyMoneyFlowRetention(
   tester.view.physicalSize = const Size(1200, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final observer = MoneyNavigatorObserver();
   final container = ProviderContainer(
     overrides: [
       ledgerProvider.overrideWithValue(_retentionLedger()),
       analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
       shellLayoutModeProvider.overrideWithValue(mode),
-      moneyNavigatorObserverProvider.overrideWithValue(observer),
     ],
   );
   addTearDown(container.dispose);
   container.read(selectedDestinationProvider.notifier).state =
       ShellDestination.money;
-  await _pumpAccountsShell(tester, container, observer);
+  await _pumpAccountsShell(tester, container);
   final states = _moneyFlowStates(tester);
   container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
   container.read(selectedBudgetProvider.notifier).select(_retainedBudgetId);

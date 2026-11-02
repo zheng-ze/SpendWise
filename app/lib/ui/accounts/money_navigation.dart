@@ -9,34 +9,16 @@ class MoneyTransactionsRouteSettings extends RouteSettings {
   final String? preferredSourceId;
 }
 
-class MoneyNavigatorObserver extends NavigatorObserver with ChangeNotifier {
-  Route<Object?>? _topRoute;
-
-  bool get hasScopedTransactionsRoute =>
-      _topRoute?.settings is MoneyTransactionsRouteSettings;
-
-  String? get sourceId {
-    final navigator = this.navigator;
-    if (navigator == null || !navigator.mounted) return null;
-    final route = _topRoute;
-    if (route == null || route.navigator != navigator || !route.isCurrent) {
-      return null;
-    }
-    final settings = route.settings;
-    return settings is MoneyTransactionsRouteSettings
-        ? settings.preferredSourceId
-        : null;
-  }
-
-  @override
-  void didChangeTop(
-    Route<Object?>? topRoute,
-    Route<Object?>? previousTopRoute,
-  ) {
-    final previousHasScopedTransactionsRoute = hasScopedTransactionsRoute;
-    _topRoute = topRoute;
-    if (previousHasScopedTransactionsRoute != hasScopedTransactionsRoute) {
-      notifyListeners();
-    }
-  }
+String? scopedRegisterSourceId(NavigatorState? navigator) {
+  if (navigator == null) return null;
+  Route<Object?>? top;
+  // Accepting the first route reads the top without popping anything.
+  navigator.popUntil((route) {
+    top = route;
+    return true;
+  });
+  final settings = top?.settings;
+  return settings is MoneyTransactionsRouteSettings
+      ? settings.preferredSourceId
+      : null;
 }

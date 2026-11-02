@@ -20,13 +20,16 @@ import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/common/layout/headered_page.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 
 // MARK: - BudgetsFlow
 class BudgetsFlow extends FlowBase<BudgetsStep> {
-  const BudgetsFlow({super.key});
+  const BudgetsFlow({super.key, this.header});
+
+  final Widget? header;
 
   @override
   ConsumerState<BudgetsFlow> createState() => _BudgetsFlowState();
@@ -447,7 +450,8 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   }
 
   @override
-  Widget buildRoot(BuildContext context) => const BudgetsRoot();
+  Widget buildRoot(BuildContext context) =>
+      HeaderedPage(header: widget.header, body: const BudgetsRoot());
 }
 
 // MARK: - FormSession

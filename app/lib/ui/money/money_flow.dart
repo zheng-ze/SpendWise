@@ -4,17 +4,14 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:spendwise/boot/money_navigation_provider.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
-import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/money_navigation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_pane.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
-import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
-import 'package:spendwise/ui/common/inputs/segmented_control.dart';
+import 'package:spendwise/ui/common/layout/headered_page.dart';
+import 'package:spendwise/ui/money/money_header.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
-import 'package:spendwise/ui/settings/plan/plan_list_view_model.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 enum MoneySegment { budgets, accounts, plans }
@@ -24,28 +21,13 @@ final moneySegmentProvider = StateProvider<MoneySegment>(
 );
 
 final activeMoneySourceProvider = Provider<String? Function()>((ref) {
-  return () {
-    if (ref.read(selectedDestinationProvider) != ShellDestination.money) {
-      return null;
-    }
-    if (ref.read(moneySegmentProvider) != MoneySegment.accounts) return null;
-    return ref.read(moneyNavigatorObserverProvider).sourceId;
-  };
+  return () => scopedRegisterSourceId(
+    ref.read(accountsNavigatorKeyProvider).currentState,
+  );
 });
 
-const _headerRowMinHeight = 48.0;
-const _headerPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
-const _segmentPadding = EdgeInsets.symmetric(horizontal: 16);
-const _options = [
-  SegmentedOption(value: MoneySegment.budgets, label: 'Budgets'),
-  SegmentedOption(value: MoneySegment.accounts, label: 'Accounts'),
-  SegmentedOption(value: MoneySegment.plans, label: 'Plans'),
-];
-
 class MoneyFlow extends ConsumerStatefulWidget {
-  const MoneyFlow({super.key, required this.moneyObserver});
-
-  final MoneyNavigatorObserver moneyObserver;
+  const MoneyFlow({super.key});
 
   @override
   ConsumerState<MoneyFlow> createState() => _MoneyFlowState();
@@ -53,36 +35,6 @@ class MoneyFlow extends ConsumerStatefulWidget {
 
 class _MoneyFlowState extends ConsumerState<MoneyFlow> {
   final _visited = <MoneySegment>{MoneySegment.budgets};
-  bool _routeRebuildScheduled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.moneyObserver.addListener(_onMoneyRouteChanged);
-  }
-
-  @override
-  void didUpdateWidget(covariant MoneyFlow oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.moneyObserver == widget.moneyObserver) return;
-    oldWidget.moneyObserver.removeListener(_onMoneyRouteChanged);
-    widget.moneyObserver.addListener(_onMoneyRouteChanged);
-  }
-
-  @override
-  void dispose() {
-    widget.moneyObserver.removeListener(_onMoneyRouteChanged);
-    super.dispose();
-  }
-
-  void _onMoneyRouteChanged() {
-    if (_routeRebuildScheduled) return;
-    _routeRebuildScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _routeRebuildScheduled = false;
-      if (mounted) setState(() {});
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,34 +43,30 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
     final active = DestinationActivity.of(context);
     final budgetsVisible = active && segment == MoneySegment.budgets;
     final budgetPane = budgetsVisible ? ref.watch(budgetPaneProvider) : null;
-    final children = MoneySegment.values.map((value) {
-      final child = switch (value) {
-        _ when !_visited.contains(value) => const SizedBox.shrink(),
-        MoneySegment.budgets => const BudgetsFlow(),
-        MoneySegment.accounts => AccountsFlow(
-          moneyObserver: widget.moneyObserver,
-        ),
-        MoneySegment.plans => const PlanListScreen(),
-      };
-      return DestinationActivity(
-        key: ValueKey(value),
-        active: active && segment == value,
-        child: child,
-      );
-    }).toList();
-    final stack = IndexedStack(index: segment.index, children: children);
     Widget moneyPage(ShellPagePresentation presentation) {
-      final header = widget.moneyObserver.hasScopedTransactionsRoute
-          ? null
-          : _MoneyHeader(segment: segment, presentation: presentation);
-      final content = Column(
-        children: [
-          ?header,
-          Expanded(child: stack),
-        ],
-      );
+      final children = MoneySegment.values.map((value) {
+        final header = MoneyHeader(segment: value, presentation: presentation);
+        final child = switch (value) {
+          _ when !_visited.contains(value) => const SizedBox.shrink(),
+          MoneySegment.budgets => BudgetsFlow(header: header),
+          MoneySegment.accounts => AccountsFlow(
+            header: header,
+            navigatorKey: ref.read(accountsNavigatorKeyProvider),
+          ),
+          MoneySegment.plans => HeaderedPage(
+            header: header,
+            body: const PlanListScreen(),
+          ),
+        };
+        return DestinationActivity(
+          key: ValueKey(value),
+          active: active && segment == value,
+          child: child,
+        );
+      }).toList();
+      final stack = IndexedStack(index: segment.index, children: children);
       return SafeArea(
-        child: Material(color: context.colors.base, child: content),
+        child: Material(color: context.colors.base, child: stack),
       );
     }
 
@@ -134,77 +82,6 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
         if (!didPop) budgetPane?.close();
       },
       child: page,
-    );
-  }
-}
-
-class _MoneyHeader extends ConsumerWidget {
-  const _MoneyHeader({required this.segment, required this.presentation});
-
-  final MoneySegment segment;
-  final ShellPagePresentation presentation;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final title = Expanded(
-      child: Text('Money', style: Theme.of(context).textTheme.headlineSmall),
-    );
-    final row = Row(
-      children: [
-        title,
-        _MoneyAction(segment: segment),
-      ],
-    );
-    final titleRow = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: _headerRowMinHeight),
-      child: row,
-    );
-    final header = Padding(padding: _headerPadding, child: titleRow);
-    final control = SegmentedControl(
-      options: _options,
-      value: segment,
-      small: presentation == ShellPagePresentation.singleColumn,
-      onChanged: (value) =>
-          ref.read(moneySegmentProvider.notifier).state = value,
-    );
-    final month = MonthYearSelector(
-      value: ref.watch(effectiveMonthProvider),
-      step: MonthYearStep.month,
-      onChanged: (value) =>
-          ref.read(selectedMonthProvider.notifier).state = value,
-    );
-    return Column(
-      children: [
-        header,
-        Padding(padding: _segmentPadding, child: control),
-        if (segment == MoneySegment.budgets) month,
-      ],
-    );
-  }
-}
-
-class _MoneyAction extends ConsumerWidget {
-  const _MoneyAction({required this.segment});
-
-  final MoneySegment segment;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (segment == MoneySegment.accounts) {
-      return IconButton(
-        tooltip: 'Add account',
-        icon: const Icon(Icons.add),
-        onPressed: ref
-            .read(accountsViewModelProvider.notifier)
-            .requestNewAccount,
-      );
-    }
-    if (segment != MoneySegment.plans) return const SizedBox.shrink();
-    final state = ref.watch(planListViewModelProvider).value;
-    if (state == null || state.plans.isEmpty) return const SizedBox.shrink();
-    return TextButton(
-      onPressed: ref.read(planListViewModelProvider.notifier).toggleEditing,
-      child: Text(state.editing ? 'Done' : 'Edit'),
     );
   }
 }

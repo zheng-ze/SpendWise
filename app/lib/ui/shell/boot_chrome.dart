@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/boot/money_navigation_provider.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/overview/overview_flow.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
@@ -27,9 +26,7 @@ class BootChrome extends ConsumerWidget {
         bodies: {
           ShellDestination.overview: _buildOverviewTab,
           ShellDestination.history: _buildHistoryTab,
-          ShellDestination.money: (context) => MoneyFlow(
-            moneyObserver: ref.read(moneyNavigatorObserverProvider),
-          ),
+          ShellDestination.money: (_) => const MoneyFlow(),
           ShellDestination.settings: _buildSettingsTab,
         },
       ),
