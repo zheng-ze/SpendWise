@@ -88,7 +88,9 @@ ProviderContainer _shellContainer({
   ComputeRunner? runner,
   TargetPlatform? platform,
 }) {
-  final overrides = <Override>[];
+  final overrides = <Override>[
+    moneySegmentProvider.overrideWith((ref) => MoneySegment.budgets),
+  ];
   if (platform != null) {
     final facts = (isWeb: false, targetPlatform: platform);
     overrides.add(shellPlatformProvider.overrideWithValue(facts));
@@ -116,7 +118,6 @@ Future<ProviderContainer> pumpBudgetShell(
   container.read(budgetShellModeFixture.notifier).state = mode;
   container.read(selectedDestinationProvider.notifier).state =
       ShellDestination.money;
-  container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
   final bodies = <ShellDestination, WidgetBuilder>{
     ShellDestination.money: (_) => const MoneyFlow(),
   };

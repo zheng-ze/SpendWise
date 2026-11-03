@@ -16,7 +16,7 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 enum MoneySegment { budgets, accounts, plans }
 
-final moneySegmentProvider = StateProvider<MoneySegment>(
+final moneySegmentProvider = StateProvider.autoDispose<MoneySegment>(
   (ref) => MoneySegment.accounts,
 );
 
