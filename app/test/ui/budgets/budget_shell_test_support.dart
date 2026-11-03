@@ -5,12 +5,12 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/boot/money_navigation_provider.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/accounts/money_navigation.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
+import 'package:spendwise/ui/money/money_segment.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../../support/shell_sheet_harness.dart';
@@ -71,7 +71,7 @@ ProviderContainer buildShellContainer({
       runner ?? syncComputeRunner,
     ),
     todayProvider.overrideWithValue(DateTime.utc(2026, 3, 3)),
-    selectedMonthProvider.overrideWith((ref) => DateTime.utc(2026, 3)),
+    budgetsMonthChoiceProvider.overrideWith((ref) => DateTime.utc(2026, 3)),
     shellLayoutModeProvider.overrideWith(
       (ref) => ref.watch(budgetShellModeFixture),
     ),
@@ -90,9 +90,8 @@ ProviderContainer _shellContainer({
   ComputeRunner? runner,
   TargetPlatform? platform,
 }) {
-  final observer = MoneyNavigatorObserver();
   final overrides = <Override>[
-    moneyNavigatorObserverProvider.overrideWithValue(observer),
+    moneySegmentProvider.overrideWith((ref) => MoneySegment.budgets),
   ];
   if (platform != null) {
     final facts = (isWeb: false, targetPlatform: platform);
@@ -121,10 +120,8 @@ Future<ProviderContainer> pumpBudgetShell(
   container.read(budgetShellModeFixture.notifier).state = mode;
   container.read(selectedDestinationProvider.notifier).state =
       ShellDestination.money;
-  container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
-  final observer = container.read(moneyNavigatorObserverProvider);
   final bodies = <ShellDestination, WidgetBuilder>{
-    ShellDestination.money: (_) => MoneyFlow(moneyObserver: observer),
+    ShellDestination.money: (_) => const MoneyFlow(),
   };
   await pumpShellApp(tester, container, bodies: bodies);
   return container;

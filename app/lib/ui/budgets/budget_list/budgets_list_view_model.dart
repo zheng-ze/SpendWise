@@ -8,7 +8,7 @@ import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_overview.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
@@ -128,7 +128,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
     final currentLedger = ledger;
     final queries = ref.watch(analysisQueriesProvider);
     if (queries == null) throw StateError('Budgets requires analysis queries.');
-    final month = ref.watch(effectiveMonthProvider);
+    final month = ref.watch(budgetsMonthProvider);
     final today = ref.watch(todayProvider);
     final result = queries.readBudgets(month: month);
     final chartColours = ref.watch(
@@ -193,6 +193,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
 
 // MARK: - Constants
 final budgetsListViewModelProvider =
-    AsyncNotifierProvider<BudgetsListNotifier, BudgetsListViewState>(
-      BudgetsListNotifier.new,
-    );
+    AsyncNotifierProvider.autoDispose<
+      BudgetsListNotifier,
+      BudgetsListViewState
+    >(BudgetsListNotifier.new);

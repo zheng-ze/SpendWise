@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-29
+Last reconciled: 0667c5bf
 
 ## Feature overview
 
@@ -41,12 +41,14 @@ account-scoped with a custom title and source filter. The entry form creates, vi
 - `app/lib/ui/transactions/receipt_scan/` - the OCR entry hook (see `ocr-receipt-entry.md`).
 - `app/lib/ui/transactions/transactions_flow.dart` - the Flow that owns this list's nested navigator.
   It takes an optional `backLabel` passed through to the screen's back control; the shell
-  History slot (always mounted, every layout) and scoped lists set none. `TransactionsFlow`
+  History slot (every layout) and scoped lists set none. `transactionsViewModelProvider`
+  is an autoDispose family keyed by the optional `TransactionsScope`, so History and each scoped list
+  keep separate state that lasts while their Flow is mounted. `TransactionsFlow`
   handles and clears its screen `Step`s directly. `HistoryTrendsRequested` pushes one tracked
   `MaterialPageRoute` holding `TrendsFlow(onEnded: ...)` onto the Flow's navigator, where `onEnded` pops that route; the guard releases at
-  `route.completed`. Each accepted push seeds `selectedMonthProvider` from History's `selectedDate` at UTC month start. The
-  route is retained across destination switches and resizes because the always-mounted Flow state
-  persists.
+  `route.completed`. The push seeds nothing from History's selected date. The route and
+  History's state survive resizes while History is selected, and are discarded when another
+  destination is selected and History unmounts.
 - `app/lib/ui/transactions/trends_detail_action.dart` - 'See more detail', a muted trailing text
   action with chevron and a 48 dp invisible hit height (`trendsDetailActionHitHeight`), rendered
   below the totals band in unscoped History only, including empty months.
@@ -86,8 +88,9 @@ the Flow (`ui-framework-mvvm.md`). The unscoped `TransactionsFlow` is the shell'
 destination (`ShellDestination.history`); scoped instances live inside Money. Screens pushed: the entry form sheet for an existing entry, the
 category/source picker sheets, and the receipt scan screen. New entries open only through the shell's
 Add control and shared presenter. The Transactions screen has no local Add or Edit source control.
-When Money is selected, the shell reads the top scoped Money route's preferred source through its
-constructor-injected observer getter; every other destination and an unscoped Money route open Add
+When Money is selected, the shell reads the top scoped Money route's preferred source on demand
+through its constructor-injected getter (`activeMoneySourceProvider`, backed by
+`accountsNavigatorKeyProvider`); every other destination and an unscoped Money route open Add
 without a source. The presenter captures that source at invocation, invalidates the null-key form
 and receipt providers, starts an attempt bound to the session lifetime and installs the loading sheet
 before awaiting the attempt. Scoped prefill applies once on the first success; Retry starts a fresh
@@ -105,8 +108,8 @@ presentation live through a resolver reading `ShellLayoutModeScope`, so a
 phone/open resize changes only the sheet geometry, alignment and chrome around the retained keyed
 form and never replaces the route. A late receipt finish after invalidation writes no state
 (`ReceiptEntryCoordinator` checks `ref.mounted` in its asynchronous finally). The account-scoped
-screen reuses the same screen with a custom title and `sourceIDs` filter. Back-stack behavior per
-destination survives switching because each destination keeps its own navigator. A labelled back
+screen reuses the same screen with a custom title and `sourceIDs` filter. Each destination owns its own
+navigator, and a destination's back stack lasts while that destination is selected. A labelled back
 control keeps the existing `BackButton` and `goBack` behavior -
 inner child routes pop first - and only changes its accessible label; unlabelled flows render a
 plain back control.
@@ -196,7 +199,7 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   `noteText` draft (`setNote`); a one-time new-entry save passes it to `Entry`, a recurring save
   passes `signedEntry.note` to the `EntryTemplate` in `_recurringPlanFor` so the plan and every
   generated occurrence carry it, while Edit saves keep reading the latest persisted note. Account/category labels and icon data resolve through
-  `entryFormDisplayProvider`, an autoDispose projection of the raw draft and current ledger state
+  `entryFormDisplayProvider`, a `Provider.family` projection of the raw draft and current ledger state
   that listens to `Ledger` notifications without rebuilding the draft; unresolvable selections
   show "Unavailable account" / "Unavailable category".
   View existing ("Entry", leading ‹ Back, trailing ✎ Edit). Edit existing ("Edit Entry", leading ✕

@@ -12,6 +12,6 @@ class SelectedBudgetNotifier extends Notifier<String?> {
 
 // MARK: - Constants
 final selectedBudgetProvider =
-    NotifierProvider<SelectedBudgetNotifier, String?>(
+    NotifierProvider.autoDispose<SelectedBudgetNotifier, String?>(
       SelectedBudgetNotifier.new,
     );

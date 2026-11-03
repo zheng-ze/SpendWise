@@ -208,9 +208,7 @@ class TransactionsNotifier extends AsyncNotifier<TransactionsViewState>
 }
 
 // MARK: - Constants
-final transactionsViewModelProvider =
-    AsyncNotifierProvider.family<
-      TransactionsNotifier,
-      TransactionsViewState,
-      TransactionsScope?
-    >(TransactionsNotifier.new);
+final transactionsViewModelProvider = AsyncNotifierProvider.autoDispose
+    .family<TransactionsNotifier, TransactionsViewState, TransactionsScope?>(
+      TransactionsNotifier.new,
+    );

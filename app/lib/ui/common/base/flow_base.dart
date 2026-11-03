@@ -5,36 +5,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // MARK: - FlowBase
 abstract class FlowBase<S> extends ConsumerStatefulWidget {
-  const FlowBase({super.key, this.onEnded});
+  const FlowBase({super.key, this.onEnded, this.navigatorKey});
 
   final VoidCallback? onEnded;
-}
-
-// MARK: - DestinationActivity
-class DestinationActivity extends InheritedWidget {
-  const DestinationActivity({
-    super.key,
-    required this.active,
-    required super.child,
-  });
-
-  final bool active;
-
-  static bool of(BuildContext context) =>
-      context
-          .dependOnInheritedWidgetOfExactType<DestinationActivity>()
-          ?.active ??
-      true;
-
-  @override
-  bool updateShouldNotify(DestinationActivity oldWidget) =>
-      active != oldWidget.active;
+  final GlobalKey<NavigatorState>? navigatorKey;
 }
 
 // MARK: - FlowBaseState
 abstract class FlowBaseState<S, T extends FlowBase<S>>
     extends ConsumerState<T> {
-  final _navigatorKey = GlobalKey<NavigatorState>();
+  late final _navigatorKey = widget.navigatorKey ?? GlobalKey<NavigatorState>();
 
   void Function()? _closeStepSubscription;
 
@@ -52,8 +32,6 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
   void handleStep(BuildContext context, S step);
 
   Widget buildRoot(BuildContext context);
-
-  List<NavigatorObserver> get navigatorObservers => const [];
 
   @override
   void initState() {
@@ -76,10 +54,8 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
 
   @override
   Widget build(BuildContext context) {
-    final active = DestinationActivity.of(context);
     final navigator = Navigator(
       key: _navigatorKey,
-      observers: navigatorObservers,
       onGenerateRoute: (settings) => MaterialPageRoute(
         settings: settings,
         builder: (_) => buildRoot(context),
@@ -87,8 +63,7 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
     );
 
     return NavigatorPopHandler(
-      enabled: active,
-      onPopWithResult: (_) => active ? unawaited(goBack()) : null,
+      onPopWithResult: (_) => unawaited(goBack()),
       child: navigator,
     );
   }

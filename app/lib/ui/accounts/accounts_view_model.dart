@@ -1,6 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
@@ -59,6 +60,40 @@ abstract class AccountsViewModel {
   void clearStep();
 }
 
+// MARK: - AccountsProjection
+class AccountsProjection {
+  const AccountsProjection({required this.sections, required this.netWorth});
+
+  final List<AccountSection> sections;
+  final NetWorth netWorth;
+}
+
+// MARK: - AccountsProjectionNotifier
+class AccountsProjectionNotifier extends AsyncNotifier<AccountsProjection>
+    with LedgerBackedNotifier<AccountsProjection> {
+  @override
+  AccountsProjection build() {
+    final currentLedger = ledger;
+    final today = ref.watch(todayProvider);
+    currentLedger.addListener(_onLedgerChanged);
+    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
+    return _project(currentLedger, today);
+  }
+
+  void _onLedgerChanged() {
+    if (!ref.mounted) return;
+    state = AsyncData(_project(ledger, ref.read(todayProvider)));
+  }
+
+  AccountsProjection _project(Ledger ledger, DateTime today) {
+    final ledgerState = ledger.state;
+    return AccountsProjection(
+      sections: accountSections(ledgerState, now: today),
+      netWorth: Accounting.netWorth(ledgerState),
+    );
+  }
+}
+
 // MARK: - AccountsNotifier
 class AccountsNotifier extends AsyncNotifier<AccountsViewState>
     with
@@ -66,36 +101,18 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
         StepEmitting<AccountsViewState, AccountsStep>
     implements AccountsViewModel {
   @override
-  Future<AccountsViewState> build() async {
-    final currentLedger = ledger;
-    currentLedger.addListener(_onLedgerChanged);
-    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
-    return _buildState(currentLedger, expandedAccountId: null);
-  }
-
-  void _onLedgerChanged() {
+  AccountsViewState build() {
+    final projection = ref.watch(accountsProjectionProvider);
+    if (projection case AsyncError(:final error, :final stackTrace)) {
+      Error.throwWithStackTrace(error, stackTrace);
+    }
+    final data = projection.requireValue;
     final current = state.value;
-    state = AsyncData(
-      _buildState(
-        ledger,
-        expandedAccountId: current?.expandedAccountId,
-        step: current?.step,
-      ),
-    );
-  }
-
-  AccountsViewState _buildState(
-    Ledger ledger, {
-    required String? expandedAccountId,
-    AccountsStep? step,
-  }) {
-    final ledgerState = ledger.state;
-    final sections = accountSections(ledgerState, now: DateTime.now());
     return AccountsViewState(
-      sections: sections,
-      netWorth: Accounting.netWorth(ledgerState),
-      expandedAccountId: expandedAccountId,
-      step: step,
+      sections: data.sections,
+      netWorth: data.netWorth,
+      expandedAccountId: current?.expandedAccountId,
+      step: current?.step,
     );
   }
 
@@ -118,13 +135,10 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
 
   @override
   Future<void> deleteAccount(String id) async {
-    final current = state.value;
     ledger.deleteAccount(id);
-    if (current == null) return;
-    if (current.expandedAccountId == id) {
-      state = AsyncData(
-        _buildState(ledger, expandedAccountId: null, step: current.step),
-      );
+    final current = state.value;
+    if (current != null && current.expandedAccountId == id) {
+      state = AsyncData(current.copyWith(expandedAccountId: () => null));
     }
   }
 
@@ -172,7 +186,12 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
 }
 
 // MARK: - Constants
+final accountsProjectionProvider =
+    AsyncNotifierProvider<AccountsProjectionNotifier, AccountsProjection>(
+      AccountsProjectionNotifier.new,
+    );
+
 final accountsViewModelProvider =
-    AsyncNotifierProvider<AccountsNotifier, AccountsViewState>(
+    AsyncNotifierProvider.autoDispose<AccountsNotifier, AccountsViewState>(
       AccountsNotifier.new,
     );

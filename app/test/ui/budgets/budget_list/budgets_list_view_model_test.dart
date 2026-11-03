@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
@@ -65,9 +65,10 @@ void main() {
         ledgerProvider.overrideWithValue(ledger),
         analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
         todayProvider.overrideWithValue(DateTime.utc(2026, 3, 3)),
-        selectedMonthProvider.overrideWith((ref) => DateTime.utc(2026, 3)),
+        budgetsMonthChoiceProvider.overrideWith((ref) => DateTime.utc(2026, 3)),
       ],
     );
+    container.listen(budgetsListViewModelProvider, (_, _) {});
     addTearDown(container.dispose);
     return container;
   }
@@ -262,7 +263,7 @@ void main() {
       expect(result.cards.first.overLimit, isTrue);
       expect(result.cards.first.progress, 1.6);
       expect(result.summary.allowance, 'From 4 March: about S\$0.71 a day.');
-      container.read(selectedMonthProvider.notifier).state = DateTime.utc(
+      container.read(budgetsMonthChoiceProvider.notifier).state = DateTime.utc(
         2026,
         4,
       );

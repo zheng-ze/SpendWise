@@ -1,6 +1,6 @@
 # Trends & Category Detail UI
 
-Last reconciled: 2026-10-25
+Last reconciled: c7090f5a
 
 ## Feature overview
 
@@ -210,8 +210,7 @@ replace financial totals rather than displaying stale values (`trends_screen.dar
 
 ## Navigation
 
-`TransactionsFlow` handles `HistoryTrendsRequested`, seeds `selectedMonthProvider` from History's
-selected date at UTC month start, and pushes one route containing `TrendsFlow(onEnded: ...)`.
+`TransactionsFlow` handles `HistoryTrendsRequested`, seeds no month from History, and pushes one route containing `TrendsFlow(onEnded: ...)`.
 `TrendsFlow` uses its nested navigator and renders `TrendsScreen`. The optional History-labelled
 header Back delegates to `FlowBase.goBack`; at the root this ends the Flow and pops the History-owned
 route. System Back and the iOS edge swipe pop the enclosing route. `TransactionsFlow` holds its

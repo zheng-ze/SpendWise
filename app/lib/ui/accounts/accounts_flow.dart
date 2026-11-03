@@ -9,13 +9,14 @@ import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/money_navigation.dart';
 import 'package:spendwise/ui/accounts/source_edit/source_edit_form.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/common/layout/headered_page.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 // MARK: - AccountsFlow
 class AccountsFlow extends FlowBase<AccountsStep> {
-  const AccountsFlow({super.key, this.moneyObserver});
+  const AccountsFlow({super.key, super.navigatorKey, this.header});
 
-  final MoneyNavigatorObserver? moneyObserver;
+  final Widget? header;
 
   @override
   ConsumerState<AccountsFlow> createState() => _AccountsFlowState();
@@ -23,15 +24,6 @@ class AccountsFlow extends FlowBase<AccountsStep> {
 
 // MARK: - AccountsFlowState
 class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
-  late final List<NavigatorObserver> _navigatorObservers =
-      switch (widget.moneyObserver) {
-        null => const [],
-        final observer => [observer],
-      };
-
-  @override
-  List<NavigatorObserver> get navigatorObservers => _navigatorObservers;
-
   AccountsViewModel get _screenViewModel =>
       ref.read(accountsViewModelProvider.notifier);
 
@@ -94,5 +86,6 @@ class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
   }
 
   @override
-  Widget buildRoot(BuildContext context) => const AccountsScreen();
+  Widget buildRoot(BuildContext context) =>
+      HeaderedPage(header: widget.header, body: const AccountsScreen());
 }

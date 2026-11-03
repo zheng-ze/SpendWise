@@ -20,13 +20,16 @@ import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/common/layout/headered_page.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 
 // MARK: - BudgetsFlow
 class BudgetsFlow extends FlowBase<BudgetsStep> {
-  const BudgetsFlow({super.key});
+  const BudgetsFlow({super.key, this.header});
+
+  final Widget? header;
 
   @override
   ConsumerState<BudgetsFlow> createState() => _BudgetsFlowState();
@@ -34,7 +37,6 @@ class BudgetsFlow extends FlowBase<BudgetsStep> {
 
 // MARK: - BudgetsFlowState
 class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
-  bool _destinationActive = true;
   bool _reconcileScheduled = false;
   String? _shownBudgetID;
   List<ProviderSubscription<Object?>> _shownSubscriptions = const [];
@@ -94,14 +96,6 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final active = DestinationActivity.of(context);
-    if (active && !_destinationActive) _scheduleResume();
-    _destinationActive = active;
-    return super.build(context);
-  }
-
   // MARK: - View Model Contracts
 
   BudgetsListViewModel get _listViewModel =>
@@ -127,7 +121,6 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   @override
   void handleStep(BuildContext context, BudgetsStep step) {
-    if (!_destinationActive) return;
     switch (step) {
       case BudgetFormRequested():
         _openBudgetForm(context);
@@ -151,14 +144,6 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     });
   }
 
-  void _scheduleResume() {
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _consumePendingSteps();
-      _reconcilePage();
-    });
-  }
-
   void _reconcilePage() {
     final selected = ref.read(selectedBudgetProvider);
     final phone = ref.read(shellLayoutModeProvider) == ShellLayoutMode.phone;
@@ -166,7 +151,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     if (_pageBudgetID == wanted) return;
     _removePage();
     final context = navigatorContext;
-    if (wanted == null || !_destinationActive || context == null) return;
+    if (wanted == null || context == null) return;
     if (ref.read(shellSheetOccupancyProvider).hasSheets) return;
     _pushPage(context, wanted);
   }
@@ -249,20 +234,9 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     ref.read(selectedBudgetProvider.notifier).clear();
   }
 
-  void _consumePendingSteps() {
-    final context = navigatorContext;
-    if (context == null || !_destinationActive) return;
-    final listStep = ref.read(budgetsListViewModelProvider).value?.step;
-    if (listStep != null) handleStep(context, listStep);
-    final budgetID = _shownBudgetID;
-    if (budgetID == null) return;
-    final detail = ref.read(budgetDetailViewModelProvider(budgetID));
-    unawaited(_handleDetailStep(budgetID, detail.value?.step));
-  }
-
   Future<void> _handleDetailStep(String budgetID, BudgetsStep? step) async {
     if (step is! BudgetEditRequested) return;
-    if (!_destinationActive || _shownBudgetID != budgetID) return;
+    if (_shownBudgetID != budgetID) return;
     final context = navigatorContext;
     if (context == null) return;
 
@@ -292,7 +266,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   }
 
   bool _editStillValid(_EditSession session) {
-    if (!mounted || session.retired || !_destinationActive) return false;
+    if (!mounted || session.retired) return false;
     if (_shownBudgetID != session.budgetID) return false;
     if (!identical(ref.read(ledgerProvider), session.ledger)) return false;
     return _detailViewModel(session.budgetID).liveLimit != null;
@@ -447,7 +421,8 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   }
 
   @override
-  Widget buildRoot(BuildContext context) => const BudgetsRoot();
+  Widget buildRoot(BuildContext context) =>
+      HeaderedPage(header: widget.header, body: const BudgetsRoot());
 }
 
 // MARK: - FormSession

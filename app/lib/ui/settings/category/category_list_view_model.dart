@@ -55,6 +55,39 @@ abstract class CategoryListViewModel {
   void clearStep();
 }
 
+// MARK: - CategoryListProjection
+class CategoryListProjection {
+  const CategoryListProjection({required this.income, required this.expense});
+
+  final List<TransactionCategory> income;
+  final List<TransactionCategory> expense;
+}
+
+// MARK: - CategoryListProjectionNotifier
+class CategoryListProjectionNotifier
+    extends AsyncNotifier<CategoryListProjection>
+    with LedgerBackedNotifier<CategoryListProjection> {
+  @override
+  CategoryListProjection build() {
+    final currentLedger = ledger;
+    currentLedger.addListener(_onLedgerChanged);
+    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
+    return _project(currentLedger);
+  }
+
+  void _onLedgerChanged() {
+    if (!ref.mounted) return;
+    state = AsyncData(_project(ledger));
+  }
+
+  CategoryListProjection _project(Ledger ledger) {
+    return CategoryListProjection(
+      income: ledger.categories(CategoryKind.income),
+      expense: ledger.categories(CategoryKind.expense),
+    );
+  }
+}
+
 // MARK: - CategoryListNotifier
 class CategoryListNotifier extends AsyncNotifier<CategoryListViewState>
     with
@@ -62,23 +95,17 @@ class CategoryListNotifier extends AsyncNotifier<CategoryListViewState>
         StepEmitting<CategoryListViewState, CategoryListStep>
     implements CategoryListViewModel {
   @override
-  Future<CategoryListViewState> build() async {
-    final currentLedger = ledger;
-    currentLedger.addListener(_onLedgerChanged);
-    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
-    return _buildState(currentLedger);
-  }
-
-  void _onLedgerChanged() {
+  CategoryListViewState build() {
+    final projection = ref.watch(categoryListProjectionProvider);
+    if (projection case AsyncError(:final error, :final stackTrace)) {
+      Error.throwWithStackTrace(error, stackTrace);
+    }
+    final data = projection.requireValue;
     final current = state.value;
-    state = AsyncData(_buildState(ledger, step: current?.step));
-  }
-
-  CategoryListViewState _buildState(Ledger ledger, {CategoryListStep? step}) {
     return CategoryListViewState(
-      income: ledger.categories(CategoryKind.income),
-      expense: ledger.categories(CategoryKind.expense),
-      step: step,
+      income: data.income,
+      expense: data.expense,
+      step: current?.step,
     );
   }
 
@@ -100,7 +127,14 @@ class CategoryListNotifier extends AsyncNotifier<CategoryListViewState>
 }
 
 // MARK: - Constants
+final categoryListProjectionProvider =
+    AsyncNotifierProvider<
+      CategoryListProjectionNotifier,
+      CategoryListProjection
+    >(CategoryListProjectionNotifier.new);
+
 final categoryListViewModelProvider =
-    AsyncNotifierProvider<CategoryListNotifier, CategoryListViewState>(
-      CategoryListNotifier.new,
-    );
+    AsyncNotifierProvider.autoDispose<
+      CategoryListNotifier,
+      CategoryListViewState
+    >(CategoryListNotifier.new);

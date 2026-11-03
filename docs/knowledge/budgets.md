@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: 2026-10-31
+Last reconciled: c7090f5a
 
 ## Feature overview
 
@@ -52,7 +52,7 @@ and computes the counted entries itself from the live ledger.
 `MoneyFlow` hosts `BudgetsFlow` in the Money Budgets segment (`app/lib/ui/money/money_flow.dart`).
 `selectedBudgetProvider` (`app/lib/ui/budgets/budget_list/budget_selection.dart`) is the single
 selected-budget state, a nullable budget ID. The list writes it on a tap, `MoneyFlow` reads it to
-supply the active open/desktop pane, and `BudgetsFlow` reconciles one phone detail page against it.
+supply the open/desktop pane, and `BudgetsFlow` reconciles one phone detail page against it.
 
 ## Budget model
 
@@ -147,22 +147,27 @@ to a negative expense day total. (`budget_counted_entry_list.dart`,
 
 ## Provider and subscription lifetime
 
-`budgetsListViewModelProvider` is non-autoDispose. `selectedBudgetProvider` is a non-autoDispose
+`budgetsListViewModelProvider` is an autoDispose provider. `selectedBudgetProvider` is an autoDispose
 notifier holding the selected budget ID or null. It watches no query. `select` sets the ID and `clear`
 removes it. `budgetDetailContextProvider(budgetID)` and `budgetDetailViewModelProvider(budgetID)`
-are autoDispose families.
+are autoDispose families. The mounted Budgets views keep these providers alive, so leaving the
+Budgets segment or the Money destination disposes them and a later visit starts with no selection.
+`budgetsMonthChoiceProvider` and `budgetsMonthProvider` (`budgets_month.dart`) are autoDispose too:
+the month choice is null until the user picks a month, `budgetsMonthProvider` falls back to the month
+of `todayProvider`, and the choice resets to the current month once Budgets is left (see
+`app/test/ui/budgets/budget_list/budgets_month_test.dart`).
 
 **Selection and presentation.** A tray tap always sets `selectedBudgetProvider`. Open and desktop
 present the selected budget as a pane; only phone uses a managed root detail page. Selection survives
 fold and unfold. `BudgetsFlow` schedules post-frame reconciliation on selection, mode and installed
-AppSheet occupancy changes, on mount and when the destination becomes active again.
+AppSheet occupancy changes and on mount.
 
 `_reconcilePage` reads the current selection and mode and compares the desired phone budget with the
 tracked route. An existing matching phone page remains in place when a sheet opens. Otherwise it
 removes the old managed page as a presentation-only change, then pushes a new phone page only while
-the Flow is active, its navigator context exists and no AppSheet remains installed or exiting.
+its navigator context exists and no AppSheet remains installed or exiting.
 The shared controller's last-sheet completion notification schedules reconciliation, which re-reads
-selection, mode and activity before pushing. Folding therefore cannot put a new phone page above a
+selection and mode before pushing. Folding therefore cannot put a new phone page above a
 live sheet. Unfolding removes only the managed phone page and preserves selection.
 (`app/lib/ui/budgets/budget_list/budgets_flow.dart`: `_scheduleReconcile`, `_reconcilePage`)
 
@@ -170,15 +175,15 @@ live sheet. Unfolding removes only the managed phone page and preserves selectio
 Flow-owned presentation removals; a user-popped page clears selection only when the selected budget
 still matches that page's budget ID. A completed old route cannot clear a different selection. Back
 or swipe-back on the phone page, empty-space pane dismissal, pane Back and replacement of the ledger
-instance clear selection. Flow disposal removes its tracked page after the frame and preserves
-selection for a later mount. (`budgets_flow.dart`: `_removePage`, `_clearSelectionWhenPopped`,
+instance clear selection. Flow disposal removes its tracked page after the frame, and the autoDispose selection
+provider resets with it. (`budgets_flow.dart`: `_removePage`, `_clearSelectionWhenPopped`,
 `_removePageAfterFrame`)
 
 **Owners.** While a selection exists, `BudgetsFlow` holds two subscriptions for that budget: the
 context and the detail view model (its Steps). They open when the
 selection is set, are replaced when it changes to another budget, and close when it clears. Fold and
-unfold preserve them within the retained Flow. Disposal closes them, and a later Flow mount reopens
-them from the retained selection. The detail view model is therefore alive for as long as a
+unfold preserve them while the Flow stays mounted. Disposal closes them, and a later Flow mount
+starts with no selection. The detail view model is therefore alive for as long as a
 budget is shown, and the context (month and year) survives conversion. The pane title and subtitle come
 from `budgetPaneHeaderProvider` (`budget_pane.dart`), which reads the ledger and the context only;
 `MoneyFlow` does not watch the detail view model. `BudgetPaneBody` is the pane's consumer of detail
@@ -188,8 +193,8 @@ The pane has no Close button. Tapping empty Budgets list space outside every cat
 spending tray clears selection on open or desktop while no AppSheet is installed or exiting. The
 complete tray, including padding and the All spending title, handles selection; Add actions retain
 their own behavior. System Back
-clears selection through a `PopScope` in `MoneyFlow` only while the destination and Budgets segment
-are active on open or desktop. Covering routes pop first. Phone retains page Back.
+clears selection through a `PopScope` in `MoneyFlow` that applies while Budgets is shown with a pane
+on open or desktop. Covering routes pop first. Phone retains page Back.
 
 The Edit flow is owned by one `_EditSession` (see "Edit flow and sheets"). Showing another budget or
 clearing selection, replacing the ledger instance and disposing the Flow all retire the session and
@@ -201,17 +206,14 @@ remove its current sheet route.
 
 The list Step belongs to the list provider. `BudgetsFlow.handleStep` handles and clears form steps.
 Opening a detail is no longer a Step: a tap selects the budget, and reconciliation presents it. Detail
-Steps are handled by the Flow only for the shown budget and only while the Budgets destination is
-active. Pending list and detail Steps are reconsidered once when Budgets becomes active again.
+Steps are handled by the Flow only for the shown budget.
 
 `BudgetEditRequested` replaces the former `BudgetLimitEditRequested`. It carries no payload, so a
-retained Step never holds a stale limit. `BudgetDetailNotifier.requestEdit` emits it only when the
-budget exists. When the Flow handles it, `_handleDetailStep` checks, in order, that the destination
-is active, the budget is the shown one and a navigator context exists; if any check fails the Step
-stays retained. It then clears the Step, drops it when an `_EditSession` is already open, and
-returns when the live limit or the ledger is missing. A Step retained while the destination was
-inactive therefore opens the Edit sheet when Budgets returns, and the limit editor reads the limit
-current at that moment. The list-level `handleStep` ignores `BudgetEditRequested`,
+pending Step never holds a stale limit. `BudgetDetailNotifier.requestEdit` emits it only when the
+budget exists. When the Flow handles it, `_handleDetailStep` checks, in order, that the Step is a
+`BudgetEditRequested`, the budget is the shown one and a navigator context exists. It then clears
+the Step, drops it when an `_EditSession` is already open, and returns when the live limit or the
+ledger is missing. The limit editor reads the limit current when it opens. The list-level `handleStep` ignores `BudgetEditRequested`,
 `PickCategoryRequested`, `BudgetFormSaved` and `BudgetLimitSaved`; only `BudgetFormRequested` opens
 the Add form. `BudgetsListViewModel.deleteBudget` and the former `applyLimit` hook no longer exist;
 the limit editor and the detail view model write to the ledger directly. Form Steps and
@@ -273,7 +275,7 @@ limit" and "Delete budget", and returns a `BudgetEditAction`. Dismissing it retu
 the editor subscription and a `retired` flag. `_handleDetailStep` creates it, so the session is
 single-flight, and ends it in a `finally`. `_editStillValid` runs at two points: after the action
 sheet returns an action, and after the delete dialog returns. It requires the Flow to be mounted, the
-session not retired, the destination active, the same budget shown, the ledger instance unchanged
+session not retired, the same budget shown, the ledger instance unchanged
 and the live limit still present. The change-limit path has no recheck after its await, because the
 limit editor writes through its own view model. The Flow pushes the next surface (the limit editor
 sheet or the delete confirmation) in the same continuation that receives the action, before any
@@ -387,10 +389,10 @@ elsewhere closes the detail (see "Shown budget disappears"). (`budget_detail_con
 
 `ShellPaneHost` shifts the current budget detail into the left column whenever a shell-covering
 AppSheet is installed or exiting on open or desktop. Its stable page isolation wrappers hide the
-list from focus, semantics and pointers while retaining Money, Budgets and Accounts Flows and their
-Navigators. The detail keeps its keyed State through shifting. Clearing selection removes that
+list from focus, semantics and pointers while keeping the mounted Budgets Flow and its
+Navigator. The detail keeps its keyed State through shifting. Clearing selection removes that
 detail and exposes the list; restoring selection shifts the current detail, including a different
-budget, while the sheet and draft remain. Inactive Money segments supply no budget pane.
+budget, while the sheet and draft remain. Only the mounted Budgets segment supplies a pane.
 (`app/lib/ui/shell/shell_pane_host.dart`, `app/lib/ui/money/money_flow.dart`)
 
 `ShellSheetOccupancy` distinguishes any installed/exiting sheet from shell coverage.
@@ -406,7 +408,7 @@ The Add form, category picker, Edit actions sheet and limit editor are all `AppS
 register with `ShellSheetOccupancy` and shift the pane. The delete confirmation is a plain modal
 route and is not tracked. A sheet over a foreground root page leaves the shell unshifted, which
 `app/test/ui/shell/shell_sheet_occupancy_test.dart` covers independently of Budgets. Budget sheets
-dismiss through their captured exact route, because the retained Flow's `navigatorContext` can
+dismiss through their captured exact route, because the Flow's `navigatorContext` can
 target another Navigator. The Edit flow pushes the next surface from the action sheet's
 pop-result continuation, before that route's `completed` fires, so shell occupancy stays continuous.
 The shared controller adds no timer or pane ownership to hide an asynchronous gap. (`budgets_flow.dart`: `_handleDetailStep`, `_dismissSheetRoute`,

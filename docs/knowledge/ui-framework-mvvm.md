@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-31
+Last reconciled: 0667c5bf
 
 ## Feature overview
 
@@ -122,13 +122,42 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   form or coordinator nor replaces the subscription or route, so the draft, auxiliary picker routes
   and captured Money source survive threshold crossings.
   `AppShell` routes its phone, open and desktop Add controls through one callback. It captures a source
-  only when Money is selected, using a constructor-injected getter backed by the stable
-  `MoneyNavigatorObserver`; the observer tracks the top route of AccountsFlow's navigator, and
-  scoped Transactions routes carry their preferred source ID. TransactionsFlow handles only
+  only when Money is selected, using a constructor-injected getter (`activeMoneySourceProvider`) that
+  reads the source on demand from the live Accounts Navigator through `accountsNavigatorKeyProvider`
+  (`app/lib/boot/money_navigation_provider.dart`). The getter returns the preferred source ID of the
+  top route when that route is a scoped Transactions route, and null when the Accounts segment is not
+  mounted. Scoped Transactions routes carry their preferred source ID. TransactionsFlow handles only
   existing-entry forms. There is no `ProviderScope`, shared lock provider, nested `Navigator` or new Flow.
   (`app/lib/ui/transactions/entry/new_entry_presenter.dart`,
   `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart`,
   `app/lib/ui/transactions/transactions_flow.dart`)
+- **State lifetime** - State lives exactly as long as its own view is in the view hierarchy. A view
+  covered by a pushed route is still in the hierarchy and keeps its state; History keeps its
+  selected month while Trends is pushed over it and after Back
+  (`app/test/ui/shell/destination_lifetime_test.dart`). When the view itself is popped or unmounted
+  (a route pop, or a destination or Money segment switch), all of its state resets. There are no
+  parent-owned or cross-view caches and no manual invalidation, except for the exceptions listed after
+  the owners. Each piece of state has one owner:
+  1. Ledger data and projections live in providers and may outlive views.
+  2. Presentation state shared inside one Flow or screen lives in an `autoDispose` provider that its
+     own mounted views keep alive.
+  3. Presentation state used by one widget lives in that widget's `State`.
+  4. Navigation position belongs to whoever owns the `Navigator`. It is read on demand from that
+     owner and never cached.
+  5. One-shot Steps are consumed by the Flow and never retained.
+
+  Four providers are justified exceptions to the no-manual-invalidation rule and stay
+  non-`autoDispose`. `settingsRootViewModelProvider` carries a one-shot repair Step from the shell
+  banner to a Settings that mounts on the next frame. `enrollmentFlowOpenProvider` is a guard that
+  `SettingsFlow` writes and the always-mounted status banner reads reactively.
+  `syncEnrollmentViewModelProvider` and `backendPickerViewModelProvider` settle in-flight enrollment
+  work after their route disposes. The sheet-form view models are not yet under this rule.
+  `accountFormViewModelProvider`, `sourceEditFormViewModelProvider`, `entryFormViewModelProvider` and
+  `receiptEntryCoordinatorProvider` are invalidated by hand (in `account_form.dart`,
+  `source_edit_form.dart` and `new_entry_presenter.dart`). `categoryFormViewModelProvider`,
+  `planFormViewModelProvider` and `entryFormDisplayProvider` have no manual invalidation and live for
+  the container's lifetime, so a reopened category or plan form may show a previous draft. That has
+  not been reproduced.
 - **One ViewModel per View**; shared presentation widgets own no ViewModel because they never read
   Riverpod state (zero `ConsumerWidget`/`WidgetRef` usage).
 - **AppShell** gets no ViewModel: its only state is the layout mode, no async
@@ -145,12 +174,12 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   size changes at runtime in both directions with no hysteresis. Phones are locked to portrait where the platform honours the request (iPhone `UISupportedInterfaceOrientations` lists portrait only; Android `MainActivity` requests portrait through `requestedOrientation` while `smallestScreenWidthDp` is below 600 and re-applies on configuration change), but Android multi-window can ignore the request and still present a landscape-shaped window; tablets and unfolded foldables keep every orientation, and the 600 x 480 dp rule and its landscape-window tests are unchanged and still cover those cases. The
   inspected Flutter 3.47.4 iOS embedder reports no display features, and the
   rule ignores display features on every platform. Phone and open share one
-  stable Scaffold, content Stack and keyed `IndexedStack` with four fixed
-  destination positions (overview, history, money, settings) resolved
-  through one explicit destination list, never `enum.index`; only chrome and
-  the content gutter change between them, so a phone/open switch keeps the
-  selected destination, every Flow State, Navigator State and nested route.
-  Desktop keeps its own scaffold with the same four slots.
+  stable Scaffold and content Stack, and the body builder for the selected destination is resolved
+  through one explicit destination map keyed by `ShellDestination`, never `enum.index`. Only the
+  selected destination is mounted, under a `KeyedSubtree` keyed by the destination. Only chrome and
+  the content gutter change between phone and open, so a phone/open switch keeps the selected
+  destination's Flow State, Navigator State and nested routes. Desktop keeps its own scaffold with
+  the same destinations.
   `ShellDestination` (`overview`, `history`, `money`, `settings`)
   defaults to `overview`. Phone shows a rounded five-position bar in exactly
   this order: Overview, History, Add, Money, Settings. Add is the exact-centre
@@ -168,10 +197,10 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   History, Money, an Add entry button, flexible separation and
   Settings at the bottom. Overview hosts `OverviewFlow`, Money hosts
   `MoneyFlow`, History hosts the unscoped `TransactionsFlow`, Settings hosts
-  `SettingsFlow`. History is mounted eagerly in the keyed stack on every
-  layout, with no lazy materialization, no back label and no phone
-  back-to-Overview control; its Navigator, selected date and list mode survive
-  destination switches and resizes. Overview's View History selects History
+  `SettingsFlow`. History has no back label and no phone back-to-Overview
+  control; its Navigator and selected date survive phone and open resizes while
+  History is selected, and reset when another destination is selected and
+  History is unmounted. Overview's View History selects History
   on every layout and pushes no route. There is no Trends destination in the
   shell. There is no header gear and no shell Add FAB.
   `ShellPaneScope` supplies the mode, shared `splitOffset`, `sheetCovered` and `sheetPresented`.
@@ -191,7 +220,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   preserving the page's Flow and Navigator State. A present detail keeps its keyed `_DetailPaneState`
   and body ancestry through shifting; clearing the detail genuinely removes its subtree.
   `ShellDetail.onClose` is optional. The host supplies a Close control only when that callback is
-  present; Budgets omits it. A floating action appears only for the active, current open page while
+  present; Budgets omits it. A floating action appears only for the current open page while
   no AppSheet is installed or exiting. (`app/lib/ui/shell/shell_pane_host.dart`)
 
   `resolveShellPaneGeometry` is shared by shell and root sheets. Open splits at the physical window
@@ -202,7 +231,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   `app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/desktop_sidebar.dart`)
 
   Selected detail belongs to the feature. Budgets uses a managed root detail page only on phone,
-  reconciled after the frame from current selection, mode and destination activity. Entering open
+  reconciled after the frame from current selection, mode and AppSheet occupancy. Entering open
   or desktop removes that tracked page as a presentation-only change. A matching phone page stays
   when a sheet opens; a new phone push waits until every AppSheet completes. User Back clears the
   selection, while Flow-owned removal preserves it. See [budgets.md](budgets.md) for the route
@@ -221,32 +250,29 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   refresh, polling, enrollment or repair operation and shows no synchronization
   timestamp. Phone chrome has no sync line.
   Every visual value in the shell chrome is a named constant.
-  `BootChrome` supplies the four feature builders and only the selected
-  layout invokes the builders it needs.
+  `BootChrome` supplies the four feature builders and `AppShell` invokes only the builder of the
+  selected destination.
    (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_providers.dart`,
    `app/lib/ui/shell/boot_chrome.dart`)
-- **Settings hosting** - `ShellDestination.settings` is a plain retained destination. `BootChrome`
-  supplies `SettingsFlow` in the Settings slot and `AppShell` mounts each layout's destinations once in a
-  keyed `IndexedStack`, with `SettingsFlow` built without `backLabel` or `onEnded`, so its root
-  screen shows no back control. Selecting Settings only writes `selectedDestinationProvider`. Back
-  pops Settings child routes; at the root it preserves the selection. Switching destinations retains
-  Settings and any open enrollment route. Settings refreshes the hosted sync status on mount,
-  whenever Settings becomes the selected destination (a `selectedDestinationProvider` listener),
-  and after an enrollment route closes. (`app/lib/ui/shell/app_shell.dart`,
-  `app/lib/ui/shell/shell_providers.dart`, `app/lib/ui/shell/boot_chrome.dart`,
-  `app/lib/ui/settings/settings_flow.dart`)
-- **Destination Back activity** - `DestinationActivity` (`app/lib/ui/common/base/flow_base.dart`) is a
-  pure inherited active flag defaulting to active for standalone Flows. Each `IndexedStack` slot
-  wraps its destination with the flag derived from the selected destination. `FlowBaseState` wraps its
-  nested `Navigator` in Flutter's `NavigatorPopHandler`, enabled only while the destination is
-  active: with depth, system Back and the iOS edge swipe pop the Flow's own `Navigator` (`goBack`);
-  at the Flow's root they pass to the enclosing route, so a route-hosted Flow's route pops
-  directly and a shell tab Flow's root hands Back to the shell (the system may close the app).
-  `goBack` (the on-screen back control when `showsOwnBackButton`, and other direct callers) still calls `onEnded` at the root, but root system Back and the swipe bypass `onEnded` because the enclosing route pops directly.
-  An inactive Flow ignores the callback. A Flow that must refuse Back wraps `super.build` in its
-  own `PopScope` (the enrollment Flows during a backend save). `FlowBase` reads no shell providers.
-  Nested enrollment and scoped Flows inherit their host destination's activity. Add drafts are scoped
-  to their sheet, as described in [budgets.md](budgets.md).
+- **Settings hosting** - `BootChrome` supplies `SettingsFlow` in the Settings slot, built without
+  `backLabel` or `onEnded`, so its root screen shows no back control. `AppShell` mounts Settings
+  only while `ShellDestination.settings` is selected. Selecting Settings only writes
+  `selectedDestinationProvider`. Back pops Settings child routes; at the root it preserves the
+  selection. Leaving Settings disposes the Flow, its child routes and any open enrollment route, and
+  returning builds Settings fresh at its root. Settings refreshes the hosted sync status in
+  `initState`, so every mount refreshes it, and again after an enrollment route closes.
+  (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_providers.dart`,
+  `app/lib/ui/shell/boot_chrome.dart`, `app/lib/ui/settings/settings_flow.dart`)
+- **Flow Back handling** - `FlowBaseState` wraps its nested `Navigator` in Flutter's
+  `NavigatorPopHandler`. With depth, system Back and the iOS edge swipe pop the Flow's own
+  `Navigator` (`goBack`); at the Flow's root they pass to the enclosing route, so a route-hosted
+  Flow's route pops directly and a shell destination Flow's root hands Back to the shell (the system
+  may close the app). `goBack` (the on-screen back control when `showsOwnBackButton`, and other
+  direct callers) still calls `onEnded` at the root, but root system Back and the swipe bypass
+  `onEnded` because the enclosing route pops directly. Because only the selected destination is
+  mounted, only that destination's Flow handles Back. A Flow that must refuse Back wraps `super.build`
+  in its own `PopScope` (the enrollment Flows during a backend save). `FlowBase` reads no shell
+  providers. Add drafts are scoped to their sheet, as described in [budgets.md](budgets.md).
 - **Settings teardown** - `SettingsFlow.dispose` performs terminal cleanup only through one
   disposal-safe microtask using the captured `ProviderContainer` and guard controller: it releases
   `enrollmentFlowOpenProvider` when this Flow owned the route and clears any pending navigation
@@ -255,7 +281,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
 - **Repair routing and visibility** - `StatusBanner` hides the repair banner only while
   `selectedDestinationProvider` is `settings` and `enrollmentFlowOpenProvider` is true. A repair
   tap selects Settings first and calls `requestRepair()` only while `enrollmentFlowOpenProvider` is
-  false. Returning to Settings reveals the existing route without duplication. `SettingsFlow`
+  false. `SettingsFlow`
   re-checks a pending step after its navigator mounts, so a request made before Settings is built is
   consumed once. (`app/lib/ui/shell/app_shell.dart`,
   `app/lib/ui/shell/status_banner.dart`,
@@ -367,7 +393,7 @@ value, which then overwrites it. (issue #38)
   keeps its tab bar mounted and sheets cover it. Desktop keeps one sidebar beneath the modal barrier, so tapping it dismisses the sheet
   without selecting a destination. (`app/lib/ui/shell/shell_sheet_occupancy.dart`,
   `app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_pane_host.dart`)
-  Sheets dismiss through their mounted route context or captured exact route. A retained Flow's
+  Sheets dismiss through their mounted route context or captured exact route. A Flow's
   `navigatorContext` can refer to a different Navigator. Budgets ships this exact-route session
   pattern: `_FormSession` and `_EditSession` in `budgets_flow.dart` capture the sheet's
   `AppSheetRoute` through `onRouteCreated`, dismiss it with `pop` when current or `removeRoute`

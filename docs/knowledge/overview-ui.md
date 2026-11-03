@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: 2026-10-20
+Last reconciled: c7090f5a
 
 ## Feature overview
 
@@ -53,7 +53,8 @@ Tapping 'View History' calls `OverviewViewModel.requestHistory`; `OverviewFlow` 
 resulting `OverviewHistoryRequested` exactly once and clears it, including requests made before its
 Navigator mounts. On every layout `BootChrome` supplies a callback that selects the
 `ShellDestination.history` slot (`app/lib/ui/shell/boot_chrome.dart`); the flow pushes no route and
-the retained History flow keeps its stack, date and mode. History has no back-to-Overview control.
+History mounts fresh at the current month with an empty stack, and nothing is carried over from Overview before it mounts.
+History has no back-to-Overview control.
 
 ## Read definitions
 

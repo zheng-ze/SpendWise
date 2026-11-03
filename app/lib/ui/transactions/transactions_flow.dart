@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/trends_flow.dart';
 import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
@@ -99,13 +98,6 @@ class _TransactionsFlowState
 
   void _openTrends(BuildContext context) {
     if (_trendsRoute != null) return;
-    final historyDate = ref
-        .read(transactionsViewModelProvider(widget.initialScope))
-        .value
-        ?.selectedDate;
-    ref.read(selectedMonthProvider.notifier).state = startOfMonthUtc(
-      historyDate ?? ref.read(effectiveMonthProvider),
-    );
     final route = MaterialPageRoute<void>(
       builder: (_) => TrendsFlow(onEnded: _closeTrends),
     );

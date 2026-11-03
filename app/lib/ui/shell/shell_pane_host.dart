@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -95,13 +94,11 @@ class ShellPaneHost extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = ShellPaneScope.of(context);
-    final pageActive = DestinationActivity.of(context);
     final routeCurrent = ModalRoute.isCurrentOf(context) ?? true;
     final showFloatingAction =
         floatingAction != null &&
         scope.mode == ShellLayoutMode.open &&
         !scope.sheetPresented &&
-        pageActive &&
         routeCurrent;
 
     return LayoutBuilder(

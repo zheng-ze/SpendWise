@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -49,6 +50,7 @@ Future<ProviderContainer> createEnrollmentContainer({
   SyncEnrollmentPhase? seedPhase,
   ShellLayoutMode? layoutMode,
   ShellPlatformFacts? platform,
+  List<Override> overrides = const [],
 }) async {
   SharedPreferences.setMockInitialValues({});
   final db = LedgerDatabase(NativeDatabase.memory());
@@ -63,6 +65,7 @@ Future<ProviderContainer> createEnrollmentContainer({
   final opener = FakeSessionOpener();
   final container = ProviderContainer(
     overrides: [
+      ...overrides,
       ledgerProvider.overrideWithValue(_buildLedger()),
       if (layoutMode != null)
         shellLayoutModeProvider.overrideWithValue(layoutMode),

@@ -1,13 +1,13 @@
 # Settings UI
 
-Last reconciled: 2026-10-19
+Last reconciled: c7090f5a
 
 ## Feature overview
 
 Settings contains category management (list, form, symbol picker), the Recycle Bin for archived
 rows, and Hosted Sync status, enrollment, and device-access repair. Recurring-plan management lives
 in the Money Plans segment; its list and form modules remain under `ui/settings/plan/`. The ledger
-screens are mostly stateless facades over `Ledger`, with per-sheet `autoDispose` form controllers.
+screens are mostly stateless facades over `Ledger`, with per-sheet form view models keyed by their arguments.
 
 ## Key files
 
@@ -33,19 +33,20 @@ screens are mostly stateless facades over `Ledger`, with per-sheet `autoDispose`
 ## Module interactions
 
 The list providers read `Ledger` query methods (e.g. `categories(of:)` ordering per
-`ledger_runtime.md` §1.3) and mutate through `Ledger`. Forms use per-sheet `autoDispose` controllers
-seeded with the initial data. Delete copies (recycle-bin messaging) are derived from referencing
+`ledger_runtime.md` §1.3) and mutate through `Ledger`. Forms use view-model families keyed by their arguments (`categoryFormViewModelProvider`,
+`planFormViewModelProvider`), which are not autoDispose and are seeded with the initial data. Delete copies (recycle-bin messaging) are derived from referencing
 counts. These counts include active and binned entries through `entriesReferencing`,
 `entryCount` and `entryCountReferencing`
 (`packages/domain/lib/src/ledger_state/queries/ledger_state_queries.dart`).
 
 ## Navigation
 
-The Settings Flow owns Settings' nested navigator; `AppShell` mounts it once as the retained
-`settings` destination in its `IndexedStack` (see `ui-framework-mvvm.md`). The root screen shows no
+The Settings Flow owns Settings' nested navigator; `AppShell` mounts it only while the
+`settings` destination is selected (see `ui-framework-mvvm.md`). The root screen shows no
 back control. Back pops child routes and preserves the destination selection at the root. Phone/open
-resize retains the mounted flow and its open enrollment route in place, without re-hosting the
-enrollment flow. The Categories row opens category management, whose forms and symbol picker
+resize keeps the mounted flow and its open enrollment route in place, without re-hosting the
+enrollment flow. Selecting another destination disposes the flow and its child routes, and
+selecting Settings again builds it fresh at the root. The Categories row opens category management, whose forms and symbol picker
 retain their existing navigation. Settings has no Recurring Plans row, request Step or Plans route.
 `MoneyFlow` hosts the existing plan list, which has no app bar of its own, and exposes Edit/Done
 in the Money header. Plan forms still open as sheets via `FormScaffold`.
@@ -69,8 +70,8 @@ The `hostedSyncStatus` tile is tappable and shows a chevron only for `HostedSync
 opening `SyncEnrollmentFlow(repairMode: false)`, whose root is the backend picker. Other statuses
 keep the tile passive. Fresh and repair routes share `enrollmentFlowOpenProvider` to prevent
 duplicate pushes across Settings Flow instances; only the instance that owns the route releases
-the guard. Hosted Sync status refreshes when `SettingsFlow` mounts, whenever Settings becomes
-the selected destination, and after either route closes.
+the guard. Hosted Sync status refreshes in `SettingsFlow.initState`, so every mount refreshes it,
+and again after either route closes.
 Source: `app/lib/ui/settings/settings_root_screen.dart` - `_HostedSyncSection`;
 `app/lib/ui/settings/settings_root_view_model.dart` - `StartHostedEnrollmentRequested`;
 `app/lib/ui/settings/settings_flow.dart` - `_openFreshFlow`, `_pushEnrollmentRoute`,
@@ -82,11 +83,10 @@ session-reauth status and takes precedence over the timed plan/save message. Tap
 Settings first and requests repair only when `enrollmentFlowOpenProvider` is false. `SettingsFlow` opens
 `SyncEnrollmentFlow(repairMode: true)` for the request and re-checks a pending step after its navigator
 mounts, so a request made before Settings is built is consumed once. The banner hides while Settings is
-selected and enrollment is open; enrollment retained under another selected destination does not
-suppress the banner elsewhere. Switching destinations retains the open
-enrollment route, and the repair tap reveals it without requesting another. Teardown releases only
-the owned guard and clears any pending step without requesting resume or repair; an unfinished fresh
-setup stays resumable from the Hosted Sync
+selected and enrollment is open. Leaving Settings disposes `SettingsFlow`, its child routes and
+any open enrollment route; the enrollment Flow's disposal cancels its pending operation, and
+`SettingsFlow` teardown releases only the owned guard and clears any pending step without
+requesting resume or repair. An unfinished fresh setup stays resumable from the Hosted Sync
 tile. Source:
 `app/lib/ui/settings/settings_flow.dart`, `app/lib/ui/shell/status_banner.dart`,
 `app/lib/ui/shell/shell_providers.dart`.

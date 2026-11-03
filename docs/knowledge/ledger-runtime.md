@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 2026-10-29
+Last reconciled: c7090f5a
 
 ## Feature overview
 
@@ -456,15 +456,16 @@ store's pending batch to disk before the OS can kill the process.
 (`startOfDayUtc` of the clock) give every screen one notion of today. A
 `DayTicker` owned by `AppShell` invalidates `todayProvider` on app resume and
 at each local midnight through a re-arming one-shot timer, cancelled on
-dispose. `selectedMonthProvider` is a nullable user override and
-`effectiveMonthProvider` falls back to the month of today, so an unset month
-follows a day rollover into a new month while a chosen month stays. Many
+dispose. `budgetsMonthChoiceProvider` is a nullable autoDispose user choice and
+`budgetsMonthProvider` falls back to the month of today, so an unset month
+follows a day rollover into a new month while a chosen month stays. The choice
+resets when Budgets is left. Many
 ViewModels (transactions, accounts, budgets, plans, the entry form) still read
 `DateTime.now()` directly and do not follow the clock seam or a pinned
 `clockProvider` in tests. Source: `app/lib/boot/providers.dart` - `clockProvider`,
 `todayProvider`; `app/lib/ui/shell/day_ticker.dart` - `DayTicker`;
-`app/lib/ui/shell/shell_providers.dart` - `selectedMonthProvider`,
-`effectiveMonthProvider`; `app/lib/ui/shell/app_shell.dart` -
+`app/lib/ui/budgets/budget_list/budgets_month.dart` -
+`budgetsMonthChoiceProvider`, `budgetsMonthProvider`; `app/lib/ui/shell/app_shell.dart` -
 `_AppShellState`; `app/test/boot/clock_test.dart`.
 
 ## `resolvePlans` + `onPlanError`

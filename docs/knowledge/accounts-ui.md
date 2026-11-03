@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: 2026-10-29
+Last reconciled: c7090f5a
 
 ## Feature overview
 
@@ -12,19 +12,24 @@ including posting a balance-adjustment delta entry.
 
 ## Money host
 
-`MoneyFlow` hosts Budgets, Accounts and Plans in that order. `moneySegmentProvider` defaults to
-Accounts; Budgets is previsited, and each other segment mounts on its first visit. Visited children
-retain their state across segment, destination and phone/open layout changes. The shared root header
-shows Money and one segmented control; only Budgets shows the month selector. Accounts supplies Add
-account, and Plans supplies Edit/Done. The Accounts and Plans roots have no header of their own.
-`MoneyFlow` hides the shared header while `MoneyNavigatorObserver.hasScopedTransactionsRoute` is true,
-so scoped Transactions owns its heading. On open and desktop, only the active Budgets segment supplies
-`ShellPaneHost` with a budget detail; Accounts and Plans supply none. (`app/lib/ui/money/money_flow.dart`,
-`app/lib/ui/budgets/budget_detail/budget_pane.dart`, `accounts_flow.dart`, `accounts_screen.dart`,
-`app/lib/ui/settings/plan/plan_list_screen.dart`)
+`MoneyFlow` hosts Budgets, Accounts and Plans in that order and mounts only the visible segment.
+`moneySegmentProvider` is an autoDispose provider that defaults to Accounts and that `MoneyFlow`
+keeps alive while it is mounted. Switching segments, or leaving the Money destination, unmounts the
+previous segment and resets its state; Money opens at Accounts again after the destination is left.
+`MoneyFlow` passes a `MoneyHeader` to the segment root, and each segment renders it at the top of
+its own root page (`HeaderedPage`), so the header is part of the segment and a route pushed over the
+root, such as a scoped Transactions screen, covers it and owns its own heading. The header shows
+Money and one segmented control; only Budgets shows the month selector. Accounts supplies Add
+account, and Plans supplies Edit/Done. On open and desktop, only the mounted Budgets segment supplies
+`ShellPaneHost` with a budget detail; Accounts and Plans supply none.
+(`app/lib/ui/money/money_flow.dart`, `app/lib/ui/money/money_header.dart`,
+`app/lib/ui/money/money_segment.dart`, `app/lib/ui/budgets/budget_detail/budget_pane.dart`,
+`accounts_flow.dart`, `accounts_screen.dart`, `app/lib/ui/settings/plan/plan_list_screen.dart`)
 
-`DestinationActivity` combines the selected shell destination with the selected Money segment and
-only stops an inactive child's Back handling. Plans now has one presentation owner in Money; Settings has no recurring-plan entry. (`money_flow.dart`, `accounts_flow.dart`, `plan_list_screen.dart`)
+The Budgets month choice (`budgetsMonthChoiceProvider`) is an autoDispose provider watched only by
+Budgets views and the Budgets month selector in the header. It falls back to the month of today and
+resets when Budgets is unmounted, that is, when another segment or destination is selected. Plans
+has one presentation owner in Money; Settings has no recurring-plan entry.
 
 ## Key files
 
@@ -61,12 +66,14 @@ scoped Transactions screen; the
 "Excluding subpockets" and per-pocket expanded rows push narrower scopes. Account headers and pocket
 rows offer Edit by swiping start-to-end or using the Edit custom semantic action; it opens the
 source-edit form for that exact holder ID. AccountsFlow tags each scoped Transactions route with its
-preferred source, and its constructor-injected MoneyNavigatorObserver lets shell Add prefill the top
-scoped route only while Money and its Accounts segment are selected. Budgets, Plans, other
-destinations, roots and untagged routes return no source, even when Accounts retains a scoped
-stack. The boot-created observer remains attached to that same Accounts navigator across resize.
+preferred source. Shell Add reads the source on demand from the live Accounts Navigator, which
+`MoneyFlow` and `AccountsFlow` share through `accountsNavigatorKeyProvider`
+(`app/lib/boot/money_navigation_provider.dart`); `activeMoneySourceProvider` returns the preferred
+source of the top route and caches nothing. Shell Add consults it only while Money is selected. The
+getter returns no source for Budgets and Plans (the Accounts Navigator is not mounted), roots and
+untagged routes. Leaving the Accounts segment unmounts its Navigator and any scoped stack.
 (`app/lib/ui/money/money_flow.dart`: `activeMoneySourceProvider`,
-`app/lib/ui/accounts/money_navigation.dart`)
+`app/lib/ui/accounts/money_navigation.dart`: `scopedRegisterSourceId`)
 
 Account and source-edit forms use root `showAppSheet` routes with `accountSheetPresentation` as the
 live resolver. `showAccountFormSheet` and `showSourceEditFormSheet` capture the exact route and wait

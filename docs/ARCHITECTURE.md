@@ -268,12 +268,15 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   Add opens the shared entry presenter). Open shows a vertical rail docked bottom right
   (Overview, History, Money, Settings, filled Add; 54 dp wide with 9 dp right and 10 dp bottom
   insets, 18 dp radius) over content reserving a 72 dp gutter, with the status banner clearing
-  the same gutter. Phone and open share one stable Scaffold, content Stack and keyed
-  `IndexedStack` with four fixed destination positions. Only chrome and the content gutter
-  change between them, preserving the selected destination, every Flow State, Navigator State
-  and nested route. History is always mounted on every layout. Overview's View History action
-  selects it without pushing a route. Desktop shows a sidebar with Overview, History, Money,
-  an Add entry button, and Settings over the same four slots. Trends is pushed inside History;
+  the same gutter. Phone and open share one Scaffold and content Stack. `AppShell` mounts only the
+  selected destination's body, keyed by its `ShellDestination`, so a destination's Flow State,
+  Navigator State and nested routes exist only while that destination is selected. Leaving a
+  destination disposes its body and resets that state, and selecting it again starts fresh.
+  Phone and open differ only in chrome and the content gutter, so a resize between them keeps the
+  selected body mounted. Moving into or out of desktop replaces the Scaffold, which remounts the
+  selected body. Overview's View History action selects History without pushing a route. Desktop
+  shows a sidebar with Overview, History, Money, an Add entry button, and Settings, each selecting
+  one of the four destinations. Trends is pushed inside History;
   it is not a shell destination. All Add controls open the shared entry presenter; the
   shell captures the top scoped Money route's preferred source only while Money is selected.
   The shared Add presenter opens one root `AppSheetRoute` with a keyed entry form and a live
@@ -288,9 +291,8 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   Every exit (cancel, save, Back, barrier, route removal, `AppShell` disposal, container disposal)
   converges on one idempotent retirement that closes the subscription, defers receipt-coordinator
   invalidation and releases ownership only at `route.completed`.
-  History hosts the unscoped `TransactionsFlow`; its screen-`Step` consumption is gated on the
-  enclosing `DestinationActivity`, so a hidden retained instance neither acts on nor clears a
-  shared `Step`. `shellLayoutModeProvider` resolves
+  History hosts the unscoped `TransactionsFlow`. The shell mounts only the selected destination, so
+  no hidden History instance exists that could act on or clear the screen `Step`. `shellLayoutModeProvider` resolves
   `ShellLayoutMode.phone`, `ShellLayoutMode.open` or `ShellLayoutMode.desktop` from fixed
   platform facts plus the current logical window size: web, macOS, Windows and Linux always use
   desktop; on iOS and Android the window is open exactly when at least 600 dp wide and at least

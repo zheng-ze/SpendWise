@@ -19,19 +19,6 @@ class OverviewFlow extends FlowBase<OverviewStep> {
 // MARK: - OverviewFlowState
 class _OverviewFlowState extends FlowBaseState<OverviewStep, OverviewFlow> {
   @override
-  void initState() {
-    super.initState();
-    // A step emitted before the navigator mounts is dropped, so re-check once mounted.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final context = navigatorContext;
-      if (context == null) return;
-      final step = ref.read(overviewViewModelProvider).value?.step;
-      if (step != null) handleStep(context, step);
-    });
-  }
-
-  @override
   void Function() subscribeToStep(void Function(OverviewStep? step) handle) =>
       ref
           .listenManual(
