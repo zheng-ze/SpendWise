@@ -103,9 +103,8 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
   @override
   AccountsViewState build() {
     final projection = ref.watch(accountsProjectionProvider);
-    final error = projection.error;
-    if (error != null) {
-      Error.throwWithStackTrace(error, projection.stackTrace!);
+    if (projection case AsyncError(:final error, :final stackTrace)) {
+      Error.throwWithStackTrace(error, stackTrace);
     }
     final data = projection.requireValue;
     final current = state.value;
@@ -136,11 +135,11 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
 
   @override
   Future<void> deleteAccount(String id) async {
+    ledger.deleteAccount(id);
     final current = state.value;
     if (current != null && current.expandedAccountId == id) {
       state = AsyncData(current.copyWith(expandedAccountId: () => null));
     }
-    ledger.deleteAccount(id);
   }
 
   @override

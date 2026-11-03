@@ -97,9 +97,8 @@ class CategoryListNotifier extends AsyncNotifier<CategoryListViewState>
   @override
   CategoryListViewState build() {
     final projection = ref.watch(categoryListProjectionProvider);
-    final error = projection.error;
-    if (error != null) {
-      Error.throwWithStackTrace(error, projection.stackTrace!);
+    if (projection case AsyncError(:final error, :final stackTrace)) {
+      Error.throwWithStackTrace(error, stackTrace);
     }
     final data = projection.requireValue;
     final current = state.value;

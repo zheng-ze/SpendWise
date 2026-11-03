@@ -226,9 +226,8 @@ class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
   @override
   RecycleBinViewState build() {
     final projection = ref.watch(recycleBinProjectionProvider);
-    final error = projection.error;
-    if (error != null) {
-      Error.throwWithStackTrace(error, projection.stackTrace!);
+    if (projection case AsyncError(:final error, :final stackTrace)) {
+      Error.throwWithStackTrace(error, stackTrace);
     }
     final data = projection.requireValue;
     final current = state.value;

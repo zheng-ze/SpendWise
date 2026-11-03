@@ -122,6 +122,19 @@ void main() {
     );
   });
 
+  test('a failing deleteAccount leaves the account expanded', () async {
+    final container = buildContainer(ThrowingDeleteLedger(buildLedger().state));
+    final viewModel = container.read(accountsViewModelProvider.notifier);
+    viewModel.toggleExpanded(checking.id);
+
+    await expectLater(viewModel.deleteAccount(checking.id), throwsStateError);
+
+    expect(
+      container.read(accountsViewModelProvider).value?.expandedAccountId,
+      checking.id,
+    );
+  });
+
   test('deletePocket archives the pocket', () async {
     final ledger = buildLedger();
     final container = buildContainer(ledger);
@@ -267,4 +280,12 @@ class FailingProjectionNotifier extends AccountsProjectionNotifier {
       StackTrace.empty,
     );
   }
+}
+
+class ThrowingDeleteLedger extends Ledger {
+  ThrowingDeleteLedger(LedgerState state) : super(state: state);
+
+  @override
+  List<LedgerChange> deleteAccount(String rawID) =>
+      throw StateError('delete failed');
 }

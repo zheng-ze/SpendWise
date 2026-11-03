@@ -174,9 +174,8 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
   @override
   OverviewViewState build() {
     final projection = ref.watch(overviewProjectionProvider);
-    final error = projection.error;
-    if (error != null) {
-      Error.throwWithStackTrace(error, projection.stackTrace!);
+    if (projection case AsyncError(:final error, :final stackTrace)) {
+      Error.throwWithStackTrace(error, stackTrace);
     }
     final data = projection.requireValue;
     return OverviewViewState(
