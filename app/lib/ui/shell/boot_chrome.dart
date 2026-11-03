@@ -71,6 +71,37 @@ Widget _buildHistoryTab(BuildContext context) => const TransactionsFlow();
 
 Widget _buildSettingsTab(BuildContext context) => const SettingsFlow();
 
+// MARK: - BootPage
+class _BootPage extends StatelessWidget {
+  const _BootPage({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = _BootContent(children: children);
+
+    return Scaffold(
+      backgroundColor: context.colors.base,
+      body: SafeArea(child: content),
+    );
+  }
+}
+
+class _BootContent extends StatelessWidget {
+  const _BootContent({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final column = Column(mainAxisSize: MainAxisSize.min, children: children);
+    final padded = Padding(padding: _bootPagePadding, child: column);
+
+    return Center(child: SingleChildScrollView(child: padded));
+  }
+}
+
 // MARK: - BootLoading
 class _BootLoading extends StatelessWidget {
   const _BootLoading();
@@ -79,34 +110,24 @@ class _BootLoading extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return Scaffold(
-      backgroundColor: colors.base,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: _bootPagePadding,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SpendWiseWordmark(fontSize: _bootWordmarkFontSize),
-                  const SizedBox(height: _bootContentGap),
-                  SizedBox(
-                    width: _progressSize,
-                    height: _progressSize,
-                    child: CircularProgressIndicator(
-                      strokeWidth: _progressStrokeWidth,
-                      backgroundColor: colors.surface,
-                      color: colors.action,
-                      semanticsLabel: _loadingSemanticsLabel,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    final progress = CircularProgressIndicator(
+      strokeWidth: _progressStrokeWidth,
+      backgroundColor: colors.surface,
+      color: colors.action,
+      semanticsLabel: _loadingSemanticsLabel,
+    );
+    final sizedProgress = SizedBox(
+      width: _progressSize,
+      height: _progressSize,
+      child: progress,
+    );
+
+    return _BootPage(
+      children: [
+        const SpendWiseWordmark(fontSize: _bootWordmarkFontSize),
+        const SizedBox(height: _bootContentGap),
+        sizedProgress,
+      ],
     );
   }
 }
@@ -124,50 +145,39 @@ class _LoadFailure extends ConsumerWidget {
 
     debugPrint('AppBoot failed to load: $error');
 
-    return Scaffold(
-      backgroundColor: colors.base,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: _bootPagePadding,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SpendWiseWordmark(fontSize: _bootWordmarkFontSize),
-                  const SizedBox(height: _bootContentGap),
-                  Text(
-                    _failureTitle,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontSize: _failureTitleFontSize,
-                      fontWeight: _failureTitleWeight,
-                      color: colors.text,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: _bootContentGap),
-                  Text(
-                    _failureMessage,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontSize: _failureMessageFontSize,
-                      color: colors.subtext,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: _bootContentGap),
-                  SizedBox(
-                    width: _retryWidth,
-                    child: FilledButton(
-                      onPressed: () => ref.read(appBootProvider).retry(),
-                      child: const Text(_retryLabel),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+    final title = Text(
+      _failureTitle,
+      style: theme.textTheme.headlineSmall?.copyWith(
+        fontSize: _failureTitleFontSize,
+        fontWeight: _failureTitleWeight,
+        color: colors.text,
       ),
+      textAlign: TextAlign.center,
+    );
+    final message = Text(
+      _failureMessage,
+      style: theme.textTheme.bodyMedium?.copyWith(
+        fontSize: _failureMessageFontSize,
+        color: colors.subtext,
+      ),
+      textAlign: TextAlign.center,
+    );
+    final retryButton = FilledButton(
+      onPressed: () => ref.read(appBootProvider).retry(),
+      child: const Text(_retryLabel),
+    );
+    final retry = SizedBox(width: _retryWidth, child: retryButton);
+
+    return _BootPage(
+      children: [
+        const SpendWiseWordmark(fontSize: _bootWordmarkFontSize),
+        const SizedBox(height: _bootContentGap),
+        title,
+        const SizedBox(height: _bootContentGap),
+        message,
+        const SizedBox(height: _bootContentGap),
+        retry,
+      ],
     );
   }
 }
