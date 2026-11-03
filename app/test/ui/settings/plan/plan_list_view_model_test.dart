@@ -15,27 +15,6 @@ void main() {
     type: AccountType.cash,
   );
 
-  RecurringPlan plan({
-    required String name,
-    required RecurrenceFrequency frequency,
-    required DateTime anchor,
-    DateTime? endDate,
-    DateTime? lastResolvedDate,
-  }) {
-    return RecurringPlan(
-      template: EntryTemplate(
-        amount: dec('-10'),
-        name: name,
-        sourceID: source.id,
-      ),
-      frequency: frequency,
-      anchor: anchor,
-      endDate: endDate,
-      lastResolvedDate:
-          lastResolvedDate ?? anchor.subtract(const Duration(days: 1)),
-    );
-  }
-
   Ledger buildLedger(List<RecurringPlan> plans) {
     return Ledger(
       state: LedgerState(
@@ -50,101 +29,21 @@ void main() {
       overrides: [ledgerProvider.overrideWithValue(ledger)],
     );
     addTearDown(container.dispose);
+    container.listen(planListViewModelProvider, (previous, next) {});
     return container;
   }
 
-  group('sortedPlans', () {
-    final now = DateTime.utc(2026, 1, 1);
-
-    test('ended plans sort after every plan with a next occurrence', () {
-      final ended = plan(
-        name: 'Zeta ended',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: DateTime.utc(2025, 1, 1),
-        endDate: DateTime.utc(2025, 2, 1),
-      );
-      final live = plan(
-        name: 'Alpha live',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: DateTime.utc(2026, 3, 1),
-      );
-
-      final result = sortedPlans(
-        [ended, live],
-        buildLedger([ended, live]).state,
-        now,
-      );
-
-      expect(result.map((p) => p.template.name), ['Alpha live', 'Zeta ended']);
-    });
-
-    test('two ended plans tiebreak by name', () {
-      final b = plan(
-        name: 'Bravo ended',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: DateTime.utc(2025, 1, 1),
-        endDate: DateTime.utc(2025, 2, 1),
-      );
-      final a = plan(
-        name: 'Alpha ended',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: DateTime.utc(2025, 1, 1),
-        endDate: DateTime.utc(2025, 2, 1),
-      );
-
-      final result = sortedPlans([b, a], buildLedger([b, a]).state, now);
-
-      expect(result.map((p) => p.template.name), [
-        'Alpha ended',
-        'Bravo ended',
-      ]);
-    });
-
-    test('two plans sharing the same non-null next occurrence tiebreak by '
-        'name (the strengthening over V1)', () {
-      final anchor = DateTime.utc(2026, 2, 1);
-      final b = plan(
-        name: 'Bravo live',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: anchor,
-      );
-      final a = plan(
-        name: 'Alpha live',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: anchor,
-      );
-
-      expect(
-        a.nextOccurrence(onOrAfter: now),
-        b.nextOccurrence(onOrAfter: now),
-      );
-
-      final result = sortedPlans([b, a], buildLedger([b, a]).state, now);
-
-      expect(result.map((p) => p.template.name), ['Alpha live', 'Bravo live']);
-    });
-
-    test('a plan due sooner sorts before one due later', () {
-      final later = plan(
-        name: 'Later',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: DateTime.utc(2026, 6, 1),
-      );
-      final sooner = plan(
-        name: 'Sooner',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: DateTime.utc(2026, 1, 15),
-      );
-
-      final result = sortedPlans(
-        [later, sooner],
-        buildLedger([later, sooner]).state,
-        now,
-      );
-
-      expect(result.map((p) => p.template.name), ['Sooner', 'Later']);
-    });
-  });
+  ProviderContainer buildContainerWithFailingProjection(Ledger ledger) {
+    final container = ProviderContainer(
+      overrides: [
+        ledgerProvider.overrideWithValue(ledger),
+        planListProjectionProvider.overrideWith(FailingProjectionNotifier.new),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.listen(planListViewModelProvider, (previous, next) {});
+    return container;
+  }
 
   group('PlanListNotifier', () {
     final today = DateTime.now().toUtc();
@@ -169,20 +68,77 @@ void main() {
       lastResolvedDate: today.subtract(const Duration(days: 1)),
     );
 
-    test('build sorts plans by ascending next occurrence', () async {
-      final ledger = buildLedger([laterPlan, soonerPlan]);
+    test('build starts with editing off and no step', () {
+      final container = buildContainer(buildLedger([soonerPlan]));
+
+      final state = container.read(planListViewModelProvider).value;
+
+      expect(state?.plans.map((p) => p.id), [soonerPlan.id]);
+      expect(state?.editing, isFalse);
+      expect(state?.step, isNull);
+    });
+
+    test('the first read with a ready projection is AsyncData', () {
+      final container = ProviderContainer(
+        overrides: [
+          ledgerProvider.overrideWithValue(buildLedger([soonerPlan])),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(planListProjectionProvider);
+
+      final first = container.read(planListViewModelProvider);
+
+      expect(first, isA<AsyncData<PlanListViewState>>());
+    });
+
+    test('an unmounted view model resets editing and keeps the data', () async {
+      final container = ProviderContainer(
+        overrides: [
+          ledgerProvider.overrideWithValue(buildLedger([soonerPlan])),
+        ],
+      );
+      addTearDown(container.dispose);
+      final mounted = container.listen(planListViewModelProvider, (_, _) {});
+      container.read(planListViewModelProvider.notifier).toggleEditing();
+
+      mounted.close();
+      await container.pump();
+
+      final remounted = container.read(planListViewModelProvider);
+      expect(remounted.value?.editing, isFalse);
+      expect(remounted.value?.plans, isNotEmpty);
+    });
+
+    test('a projection failing after it had a value is an AsyncError', () {
+      final container = buildContainerWithFailingProjection(
+        buildLedger([soonerPlan]),
+      );
+      expect(container.read(planListViewModelProvider).hasValue, isTrue);
+
+      (container.read(
+        planListProjectionProvider.notifier,
+      ) as FailingProjectionNotifier).fail();
+
+      expect(container.read(planListViewModelProvider).hasError, isTrue);
+    });
+
+    test('a ledger change keeps editing and the pending step', () {
+      final ledger = buildLedger([soonerPlan, laterPlan]);
       final container = buildContainer(ledger);
+      final viewModel = container.read(planListViewModelProvider.notifier);
+      viewModel.toggleEditing();
+      viewModel.requestEditPlan(soonerPlan);
 
-      final state = await container.read(planListViewModelProvider.future);
+      ledger.deletePlan(laterPlan.id);
 
-      expect(state.plans.map((p) => p.id), [soonerPlan.id, laterPlan.id]);
-      expect(state.editing, isFalse);
-      expect(state.step, isNull);
+      final state = container.read(planListViewModelProvider).value;
+      expect(state?.editing, isTrue);
+      expect(state?.step, isA<PlanFormRequested>());
     });
 
     test('toggleEditing flips editing on and off', () async {
       final container = buildContainer(buildLedger([soonerPlan]));
-      await container.read(planListViewModelProvider.future);
       final viewModel = container.read(planListViewModelProvider.notifier);
 
       viewModel.toggleEditing();
@@ -194,7 +150,6 @@ void main() {
 
     test('requestEditPlan emits PlanFormRequested carrying the plan', () async {
       final container = buildContainer(buildLedger([soonerPlan]));
-      await container.read(planListViewModelProvider.future);
       final viewModel = container.read(planListViewModelProvider.notifier);
 
       viewModel.requestEditPlan(soonerPlan);
@@ -207,7 +162,6 @@ void main() {
     test('deletePlan removes the plan without emitting a step', () async {
       final ledger = buildLedger([soonerPlan]);
       final container = buildContainer(ledger);
-      await container.read(planListViewModelProvider.future);
       final viewModel = container.read(planListViewModelProvider.notifier);
 
       viewModel.deletePlan(soonerPlan.id);
@@ -221,7 +175,6 @@ void main() {
       () async {
         final ledger = buildLedger([soonerPlan]);
         final container = buildContainer(ledger);
-        await container.read(planListViewModelProvider.future);
         final viewModel = container.read(planListViewModelProvider.notifier);
 
         viewModel.requestDeletePlan(soonerPlan.id);
@@ -236,7 +189,6 @@ void main() {
     test('applyDeleteConfirmed(true) deletes the requested plan', () async {
       final ledger = buildLedger([soonerPlan]);
       final container = buildContainer(ledger);
-      await container.read(planListViewModelProvider.future);
       final viewModel = container.read(planListViewModelProvider.notifier);
 
       viewModel.requestDeletePlan(soonerPlan.id);
@@ -248,7 +200,6 @@ void main() {
     test('applyDeleteConfirmed(false) leaves the plan in place', () async {
       final ledger = buildLedger([soonerPlan]);
       final container = buildContainer(ledger);
-      await container.read(planListViewModelProvider.future);
       final viewModel = container.read(planListViewModelProvider.notifier);
 
       viewModel.requestDeletePlan(soonerPlan.id);
@@ -259,7 +210,6 @@ void main() {
 
     test('clearStep resets the step to null', () async {
       final container = buildContainer(buildLedger([soonerPlan]));
-      await container.read(planListViewModelProvider.future);
       final viewModel = container.read(planListViewModelProvider.notifier);
 
       viewModel.requestEditPlan(soonerPlan);
@@ -269,4 +219,13 @@ void main() {
       expect(container.read(planListViewModelProvider).value?.step, isNull);
     });
   });
+}
+
+class FailingProjectionNotifier extends PlanListProjectionNotifier {
+  void fail() {
+    state = AsyncError<PlanListProjection>(
+      StateError('projection failed'),
+      StackTrace.empty,
+    );
+  }
 }

@@ -1,6 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
@@ -91,6 +92,40 @@ abstract class PlanListViewModel {
   void clearStep();
 }
 
+// MARK: - PlanListProjection
+class PlanListProjection {
+  const PlanListProjection({required this.plans, required this.ledgerState});
+
+  final List<RecurringPlan> plans;
+  final LedgerState ledgerState;
+}
+
+// MARK: - PlanListProjectionNotifier
+class PlanListProjectionNotifier extends AsyncNotifier<PlanListProjection>
+    with LedgerBackedNotifier<PlanListProjection> {
+  @override
+  PlanListProjection build() {
+    final currentLedger = ledger;
+    final today = ref.watch(todayProvider);
+    currentLedger.addListener(_onLedgerChanged);
+    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
+    return _project(currentLedger, today);
+  }
+
+  void _onLedgerChanged() {
+    if (!ref.mounted) return;
+    state = AsyncData(_project(ledger, ref.read(todayProvider)));
+  }
+
+  PlanListProjection _project(Ledger ledger, DateTime today) {
+    final ledgerState = ledger.state;
+    return PlanListProjection(
+      plans: sortedPlans(ledgerState.plans.values.toList(), ledgerState, today),
+      ledgerState: ledgerState,
+    );
+  }
+}
+
 // MARK: - PlanListNotifier
 class PlanListNotifier extends AsyncNotifier<PlanListViewState>
     with
@@ -98,33 +133,19 @@ class PlanListNotifier extends AsyncNotifier<PlanListViewState>
         StepEmitting<PlanListViewState, PlanListStep>
     implements PlanListViewModel {
   @override
-  Future<PlanListViewState> build() async {
-    final currentLedger = ledger;
-    currentLedger.addListener(_onLedgerChanged);
-    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
-    return _buildState(currentLedger, editing: false);
-  }
-
-  void _onLedgerChanged() {
+  PlanListViewState build() {
+    final projection = ref.watch(planListProjectionProvider);
+    final error = projection.error;
+    if (error != null) {
+      Error.throwWithStackTrace(error, projection.stackTrace!);
+    }
+    final data = projection.requireValue;
     final current = state.value;
-    state = AsyncData(_buildState(ledger, editing: current?.editing ?? false));
-  }
-
-  PlanListViewState _buildState(
-    Ledger ledger, {
-    required bool editing,
-    PlanListStep? step,
-  }) {
-    final ledgerState = ledger.state;
     return PlanListViewState(
-      plans: sortedPlans(
-        ledgerState.plans.values.toList(),
-        ledgerState,
-        DateTime.now(),
-      ),
-      ledgerState: ledgerState,
-      editing: editing,
-      step: step,
+      plans: data.plans,
+      ledgerState: data.ledgerState,
+      editing: current?.editing ?? false,
+      step: current?.step,
     );
   }
 
@@ -157,7 +178,12 @@ class PlanListNotifier extends AsyncNotifier<PlanListViewState>
 }
 
 // MARK: - Constants
+final planListProjectionProvider =
+    AsyncNotifierProvider<PlanListProjectionNotifier, PlanListProjection>(
+      PlanListProjectionNotifier.new,
+    );
+
 final planListViewModelProvider =
-    AsyncNotifierProvider<PlanListNotifier, PlanListViewState>(
+    AsyncNotifierProvider.autoDispose<PlanListNotifier, PlanListViewState>(
       PlanListNotifier.new,
     );
