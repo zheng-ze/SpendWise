@@ -21,6 +21,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
+import 'package:spendwise/ui/money/money_segment.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';

@@ -9,6 +9,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
+import 'package:spendwise/ui/money/money_segment.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 

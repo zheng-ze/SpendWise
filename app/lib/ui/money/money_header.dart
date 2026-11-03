@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
-import 'package:spendwise/ui/money/money_flow.dart';
+import 'package:spendwise/ui/money/money_segment.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_view_model.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';

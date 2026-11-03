@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ui/money/money_flow.dart';
+import 'package:spendwise/ui/money/money_segment.dart';
 
 void main() {
   test(

@@ -15,7 +15,7 @@ import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
-import 'package:spendwise/ui/money/money_flow.dart';
+import 'package:spendwise/ui/money/money_segment.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
