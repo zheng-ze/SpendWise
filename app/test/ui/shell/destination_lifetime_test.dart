@@ -14,7 +14,7 @@ import '../../support/ui_test_timeout.dart';
 
 void main() {
   testWidgets(
-    'History keeps its selected month while Trends is open above it',
+    'History keeps its previous month after opening Trends and going Back',
     (tester) async {
       final container = ProviderContainer(
         overrides: [

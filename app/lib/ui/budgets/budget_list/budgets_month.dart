@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:spendwise/boot/providers.dart';
-
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 final budgetsMonthChoiceProvider = StateProvider.autoDispose<DateTime?>(

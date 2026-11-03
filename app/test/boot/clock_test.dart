@@ -106,6 +106,7 @@ void main() {
     var now = DateTime(2026, 10, 3, 12);
     final container = _containerWith(() => now);
     final ticker = _tickerFor(container);
+    container.listen(budgetsMonthProvider, (_, _) {});
 
     container.read(budgetsMonthChoiceProvider.notifier).state = DateTime.utc(
       2026,
