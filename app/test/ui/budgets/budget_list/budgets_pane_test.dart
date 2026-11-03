@@ -18,6 +18,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
@@ -745,7 +746,7 @@ void main() {
     await tester.tap(find.text('Category budgets'));
     await tester.pumpAndSettle();
     expect(_hasDetailOwners(container, 'b2'), isFalse);
-    container.read(selectedMonthProvider.notifier).state = DateTime.utc(
+    container.read(budgetsMonthChoiceProvider.notifier).state = DateTime.utc(
       2027,
       2,
     );

@@ -9,6 +9,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../../support/shell_sheet_harness.dart';
@@ -69,7 +70,7 @@ ProviderContainer buildShellContainer({
       runner ?? syncComputeRunner,
     ),
     todayProvider.overrideWithValue(DateTime.utc(2026, 3, 3)),
-    selectedMonthProvider.overrideWith((ref) => DateTime.utc(2026, 3)),
+    budgetsMonthChoiceProvider.overrideWith((ref) => DateTime.utc(2026, 3)),
     shellLayoutModeProvider.overrideWith(
       (ref) => ref.watch(budgetShellModeFixture),
     ),

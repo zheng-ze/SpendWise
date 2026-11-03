@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 
@@ -133,15 +132,6 @@ void main() {
         expect(harness.ready.headline.amount, '-S\$100.00');
       },
     );
-
-    test('ignores the month selected in History', () async {
-      final harness = TrendsHarness(ledger: _history().ledger, today: _today);
-      harness.container.read(selectedMonthProvider.notifier).state =
-          DateTime.utc(2025, 3, 1);
-      await harness.settle();
-
-      expect(harness.ready.headline.title, 'October 2026');
-    });
 
     test('shows three calendar years in year mode', () async {
       final harness = await _open();

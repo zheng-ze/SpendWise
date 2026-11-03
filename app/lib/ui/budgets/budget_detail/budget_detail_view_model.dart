@@ -11,7 +11,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budgets_steps.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 import 'package:spendwise/ui/stats/helpers/trend.dart';
 
 export 'package:spendwise/ui/budgets/budget_detail/budgets_steps.dart';
@@ -56,7 +56,7 @@ class BudgetDetailContextNotifier extends Notifier<BudgetDetailContext> {
 
   @override
   BudgetDetailContext build() {
-    final month = ref.read(effectiveMonthProvider);
+    final month = ref.read(budgetsMonthProvider);
     return (
       displayedYear: DateTime.utc(month.year),
       selectedMonth: DateTime.utc(month.year, month.month),

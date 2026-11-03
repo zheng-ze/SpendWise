@@ -7,7 +7,7 @@ import 'package:spendwise/ui/common/inputs/segmented_control.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_view_model.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 
 // MARK: - Constants
 const _headerRowMinHeight = 48.0;
@@ -70,10 +70,10 @@ class _BudgetsMonthSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MonthYearSelector(
-      value: ref.watch(effectiveMonthProvider),
+      value: ref.watch(budgetsMonthProvider),
       step: MonthYearStep.month,
       onChanged: (value) =>
-          ref.read(selectedMonthProvider.notifier).state = value,
+          ref.read(budgetsMonthChoiceProvider.notifier).state = value,
     );
   }
 }

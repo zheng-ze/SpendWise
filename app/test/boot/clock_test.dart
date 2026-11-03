@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/shell/day_ticker.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 
 ProviderContainer _containerWith(DateTime Function() clock) {
   final container = ProviderContainer(
@@ -93,12 +93,12 @@ void main() {
     final container = _containerWith(() => now);
     final ticker = _tickerFor(container);
 
-    expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 10));
+    expect(container.read(budgetsMonthProvider), DateTime.utc(2026, 10));
 
     now = DateTime(2026, 11, 2, 9);
     ticker.didChangeAppLifecycleState(AppLifecycleState.resumed);
 
-    expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 11));
+    expect(container.read(budgetsMonthProvider), DateTime.utc(2026, 11));
   });
 
   test('a chosen month stays across a day rollover', () {
@@ -107,7 +107,7 @@ void main() {
     final container = _containerWith(() => now);
     final ticker = _tickerFor(container);
 
-    container.read(selectedMonthProvider.notifier).state = DateTime.utc(
+    container.read(budgetsMonthChoiceProvider.notifier).state = DateTime.utc(
       2026,
       9,
     );
@@ -116,6 +116,6 @@ void main() {
     ticker.didChangeAppLifecycleState(AppLifecycleState.resumed);
 
     expect(container.read(todayProvider), DateTime.utc(2026, 11, 2));
-    expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 9));
+    expect(container.read(budgetsMonthProvider), DateTime.utc(2026, 9));
   });
 }
