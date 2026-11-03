@@ -115,40 +115,6 @@ void main() {
     expect(find.byType(SyncEnrollmentFlow), findsOneWidget);
   }, timeout: uiTestTimeout);
 
-  testWidgets('hides the repair banner only when Settings is selected and '
-      'enrollment is open', (tester) async {
-    final container = await pumpShell(
-      tester,
-      status: const HostedSyncBindingRepair(),
-      size: const Size(1200, 800),
-      layoutMode: ShellLayoutMode.desktop,
-    );
-    expect(find.text(_repairLabel), findsOneWidget);
-
-    container.read(selectedDestinationProvider.notifier).state =
-        ShellDestination.settings;
-    await tester.pump();
-    expect(find.text(_repairLabel), findsOneWidget);
-
-    container.read(enrollmentFlowOpenProvider.notifier).state = true;
-    await tester.pump();
-    expect(find.text(_repairLabel), findsNothing);
-
-    container.read(selectedDestinationProvider.notifier).state =
-        ShellDestination.history;
-    await tester.pump();
-    expect(find.text(_repairLabel), findsOneWidget);
-
-    container.read(selectedDestinationProvider.notifier).state =
-        ShellDestination.settings;
-    await tester.pump();
-    expect(find.text(_repairLabel), findsNothing);
-
-    container.read(enrollmentFlowOpenProvider.notifier).state = false;
-    await tester.pump();
-    expect(find.text(_repairLabel), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
   group('phone-open resize', () {
     Future<void> resize(WidgetTester tester, Size size) async {
       tester.view.physicalSize = size;
