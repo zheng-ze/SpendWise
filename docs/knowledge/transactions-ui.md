@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: c7090f5a
+Last reconciled: 0667c5bf
 
 ## Feature overview
 
@@ -199,7 +199,7 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   `noteText` draft (`setNote`); a one-time new-entry save passes it to `Entry`, a recurring save
   passes `signedEntry.note` to the `EntryTemplate` in `_recurringPlanFor` so the plan and every
   generated occurrence carry it, while Edit saves keep reading the latest persisted note. Account/category labels and icon data resolve through
-  `entryFormDisplayProvider`, an autoDispose `Provider.family` projection of the raw draft and current ledger state
+  `entryFormDisplayProvider`, a `Provider.family` projection of the raw draft and current ledger state
   that listens to `Ledger` notifications without rebuilding the draft; unresolvable selections
   show "Unavailable account" / "Unavailable category".
   View existing ("Entry", leading ‹ Back, trailing ✎ Edit). Edit existing ("Edit Entry", leading ✕

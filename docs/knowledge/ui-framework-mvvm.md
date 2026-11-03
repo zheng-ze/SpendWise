@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: c7090f5a
+Last reconciled: 0667c5bf
 
 ## Feature overview
 
@@ -136,7 +136,8 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   selected month while Trends is pushed over it and after Back
   (`app/test/ui/shell/destination_lifetime_test.dart`). When the view itself is popped or unmounted
   (a route pop, or a destination or Money segment switch), all of its state resets. There are no
-  parent-owned or cross-view caches and no manual invalidation. Each piece of state has one owner:
+  parent-owned or cross-view caches and no manual invalidation, except for the exceptions listed after
+  the owners. Each piece of state has one owner:
   1. Ledger data and projections live in providers and may outlive views.
   2. Presentation state shared inside one Flow or screen lives in an `autoDispose` provider that its
      own mounted views keep alive.
@@ -144,6 +145,19 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   4. Navigation position belongs to whoever owns the `Navigator`. It is read on demand from that
      owner and never cached.
   5. One-shot Steps are consumed by the Flow and never retained.
+
+  Four providers are justified exceptions to the no-manual-invalidation rule and stay
+  non-`autoDispose`. `settingsRootViewModelProvider` carries a one-shot repair Step from the shell
+  banner to a Settings that mounts on the next frame. `enrollmentFlowOpenProvider` is a guard that
+  `SettingsFlow` writes and the always-mounted status banner reads reactively.
+  `syncEnrollmentViewModelProvider` and `backendPickerViewModelProvider` settle in-flight enrollment
+  work after their route disposes. The sheet-form view models are not yet under this rule.
+  `accountFormViewModelProvider`, `sourceEditFormViewModelProvider`, `entryFormViewModelProvider` and
+  `receiptEntryCoordinatorProvider` are invalidated by hand (in `account_form.dart`,
+  `source_edit_form.dart` and `new_entry_presenter.dart`). `categoryFormViewModelProvider`,
+  `planFormViewModelProvider` and `entryFormDisplayProvider` have no manual invalidation and live for
+  the container's lifetime, so a reopened category or plan form may show a previous draft. That has
+  not been reproduced.
 - **One ViewModel per View**; shared presentation widgets own no ViewModel because they never read
   Riverpod state (zero `ConsumerWidget`/`WidgetRef` usage).
 - **AppShell** gets no ViewModel: its only state is the layout mode, no async
@@ -184,7 +198,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   Settings at the bottom. Overview hosts `OverviewFlow`, Money hosts
   `MoneyFlow`, History hosts the unscoped `TransactionsFlow`, Settings hosts
   `SettingsFlow`. History has no back label and no phone back-to-Overview
-  control; its Navigator, selected date and list mode survive resizes while
+  control; its Navigator and selected date survive phone and open resizes while
   History is selected, and reset when another destination is selected and
   History is unmounted. Overview's View History selects History
   on every layout and pushes no route. There is no Trends destination in the
