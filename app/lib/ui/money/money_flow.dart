@@ -6,7 +6,6 @@ import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/ui/accounts/money_navigation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_pane.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
-import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/common/layout/headered_page.dart';
 import 'package:spendwise/ui/money/money_header.dart';
 import 'package:spendwise/ui/money/money_segment.dart';
@@ -20,42 +19,23 @@ final activeMoneySourceProvider = Provider<String? Function()>((ref) {
   );
 });
 
-class MoneyFlow extends ConsumerStatefulWidget {
+class MoneyFlow extends ConsumerWidget {
   const MoneyFlow({super.key});
 
   @override
-  ConsumerState<MoneyFlow> createState() => _MoneyFlowState();
-}
-
-class _MoneyFlowState extends ConsumerState<MoneyFlow> {
-  final _visited = <MoneySegment>{MoneySegment.budgets};
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final segment = ref.watch(moneySegmentProvider);
-    _visited.add(segment);
-    final active = DestinationActivity.of(context);
-    final budgetsVisible = active && segment == MoneySegment.budgets;
-    final budgetPane = budgetsVisible ? ref.watch(budgetPaneProvider) : null;
-    final accountsNavigatorKey = ref.read(accountsNavigatorKeyProvider);
+    final budgetPane = segment == MoneySegment.budgets
+        ? ref.watch(budgetPaneProvider)
+        : null;
     Widget moneyPage(ShellPagePresentation presentation) {
-      final children = MoneySegment.values.map((value) {
-        final header = MoneyHeader(segment: value, presentation: presentation);
-        final body = _MoneySegmentBody(
-          segment: value,
-          visited: _visited.contains(value),
-          header: header,
-          accountsNavigatorKey: accountsNavigatorKey,
-        );
-        return DestinationActivity(
-          key: ValueKey(value),
-          active: active && segment == value,
-          child: body,
-        );
-      }).toList();
-      final stack = IndexedStack(index: segment.index, children: children);
+      final header = MoneyHeader(segment: segment, presentation: presentation);
+      final body = KeyedSubtree(
+        key: ValueKey(segment),
+        child: _MoneySegmentBody(segment: segment, header: header),
+      );
       return SafeArea(
-        child: Material(color: context.colors.base, child: stack),
+        child: Material(color: context.colors.base, child: body),
       );
     }
 
@@ -75,27 +55,19 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
   }
 }
 
-class _MoneySegmentBody extends StatelessWidget {
-  const _MoneySegmentBody({
-    required this.segment,
-    required this.visited,
-    required this.header,
-    required this.accountsNavigatorKey,
-  });
+class _MoneySegmentBody extends ConsumerWidget {
+  const _MoneySegmentBody({required this.segment, required this.header});
 
   final MoneySegment segment;
-  final bool visited;
   final Widget header;
-  final GlobalKey<NavigatorState> accountsNavigatorKey;
 
   @override
-  Widget build(BuildContext context) {
-    if (!visited) return const SizedBox.shrink();
+  Widget build(BuildContext context, WidgetRef ref) {
     return switch (segment) {
       MoneySegment.budgets => BudgetsFlow(header: header),
       MoneySegment.accounts => AccountsFlow(
         header: header,
-        navigatorKey: accountsNavigatorKey,
+        navigatorKey: ref.read(accountsNavigatorKeyProvider),
       ),
       MoneySegment.plans => HeaderedPage(
         header: header,

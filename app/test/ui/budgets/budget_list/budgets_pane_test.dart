@@ -13,7 +13,6 @@ import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
-import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/money/money_segment.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
@@ -87,10 +86,6 @@ Future<void> _expectEditOpensEditor(WidgetTester tester) async {
   expect(_limitEditor, findsOneWidget);
 }
 
-void _selectSegment(ProviderContainer container, MoneySegment segment) {
-  container.read(moneySegmentProvider.notifier).state = segment;
-}
-
 void main() {
   testWidgets('desktop empty list space closes the retained pane', (
     tester,
@@ -128,7 +123,7 @@ void main() {
     timeout: uiTestTimeout,
   );
   testWidgets(
-    'last sheet completion respects the current Money segment',
+    'last sheet completion with another Money segment shown leaves no detail',
     _verifyInactiveDeferredPhonePage,
     timeout: uiTestTimeout,
   );
@@ -441,33 +436,6 @@ void main() {
   );
 
   testWidgets(
-    'a pending Budgets step is not consumed while Accounts is active and runs when Budgets returns',
-    (tester) async {
-      final container = await pumpBudgetShell(
-        tester,
-        mode: ShellLayoutMode.open,
-      );
-      container.read(moneySegmentProvider.notifier).state =
-          MoneySegment.accounts;
-      await tester.pumpAndSettle();
-
-      container.read(budgetsListViewModelProvider.notifier).requestNewBudget();
-      await tester.pumpAndSettle();
-      expect(find.byType(BudgetForm), findsNothing);
-      expect(
-        container.read(budgetsListViewModelProvider).requireValue.step,
-        isA<BudgetFormRequested>(),
-      );
-
-      container.read(moneySegmentProvider.notifier).state =
-          MoneySegment.budgets;
-      await tester.pumpAndSettle();
-      expect(find.byType(BudgetForm), findsOneWidget);
-    },
-    timeout: uiTestTimeout,
-  );
-
-  testWidgets(
     'disposing the flow removes its page and keeps a newer unrelated route',
     (tester) async {
       final container = buildShellContainer(ledger: buildShellLedger());
@@ -506,20 +474,6 @@ void main() {
     expect(_hasDetailOwners(container, 'b2'), isFalse);
   }, timeout: uiTestTimeout);
 
-  testWidgets('Back in an inactive Money segment leaves the selection alone', (
-    tester,
-  ) async {
-    final container = await pumpBudgetShell(tester, mode: ShellLayoutMode.open);
-    await tapBudget(tester, 'b2');
-    _selectSegment(container, MoneySegment.accounts);
-    await tester.pumpAndSettle();
-
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-
-    expect(container.read(selectedBudgetProvider), 'b2');
-  }, timeout: uiTestTimeout);
-
   testWidgets(
     'selecting another budget while the page exits presents one page and keeps the new selection',
     (tester) async {
@@ -544,30 +498,6 @@ void main() {
       );
       expect(identical(incoming, outgoing), isFalse);
       expect(_hasDetailOwners(container, 'b2'), isFalse);
-    },
-    timeout: uiTestTimeout,
-  );
-
-  testWidgets(
-    'a detail Step arriving while Budgets is inactive waits and runs when Budgets returns',
-    (tester) async {
-      final container = await pumpBudgetShell(
-        tester,
-        mode: ShellLayoutMode.open,
-      );
-      await tapBudget(tester, 'b2');
-      _selectSegment(container, MoneySegment.accounts);
-      await tester.pumpAndSettle();
-
-      container
-          .read(budgetDetailViewModelProvider('b2').notifier)
-          .requestEdit();
-      await tester.pumpAndSettle();
-      expect(_limitEditor, findsNothing);
-
-      _selectSegment(container, MoneySegment.budgets);
-      await chooseEditAction(tester, _changeLimitLabel);
-      expect(_limitEditor, findsOneWidget);
     },
     timeout: uiTestTimeout,
   );
@@ -994,8 +924,5 @@ Future<void> _verifyInactiveDeferredPhonePage(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await closeShellSheet(tester, sheet);
   expect(find.byType(BudgetDetailScreen), findsNothing);
-  expect(container.read(selectedBudgetProvider), 'b2');
-  container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
-  await tester.pumpAndSettle();
-  expect(find.byType(BudgetDetailScreen), findsOneWidget);
+  expect(container.exists(selectedBudgetProvider), isFalse);
 }

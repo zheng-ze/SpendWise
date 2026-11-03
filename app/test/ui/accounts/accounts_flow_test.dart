@@ -84,8 +84,8 @@ Future<void> _pumpAccountsShell(
 
 void main() {
   testWidgets(
-    'desktop isolation retains Money, Budgets and Accounts Flows',
-    (tester) => _verifyMoneyFlowRetention(tester, ShellLayoutMode.desktop),
+    'desktop isolation keeps the Money and Budgets Flows and mounts only the visible segment',
+    (tester) => _verifyMoneySegmentLifetime(tester, ShellLayoutMode.desktop),
     timeout: uiTestTimeout,
   );
 
@@ -322,6 +322,48 @@ void main() {
     timeout: uiTestTimeout,
   );
 
+  testWidgets(
+    'returning to Money after leaving it from a scoped register shows the Accounts root',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          ledgerProvider.overrideWithValue(buildLedger()),
+          shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.open),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.money;
+      await pumpShellApp(
+        tester,
+        container,
+        moneySourceId: container.read(activeMoneySourceProvider),
+        bodies: {
+          ShellDestination.money: (_) => const MoneyFlow(),
+          ShellDestination.history: (_) => const SizedBox.shrink(),
+        },
+      );
+      container
+          .read(accountsViewModelProvider.notifier)
+          .openAccount(checking.id);
+      await tester.pumpAndSettle();
+      expect(find.byType(AccountsScreen), findsNothing);
+
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.history;
+      await tester.pumpAndSettle();
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.money;
+      await tester.pumpAndSettle();
+
+      expect(find.text('Money'), findsNWidgets(2));
+      expect(find.byType(SegmentedControl<MoneySegment>), findsOneWidget);
+      expect(find.byType(AccountsScreen), findsOneWidget);
+      expect(container.read(activeMoneySourceProvider)(), isNull);
+    },
+    timeout: uiTestTimeout,
+  );
+
   testWidgets('account forms constrain and compact the open Money pane', (
     tester,
   ) async {
@@ -441,23 +483,19 @@ Ledger _retentionLedger() {
   return Ledger(state: LedgerState(budgets: {budget.id: budget}));
 }
 
-List<State<StatefulWidget>> _moneyFlowStates(WidgetTester tester) => [
-  tester.state(find.byType(MoneyFlow, skipOffstage: false)),
-  tester.state(find.byType(BudgetsFlow, skipOffstage: false)),
-  tester.state(find.byType(AccountsFlow, skipOffstage: false)),
+List<Element> _moneyFlowElements(WidgetTester tester) => [
+  tester.element(find.byType(MoneyFlow, skipOffstage: false)),
+  tester.element(find.byType(BudgetsFlow, skipOffstage: false)),
 ];
 
-void _expectSameFlowStates(
-  WidgetTester tester,
-  List<State<StatefulWidget>> states,
-) {
-  final current = _moneyFlowStates(tester);
-  for (var index = 0; index < states.length; index++) {
-    expect(current[index], same(states[index]));
+void _expectSameFlowElements(WidgetTester tester, List<Element> elements) {
+  final current = _moneyFlowElements(tester);
+  for (var index = 0; index < elements.length; index++) {
+    expect(current[index], same(elements[index]));
   }
 }
 
-Future<void> _verifyMoneyFlowRetention(
+Future<void> _verifyMoneySegmentLifetime(
   WidgetTester tester,
   ShellLayoutMode mode,
 ) async {
@@ -475,10 +513,12 @@ Future<void> _verifyMoneyFlowRetention(
   container.read(selectedDestinationProvider.notifier).state =
       ShellDestination.money;
   await _pumpAccountsShell(tester, container);
-  final states = _moneyFlowStates(tester);
+  expect(find.byType(BudgetsFlow), findsNothing);
   container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
+  await tester.pumpAndSettle();
   container.read(selectedBudgetProvider.notifier).select(_retainedBudgetId);
   await tester.pumpAndSettle();
+  final elements = _moneyFlowElements(tester);
   final context = tester.element(find.byType(AppShell));
   final route = pushShellSheet(
     context,
@@ -486,16 +526,16 @@ Future<void> _verifyMoneyFlowRetention(
   );
   await tester.pumpAndSettle();
   expect(route.dimsBackground, isFalse);
-  _expectSameFlowStates(tester, states);
-  container.read(moneySegmentProvider.notifier).state = MoneySegment.accounts;
-  await tester.pumpAndSettle();
-  expect(container.read(selectedBudgetProvider), _retainedBudgetId);
-  _expectSameFlowStates(tester, states);
-  container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
-  await tester.pumpAndSettle();
-  _expectSameFlowStates(tester, states);
+  _expectSameFlowElements(tester, elements);
   route.navigator!.pop();
   await tester.pumpAndSettle();
   await route.completed.timeout(_retentionSheetTimeout);
-  _expectSameFlowStates(tester, states);
+  _expectSameFlowElements(tester, elements);
+  expect(find.byType(AccountsFlow, skipOffstage: false), findsNothing);
+
+  container.read(moneySegmentProvider.notifier).state = MoneySegment.accounts;
+  await tester.pumpAndSettle();
+  expect(find.byType(BudgetsFlow, skipOffstage: false), findsNothing);
+  expect(container.exists(selectedBudgetProvider), isFalse);
+  expect(find.byType(AccountsFlow), findsOneWidget);
 }

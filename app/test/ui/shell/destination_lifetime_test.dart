@@ -5,7 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/format/date_format.dart';
+import 'package:spendwise/ui/money/money_flow.dart';
+import 'package:spendwise/ui/money/money_segment.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/overview/overview_flow.dart';
 import 'package:spendwise/ui/settings/category/category_list_screen.dart';
@@ -17,6 +21,7 @@ import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import 'package:spendwise/ui/transactions/trends_detail_action.dart';
 
 import '../../support/shell_sheet_harness.dart';
+import '../budgets/budget_shell_test_support.dart';
 import '../overview/overview_fixture.dart';
 import '../../support/ui_test_timeout.dart';
 
@@ -131,4 +136,89 @@ void main() {
     expect(find.byType(SettingsScreen), findsOneWidget);
     expect(find.byType(CategoryListScreen), findsNothing);
   }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'Money returns to Accounts with no selected budget after leaving it',
+    (tester) async {
+      final container = await _pumpMoneyAndHistory(tester, buildShellLedger());
+      await _selectBudgetB2(tester, container);
+      expect(container.read(selectedBudgetProvider), 'b2');
+
+      await _leaveAndReturnToMoney(tester, container);
+
+      expect(container.read(moneySegmentProvider), MoneySegment.accounts);
+      expect(container.exists(selectedBudgetProvider), isFalse);
+      await tester.tap(find.text('Budgets'));
+      await tester.pumpAndSettle();
+      expect(container.read(selectedBudgetProvider), isNull);
+      expect(find.byType(BudgetDetailScreen), findsNothing);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets(
+    'a budget deleted while Money was unmounted leaves no stale detail',
+    (tester) async {
+      final ledger = buildShellLedger();
+      final container = await _pumpMoneyAndHistory(tester, ledger);
+      await _selectBudgetB2(tester, container);
+
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.history;
+      await tester.pumpAndSettle();
+      ledger.deleteBudget('b2');
+      await tester.pumpAndSettle();
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.money;
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Budgets'));
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedBudgetProvider), isNull);
+      expect(find.byType(BudgetDetailScreen), findsNothing);
+      expect(find.byKey(const ValueKey('budget-b2')), findsNothing);
+    },
+    timeout: uiTestTimeout,
+  );
+}
+
+Future<ProviderContainer> _pumpMoneyAndHistory(
+  WidgetTester tester,
+  Ledger ledger,
+) async {
+  useShellWindow(tester, const Size(1024, 800));
+  final container = buildShellContainer(ledger: ledger);
+  container.read(budgetShellModeFixture.notifier).state = ShellLayoutMode.open;
+  container.read(selectedDestinationProvider.notifier).state =
+      ShellDestination.money;
+  await pumpShellApp(
+    tester,
+    container,
+    bodies: {
+      ShellDestination.money: (_) => const MoneyFlow(),
+      ShellDestination.history: (_) => const SizedBox.shrink(),
+    },
+  );
+  return container;
+}
+
+Future<void> _selectBudgetB2(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tester.tap(find.text('Budgets'));
+  await tester.pumpAndSettle();
+  await tapBudget(tester, 'b2');
+}
+
+Future<void> _leaveAndReturnToMoney(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  container.read(selectedDestinationProvider.notifier).state =
+      ShellDestination.history;
+  await tester.pumpAndSettle();
+  container.read(selectedDestinationProvider.notifier).state =
+      ShellDestination.money;
+  await tester.pumpAndSettle();
 }
