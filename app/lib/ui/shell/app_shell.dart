@@ -15,14 +15,6 @@ import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
 
 // MARK: - Constants
-const shellDestinations = [
-  ShellDestination.overview,
-  ShellDestination.history,
-  ShellDestination.money,
-  ShellDestination.settings,
-];
-
-const _fallbackStackIndex = 0;
 const _noSafeLeftInset = 0.0;
 const _noRailGutter = 0.0;
 
@@ -168,14 +160,17 @@ class _ShellStack extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rail = this.rail;
-    final stacks = _DestinationStacks(selected: selected, bodies: bodies);
+    final destinationBody = _DestinationBody(
+      selected: selected,
+      bodies: bodies,
+    );
     final padding = MediaQuery.paddingOf(context);
     final gutter = rail == null ? _noRailGutter : openRailGutter;
     final viewportChild = MediaQuery.removePadding(
       context: context,
       removeLeft: rail != null,
       removeRight: rail != null,
-      child: stacks,
+      child: destinationBody,
     );
     final viewport = Padding(
       padding: EdgeInsets.only(
@@ -226,9 +221,9 @@ class _ShellRailViewport extends StatelessWidget {
   }
 }
 
-// MARK: - DestinationStacks
-class _DestinationStacks extends StatelessWidget {
-  const _DestinationStacks({required this.selected, required this.bodies});
+// MARK: - DestinationBody
+class _DestinationBody extends StatelessWidget {
+  const _DestinationBody({required this.selected, required this.bodies});
 
   final ShellDestination selected;
 
@@ -236,19 +231,8 @@ class _DestinationStacks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selectedIndex = shellDestinations.indexOf(selected);
-    final children = <Widget>[];
-    for (final destination in shellDestinations) {
-      final body = (bodies[destination] ?? _emptyBody)(context);
-      final activity = DestinationActivity(
-        active: destination == selected,
-        child: body,
-      );
-      children.add(KeyedSubtree(key: ValueKey(destination), child: activity));
-    }
-    return IndexedStack(
-      index: selectedIndex < 0 ? _fallbackStackIndex : selectedIndex,
-      children: children,
-    );
+    final body = (bodies[selected] ?? _emptyBody)(context);
+    final activity = DestinationActivity(active: true, child: body);
+    return KeyedSubtree(key: ValueKey(selected), child: activity);
   }
 }
