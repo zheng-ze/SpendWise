@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/shell/day_ticker.dart';
 import 'package:spendwise/ui/shell/desktop_sidebar.dart';
@@ -232,7 +231,6 @@ class _DestinationBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final body = (bodies[selected] ?? _emptyBody)(context);
-    final activity = DestinationActivity(active: true, child: body);
-    return KeyedSubtree(key: ValueKey(selected), child: activity);
+    return KeyedSubtree(key: ValueKey(selected), child: body);
   }
 }

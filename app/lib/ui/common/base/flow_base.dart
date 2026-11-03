@@ -11,27 +11,6 @@ abstract class FlowBase<S> extends ConsumerStatefulWidget {
   final GlobalKey<NavigatorState>? navigatorKey;
 }
 
-// MARK: - DestinationActivity
-class DestinationActivity extends InheritedWidget {
-  const DestinationActivity({
-    super.key,
-    required this.active,
-    required super.child,
-  });
-
-  final bool active;
-
-  static bool of(BuildContext context) =>
-      context
-          .dependOnInheritedWidgetOfExactType<DestinationActivity>()
-          ?.active ??
-      true;
-
-  @override
-  bool updateShouldNotify(DestinationActivity oldWidget) =>
-      active != oldWidget.active;
-}
-
 // MARK: - FlowBaseState
 abstract class FlowBaseState<S, T extends FlowBase<S>>
     extends ConsumerState<T> {
@@ -75,7 +54,6 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
 
   @override
   Widget build(BuildContext context) {
-    final active = DestinationActivity.of(context);
     final navigator = Navigator(
       key: _navigatorKey,
       onGenerateRoute: (settings) => MaterialPageRoute(
@@ -85,8 +63,7 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
     );
 
     return NavigatorPopHandler(
-      enabled: active,
-      onPopWithResult: (_) => active ? unawaited(goBack()) : null,
+      onPopWithResult: (_) => unawaited(goBack()),
       child: navigator,
     );
   }

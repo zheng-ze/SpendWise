@@ -10,24 +10,17 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_edit_sheet.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
-import 'package:spendwise/ui/common/base/flow_base.dart';
 
 import '../../../support/ui_test_timeout.dart';
 import '../budget_shell_test_support.dart';
 
 const _editTooltip = 'Edit';
 const _changeLimitLabel = 'Change limit';
-const _deleteLabel = 'Delete budget';
 const _limitEditor = BudgetLimitEditSheet;
 
 final _budget = Budget(id: 'b1', categoryID: null, limit: Decimal.parse('100'));
-final _other = Budget(id: 'b2', categoryID: null, limit: Decimal.parse('30'));
 
-Future<ProviderContainer> _pumpFlow(
-  WidgetTester tester,
-  Ledger ledger, {
-  Widget Function(Widget flow)? wrap,
-}) async {
+Future<ProviderContainer> _pumpFlow(WidgetTester tester, Ledger ledger) async {
   final container = ProviderContainer(
     overrides: [
       ledgerProvider.overrideWithValue(ledger),
@@ -35,37 +28,14 @@ Future<ProviderContainer> _pumpFlow(
     ],
   );
   addTearDown(container.dispose);
-  const flow = BudgetsFlow();
-  final home = wrap == null ? flow : wrap(flow);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(home: home),
+      child: const MaterialApp(home: BudgetsFlow()),
     ),
   );
   await tester.pumpAndSettle();
   return container;
-}
-
-Widget _destinationWrapper(ValueNotifier<bool> active, Widget flow) =>
-    ValueListenableBuilder<bool>(
-      valueListenable: active,
-      builder: (_, isActive, _) =>
-          DestinationActivity(active: isActive, child: flow),
-    );
-
-Future<(ProviderContainer, ValueNotifier<bool>)> _pumpTogglableFlow(
-  WidgetTester tester,
-  Ledger ledger,
-) async {
-  final active = ValueNotifier(true);
-  addTearDown(active.dispose);
-  final container = await _pumpFlow(
-    tester,
-    ledger,
-    wrap: (flow) => _destinationWrapper(active, flow),
-  );
-  return (container, active);
 }
 
 Future<void> _openDetail(
@@ -128,59 +98,6 @@ void main() {
     timeout: uiTestTimeout,
   );
 
-  testWidgets('a retained step opens the editor with the live limit after the '
-      'destination returns', (tester) async {
-    final ledger = Ledger(state: LedgerState(budgets: {_budget.id: _budget}));
-    final (container, active) = await _pumpTogglableFlow(tester, ledger);
-    await _openDetail(tester, container, _budget.id);
-    active.value = false;
-    await tester.pumpAndSettle();
-    container
-        .read(budgetDetailViewModelProvider(_budget.id).notifier)
-        .requestEdit();
-    await tester.pumpAndSettle();
-    expect(find.byType(_limitEditor), findsNothing);
-
-    ledger.updateBudgetLimit(_budget.id, Decimal.parse('250'));
-    active.value = true;
-    await chooseEditAction(tester, _changeLimitLabel);
-
-    expect(find.byType(_limitEditor), findsOneWidget);
-    expect(_editorText('250.00'), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets(
-    'a step retained for a deleted budget opens no editor and leaves the '
-    'next Edit working',
-    (tester) async {
-      final ledger = Ledger(
-        state: LedgerState(budgets: {_budget.id: _budget, _other.id: _other}),
-      );
-      final (container, active) = await _pumpTogglableFlow(tester, ledger);
-      await _openDetail(tester, container, _budget.id);
-      active.value = false;
-      await tester.pumpAndSettle();
-      container
-          .read(budgetDetailViewModelProvider(_budget.id).notifier)
-          .requestEdit();
-      ledger.deleteBudget(_budget.id);
-      await tester.pumpAndSettle();
-
-      active.value = true;
-      await tester.pumpAndSettle();
-      expect(find.byType(_limitEditor), findsNothing);
-      expect(find.text(_changeLimitLabel), findsNothing);
-      expect(find.text(_deleteLabel), findsNothing);
-
-      await _openDetail(tester, container, _other.id);
-      await tester.tap(find.byTooltip(_editTooltip));
-      await chooseEditAction(tester, _changeLimitLabel);
-      expect(find.byType(_limitEditor), findsOneWidget);
-      expect(_editorText('30.00'), findsOneWidget);
-    },
-    timeout: uiTestTimeout,
-  );
-
   testWidgets(
     'a second edit request while the action sheet is open is dropped',
     (tester) async {
@@ -202,30 +119,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(_limitEditor), findsNothing);
-    },
-    timeout: uiTestTimeout,
-  );
-
-  testWidgets(
-    'Change limit chosen after the destination went inactive opens no editor',
-    (tester) async {
-      final ledger = Ledger(state: LedgerState(budgets: {_budget.id: _budget}));
-      final (container, active) = await _pumpTogglableFlow(tester, ledger);
-      await _openDetail(tester, container, _budget.id);
-      container
-          .read(budgetDetailViewModelProvider(_budget.id).notifier)
-          .requestEdit();
-      await tester.pumpAndSettle();
-      final revision = ledger.revision;
-
-      active.value = false;
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(_changeLimitLabel));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(_limitEditor), findsNothing);
-      expect(ledger.revision, revision);
-      expect(ledger.state.budgets[_budget.id]!.limit, _budget.limit);
     },
     timeout: uiTestTimeout,
   );
