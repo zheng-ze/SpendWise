@@ -67,7 +67,7 @@ Finder _inTray(String title, String text) => find.descendant(
 
 class _LoadingOverviewNotifier extends OverviewNotifier {
   @override
-  Future<OverviewViewState> build() async => OverviewViewState(
+  OverviewViewState build() => OverviewViewState(
     day: fixtureToday,
     today: null,
     recent: null,
@@ -104,6 +104,8 @@ Future<ProviderContainer> _pumpOpenOverview(
   final overview = detail == null
       ? OverviewFlow(onHistorySelected: _ignoreHistory)
       : _HostedOverviewScreen(detail: detail);
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
   await tester.pumpWidget(
     _OpenApp(
       container: container,
@@ -169,7 +171,7 @@ class _FixedOverviewNotifier extends OverviewNotifier {
   final OverviewViewState viewState;
 
   @override
-  Future<OverviewViewState> build() async => viewState;
+  OverviewViewState build() => viewState;
 }
 
 class _HostedOverviewScreen extends StatelessWidget {

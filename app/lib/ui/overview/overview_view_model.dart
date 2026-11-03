@@ -106,25 +106,39 @@ abstract class OverviewViewModel {
   void clearStep();
 }
 
-// MARK: - OverviewNotifier
-class OverviewNotifier extends AsyncNotifier<OverviewViewState>
-    with
-        LedgerBackedNotifier<OverviewViewState>,
-        StepEmitting<OverviewViewState, OverviewStep>
-    implements OverviewViewModel {
+// MARK: - OverviewProjection
+class OverviewProjection {
+  const OverviewProjection({
+    required this.day,
+    required this.today,
+    required this.recent,
+    required this.upcoming,
+    this.todayFailed = false,
+    this.recordedToday = false,
+  });
+
+  final DateTime day;
+  final TodaySummary? today;
+  final List<OverviewEntryRow>? recent;
+  final List<OverviewUpcomingRow>? upcoming;
+  final bool todayFailed;
+  final bool recordedToday;
+}
+
+// MARK: - OverviewProjectionNotifier
+class OverviewProjectionNotifier extends AsyncNotifier<OverviewProjection>
+    with LedgerBackedNotifier<OverviewProjection> {
   @override
-  Future<OverviewViewState> build() async {
+  OverviewProjection build() {
     final day = ref.watch(todayProvider);
     final currentLedger = ledger;
     final queries = ref.watch(analysisQueriesProvider);
-    final pendingStep = state.value?.step;
     if (queries == null) {
-      return OverviewViewState(
+      return OverviewProjection(
         day: day,
         today: null,
         recent: null,
         upcoming: null,
-        step: pendingStep,
       );
     }
     final ledgerState = currentLedger.state;
@@ -133,7 +147,7 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
     final today = queries.readToday();
     final todayIsCurrent = today.sourceRevision == currentLedger.revision;
     final newest = recent?.firstOrNull;
-    return OverviewViewState(
+    return OverviewProjection(
       day: day,
       today: todayIsCurrent ? today.value : null,
       todayFailed: today.state == AnalysisQueryState.failed,
@@ -147,7 +161,32 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
       upcoming: upcoming == null
           ? null
           : [for (final item in upcoming) _upcomingRow(item, ledgerState)],
-      step: pendingStep,
+    );
+  }
+}
+
+// MARK: - OverviewNotifier
+class OverviewNotifier extends AsyncNotifier<OverviewViewState>
+    with
+        LedgerBackedNotifier<OverviewViewState>,
+        StepEmitting<OverviewViewState, OverviewStep>
+    implements OverviewViewModel {
+  @override
+  OverviewViewState build() {
+    final projection = ref.watch(overviewProjectionProvider);
+    final error = projection.error;
+    if (error != null) {
+      Error.throwWithStackTrace(error, projection.stackTrace!);
+    }
+    final data = projection.requireValue;
+    return OverviewViewState(
+      day: data.day,
+      today: data.today,
+      recent: data.recent,
+      upcoming: data.upcoming,
+      todayFailed: data.todayFailed,
+      recordedToday: data.recordedToday,
+      step: state.value?.step,
     );
   }
 
@@ -219,7 +258,12 @@ OverviewUpcomingRow _datedRow(
 }
 
 // MARK: - Constants
+final overviewProjectionProvider =
+    AsyncNotifierProvider<OverviewProjectionNotifier, OverviewProjection>(
+      OverviewProjectionNotifier.new,
+    );
+
 final overviewViewModelProvider =
-    AsyncNotifierProvider<OverviewNotifier, OverviewViewState>(
+    AsyncNotifierProvider.autoDispose<OverviewNotifier, OverviewViewState>(
       OverviewNotifier.new,
     );
