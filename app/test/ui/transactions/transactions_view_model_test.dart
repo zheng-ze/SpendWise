@@ -45,7 +45,9 @@ void main() {
     ProviderContainer container,
     TransactionsScope? scope,
   ) {
-    return container.read(transactionsViewModelProvider(scope).future);
+    final provider = transactionsViewModelProvider(scope);
+    container.listen(provider, (_, _) {});
+    return container.read(provider.future);
   }
 
   group('unscoped screen', () {
@@ -133,6 +135,28 @@ void main() {
       expect(state.income, dec('100'));
       expect(state.expenses, dec('40'));
       expect(state.total, dec('60'));
+    });
+  });
+
+  group('lifetime', () {
+    test('disposes when its last listener closes and restarts at the current '
+        'month', () async {
+      final container = containerFor(buildLedger());
+      final provider = transactionsViewModelProvider(null);
+      final subscription = container.listen(provider, (_, _) {});
+      await container.read(provider.future);
+      container.read(provider.notifier).previousMonth();
+      final current = DateTime.utc(today.year, today.month);
+      expect(
+        container.read(provider).value!.selectedDate,
+        isNot(equals(current)),
+      );
+
+      subscription.close();
+      await container.pump();
+
+      final state = await stateOf(container, null);
+      expect(state.selectedDate, current);
     });
   });
 

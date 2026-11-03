@@ -18,6 +18,7 @@ import 'package:spendwise/ui/common/lists/responsive_summary_card.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
@@ -142,6 +143,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AccountsScreen), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('a reopened scoped register starts at the current month', (
+    tester,
+  ) async {
+    final container = await pumpFlow(tester, buildLedger());
+    final currentMonth = formatMonthLabel(DateTime.now());
+
+    container.read(accountsViewModelProvider.notifier).openAccount(checking.id);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Previous month'));
+    await tester.pumpAndSettle();
+    expect(find.text(currentMonth), findsNothing);
+
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    container.read(accountsViewModelProvider.notifier).openAccount(checking.id);
+    await tester.pumpAndSettle();
+
+    expect(find.text(currentMonth), findsOneWidget);
   }, timeout: uiTestTimeout);
 
   testWidgets('pocket parent selection uses the Accounts picker sheet', (
