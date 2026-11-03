@@ -68,6 +68,7 @@ void main() {
         budgetsMonthChoiceProvider.overrideWith((ref) => DateTime.utc(2026, 3)),
       ],
     );
+    container.listen(budgetsListViewModelProvider, (_, _) {});
     addTearDown(container.dispose);
     return container;
   }

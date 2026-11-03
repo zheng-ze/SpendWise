@@ -193,6 +193,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
 
 // MARK: - Constants
 final budgetsListViewModelProvider =
-    AsyncNotifierProvider<BudgetsListNotifier, BudgetsListViewState>(
-      BudgetsListNotifier.new,
-    );
+    AsyncNotifierProvider.autoDispose<
+      BudgetsListNotifier,
+      BudgetsListViewState
+    >(BudgetsListNotifier.new);

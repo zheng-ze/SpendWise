@@ -487,7 +487,7 @@ void main() {
       expect(find.byType(BudgetDetailScreen), findsNothing);
       expect(find.text(_newerLabel), findsOneWidget);
       expect(_hasDetailOwners(container, 'b2'), isFalse);
-      expect(container.read(selectedBudgetProvider), 'b2');
+      expect(container.exists(selectedBudgetProvider), isFalse);
     },
     timeout: uiTestTimeout,
   );
