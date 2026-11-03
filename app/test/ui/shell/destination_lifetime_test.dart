@@ -29,11 +29,7 @@ void main() {
   testWidgets(
     'History keeps its previous month after opening Trends and going Back',
     (tester) async {
-      final container = ProviderContainer(
-        overrides: [
-          ledgerProvider.overrideWithValue(Ledger(state: LedgerState())),
-        ],
-      );
+      final container = _emptyLedgerContainer();
       addTearDown(container.dispose);
       container.read(selectedDestinationProvider.notifier).state =
           ShellDestination.history;
@@ -66,15 +62,17 @@ void main() {
     (tester) async {
       final ledger = Ledger(state: emptyState());
       final container = overviewContainer(ledger);
+      void selectHistory() {
+        container.read(selectedDestinationProvider.notifier).state =
+            ShellDestination.history;
+      }
+
       await pumpShellApp(
         tester,
         container,
         bodies: {
-          ShellDestination.overview: (_) => OverviewFlow(
-            onHistorySelected: () =>
-                container.read(selectedDestinationProvider.notifier).state =
-                    ShellDestination.history,
-          ),
+          ShellDestination.overview: (_) =>
+              OverviewFlow(onHistorySelected: selectHistory),
           ShellDestination.history: (_) => const TransactionsFlow(),
         },
       );
@@ -105,11 +103,7 @@ void main() {
   testWidgets('Settings returns to its root after leaving it from Categories', (
     tester,
   ) async {
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(Ledger(state: LedgerState())),
-      ],
-    );
+    final container = _emptyLedgerContainer();
     addTearDown(container.dispose);
     container.read(selectedDestinationProvider.notifier).state =
         ShellDestination.settings;
@@ -179,6 +173,13 @@ void main() {
       expect(find.byKey(const ValueKey('budget-b2')), findsNothing);
     },
     timeout: uiTestTimeout,
+  );
+}
+
+ProviderContainer _emptyLedgerContainer() {
+  final ledger = Ledger(state: LedgerState());
+  return ProviderContainer(
+    overrides: [ledgerProvider.overrideWithValue(ledger)],
   );
 }
 
