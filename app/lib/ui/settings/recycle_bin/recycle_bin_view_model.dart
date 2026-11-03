@@ -175,6 +175,48 @@ abstract class RecycleBinViewModel {
   void clearStep();
 }
 
+// MARK: - RecycleBinProjection
+class RecycleBinProjection {
+  const RecycleBinProjection({
+    required this.entries,
+    required this.accounts,
+    required this.pockets,
+    required this.categories,
+  });
+
+  final List<BinEntryRow> entries;
+  final List<BinRow> accounts;
+  final List<BinRow> pockets;
+  final List<BinRow> categories;
+}
+
+// MARK: - RecycleBinProjectionNotifier
+class RecycleBinProjectionNotifier extends AsyncNotifier<RecycleBinProjection>
+    with LedgerBackedNotifier<RecycleBinProjection> {
+  @override
+  RecycleBinProjection build() {
+    final currentLedger = ledger;
+    currentLedger.addListener(_onLedgerChanged);
+    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
+    return _project(currentLedger);
+  }
+
+  void _onLedgerChanged() {
+    if (!ref.mounted) return;
+    state = AsyncData(_project(ledger));
+  }
+
+  RecycleBinProjection _project(Ledger ledger) {
+    final ledgerState = ledger.state;
+    return RecycleBinProjection(
+      entries: _entryRows(ledgerState),
+      accounts: _accountRows(ledgerState),
+      pockets: _pocketRows(ledgerState),
+      categories: _categoryRows(ledgerState),
+    );
+  }
+}
+
 // MARK: - RecycleBinNotifier
 class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
     with
@@ -182,26 +224,20 @@ class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
         StepEmitting<RecycleBinViewState, RecycleBinStep>
     implements RecycleBinViewModel {
   @override
-  Future<RecycleBinViewState> build() async {
-    final currentLedger = ledger;
-    currentLedger.addListener(_onLedgerChanged);
-    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
-    return _buildState(currentLedger);
-  }
-
-  void _onLedgerChanged() {
+  RecycleBinViewState build() {
+    final projection = ref.watch(recycleBinProjectionProvider);
+    final error = projection.error;
+    if (error != null) {
+      Error.throwWithStackTrace(error, projection.stackTrace!);
+    }
+    final data = projection.requireValue;
     final current = state.value;
-    state = AsyncData(_buildState(ledger, step: current?.step));
-  }
-
-  RecycleBinViewState _buildState(Ledger ledger, {RecycleBinStep? step}) {
-    final ledgerState = ledger.state;
     return RecycleBinViewState(
-      entries: _entryRows(ledgerState),
-      accounts: _accountRows(ledgerState),
-      pockets: _pocketRows(ledgerState),
-      categories: _categoryRows(ledgerState),
-      step: step,
+      entries: data.entries,
+      accounts: data.accounts,
+      pockets: data.pockets,
+      categories: data.categories,
+      step: current?.step,
     );
   }
 
@@ -241,7 +277,12 @@ class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
 }
 
 // MARK: - Constants
+final recycleBinProjectionProvider =
+    AsyncNotifierProvider<RecycleBinProjectionNotifier, RecycleBinProjection>(
+      RecycleBinProjectionNotifier.new,
+    );
+
 final recycleBinViewModelProvider =
-    AsyncNotifierProvider<RecycleBinNotifier, RecycleBinViewState>(
+    AsyncNotifierProvider.autoDispose<RecycleBinNotifier, RecycleBinViewState>(
       RecycleBinNotifier.new,
     );

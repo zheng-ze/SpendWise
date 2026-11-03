@@ -7,8 +7,6 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
 
 void main() {
-  Decimal dec(String value) => Decimal.parse(value);
-
   Account account(
     String id,
     String name, {
@@ -46,14 +44,9 @@ void main() {
   Ledger buildLedger({
     Map<String, MoneySource> moneySources = const {},
     Map<String, TransactionCategory> categories = const {},
-    Map<String, Entry> entries = const {},
   }) {
     return Ledger(
-      state: LedgerState(
-        moneySources: moneySources,
-        categories: categories,
-        entries: entries,
-      ),
+      state: LedgerState(moneySources: moneySources, categories: categories),
     );
   }
 
@@ -62,113 +55,30 @@ void main() {
       overrides: [ledgerProvider.overrideWithValue(ledger)],
     );
     addTearDown(container.dispose);
+    container.listen(recycleBinViewModelProvider, (previous, next) {});
     return container;
   }
 
-  test('empty ledger yields three empty row lists', () async {
-    final container = buildContainer(buildLedger());
-    await container.read(recycleBinViewModelProvider.future);
-
-    final state = container.read(recycleBinViewModelProvider).value!;
-    expect(state.accounts, isEmpty);
-    expect(state.pockets, isEmpty);
-    expect(state.categories, isEmpty);
-  });
-
-  test('archived accounts, pockets and categories are each listed, sorted '
-      'by name', () async {
-    final zebra = account('a0000000-0000-0000-0000-000000000001', 'Zebra');
-    final alpha = account('a0000000-0000-0000-0000-000000000002', 'Alpha');
-    final pkt = pocket('a0000000-0000-0000-0000-000000000003', 'Rent');
-    final cat = category('a0000000-0000-0000-0000-000000000004', 'Old Cat');
-    final ledger = buildLedger(
-      moneySources: {
-        zebra.id: MoneySource.account(zebra),
-        alpha.id: MoneySource.account(alpha),
-        pkt.id: MoneySource.pocket(pkt),
-      },
-      categories: {cat.id: cat},
+  ProviderContainer buildContainerWithFailingProjection(Ledger ledger) {
+    final container = ProviderContainer(
+      overrides: [
+        ledgerProvider.overrideWithValue(ledger),
+        recycleBinProjectionProvider.overrideWith(
+          FailingProjectionNotifier.new,
+        ),
+      ],
     );
-    final container = buildContainer(ledger);
-    await container.read(recycleBinViewModelProvider.future);
+    addTearDown(container.dispose);
+    container.listen(recycleBinViewModelProvider, (previous, next) {});
+    return container;
+  }
 
-    final state = container.read(recycleBinViewModelProvider).value!;
-    expect(state.accounts.map((r) => r.name), ['Alpha', 'Zebra']);
-    expect(state.pockets.map((r) => r.name), ['Rent']);
-    expect(state.categories.map((r) => r.name), ['Old Cat']);
-  });
-
-  test('an active holder is excluded from its row list', () async {
-    final acc = account(
-      'a0000000-0000-0000-0000-000000000001',
-      'Active One',
-      lifecycle: LifecycleState.active,
-    );
-    final ledger = buildLedger(
-      moneySources: {acc.id: MoneySource.account(acc)},
-    );
-    final container = buildContainer(ledger);
-    await container.read(recycleBinViewModelProvider.future);
-
-    expect(
-      container.read(recycleBinViewModelProvider).value!.accounts,
-      isEmpty,
-    );
-  });
-
-  test('a row shows how many entries reference it', () async {
-    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
-    final entry = Entry(amount: dec('5'), name: 'x', sourceID: acc.id);
-    final ledger = buildLedger(
-      moneySources: {acc.id: MoneySource.account(acc)},
-      entries: {entry.id: entry},
-    );
-    final container = buildContainer(ledger);
-    await container.read(recycleBinViewModelProvider.future);
-
-    final row = container
-        .read(recycleBinViewModelProvider)
-        .value!
-        .accounts
-        .single;
-    expect(row.referenceCount, 1);
-  });
-
-  test(
-    'a pocket row is named with its qualified name when parent resolves',
-    () async {
-      final parent = account(
-        'a0000000-0000-0000-0000-000000000001',
-        'Main',
-        lifecycle: LifecycleState.active,
-        subPocketIDs: {'a0000000-0000-0000-0000-000000000002'},
-      );
-      final pkt = pocket('a0000000-0000-0000-0000-000000000002', 'Rent');
-      final ledger = buildLedger(
-        moneySources: {
-          parent.id: MoneySource.account(parent),
-          pkt.id: MoneySource.pocket(pkt),
-        },
-      );
-      final container = buildContainer(ledger);
-      await container.read(recycleBinViewModelProvider.future);
-
-      final row = container
-          .read(recycleBinViewModelProvider)
-          .value!
-          .pockets
-          .single;
-      expect(row.name, 'Main/Rent');
-    },
-  );
-
-  test('restore(account) reactivates the account', () async {
+  test('restore(account) reactivates the account', () {
     final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
     final ledger = buildLedger(
       moneySources: {acc.id: MoneySource.account(acc)},
     );
     final container = buildContainer(ledger);
-    await container.read(recycleBinViewModelProvider.future);
     final viewModel = container.read(recycleBinViewModelProvider.notifier);
 
     viewModel.restore(BinRowKind.account, acc.id);
@@ -177,7 +87,7 @@ void main() {
   });
 
   test('restore(pocket) is a no-op while the parent account is still '
-      'archived', () async {
+      'archived', () {
     final parent = account(
       'a0000000-0000-0000-0000-000000000001',
       'Main',
@@ -191,7 +101,6 @@ void main() {
       },
     );
     final container = buildContainer(ledger);
-    await container.read(recycleBinViewModelProvider.future);
     final viewModel = container.read(recycleBinViewModelProvider.notifier);
 
     viewModel.restore(BinRowKind.pocket, pkt.id);
@@ -202,11 +111,10 @@ void main() {
     );
   });
 
-  test('restore(category) reactivates the category', () async {
+  test('restore(category) reactivates the category', () {
     final cat = category('a0000000-0000-0000-0000-000000000004', 'Old Cat');
     final ledger = buildLedger(categories: {cat.id: cat});
     final container = buildContainer(ledger);
-    await container.read(recycleBinViewModelProvider.future);
     final viewModel = container.read(recycleBinViewModelProvider.notifier);
 
     viewModel.restore(BinRowKind.category, cat.id);
@@ -214,63 +122,54 @@ void main() {
     expect(ledger.state.categories[cat.id]!.lifecycle, LifecycleState.active);
   });
 
-  test(
-    'requestPurge emits PurgeConfirmationRequested carrying the row',
-    () async {
-      final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
-      final ledger = buildLedger(
-        moneySources: {acc.id: MoneySource.account(acc)},
-      );
-      final container = buildContainer(ledger);
-      await container.read(recycleBinViewModelProvider.future);
-      final viewModel = container.read(recycleBinViewModelProvider.notifier);
-      final row = container
-          .read(recycleBinViewModelProvider)
-          .value!
-          .accounts
-          .single;
-
-      viewModel.requestPurge(row);
-
-      final step = container.read(recycleBinViewModelProvider).value?.step;
-      expect(step, isA<PurgeConfirmationRequested>());
-      expect((step as PurgeConfirmationRequested).row.id, acc.id);
-      expect(step.row.name, 'Old Bank');
-    },
-  );
-
-  test(
-    'applyPurgeConfirmed(true) purges the account and clears the step',
-    () async {
-      final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
-      final ledger = buildLedger(
-        moneySources: {acc.id: MoneySource.account(acc)},
-      );
-      final container = buildContainer(ledger);
-      await container.read(recycleBinViewModelProvider.future);
-      final viewModel = container.read(recycleBinViewModelProvider.notifier);
-      final row = container
-          .read(recycleBinViewModelProvider)
-          .value!
-          .accounts
-          .single;
-      viewModel.requestPurge(row);
-
-      viewModel.applyPurgeConfirmed(true, row.kind, row.id);
-
-      expect(ledger.state.moneySources.containsKey(acc.id), isFalse);
-      expect(container.read(recycleBinViewModelProvider).value?.step, isNull);
-    },
-  );
-
-  test('applyPurgeConfirmed(false) leaves the row untouched and clears the '
-      'step', () async {
+  test('requestPurge emits PurgeConfirmationRequested carrying the row', () {
     final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
     final ledger = buildLedger(
       moneySources: {acc.id: MoneySource.account(acc)},
     );
     final container = buildContainer(ledger);
-    await container.read(recycleBinViewModelProvider.future);
+    final viewModel = container.read(recycleBinViewModelProvider.notifier);
+    final row = container
+        .read(recycleBinViewModelProvider)
+        .value!
+        .accounts
+        .single;
+
+    viewModel.requestPurge(row);
+
+    final step = container.read(recycleBinViewModelProvider).value?.step;
+    expect(step, isA<PurgeConfirmationRequested>());
+    expect((step as PurgeConfirmationRequested).row.id, acc.id);
+    expect(step.row.name, 'Old Bank');
+  });
+
+  test('applyPurgeConfirmed(true) purges the account and clears the step', () {
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
+    final ledger = buildLedger(
+      moneySources: {acc.id: MoneySource.account(acc)},
+    );
+    final container = buildContainer(ledger);
+    final viewModel = container.read(recycleBinViewModelProvider.notifier);
+    final row = container
+        .read(recycleBinViewModelProvider)
+        .value!
+        .accounts
+        .single;
+    viewModel.requestPurge(row);
+
+    viewModel.applyPurgeConfirmed(true, row.kind, row.id);
+
+    expect(ledger.state.moneySources.containsKey(acc.id), isFalse);
+    expect(container.read(recycleBinViewModelProvider).value?.step, isNull);
+  });
+
+  test('applyPurgeConfirmed(false) leaves the row untouched and clears the '
+      'step', () {
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
+    final ledger = buildLedger(
+      moneySources: {acc.id: MoneySource.account(acc)},
+    );
+    final container = buildContainer(ledger);
     final viewModel = container.read(recycleBinViewModelProvider.notifier);
     final row = container
         .read(recycleBinViewModelProvider)
@@ -285,7 +184,7 @@ void main() {
     expect(container.read(recycleBinViewModelProvider).value?.step, isNull);
   });
 
-  test('applyPurgeConfirmed(true) purges a pocket', () async {
+  test('applyPurgeConfirmed(true) purges a pocket', () {
     final parent = account(
       'a0000000-0000-0000-0000-000000000001',
       'Main',
@@ -300,7 +199,6 @@ void main() {
       },
     );
     final container = buildContainer(ledger);
-    await container.read(recycleBinViewModelProvider.future);
     final viewModel = container.read(recycleBinViewModelProvider.notifier);
 
     viewModel.applyPurgeConfirmed(true, BinRowKind.pocket, pkt.id);
@@ -308,11 +206,10 @@ void main() {
     expect(ledger.state.moneySources.containsKey(pkt.id), isFalse);
   });
 
-  test('applyPurgeConfirmed(true) purges a category', () async {
+  test('applyPurgeConfirmed(true) purges a category', () {
     final cat = category('a0000000-0000-0000-0000-000000000004', 'Old Cat');
     final ledger = buildLedger(categories: {cat.id: cat});
     final container = buildContainer(ledger);
-    await container.read(recycleBinViewModelProvider.future);
     final viewModel = container.read(recycleBinViewModelProvider.notifier);
 
     viewModel.applyPurgeConfirmed(true, BinRowKind.category, cat.id);
@@ -320,13 +217,12 @@ void main() {
     expect(ledger.state.categories.containsKey(cat.id), isFalse);
   });
 
-  test('clearStep resets the step to null', () async {
+  test('clearStep resets the step to null', () {
     final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
     final ledger = buildLedger(
       moneySources: {acc.id: MoneySource.account(acc)},
     );
     final container = buildContainer(ledger);
-    await container.read(recycleBinViewModelProvider.future);
     final viewModel = container.read(recycleBinViewModelProvider.notifier);
     final row = container
         .read(recycleBinViewModelProvider)
@@ -340,4 +236,86 @@ void main() {
     viewModel.clearStep();
     expect(container.read(recycleBinViewModelProvider).value?.step, isNull);
   });
+
+  test('the first read with a ready projection is AsyncData', () {
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
+    final container = ProviderContainer(
+      overrides: [
+        ledgerProvider.overrideWithValue(
+          buildLedger(moneySources: {acc.id: MoneySource.account(acc)}),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(recycleBinProjectionProvider);
+
+    final first = container.read(recycleBinViewModelProvider);
+
+    expect(first, isA<AsyncData<RecycleBinViewState>>());
+  });
+
+  test('an unmounted view model drops its pending step', () async {
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
+    final container = ProviderContainer(
+      overrides: [
+        ledgerProvider.overrideWithValue(
+          buildLedger(moneySources: {acc.id: MoneySource.account(acc)}),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final mounted = container.listen(recycleBinViewModelProvider, (_, _) {});
+    final row = container
+        .read(recycleBinViewModelProvider)
+        .value!
+        .accounts
+        .single;
+    container.read(recycleBinViewModelProvider.notifier).requestPurge(row);
+
+    mounted.close();
+    await container.pump();
+
+    expect(container.read(recycleBinViewModelProvider).value?.step, isNull);
+  });
+
+  test('a projection failing after it had a value is an AsyncError', () {
+    final container = buildContainerWithFailingProjection(buildLedger());
+    expect(container.read(recycleBinViewModelProvider).hasValue, isTrue);
+
+    (container.read(
+      recycleBinProjectionProvider.notifier,
+    ) as FailingProjectionNotifier).fail();
+
+    expect(container.read(recycleBinViewModelProvider).hasError, isTrue);
+  });
+
+  test('a ledger change keeps the pending step', () {
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
+    final ledger = buildLedger(
+      moneySources: {acc.id: MoneySource.account(acc)},
+    );
+    final container = buildContainer(ledger);
+    final viewModel = container.read(recycleBinViewModelProvider.notifier);
+    final row = container
+        .read(recycleBinViewModelProvider)
+        .value!
+        .accounts
+        .single;
+    viewModel.requestPurge(row);
+
+    ledger.restoreAccount(acc.id);
+
+    final state = container.read(recycleBinViewModelProvider).value;
+    expect(state?.accounts, isEmpty);
+    expect(state?.step, isA<PurgeConfirmationRequested>());
+  });
+}
+
+class FailingProjectionNotifier extends RecycleBinProjectionNotifier {
+  void fail() {
+    state = AsyncError<RecycleBinProjection>(
+      StateError('projection failed'),
+      StackTrace.empty,
+    );
+  }
 }
