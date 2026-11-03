@@ -43,25 +43,20 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
     final active = DestinationActivity.of(context);
     final budgetsVisible = active && segment == MoneySegment.budgets;
     final budgetPane = budgetsVisible ? ref.watch(budgetPaneProvider) : null;
+    final accountsNavigatorKey = ref.read(accountsNavigatorKeyProvider);
     Widget moneyPage(ShellPagePresentation presentation) {
       final children = MoneySegment.values.map((value) {
         final header = MoneyHeader(segment: value, presentation: presentation);
-        final child = switch (value) {
-          _ when !_visited.contains(value) => const SizedBox.shrink(),
-          MoneySegment.budgets => BudgetsFlow(header: header),
-          MoneySegment.accounts => AccountsFlow(
-            header: header,
-            navigatorKey: ref.read(accountsNavigatorKeyProvider),
-          ),
-          MoneySegment.plans => HeaderedPage(
-            header: header,
-            body: const PlanListScreen(),
-          ),
-        };
+        final body = _MoneySegmentBody(
+          segment: value,
+          visited: _visited.contains(value),
+          header: header,
+          accountsNavigatorKey: accountsNavigatorKey,
+        );
         return DestinationActivity(
           key: ValueKey(value),
           active: active && segment == value,
-          child: child,
+          child: body,
         );
       }).toList();
       final stack = IndexedStack(index: segment.index, children: children);
@@ -83,5 +78,35 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
       },
       child: page,
     );
+  }
+}
+
+class _MoneySegmentBody extends StatelessWidget {
+  const _MoneySegmentBody({
+    required this.segment,
+    required this.visited,
+    required this.header,
+    required this.accountsNavigatorKey,
+  });
+
+  final MoneySegment segment;
+  final bool visited;
+  final Widget header;
+  final GlobalKey<NavigatorState> accountsNavigatorKey;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!visited) return const SizedBox.shrink();
+    return switch (segment) {
+      MoneySegment.budgets => BudgetsFlow(header: header),
+      MoneySegment.accounts => AccountsFlow(
+        header: header,
+        navigatorKey: accountsNavigatorKey,
+      ),
+      MoneySegment.plans => HeaderedPage(
+        header: header,
+        body: const PlanListScreen(),
+      ),
+    };
   }
 }
