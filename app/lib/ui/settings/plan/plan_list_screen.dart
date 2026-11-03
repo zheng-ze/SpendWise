@@ -117,6 +117,7 @@ class _PlanListScreenBody extends StatelessWidget {
                     child: _PlanRow(
                       plan: plan,
                       state: viewState.ledgerState,
+                      next: viewState.nextOccurrences[plan.id],
                       editing: viewState.editing,
                       onTap: () => viewModel.requestEditPlan(plan),
                       onDelete: () => viewModel.requestDeletePlan(plan.id),
@@ -133,6 +134,7 @@ class _PlanRow extends StatelessWidget {
   const _PlanRow({
     required this.plan,
     required this.state,
+    required this.next,
     required this.editing,
     required this.onTap,
     required this.onDelete,
@@ -140,6 +142,7 @@ class _PlanRow extends StatelessWidget {
 
   final RecurringPlan plan;
   final LedgerState state;
+  final DateTime? next;
   final bool editing;
   final VoidCallback onTap;
   final VoidCallback onDelete;
@@ -147,9 +150,9 @@ class _PlanRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final amount = plan.template.amount;
+    final nextDate = next;
     final isIncome = amount >= Decimal.zero;
     final sourceName = state.sourceName(plan.template.sourceID) ?? 'Unknown';
-    final next = plan.nextOccurrence(onOrAfter: DateTime.now());
 
     final leading = editing
         ? IconButton(
@@ -164,7 +167,7 @@ class _PlanRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('${_frequencyLabels[plan.frequency]} · $sourceName'),
-        Text(next == null ? 'Ended' : 'Next: ${formatEntryDate(next)}'),
+        Text(nextDate == null ? 'Ended' : 'Next: ${formatEntryDate(nextDate)}'),
       ],
     );
     final trailing = Text(

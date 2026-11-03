@@ -163,6 +163,33 @@ void main() {
     expect(projection.plans.map((p) => p.id), [sooner.id, later.id]);
   });
 
+  test('a plan due today keeps today as its label date and sorts first', () {
+    final today = DateTime.utc(2026, 1, 1);
+    final dueToday = plan(
+      name: 'Zulu',
+      frequency: RecurrenceFrequency.monthly,
+      anchor: today,
+    );
+    final dueLater = plan(
+      name: 'Alpha',
+      frequency: RecurrenceFrequency.monthly,
+      anchor: DateTime.utc(2026, 1, 15),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        ledgerProvider.overrideWithValue(buildLedger([dueLater, dueToday])),
+        clockProvider.overrideWithValue(() => today),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final projection = container.read(planListProjectionProvider).requireValue;
+
+    expect(projection.plans.first.id, dueToday.id);
+    expect(projection.nextOccurrences[dueToday.id], today);
+    expect(projection.nextOccurrences[dueLater.id], DateTime.utc(2026, 1, 15));
+  });
+
   test('a ledger change refreshes the plans', () {
     final first = plan(
       name: 'First',

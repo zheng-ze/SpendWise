@@ -51,12 +51,14 @@ class PlanListViewState implements HasStep<PlanListViewState, PlanListStep> {
   const PlanListViewState({
     required this.plans,
     required this.ledgerState,
+    required this.nextOccurrences,
     required this.editing,
     this.step,
   });
 
   final List<RecurringPlan> plans;
   final LedgerState ledgerState;
+  final Map<String, DateTime?> nextOccurrences;
   final bool editing;
   @override
   final PlanListStep? step;
@@ -64,12 +66,14 @@ class PlanListViewState implements HasStep<PlanListViewState, PlanListStep> {
   PlanListViewState copyWith({
     List<RecurringPlan>? plans,
     LedgerState? ledgerState,
+    Map<String, DateTime?>? nextOccurrences,
     bool? editing,
     PlanListStep? Function()? step,
   }) {
     return PlanListViewState(
       plans: plans ?? this.plans,
       ledgerState: ledgerState ?? this.ledgerState,
+      nextOccurrences: nextOccurrences ?? this.nextOccurrences,
       editing: editing ?? this.editing,
       step: step == null ? this.step : step(),
     );
@@ -94,10 +98,15 @@ abstract class PlanListViewModel {
 
 // MARK: - PlanListProjection
 class PlanListProjection {
-  const PlanListProjection({required this.plans, required this.ledgerState});
+  const PlanListProjection({
+    required this.plans,
+    required this.ledgerState,
+    required this.nextOccurrences,
+  });
 
   final List<RecurringPlan> plans;
   final LedgerState ledgerState;
+  final Map<String, DateTime?> nextOccurrences;
 }
 
 // MARK: - PlanListProjectionNotifier
@@ -119,9 +128,18 @@ class PlanListProjectionNotifier extends AsyncNotifier<PlanListProjection>
 
   PlanListProjection _project(Ledger ledger, DateTime today) {
     final ledgerState = ledger.state;
+    final plans = sortedPlans(
+      ledgerState.plans.values.toList(),
+      ledgerState,
+      today,
+    );
     return PlanListProjection(
-      plans: sortedPlans(ledgerState.plans.values.toList(), ledgerState, today),
+      plans: plans,
       ledgerState: ledgerState,
+      nextOccurrences: {
+        for (final plan in plans)
+          plan.id: plan.nextOccurrence(onOrAfter: today),
+      },
     );
   }
 }
@@ -144,6 +162,7 @@ class PlanListNotifier extends AsyncNotifier<PlanListViewState>
     return PlanListViewState(
       plans: data.plans,
       ledgerState: data.ledgerState,
+      nextOccurrences: data.nextOccurrences,
       editing: current?.editing ?? false,
       step: current?.step,
     );
