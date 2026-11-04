@@ -16,6 +16,24 @@ void main() {
     parentID: null,
     symbol: 'restaurant',
   );
+  final snacks = TransactionCategory(
+    id: 'a0000000-0000-0000-0000-000000000002',
+    name: 'Snacks',
+    kind: CategoryKind.expense,
+    colorHex: '#FF0000',
+    includeInAnalysis: true,
+    parentID: food.id,
+    symbol: 'cake',
+  );
+  final salary = TransactionCategory(
+    id: 'a0000000-0000-0000-0000-000000000003',
+    name: 'Salary',
+    kind: CategoryKind.income,
+    colorHex: '#0000FF',
+    includeInAnalysis: true,
+    parentID: null,
+    symbol: 'payments',
+  );
 
   Ledger buildLedger(List<TransactionCategory> categories) {
     return Ledger(
@@ -26,20 +44,6 @@ void main() {
   ProviderContainer buildContainer(Ledger ledger) {
     final container = ProviderContainer(
       overrides: [ledgerProvider.overrideWithValue(ledger)],
-    );
-    addTearDown(container.dispose);
-    container.listen(categoryListViewModelProvider, (previous, next) {});
-    return container;
-  }
-
-  ProviderContainer buildContainerWithFailingProjection(Ledger ledger) {
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(ledger),
-        categoryListProjectionProvider.overrideWith(
-          FailingProjectionNotifier.new,
-        ),
-      ],
     );
     addTearDown(container.dispose);
     container.listen(categoryListViewModelProvider, (previous, next) {});
@@ -116,45 +120,40 @@ void main() {
     expect(container.read(categoryListViewModelProvider).value?.step, isNull);
   });
 
-  test('the first read with a ready projection is AsyncData', () {
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(buildLedger([food])),
-      ],
-    );
-    addTearDown(container.dispose);
-    container.read(categoryListProjectionProvider);
+  test('groups categories into income and expense lists', () {
+    final container = buildContainer(buildLedger([food, snacks, salary]));
 
-    final first = container.read(categoryListViewModelProvider);
+    final state = container.read(categoryListViewModelProvider).value;
 
-    expect(first, isA<AsyncData<CategoryListViewState>>());
+    expect(state?.income.map((c) => c.id), [salary.id]);
+    expect(state?.expense.map((c) => c.id), [food.id, snacks.id]);
   });
 
-  test('an unmounted view model drops its pending step', () async {
+  test('a ledger change refreshes the income and expense lists', () {
+    final ledger = buildLedger([food, snacks, salary]);
+    final container = buildContainer(ledger);
+
+    ledger.deleteCategory(snacks.id);
+
+    final state = container.read(categoryListViewModelProvider).value;
+    expect(state?.expense.map((c) => c.id), [food.id]);
+  });
+
+  test('an unmounted view model stops listening to the ledger', () async {
+    final ledger = ListenerTrackingLedger(
+      LedgerState(categories: {food.id: food}),
+    );
     final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(buildLedger([food])),
-      ],
+      overrides: [ledgerProvider.overrideWithValue(ledger)],
     );
     addTearDown(container.dispose);
     final mounted = container.listen(categoryListViewModelProvider, (_, _) {});
-    container.read(categoryListViewModelProvider.notifier).requestNewCategory();
+    expect(ledger.isListened, isTrue);
 
     mounted.close();
     await container.pump();
 
-    expect(container.read(categoryListViewModelProvider).value?.step, isNull);
-  });
-
-  test('a projection failing after it had a value is an AsyncError', () {
-    final container = buildContainerWithFailingProjection(buildLedger([food]));
-    expect(container.read(categoryListViewModelProvider).hasValue, isTrue);
-
-    (container.read(
-      categoryListProjectionProvider.notifier,
-    ) as FailingProjectionNotifier).fail();
-
-    expect(container.read(categoryListViewModelProvider).hasError, isTrue);
+    expect(ledger.isListened, isFalse);
   });
 
   test('a ledger change keeps the pending step', () {
@@ -171,11 +170,8 @@ void main() {
   });
 }
 
-class FailingProjectionNotifier extends CategoryListProjectionNotifier {
-  void fail() {
-    state = AsyncError<CategoryListProjection>(
-      StateError('projection failed'),
-      StackTrace.empty,
-    );
-  }
+class ListenerTrackingLedger extends Ledger {
+  ListenerTrackingLedger(LedgerState state) : super(state: state);
+
+  bool get isListened => hasListeners;
 }

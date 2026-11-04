@@ -82,14 +82,11 @@ class _PlanListScreenState extends ConsumerState<PlanListScreen> {
     final asyncState = ref.watch(planListViewModelProvider);
     final viewModel = ref.watch(planListViewModelProvider.notifier);
 
-    return asyncState.when(
-      data: (viewState) =>
-          _PlanListScreenBody(viewState: viewState, viewModel: viewModel),
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, stackTrace) =>
-          Scaffold(body: Center(child: Text('$error'))),
-    );
+    if (asyncState case AsyncError(:final error)) {
+      return Scaffold(body: Center(child: Text('$error')));
+    }
+    final viewState = asyncState.requireValue;
+    return _PlanListScreenBody(viewState: viewState, viewModel: viewModel);
   }
 }
 

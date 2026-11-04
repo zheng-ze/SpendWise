@@ -44,18 +44,6 @@ void main() {
     return container;
   }
 
-  ProviderContainer buildContainerWithFailingProjection(Ledger ledger) {
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(ledger),
-        accountsProjectionProvider.overrideWith(FailingProjectionNotifier.new),
-      ],
-    );
-    addTearDown(container.dispose);
-    container.listen(accountsViewModelProvider, (previous, next) {});
-    return container;
-  }
-
   test(
     'toggleExpanded opens and closes an account, single-open at a time',
     () async {
@@ -216,19 +204,6 @@ void main() {
     expect(container.read(accountsViewModelProvider).value?.step, isNull);
   });
 
-  test('the first read with a ready projection is AsyncData', () {
-    final ledger = buildLedger();
-    final container = ProviderContainer(
-      overrides: [ledgerProvider.overrideWithValue(ledger)],
-    );
-    addTearDown(container.dispose);
-    container.read(accountsProjectionProvider);
-
-    final first = container.read(accountsViewModelProvider);
-
-    expect(first, isA<AsyncData<AccountsViewState>>());
-  });
-
   test('an unmounted view model resets expansion and keeps the data', () async {
     final container = ProviderContainer(
       overrides: [ledgerProvider.overrideWithValue(buildLedger())],
@@ -247,15 +222,47 @@ void main() {
     expect(remounted.value?.sections, isNotEmpty);
   });
 
-  test('a projection failing after it had a value is an AsyncError', () {
-    final container = buildContainerWithFailingProjection(buildLedger());
-    expect(container.read(accountsViewModelProvider).hasValue, isTrue);
+  test('the ledger sections and net worth appear in the state', () {
+    final container = buildContainer(buildLedger());
 
-    (container.read(
-      accountsProjectionProvider.notifier,
-    ) as FailingProjectionNotifier).fail();
+    final state = container.read(accountsViewModelProvider).requireValue;
 
-    expect(container.read(accountsViewModelProvider).hasError, isTrue);
+    final ids = [
+      for (final section in state.sections)
+        for (final row in section.rows) row.id,
+    ];
+    expect(ids, unorderedEquals([checking.id, savings.id]));
+    expect(state.netWorth, Accounting.netWorth(buildLedger().state));
+  });
+
+  test('a ledger change updates the sections and net worth', () {
+    final ledger = buildLedger();
+    final container = buildContainer(ledger);
+
+    ledger.deleteAccount(savings.id);
+
+    final state = container.read(accountsViewModelProvider).requireValue;
+    final ids = [
+      for (final section in state.sections)
+        for (final row in section.rows) row.id,
+    ];
+    expect(ids, [checking.id]);
+    expect(state.netWorth, Accounting.netWorth(ledger.state));
+  });
+
+  test('an unmounted view model stops listening to the ledger', () async {
+    final ledger = ListenerTrackingLedger(buildLedger().state);
+    final container = ProviderContainer(
+      overrides: [ledgerProvider.overrideWithValue(ledger)],
+    );
+    addTearDown(container.dispose);
+    final mounted = container.listen(accountsViewModelProvider, (_, _) {});
+    expect(ledger.isListened, isTrue);
+
+    mounted.close();
+    await container.pump();
+
+    expect(ledger.isListened, isFalse);
   });
 
   test('a ledger change keeps the expansion and the pending step', () {
@@ -273,19 +280,16 @@ void main() {
   });
 }
 
-class FailingProjectionNotifier extends AccountsProjectionNotifier {
-  void fail() {
-    state = AsyncError<AccountsProjection>(
-      StateError('projection failed'),
-      StackTrace.empty,
-    );
-  }
-}
-
 class ThrowingDeleteLedger extends Ledger {
   ThrowingDeleteLedger(LedgerState state) : super(state: state);
 
   @override
   List<LedgerChange> deleteAccount(String rawID) =>
       throw StateError('delete failed');
+}
+
+class ListenerTrackingLedger extends Ledger {
+  ListenerTrackingLedger(LedgerState state) : super(state: state);
+
+  bool get isListened => hasListeners;
 }

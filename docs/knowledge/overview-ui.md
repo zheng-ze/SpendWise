@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: c7090f5a
+Last reconciled: 7cc26306
 
 ## Feature overview
 
@@ -39,8 +39,11 @@ section whose read has not settled renders a `LoadingSkeleton`. The screen reads
 
 ## Module interactions
 
-`OverviewNotifier.build` watches `todayProvider`, `analysisQueriesProvider` and
-`ledgerSessionProvider` (through `LedgerBackedNotifier`), so it rebuilds on every `AnalysisQueries` notification and on day change.
+`OverviewNotifier` is an `autoDispose` provider scoped to the mounted Overview view. Its `build` is
+synchronous, so the screen has no whole-screen loading state; only the per-section skeletons below
+appear. `build` watches `todayProvider`, `analysisQueriesProvider` and `ledgerSessionProvider`
+(through `LedgerBackedNotifier`), so it rebuilds on every `AnalysisQueries` notification and on day
+change. A failed build ends in `AsyncError` and shows an error state, never a spinner.
 It calls `readToday()`, `readRecent()` and `readUpcoming()` and maps the results. `readToday()` is a
 mixed read, so the view state carries `today` only while the read is current for the Ledger revision
 and otherwise null, which renders the Today skeleton instead of a stale summary; `readRecent()`

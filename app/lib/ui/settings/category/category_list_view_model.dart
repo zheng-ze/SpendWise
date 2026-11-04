@@ -1,7 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 
@@ -55,39 +54,6 @@ abstract class CategoryListViewModel {
   void clearStep();
 }
 
-// MARK: - CategoryListProjection
-class CategoryListProjection {
-  const CategoryListProjection({required this.income, required this.expense});
-
-  final List<TransactionCategory> income;
-  final List<TransactionCategory> expense;
-}
-
-// MARK: - CategoryListProjectionNotifier
-class CategoryListProjectionNotifier
-    extends AsyncNotifier<CategoryListProjection>
-    with LedgerBackedNotifier<CategoryListProjection> {
-  @override
-  CategoryListProjection build() {
-    final currentLedger = ledger;
-    currentLedger.addListener(_onLedgerChanged);
-    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
-    return _project(currentLedger);
-  }
-
-  void _onLedgerChanged() {
-    if (!ref.mounted) return;
-    state = AsyncData(_project(ledger));
-  }
-
-  CategoryListProjection _project(Ledger ledger) {
-    return CategoryListProjection(
-      income: ledger.categories(CategoryKind.income),
-      expense: ledger.categories(CategoryKind.expense),
-    );
-  }
-}
-
 // MARK: - CategoryListNotifier
 class CategoryListNotifier extends AsyncNotifier<CategoryListViewState>
     with
@@ -96,16 +62,19 @@ class CategoryListNotifier extends AsyncNotifier<CategoryListViewState>
     implements CategoryListViewModel {
   @override
   CategoryListViewState build() {
-    final projection = ref.watch(categoryListProjectionProvider);
-    if (projection case AsyncError(:final error, :final stackTrace)) {
-      Error.throwWithStackTrace(error, stackTrace);
-    }
-    final data = projection.requireValue;
-    final current = state.value;
+    final currentLedger = ledger;
+    currentLedger.addListener(_onLedgerChanged);
+    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
+    return _viewState();
+  }
+
+  void _onLedgerChanged() => state = AsyncData(_viewState());
+
+  CategoryListViewState _viewState() {
     return CategoryListViewState(
-      income: data.income,
-      expense: data.expense,
-      step: current?.step,
+      income: ledger.categories(CategoryKind.income),
+      expense: ledger.categories(CategoryKind.expense),
+      step: state.value?.step,
     );
   }
 
@@ -127,14 +96,8 @@ class CategoryListNotifier extends AsyncNotifier<CategoryListViewState>
 }
 
 // MARK: - Constants
-final categoryListProjectionProvider =
-    AsyncNotifierProvider<
-      CategoryListProjectionNotifier,
-      CategoryListProjection
-    >(CategoryListProjectionNotifier.new);
-
 final categoryListViewModelProvider =
     AsyncNotifierProvider.autoDispose<
       CategoryListNotifier,
       CategoryListViewState
-    >(CategoryListNotifier.new);
+    >(CategoryListNotifier.new, retry: (_, _) => null);

@@ -62,14 +62,11 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
   Widget build(BuildContext context) {
     final asyncState = ref.watch(categoryListViewModelProvider);
 
-    return asyncState.when(
-      data: (viewState) =>
-          _CategoryListScreenBody(viewState: viewState, viewModel: _viewModel),
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, stackTrace) =>
-          Scaffold(body: Center(child: Text('$error'))),
-    );
+    if (asyncState case AsyncError(:final error)) {
+      return Scaffold(body: Center(child: Text('$error')));
+    }
+    final viewState = asyncState.requireValue;
+    return _CategoryListScreenBody(viewState: viewState, viewModel: _viewModel);
   }
 }
 

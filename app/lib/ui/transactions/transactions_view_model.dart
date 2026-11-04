@@ -3,10 +3,12 @@ import 'dart:typed_data';
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart' show startOfMonthUtc;
+import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart'
+    show startOfMonthUtc;
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
@@ -115,13 +117,15 @@ class TransactionsNotifier extends AsyncNotifier<TransactionsViewState>
   Set<String>? get _scopeIDs => scope?.scopeIDs;
 
   @override
-  Future<TransactionsViewState> build() async {
+  TransactionsViewState build() {
     final currentLedger = ledger;
+    final today = ref.watch(todayProvider);
     currentLedger.addListener(_onLedgerChanged);
     ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
     return _buildState(
       currentLedger,
-      selectedDate: startOfMonthUtc(DateTime.now()),
+      selectedDate: state.value?.selectedDate ?? startOfMonthUtc(today),
+      step: state.value?.step,
     );
   }
 
@@ -211,4 +215,5 @@ class TransactionsNotifier extends AsyncNotifier<TransactionsViewState>
 final transactionsViewModelProvider = AsyncNotifierProvider.autoDispose
     .family<TransactionsNotifier, TransactionsViewState, TransactionsScope?>(
       TransactionsNotifier.new,
+      retry: (_, _) => null,
     );

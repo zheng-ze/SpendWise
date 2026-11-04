@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/overview/overview_coming_up_section.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
@@ -26,11 +25,12 @@ class OverviewScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final viewState = ref.watch(overviewViewModelProvider).value;
+    final asyncState = ref.watch(overviewViewModelProvider);
     final viewModel = ref.watch(overviewViewModelProvider.notifier);
-    if (viewState == null) {
-      return const Scaffold(body: LoadingSkeleton());
+    if (asyncState case AsyncError(:final error)) {
+      return Scaffold(body: Center(child: Text('$error')));
     }
+    final viewState = asyncState.requireValue;
     final today = TodayTray(viewState: viewState, viewModel: viewModel);
     final recent = RecentTray(rows: viewState.recent, viewModel: viewModel);
     final comingUp = ComingUpTray(rows: viewState.upcoming);

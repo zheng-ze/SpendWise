@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: c7090f5a
+Last reconciled: 7cc26306
 
 ## Feature overview
 
@@ -32,8 +32,13 @@ screens are mostly stateless facades over `Ledger`, with per-sheet form view mod
 
 ## Module interactions
 
-The list providers read `Ledger` query methods (e.g. `categories(of:)` ordering per
-`ledger_runtime.md` §1.3) and mutate through `Ledger`. Forms use view-model families keyed by their arguments (`categoryFormViewModelProvider`,
+The category list, plan list and recycle bin view models (`categoryListViewModelProvider`,
+`planListViewModelProvider`, `recycleBinViewModelProvider`) are `autoDispose` providers scoped to
+their mounted view. Each computes its state synchronously from `LedgerState` (e.g. `categories(of:)`
+ordering per `ledger_runtime.md` §1.3), listens to the ledger itself with the listener removed in
+`onDispose`, carries UI-only state (the pending step, and the plan list's Edit/Done) across ledger
+changes through its previous `state.value`, and mutates through `Ledger`. They have no loading state; a failed build ends in
+`AsyncError` and shows an error state. Forms use view-model families keyed by their arguments (`categoryFormViewModelProvider`,
 `planFormViewModelProvider`), which are not autoDispose and are seeded with the initial data. Delete copies (recycle-bin messaging) are derived from referencing
 counts. These counts include active and binned entries through `entriesReferencing`,
 `entryCount` and `entryCountReferencing`

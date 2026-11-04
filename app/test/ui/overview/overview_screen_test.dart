@@ -19,6 +19,7 @@ import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
 import 'overview_fixture.dart';
 import '../../support/ui_test_timeout.dart';
+import '../../support/phone_shell.dart';
 
 const _phoneSize = Size(320, 760);
 const _openSize = Size(960, 720);
@@ -51,7 +52,7 @@ Future<ProviderContainer> _pumpOverview(
       container: container,
       child: MaterialApp(
         theme: buildSpendWiseTheme(brightness),
-        home: OverviewFlow(onHistorySelected: _ignoreHistory),
+        home: phoneShell(OverviewFlow(onHistorySelected: _ignoreHistory)),
       ),
     ),
   );
@@ -473,7 +474,7 @@ void main() {
             container: container,
             child: MaterialApp(
               theme: buildSpendWiseTheme(brightness),
-              home: OverviewFlow(onHistorySelected: _ignoreHistory),
+              home: phoneShell(OverviewFlow(onHistorySelected: _ignoreHistory)),
             ),
           ),
         );

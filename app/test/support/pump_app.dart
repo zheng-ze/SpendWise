@@ -8,6 +8,8 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
+import 'phone_shell.dart';
+
 enum ParitySize {
   phone(Size(320, 760)),
   compact(Size(320, 560)),
@@ -45,7 +47,10 @@ Future<void> pumpApp(
   );
   addTearDown(container.dispose);
 
-  final app = MaterialApp(theme: buildSpendWiseTheme(brightness), home: child);
+  final app = MaterialApp(
+    theme: buildSpendWiseTheme(brightness),
+    home: phoneShell(child),
+  );
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: app),
   );

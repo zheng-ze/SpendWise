@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: c7090f5a
+Last reconciled: 7cc26306
 
 ## Feature overview
 
@@ -46,7 +46,11 @@ has one presentation owner in Money; Settings has no recurring-plan entry.
 
 ## Module interactions
 
-The view model derives sections and net-worth as pure functions of `LedgerState`. Card math
+`AccountsNotifier` is an `autoDispose` provider scoped to the mounted Accounts view. Its `build` is
+synchronous, so the screen has no loading state, and a failed build ends in `AsyncError` and shows an
+error state. It derives sections and net-worth as pure functions of `LedgerState`, listens to the
+ledger itself (the listener is removed in `onDispose`) and recomputes on each change, carrying the
+expanded account and any pending step across recomputations through its previous `state.value`. Card math
 (payable, outstanding, statement cut) is pure with an injected `now`, so it is testable without the
 system clock. Delete = archive to the recycle bin; the dialog shows the referencing-entry count.
 
@@ -68,10 +72,10 @@ rows offer Edit by swiping start-to-end or using the Edit custom semantic action
 source-edit form for that exact holder ID. AccountsFlow tags each scoped Transactions route with its
 preferred source. Shell Add reads the source on demand from the live Accounts Navigator, which
 `MoneyFlow` and `AccountsFlow` share through `accountsNavigatorKeyProvider`
-(`app/lib/boot/money_navigation_provider.dart`); `activeMoneySourceProvider` returns the preferred
-source of the top route and caches nothing. Shell Add consults it only while Money is selected. The
-getter returns no source for Budgets and Plans (the Accounts Navigator is not mounted), roots and
-untagged routes. Leaving the Accounts segment unmounts its Navigator and any scoped stack.
+(`app/lib/ui/money/money_flow.dart`); `activeMoneySourceProvider` returns the preferred
+source of the top route and caches nothing. The
+getter returns no source for any destination other than Money, for Budgets and Plans (the Accounts
+Navigator is not mounted), roots and untagged routes. Leaving the Accounts segment unmounts its Navigator and any scoped stack.
 (`app/lib/ui/money/money_flow.dart`: `activeMoneySourceProvider`,
 `app/lib/ui/accounts/money_navigation.dart`: `scopedRegisterSourceId`)
 
@@ -81,8 +85,8 @@ for `route.completed` before invalidating their form providers. Installed/exitin
 comes from the shared `shellSheetOccupancyProvider`; callers set no manual presentation flag.
 Accounts root actions have no detail to shift, so forms remain right-docked on open and desktop
 and bottom sheets on phone. Nested account type, day and parent AppSheets inherit coverage
-through their nearest non-AppSheet predecessor. The page slot's stable isolation wrappers retain
-Money, Budgets and Accounts Flow State when a budget detail shifts under another sheet.
+through their nearest non-AppSheet predecessor. The page slot's stable isolation wrappers keep
+Money, Budgets and Accounts Flow State mounted while a budget detail shifts under another sheet.
 (`app/lib/ui/accounts/account_form/account_form.dart`, `source_edit/source_edit_form.dart`,
 `account_sheet_presentation.dart`, `app/lib/ui/common/sheets/app_sheet_route.dart`,
 `app/lib/ui/shell/shell_pane_host.dart`)

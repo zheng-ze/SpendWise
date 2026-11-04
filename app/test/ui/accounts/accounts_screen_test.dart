@@ -9,6 +9,7 @@ import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 
 import '../../support/ui_test_timeout.dart';
+import '../../support/phone_shell.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
@@ -54,7 +55,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: AccountsScreen()),
+        child: MaterialApp(home: phoneShell(const AccountsScreen())),
       ),
     );
     await tester.pump();

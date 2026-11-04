@@ -27,6 +27,7 @@ import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 
+import '../../support/phone_shell.dart';
 import '../../support/shell_sheet_harness.dart';
 import '../../support/ui_test_timeout.dart';
 
@@ -120,7 +121,9 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: AccountsFlow()),
+        child: MaterialApp(
+          home: phoneShell(const AccountsFlow(header: SizedBox.shrink())),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -230,16 +233,11 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(home: MoneyFlow()),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.money;
+      await _pumpAccountsShell(tester, container);
 
-      expect(find.text('Money'), findsOneWidget);
+      expect(find.text('Money'), findsNWidgets(2));
       expect(find.text('Budgets'), findsOneWidget);
       expect(find.text('Accounts'), findsOneWidget);
       expect(find.text('Plans'), findsOneWidget);
@@ -253,7 +251,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Money'), findsNothing);
+      expect(find.text('Money'), findsOneWidget);
       expect(find.text('Budgets'), findsNothing);
       expect(find.text('Accounts'), findsNothing);
       expect(find.text('Plans'), findsNothing);
@@ -264,7 +262,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Money'), findsOneWidget);
+      expect(find.text('Money'), findsNWidgets(2));
       expect(find.text('Accounts'), findsOneWidget);
       expect(find.byType(AccountsScreen), findsOneWidget);
       expect(container.read(moneySegmentProvider), MoneySegment.accounts);

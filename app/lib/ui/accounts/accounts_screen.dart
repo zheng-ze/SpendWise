@@ -21,33 +21,17 @@ class AccountsScreen extends ConsumerWidget {
     final asyncState = ref.watch(accountsViewModelProvider);
     final viewModel = ref.watch(accountsViewModelProvider.notifier);
 
-    return asyncState.when(
-      data: (viewState) => Scaffold(
-        body: SafeArea(
-          child: _AccountsBody(viewState: viewState, viewModel: viewModel),
+    if (asyncState case AsyncError(:final error)) {
+      return Scaffold(body: Center(child: Text('$error')));
+    }
+    return Scaffold(
+      body: SafeArea(
+        child: _AccountsList(
+          viewState: asyncState.requireValue,
+          viewModel: viewModel,
         ),
       ),
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, stackTrace) =>
-          Scaffold(body: Center(child: Text('$error'))),
     );
-  }
-}
-
-class _AccountsBody extends StatelessWidget {
-  const _AccountsBody({required this.viewState, required this.viewModel});
-
-  final AccountsViewState viewState;
-  final AccountsViewModel viewModel;
-
-  @override
-  Widget build(BuildContext context) {
-    final accountList = _AccountsList(
-      viewState: viewState,
-      viewModel: viewModel,
-    );
-    return accountList;
   }
 }
 
@@ -64,11 +48,9 @@ class _AccountsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final netWorth = viewState.netWorth;
-    final pane = ShellPaneScope.maybeOf(context);
+    final pane = ShellPaneScope.of(context);
     final wideComposition =
-        pane != null &&
-        pane.mode != ShellLayoutMode.phone &&
-        !pane.sheetPresented;
+        pane.mode != ShellLayoutMode.phone && !pane.sheetPresented;
     final summary = ResponsiveSummaryCard(
       metrics: [
         SummaryMetric(

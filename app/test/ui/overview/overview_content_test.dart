@@ -11,23 +11,23 @@ import 'package:spendwise/ui/overview/overview_view_model.dart';
 
 import 'overview_fixture.dart';
 
-Future<OverviewProjection> _settled(Ledger ledger) async {
+Future<OverviewViewState> _settled(Ledger ledger) async {
   final container = overviewContainer(ledger);
-  container.listen(overviewProjectionProvider, (_, _) {});
+  container.listen(overviewViewModelProvider, (_, _) {});
   await settleAnalysis(container, ledger);
-  return container.read(overviewProjectionProvider).requireValue;
+  return container.read(overviewViewModelProvider).requireValue;
 }
 
 void main() {
   group('Today', () {
     test('maps spent and the daily guide from the unscoped budget', () async {
-      final projection = await _settled(Ledger(state: defaultState()));
+      final viewState = await _settled(Ledger(state: defaultState()));
 
-      final today = projection.today!;
+      final today = viewState.today!;
       expect(today.spent, Decimal.parse('45.70'));
       expect(today.monthlyCap, Decimal.parse('1200'));
       expect(today.dailyGuide, Decimal.parse('39'));
-      expect(projection.recordedToday, isTrue);
+      expect(viewState.recordedToday, isTrue);
     });
 
     test('has no cap or guide without an unscoped budget', () async {
@@ -47,16 +47,14 @@ void main() {
         ledger,
         runner: (_) => pending.future,
       );
-      container.listen(overviewProjectionProvider, (_, _) {});
+      container.listen(overviewViewModelProvider, (_, _) {});
       await pumpEventQueue();
 
-      final projection = container
-          .read(overviewProjectionProvider)
-          .requireValue;
+      final viewState = container.read(overviewViewModelProvider).requireValue;
 
-      expect(projection.today, isNull);
-      expect(projection.recent, isNotEmpty);
-      expect(projection.upcoming, isNotEmpty);
+      expect(viewState.today, isNull);
+      expect(viewState.recent, isNotEmpty);
+      expect(viewState.upcoming, isNotEmpty);
     });
   });
 
@@ -72,7 +70,7 @@ void main() {
           runner: (state) =>
               ++calls == 1 ? syncComputeRunner(state) : pending.future,
         );
-        container.listen(overviewProjectionProvider, (_, _) {});
+        container.listen(overviewViewModelProvider, (_, _) {});
         await settleAnalysis(container, ledger);
 
         ledger.addEntry(
@@ -80,20 +78,20 @@ void main() {
         );
         await pumpEventQueue();
 
-        final projection = container
-            .read(overviewProjectionProvider)
+        final viewState = container
+            .read(overviewViewModelProvider)
             .requireValue;
-        expect(projection.recent, hasLength(1));
-        expect(projection.today, isNull);
+        expect(viewState.recent, hasLength(1));
+        expect(viewState.today, isNull);
       },
     );
   });
 
   group('Recent entries', () {
     test('lists at most four, newest first', () async {
-      final projection = await _settled(Ledger(state: defaultState()));
+      final viewState = await _settled(Ledger(state: defaultState()));
 
-      expect(projection.recent!.map((row) => row.title), [
+      expect(viewState.recent!.map((row) => row.title), [
         'Snack',
         'Shop run',
         'To savings',
@@ -110,16 +108,16 @@ void main() {
         entry(2, '-9.00', DateTime.utc(2026, 10, 4), name: 'Ahead'),
       );
 
-      final projection = await _settled(Ledger(state: state));
+      final viewState = await _settled(Ledger(state: state));
 
-      expect(projection.recent!.map((row) => row.title), ['Older']);
-      expect(projection.recent!.single.caption, startsWith('2 Oct / '));
-      expect(projection.recordedToday, isFalse);
+      expect(viewState.recent!.map((row) => row.title), ['Older']);
+      expect(viewState.recent!.single.caption, startsWith('2 Oct / '));
+      expect(viewState.recordedToday, isFalse);
     });
 
     test('maps caption, signed amount and kind for each entry shape', () async {
-      final projection = await _settled(Ledger(state: defaultState()));
-      final byTitle = {for (final row in projection.recent!) row.title: row};
+      final viewState = await _settled(Ledger(state: defaultState()));
+      final byTitle = {for (final row in viewState.recent!) row.title: row};
 
       final pay = byTitle['Monthly pay']!;
       expect(pay.caption, 'Today / Salary / Checking');
@@ -137,26 +135,24 @@ void main() {
     test('follows ledger changes', () async {
       final ledger = Ledger(state: defaultState());
       final container = overviewContainer(ledger);
-      container.listen(overviewProjectionProvider, (_, _) {});
+      container.listen(overviewViewModelProvider, (_, _) {});
       await settleAnalysis(container, ledger);
 
       ledger.addEntry(entry(9, '-1.00', fixtureToday, name: 'Newest'));
       await settleAnalysis(container, ledger);
 
-      final projection = container
-          .read(overviewProjectionProvider)
-          .requireValue;
-      expect(projection.recent!.first.title, 'Newest');
-      expect(projection.today!.spent, Decimal.parse('46.70'));
+      final viewState = container.read(overviewViewModelProvider).requireValue;
+      expect(viewState.recent!.first.title, 'Newest');
+      expect(viewState.today!.spent, Decimal.parse('46.70'));
     });
   });
 
   group('Coming up', () {
     test('merges statement, plans and dated-ahead entries by date', () async {
-      final projection = await _settled(Ledger(state: defaultState()));
+      final viewState = await _settled(Ledger(state: defaultState()));
 
       expect(
-        projection.upcoming!.map(
+        viewState.upcoming!.map(
           (row) => (row.day, row.month, row.title, row.caption),
         ),
         [
@@ -205,13 +201,13 @@ void main() {
 
   group('Never empty', () {
     test('a fresh ledger still reads empty sections, not null ones', () async {
-      final projection = await _settled(Ledger(state: LedgerState()));
+      final viewState = await _settled(Ledger(state: LedgerState()));
 
-      expect(projection.recent, isEmpty);
-      expect(projection.upcoming, isEmpty);
-      expect(projection.today, isNotNull);
-      expect(projection.today!.spent, Decimal.zero);
-      expect(projection.recordedToday, isFalse);
+      expect(viewState.recent, isEmpty);
+      expect(viewState.upcoming, isEmpty);
+      expect(viewState.today, isNotNull);
+      expect(viewState.today!.spent, Decimal.zero);
+      expect(viewState.recordedToday, isFalse);
     });
   });
 
@@ -227,15 +223,13 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      container.listen(overviewProjectionProvider, (_, _) {});
+      container.listen(overviewViewModelProvider, (_, _) {});
 
       now = DateTime.utc(2026, 10, 4);
       container.invalidate(todayProvider);
 
-      final projection = container
-          .read(overviewProjectionProvider)
-          .requireValue;
-      expect(projection.day, DateTime.utc(2026, 10, 4));
+      final viewState = container.read(overviewViewModelProvider).requireValue;
+      expect(viewState.day, DateTime.utc(2026, 10, 4));
     });
   });
 }

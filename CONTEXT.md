@@ -147,9 +147,8 @@ whose raw outcome the Flow reports back to the ViewModel through a named method 
 `applyPickedParent(String? id)`). Either way `Step` stays plain data with no Flutter import, so this
 does not reintroduce a Flutter dependency into the ViewModel. `Step` consumption is single-shot —
 the Flow clears it via the ViewModel's `clearStep()` after acting on it, whether that action was a
-push or a modal launch. `TransactionsFlow` additionally consumes its screen `Step` only while its
-destination is active, so a hidden retained History instance never acts on or clears a shared
-`Step`. Replaces the earlier `NavigationIntent` field. See ADR-0059.
+push or a modal launch. The shell mounts only the selected destination, so no
+hidden History instance exists that could act on or clear a screen `Step`. Replaces the earlier `NavigationIntent` field. See ADR-0059.
 
 `AppShell` (`app/lib/ui/shell/app_shell.dart`) itself gets no ViewModel: its only state is
 the layout mode (`shellLayoutModeProvider`, resolving `ShellLayoutMode.phone`, `ShellLayoutMode.open`
@@ -158,23 +157,23 @@ with no async loading and no domain import. Web, macOS, Windows and Linux always
 on iOS and Android the window uses open exactly when at least 600 dp wide and at least 480 dp
 high (both inclusive), otherwise phone, following runtime size changes with no hysteresis. Phones are locked to portrait where the platform honours the request (iPhone `UISupportedInterfaceOrientations` lists portrait only; Android `MainActivity` requests portrait through `requestedOrientation` while `smallestScreenWidthDp` is below 600 and re-applies on configuration change), but Android multi-window can ignore the request and still present a landscape-shaped window; tablets and unfolded foldables keep every orientation, and the 600 x 480 dp rule and its landscape-window tests are unchanged and still cover those cases. The
 inspected Flutter 3.47.4 iOS embedder reports no display features, and the rule ignores display
-features on every platform. Phone and open share one stable Scaffold, content Stack and
-keyed `IndexedStack` with five fixed destination positions; only chrome and the content gutter
-change between them, so a phone/open switch keeps the selected destination, every Flow State,
-Navigator State and nested route. `ShellDestination` is overview, history, trends, money and
-settings, opening on overview. Phone renders a rounded five-position bar (Overview, Trends,
-centred Add, Money, Settings); open renders a vertical rail docked bottom right (Overview,
-History, Trends, Money, Settings, filled Add; 54 dp wide with 9 dp right and 10 dp bottom
-insets, 18 dp radius) over content reserving a 72 dp gutter, with `StatusBanner` clearing the
-same gutter. The mobile History slot materializes lazily on first open-mode use or explicit
-History selection and is retained after; the phone bar still shows no History item, and a shell
-History selected at an open-to-phone switch stays selected and visible with a root back control
-labelled Overview. Desktop renders a sidebar (wordmark, Overview, History, Trends, Money, Add
-entry, Settings at the bottom) over the same five slots. Add in every layout is never selected
+features on every platform. Phone and open share one stable Scaffold and content Stack, and
+`AppShell` mounts only the selected destination's body, keyed by its `ShellDestination`. A
+destination's Flow State, Navigator State and nested routes exist only while it is selected:
+leaving it disposes them and selecting it again starts fresh. Only chrome and the content gutter
+change between phone and open, so a phone/open switch keeps the selected body mounted. Money
+likewise mounts only its visible segment. `ShellDestination` is overview, history, money and
+settings, opening on overview. Trends is not a destination; History pushes it. Phone renders a
+rounded five-position bar (Overview, History, centred Add, Money, Settings); open renders a
+vertical rail docked bottom right (Overview, History, Money, Settings, filled Add; 54 dp wide
+with 9 dp right and 10 dp bottom insets, 18 dp radius) over content reserving a 72 dp gutter, with
+`StatusBanner` clearing the same gutter. A shell History selected at an open-to-phone switch stays
+selected and visible with a root back control labelled Overview. Desktop renders a sidebar (wordmark, Overview, History, Money, Add
+entry, Settings at the bottom) over the same four destinations. Add in every layout is never selected
 and opens the shared `openNewEntry` presenter. Shell Add captures the top scoped Money route's
 preferred source
-only while Money is selected, through an injected `MoneyNavigatorObserver` getter; all other states
-open unscoped. The Add sheet keeps its root route and keyed form across phone/open resizes,
+through an injected getter that reads the live Accounts Navigator on demand; it returns nothing
+unless the Accounts segment is mounted, so every other state opens unscoped. The Add sheet keeps its root route and keyed form across phone/open resizes,
 re-resolving phone, open or desktop presentation live: the open surface docks full-height in the
 safe right half while the draft, focus and auxiliary picker routes survive the crossing. A container-local presentation controller owns one Add session
 per request: Add-only dismissal closes exactly the captured Add route, one mount-gated Step
@@ -191,13 +190,13 @@ safe body width W, the page is W/2 wide when a detail or Add occupies the right 
 wide otherwise. A visible detail starts at W/2 and is W/2 - 72 dp wide; the rail gutter is reserved
 once. `ShellDetail` supplies stable identity, title, body builder and Close callback, with optional
 subtitle and header actions. The host owns the divider, pinned detail header and Close button;
-page and detail body builders own scrolling. Detail remains offstage with feature selection intact
-when hidden by mode or Add. The host never pushes or pops routes. A supplied floating action is
-visible only on the active, current open page when Add is closed, 10 dp from the bottom and 3 dp from
+page and detail body builders own scrolling. A detail hidden by mode or Add stays offstage with feature
+selection intact. The host never pushes or pops routes. A supplied floating action is
+visible only on the current open page when no sheet is installed, 10 dp from the bottom and 3 dp from
 the usable page's right edge (75 dp from the full body's right edge).
 
 Selected-detail state, including `selectedDetailId`, belongs to the feature ViewModel independently
-of mode. Phone and open row actions write the same selection. A retained feature Flow owns at most
+of mode. Phone and open row actions write the same selection. The mounted feature Flow owns at most
 one managed phone-detail route whose content reads the current selection. After mode or selection
 changes, one post-frame reconciliation reads the latest values. Open mode removes only that Flow's
 tracked detail route as a presentation-only removal, preserving selection. Phone mode pushes one

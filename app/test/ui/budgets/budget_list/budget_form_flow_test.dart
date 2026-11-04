@@ -80,7 +80,7 @@ Future<ProviderContainer> _pumpFlow(
 }) async {
   await pumpApp(
     tester,
-    const BudgetsFlow(),
+    const BudgetsFlow(header: SizedBox.shrink()),
     ledger: ledger,
     overrides: [
       if (gate != null)
@@ -227,7 +227,7 @@ void main() {
     final gate = Completer<void>();
     await pumpApp(
       tester,
-      const BudgetsFlow(),
+      const BudgetsFlow(header: SizedBox.shrink()),
       ledger: _ledgerWith(),
       overrides: [
         budgetFormViewModelProvider.overrideWith2(

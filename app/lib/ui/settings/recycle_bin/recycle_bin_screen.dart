@@ -70,14 +70,11 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
   Widget build(BuildContext context) {
     final asyncState = ref.watch(recycleBinViewModelProvider);
 
-    return asyncState.when(
-      data: (viewState) =>
-          _RecycleBinScreenBody(viewState: viewState, viewModel: _viewModel),
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, stackTrace) =>
-          Scaffold(body: Center(child: Text('$error'))),
-    );
+    if (asyncState case AsyncError(:final error)) {
+      return Scaffold(body: Center(child: Text('$error')));
+    }
+    final viewState = asyncState.requireValue;
+    return _RecycleBinScreenBody(viewState: viewState, viewModel: _viewModel);
   }
 }
 

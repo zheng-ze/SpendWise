@@ -7,6 +7,8 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
 
 void main() {
+  Decimal dec(String value) => Decimal.parse(value);
+
   Account account(
     String id,
     String name, {
@@ -44,29 +46,22 @@ void main() {
   Ledger buildLedger({
     Map<String, MoneySource> moneySources = const {},
     Map<String, TransactionCategory> categories = const {},
+    Map<String, Entry> entries = const {},
+    Map<String, Entry> binnedEntries = const {},
   }) {
     return Ledger(
-      state: LedgerState(moneySources: moneySources, categories: categories),
+      state: LedgerState(
+        moneySources: moneySources,
+        categories: categories,
+        entries: entries,
+        binnedEntries: binnedEntries,
+      ),
     );
   }
 
   ProviderContainer buildContainer(Ledger ledger) {
     final container = ProviderContainer(
       overrides: [ledgerProvider.overrideWithValue(ledger)],
-    );
-    addTearDown(container.dispose);
-    container.listen(recycleBinViewModelProvider, (previous, next) {});
-    return container;
-  }
-
-  ProviderContainer buildContainerWithFailingProjection(Ledger ledger) {
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(ledger),
-        recycleBinProjectionProvider.overrideWith(
-          FailingProjectionNotifier.new,
-        ),
-      ],
     );
     addTearDown(container.dispose);
     container.listen(recycleBinViewModelProvider, (previous, next) {});
@@ -237,56 +232,155 @@ void main() {
     expect(container.read(recycleBinViewModelProvider).value?.step, isNull);
   });
 
-  test('the first read with a ready projection is AsyncData', () {
-    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(
-          buildLedger(moneySources: {acc.id: MoneySource.account(acc)}),
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
-    container.read(recycleBinProjectionProvider);
+  test('empty ledger yields empty row lists', () {
+    final container = buildContainer(buildLedger());
 
-    final first = container.read(recycleBinViewModelProvider);
+    final state = container.read(recycleBinViewModelProvider).value;
 
-    expect(first, isA<AsyncData<RecycleBinViewState>>());
+    expect(state?.entries, isEmpty);
+    expect(state?.accounts, isEmpty);
+    expect(state?.pockets, isEmpty);
+    expect(state?.categories, isEmpty);
   });
 
-  test('an unmounted view model drops its pending step', () async {
-    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(
-          buildLedger(moneySources: {acc.id: MoneySource.account(acc)}),
-        ),
-      ],
+  test('archived accounts, pockets and categories are each listed, sorted '
+      'by name', () {
+    final zebra = account('a0000000-0000-0000-0000-000000000001', 'Zebra');
+    final alpha = account('a0000000-0000-0000-0000-000000000002', 'Alpha');
+    final pkt = pocket('a0000000-0000-0000-0000-000000000003', 'Rent');
+    final cat = category('a0000000-0000-0000-0000-000000000004', 'Old Cat');
+    final container = buildContainer(
+      buildLedger(
+        moneySources: {
+          zebra.id: MoneySource.account(zebra),
+          alpha.id: MoneySource.account(alpha),
+          pkt.id: MoneySource.pocket(pkt),
+        },
+        categories: {cat.id: cat},
+      ),
     );
-    addTearDown(container.dispose);
-    final mounted = container.listen(recycleBinViewModelProvider, (_, _) {});
+
+    final state = container.read(recycleBinViewModelProvider).value;
+
+    expect(state?.accounts.map((r) => r.name), ['Alpha', 'Zebra']);
+    expect(state?.pockets.map((r) => r.name), ['Rent']);
+    expect(state?.categories.map((r) => r.name), ['Old Cat']);
+  });
+
+  test('an active holder is excluded from its row list', () {
+    final acc = account(
+      'a0000000-0000-0000-0000-000000000001',
+      'Active One',
+      lifecycle: LifecycleState.active,
+    );
+    final container = buildContainer(
+      buildLedger(moneySources: {acc.id: MoneySource.account(acc)}),
+    );
+
+    expect(
+      container.read(recycleBinViewModelProvider).value?.accounts,
+      isEmpty,
+    );
+  });
+
+  test('a binned entry is listed with its name', () {
+    final acc = account(
+      'a0000000-0000-0000-0000-000000000001',
+      'Bank',
+      lifecycle: LifecycleState.active,
+    );
+    final entry = Entry(amount: dec('5'), name: 'Coffee', sourceID: acc.id);
+    final container = buildContainer(
+      buildLedger(
+        moneySources: {acc.id: MoneySource.account(acc)},
+        binnedEntries: {entry.id: entry},
+      ),
+    );
+
+    final row = container
+        .read(recycleBinViewModelProvider)
+        .value!
+        .entries
+        .single;
+
+    expect(row.id, entry.id);
+    expect(row.name, 'Coffee');
+  });
+
+  test('a row shows how many entries reference it', () {
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
+    final entry = Entry(amount: dec('5'), name: 'x', sourceID: acc.id);
+    final container = buildContainer(
+      buildLedger(
+        moneySources: {acc.id: MoneySource.account(acc)},
+        entries: {entry.id: entry},
+      ),
+    );
+
     final row = container
         .read(recycleBinViewModelProvider)
         .value!
         .accounts
         .single;
-    container.read(recycleBinViewModelProvider.notifier).requestPurge(row);
+
+    expect(row.referenceCount, 1);
+  });
+
+  test('a pocket row is named with its qualified name when the parent '
+      'resolves', () {
+    final parent = account(
+      'a0000000-0000-0000-0000-000000000001',
+      'Main',
+      lifecycle: LifecycleState.active,
+      subPocketIDs: {'a0000000-0000-0000-0000-000000000002'},
+    );
+    final pkt = pocket('a0000000-0000-0000-0000-000000000002', 'Rent');
+    final container = buildContainer(
+      buildLedger(
+        moneySources: {
+          parent.id: MoneySource.account(parent),
+          pkt.id: MoneySource.pocket(pkt),
+        },
+      ),
+    );
+
+    final row = container
+        .read(recycleBinViewModelProvider)
+        .value!
+        .pockets
+        .single;
+
+    expect(row.name, 'Main/Rent');
+  });
+
+  test('a ledger change refreshes the row lists', () {
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
+    final ledger = buildLedger(
+      moneySources: {acc.id: MoneySource.account(acc)},
+    );
+    final container = buildContainer(ledger);
+
+    ledger.restoreAccount(acc.id);
+
+    expect(
+      container.read(recycleBinViewModelProvider).value?.accounts,
+      isEmpty,
+    );
+  });
+
+  test('an unmounted view model stops listening to the ledger', () async {
+    final ledger = ListenerTrackingLedger(LedgerState());
+    final container = ProviderContainer(
+      overrides: [ledgerProvider.overrideWithValue(ledger)],
+    );
+    addTearDown(container.dispose);
+    final mounted = container.listen(recycleBinViewModelProvider, (_, _) {});
+    expect(ledger.isListened, isTrue);
 
     mounted.close();
     await container.pump();
 
-    expect(container.read(recycleBinViewModelProvider).value?.step, isNull);
-  });
-
-  test('a projection failing after it had a value is an AsyncError', () {
-    final container = buildContainerWithFailingProjection(buildLedger());
-    expect(container.read(recycleBinViewModelProvider).hasValue, isTrue);
-
-    (container.read(
-      recycleBinProjectionProvider.notifier,
-    ) as FailingProjectionNotifier).fail();
-
-    expect(container.read(recycleBinViewModelProvider).hasError, isTrue);
+    expect(ledger.isListened, isFalse);
   });
 
   test('a ledger change keeps the pending step', () {
@@ -311,11 +405,8 @@ void main() {
   });
 }
 
-class FailingProjectionNotifier extends RecycleBinProjectionNotifier {
-  void fail() {
-    state = AsyncError<RecycleBinProjection>(
-      StateError('projection failed'),
-      StackTrace.empty,
-    );
-  }
+class ListenerTrackingLedger extends Ledger {
+  ListenerTrackingLedger(LedgerState state) : super(state: state);
+
+  bool get isListened => hasListeners;
 }

@@ -27,9 +27,9 @@ import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 
 // MARK: - BudgetsFlow
 class BudgetsFlow extends FlowBase<BudgetsStep> {
-  const BudgetsFlow({super.key, this.header});
+  const BudgetsFlow({super.key, required this.header});
 
-  final Widget? header;
+  final Widget header;
 
   @override
   ConsumerState<BudgetsFlow> createState() => _BudgetsFlowState();

@@ -41,19 +41,19 @@ void main() {
     return container;
   }
 
-  Future<TransactionsViewState> stateOf(
+  TransactionsViewState stateOf(
     ProviderContainer container,
     TransactionsScope? scope,
   ) {
     final provider = transactionsViewModelProvider(scope);
     container.listen(provider, (_, _) {});
-    return container.read(provider.future);
+    return container.read(provider).requireValue;
   }
 
   group('unscoped screen', () {
     test('shows the default title', () async {
       final container = containerFor(buildLedger());
-      final state = await stateOf(container, null);
+      final state = stateOf(container, null);
 
       expect(state.title, 'History');
     });
@@ -66,7 +66,7 @@ void main() {
         scopeIDs: {account.id, pocket.id},
       );
       final container = containerFor(buildLedger());
-      final state = await stateOf(container, scope);
+      final state = stateOf(container, scope);
 
       expect(state.title, 'Checking');
     });
@@ -104,7 +104,7 @@ void main() {
       );
       final container = containerFor(ledger);
 
-      final state = await stateOf(container, scope);
+      final state = stateOf(container, scope);
 
       expect(state.daySections, hasLength(1));
       expect(state.daySections.single.rows.single.title, isNot('not in scope'));
@@ -130,7 +130,7 @@ void main() {
       );
       final container = containerFor(ledger);
 
-      final state = await stateOf(container, null);
+      final state = stateOf(container, null);
 
       expect(state.income, dec('100'));
       expect(state.expenses, dec('40'));
@@ -144,7 +144,7 @@ void main() {
       final container = containerFor(buildLedger());
       final provider = transactionsViewModelProvider(null);
       final subscription = container.listen(provider, (_, _) {});
-      await container.read(provider.future);
+      container.read(provider);
       container.read(provider.notifier).previousMonth();
       final current = DateTime.utc(today.year, today.month);
       expect(
@@ -155,7 +155,7 @@ void main() {
       subscription.close();
       await container.pump();
 
-      final state = await stateOf(container, null);
+      final state = stateOf(container, null);
       expect(state.selectedDate, current);
     });
   });
@@ -163,7 +163,7 @@ void main() {
   group('month selection', () {
     test('previous month crosses January into the prior December', () async {
       final container = containerFor(buildLedger());
-      await stateOf(container, null);
+      stateOf(container, null);
       final viewModel = container.read(
         transactionsViewModelProvider(null).notifier,
       );
@@ -177,7 +177,7 @@ void main() {
 
     test('next month crosses December into the next January', () async {
       final container = containerFor(buildLedger());
-      await stateOf(container, null);
+      stateOf(container, null);
       final viewModel = container.read(
         transactionsViewModelProvider(null).notifier,
       );
@@ -193,7 +193,7 @@ void main() {
       'month commands normalize a non-UTC selection to UTC month start',
       () async {
         final container = containerFor(buildLedger());
-        await stateOf(container, null);
+        stateOf(container, null);
         final viewModel = container.read(
           transactionsViewModelProvider(null).notifier,
         );
@@ -233,7 +233,7 @@ void main() {
           title: 'Checking',
           scopeIDs: {account.id},
         );
-        await stateOf(container, scope);
+        stateOf(container, scope);
         final viewModel = container.read(
           transactionsViewModelProvider(scope).notifier,
         );
@@ -287,7 +287,7 @@ void main() {
             },
           ),
         );
-        await stateOf(container, scope);
+        stateOf(container, scope);
         final viewModel = container.read(
           transactionsViewModelProvider(scope).notifier,
         );
@@ -309,7 +309,7 @@ void main() {
 
     test('shows an empty register for an empty selected month', () async {
       final container = containerFor(buildLedger());
-      await stateOf(container, null);
+      stateOf(container, null);
       final viewModel = container.read(
         transactionsViewModelProvider(null).notifier,
       );
@@ -333,7 +333,7 @@ void main() {
       );
       final ledger = buildLedger(entries: {entry.id: entry});
       final container = containerFor(ledger);
-      await stateOf(container, null);
+      stateOf(container, null);
       final viewModel = container.read(
         transactionsViewModelProvider(null).notifier,
       );
@@ -356,7 +356,7 @@ void main() {
         );
         final ledger = buildLedger(entries: {entry.id: entry});
         final container = containerFor(ledger);
-        await stateOf(container, null);
+        stateOf(container, null);
         final viewModel = container.read(
           transactionsViewModelProvider(null).notifier,
         );
@@ -378,7 +378,7 @@ void main() {
         date: day(1),
       );
       final container = containerFor(buildLedger(entries: {entry.id: entry}));
-      await stateOf(container, null);
+      stateOf(container, null);
       final viewModel = container.read(
         transactionsViewModelProvider(null).notifier,
       );

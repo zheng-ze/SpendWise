@@ -1,6 +1,6 @@
 # Trends & Category Detail UI
 
-Last reconciled: c7090f5a
+Last reconciled: 7cc26306
 
 ## Feature overview
 

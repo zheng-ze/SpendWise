@@ -15,6 +15,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 import '../../../support/pump_app.dart';
 import '../../../support/ui_test_timeout.dart';
+import '../../../support/phone_shell.dart';
 
 Budget _overall() =>
     Budget(id: 'b1', categoryID: null, limit: Decimal.fromInt(100));
@@ -24,7 +25,11 @@ void main() {
     tester,
   ) async {
     final ledger = Ledger(state: LedgerState());
-    await pumpApp(tester, const BudgetsFlow(), ledger: ledger);
+    await pumpApp(
+      tester,
+      const BudgetsFlow(header: SizedBox.shrink()),
+      ledger: ledger,
+    );
     await tester.tap(find.text('Add budget'));
     await tester.pumpAndSettle();
     final header = find.descendant(
@@ -45,7 +50,12 @@ void main() {
     ) async {
       final budget = _overall();
       final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
-      await pumpApp(tester, const BudgetsFlow(), ledger: ledger, size: size);
+      await pumpApp(
+        tester,
+        const BudgetsFlow(header: SizedBox.shrink()),
+        ledger: ledger,
+        size: size,
+      );
       final amount = find.text('S\$100.00');
       await tester.drag(amount, const Offset(-200, 0));
       await tester.pumpAndSettle();
@@ -84,7 +94,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    final app = const MaterialApp(home: BudgetsRoot());
+    final app = MaterialApp(home: phoneShell(const BudgetsRoot()));
     final scope = UncontrolledProviderScope(container: container, child: app);
     await tester.pumpWidget(scope);
     await tester.pumpAndSettle();

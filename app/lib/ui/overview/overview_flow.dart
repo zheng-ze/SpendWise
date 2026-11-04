@@ -39,9 +39,6 @@ class _OverviewFlowState extends FlowBaseState<OverviewStep, OverviewFlow> {
 
   @override
   Widget buildRoot(BuildContext context) {
-    final shellScope = context
-        .dependOnInheritedWidgetOfExactType<ShellPaneScope>();
-    if (shellScope == null) return const OverviewScreen();
     return ShellPaneHost(
       pageBuilder: (context, presentation) => OverviewScreen(
         layoutMode: ShellPaneScope.of(context).mode,

@@ -43,27 +43,26 @@ class BudgetsRoot extends ConsumerWidget {
     final viewModel = ref.watch(budgetsListViewModelProvider.notifier);
     final mode = ref.watch(shellLayoutModeProvider);
     final desktop = mode == ShellLayoutMode.desktop;
-    final sheetPresented =
-        ShellPaneScope.maybeOf(context)?.sheetPresented ?? false;
+    final sheetPresented = ShellPaneScope.of(context).sheetPresented;
     final open = mode == ShellLayoutMode.open;
-    final body = state.when(
-      data: (value) => BudgetsListView(
-        viewState: value,
+    final body = switch (state) {
+      AsyncError(:final error) => BudgetListError(
+        error: error,
+        onRetry: viewModel.retry,
+      ),
+      _ => BudgetsListView(
+        viewState: state.requireValue,
         viewModel: viewModel,
         desktop: desktop,
         columns: budgetListColumnCount(
           openLayout: open,
           sheetPresented: sheetPresented,
-          selectionPresent: value.selectedBudgetID != null,
+          selectionPresent: state.requireValue.selectedBudgetID != null,
         ),
         showFloatingAction: !sheetPresented,
         actionPadding: open ? _openActionPadding : _actionPadding,
       ),
-      loading: () =>
-          const Padding(padding: _contentPadding, child: LoadingTrays()),
-      error: (error, _) =>
-          BudgetListError(error: error, onRetry: viewModel.retry),
-    );
+    };
     final dismissSelection = (open || desktop) && !sheetPresented
         ? ref.read(selectedBudgetProvider.notifier).clear
         : null;

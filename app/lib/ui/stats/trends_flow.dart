@@ -72,9 +72,7 @@ class _TrendsRoot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<ShellPaneScope>();
-    final mode = scope?.mode ?? ShellLayoutMode.phone;
-    final useOpenComposition = switch (mode) {
+    final useOpenComposition = switch (ShellPaneScope.of(context).mode) {
       ShellLayoutMode.phone => false,
       ShellLayoutMode.open || ShellLayoutMode.desktop => true,
     };
