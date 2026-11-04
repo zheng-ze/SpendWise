@@ -4,10 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/trends_flow.dart';
 import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.dart';
+import 'package:spendwise/ui/transactions/entry/edit_entry_host.dart';
 import 'package:spendwise/ui/transactions/entry/edit_entry_presenter.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
+import 'package:spendwise/ui/transactions/entry/new_entry_chrome.dart';
+import 'package:spendwise/ui/transactions/history_entry_selection.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 // MARK: - TransactionsScope
@@ -67,7 +73,7 @@ class _TransactionsFlowState
   void handleStep(BuildContext context, TransactionsStep step) {
     switch (step) {
       case EntryFormRequested(:final entry):
-        unawaited(openEditEntry(context: context, ref: ref, entryId: entry.id));
+        _editEntry(context, entry.id);
       case HistoryTrendsRequested():
         _openTrends(context);
       case PickSourceRequested():
@@ -82,6 +88,19 @@ class _TransactionsFlowState
         break;
     }
     _screenViewModel.clearStep();
+  }
+
+  void _editEntry(BuildContext context, String entryId) {
+    final paneHosted =
+        widget.initialScope == null &&
+        ref.read(shellLayoutModeProvider) != ShellLayoutMode.phone;
+    if (!paneHosted) {
+      unawaited(openEditEntry(context: context, ref: ref, entryId: entryId));
+      return;
+    }
+    if (ref.read(historyEntrySelectionProvider) == entryId) return;
+    ref.invalidate(entryFormViewModelProvider(entryId));
+    ref.read(historyEntrySelectionProvider.notifier).select(entryId);
   }
 
   void _openTrends(BuildContext context) {
@@ -114,8 +133,44 @@ class _TransactionsFlowState
     if (widget.initialScope != null) {
       return screen(ShellPagePresentation.fullPage);
     }
+    return _HistoryPaneHost(pageBuilder: screen);
+  }
+}
+
+// MARK: - HistoryPaneHost
+class _HistoryPaneHost extends ConsumerWidget {
+  const _HistoryPaneHost({required this.pageBuilder});
+
+  final Widget Function(ShellPagePresentation presentation) pageBuilder;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final phone = ref.watch(shellLayoutModeProvider) == ShellLayoutMode.phone;
+    final entryId = ref.watch(historyEntrySelectionProvider);
+    final showsPane = !phone && entryId != null;
+    final draftDate = showsPane
+        ? ref.watch(
+            entryFormViewModelProvider(entryId).select((s) => s.value?.date),
+          )
+        : null;
+    final clear = ref.read(historyEntrySelectionProvider.notifier).clear;
+    ShellDetail? detail;
+    if (showsPane) {
+      detail = ShellDetail(
+        id: entryId,
+        title: editEntryTitle,
+        subtitle: draftDate == null ? null : formatEntryDate(draftDate),
+        onClose: clear,
+        bodyBuilder: (_) => EditEntryHost(
+          entryId: entryId,
+          frame: EntryFormFrame.pane,
+          onDismiss: clear,
+        ),
+      );
+    }
     return ShellPaneHost(
-      pageBuilder: (_, presentation) => screen(presentation),
+      pageBuilder: (_, presentation) => pageBuilder(presentation),
+      detail: detail,
     );
   }
 }
