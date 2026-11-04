@@ -6,9 +6,9 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 class HistoryEntrySelectionNotifier extends Notifier<String?> {
   @override
   String? build() {
-    ref.listen(shellLayoutModeProvider, (_, mode) {
-      if (mode == ShellLayoutMode.phone) clear();
-    });
+    ref.watch(
+      shellLayoutModeProvider.select((mode) => mode == ShellLayoutMode.phone),
+    );
     return null;
   }
 
