@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
@@ -62,11 +63,13 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
   Widget build(BuildContext context) {
     final asyncState = ref.watch(categoryListViewModelProvider);
 
-    if (asyncState case AsyncError(:final error)) {
-      return Scaffold(body: Center(child: Text('$error')));
-    }
-    final viewState = asyncState.requireValue;
-    return _CategoryListScreenBody(viewState: viewState, viewModel: _viewModel);
+    return AsyncValueView(
+      value: asyncState,
+      onRetry: () => ref.invalidate(categoryListViewModelProvider),
+      fullPage: true,
+      data: (viewState) =>
+          _CategoryListScreenBody(viewState: viewState, viewModel: _viewModel),
+    );
   }
 }
 

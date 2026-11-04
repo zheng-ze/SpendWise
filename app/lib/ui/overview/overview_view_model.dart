@@ -116,7 +116,7 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
   OverviewViewState build() {
     final day = ref.watch(todayProvider);
     final currentLedger = ledger;
-    final queries = ref.watch(analysisQueriesProvider)!;
+    final queries = analysisQueries;
     final ledgerState = currentLedger.state;
     final recent = queries.readRecent().value;
     final upcoming = queries.readUpcoming().value;

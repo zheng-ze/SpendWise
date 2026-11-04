@@ -155,7 +155,9 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   5. One-shot Steps are consumed by the Flow and never retained.
 
   A synchronous view model has no loading state. A build that fails ends in `AsyncError` and the View
-  shows an error state, never a spinner. These providers set `retry: (_, _) => null`, because
+  shows an error state, never a spinner: `AsyncValueView` renders `LoadErrorView` with a Try again
+  action that invalidates the provider, builds the data when a value exists, and otherwise renders
+  nothing. These providers set `retry: (_, _) => null`, because
   Riverpod's default retry reports a failed build as `AsyncLoading` and retrying a ledger-derived
   build cannot succeed.
 

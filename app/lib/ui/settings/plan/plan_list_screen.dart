@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/feedback/delete_confirmation.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
@@ -82,11 +83,13 @@ class _PlanListScreenState extends ConsumerState<PlanListScreen> {
     final asyncState = ref.watch(planListViewModelProvider);
     final viewModel = ref.watch(planListViewModelProvider.notifier);
 
-    if (asyncState case AsyncError(:final error)) {
-      return Scaffold(body: Center(child: Text('$error')));
-    }
-    final viewState = asyncState.requireValue;
-    return _PlanListScreenBody(viewState: viewState, viewModel: viewModel);
+    return AsyncValueView(
+      value: asyncState,
+      onRetry: () => ref.invalidate(planListViewModelProvider),
+      fullPage: true,
+      data: (viewState) =>
+          _PlanListScreenBody(viewState: viewState, viewModel: viewModel),
+    );
   }
 }
 

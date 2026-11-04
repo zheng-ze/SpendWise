@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_purge_dialog.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_sections.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
@@ -70,11 +71,13 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
   Widget build(BuildContext context) {
     final asyncState = ref.watch(recycleBinViewModelProvider);
 
-    if (asyncState case AsyncError(:final error)) {
-      return Scaffold(body: Center(child: Text('$error')));
-    }
-    final viewState = asyncState.requireValue;
-    return _RecycleBinScreenBody(viewState: viewState, viewModel: _viewModel);
+    return AsyncValueView(
+      value: asyncState,
+      onRetry: () => ref.invalidate(recycleBinViewModelProvider),
+      fullPage: true,
+      data: (viewState) =>
+          _RecycleBinScreenBody(viewState: viewState, viewModel: _viewModel),
+    );
   }
 }
 

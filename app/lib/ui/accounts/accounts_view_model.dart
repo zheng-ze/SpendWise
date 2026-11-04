@@ -76,7 +76,6 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
   }
 
   void _onLedgerChanged() {
-    if (!ref.mounted) return;
     state = AsyncData(_viewState(ledger, ref.read(todayProvider), state.value));
   }
 

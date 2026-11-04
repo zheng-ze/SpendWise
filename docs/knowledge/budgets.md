@@ -149,7 +149,7 @@ to a negative expense day total. (`budget_counted_entry_list.dart`,
 
 `budgetsListViewModelProvider` is an autoDispose provider whose `build` is synchronous: the list has
 no loading state, section data that has not arrived is `overview == null` and renders as
-section skeletons, and a failed read shows `BudgetListError`. The notifier keeps no ledger or
+section skeletons, and a failed build shows `LoadErrorView` through `AsyncValueView`, whose Try again action invalidates the provider. The notifier keeps no ledger or
 analysis cache reference of its own and rebuilds through its watched `analysisQueriesProvider`,
 `budgetsMonthProvider`, `todayProvider` and `selectedBudgetProvider`. `selectedBudgetProvider` is an autoDispose
 notifier holding the selected budget ID or null. It watches no query. `select` sets the ID and `clear`

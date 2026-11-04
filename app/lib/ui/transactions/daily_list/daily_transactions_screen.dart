@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
 import 'package:spendwise/ui/format/date_format.dart';
@@ -59,18 +60,21 @@ class TransactionsScreen extends ConsumerWidget {
     final mode = ref.watch(shellLayoutModeProvider);
     final async = ref.watch(transactionsViewModelProvider(scope));
     final viewModel = ref.read(transactionsViewModelProvider(scope).notifier);
-    if (async case AsyncError(:final error)) {
-      return Scaffold(body: Center(child: Text('$error')));
-    }
-    return _TransactionsScreenBody(
-      state: async.requireValue,
-      viewModel: viewModel,
-      onBackPressed: onBackPressed,
-      backLabel: backLabel,
-      showsTrendsAction: scope == null,
-      wideComposition:
-          presentation == ShellPagePresentation.fullPage &&
-          (mode == ShellLayoutMode.open || mode == ShellLayoutMode.desktop),
+    final wideComposition =
+        presentation == ShellPagePresentation.fullPage &&
+        (mode == ShellLayoutMode.open || mode == ShellLayoutMode.desktop);
+    return AsyncValueView(
+      value: async,
+      onRetry: () => ref.invalidate(transactionsViewModelProvider(scope)),
+      fullPage: true,
+      data: (state) => _TransactionsScreenBody(
+        state: state,
+        viewModel: viewModel,
+        onBackPressed: onBackPressed,
+        backLabel: backLabel,
+        showsTrendsAction: scope == null,
+        wideComposition: wideComposition,
+      ),
     );
   }
 }

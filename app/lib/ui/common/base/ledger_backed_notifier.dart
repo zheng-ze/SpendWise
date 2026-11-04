@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ledger/ledger_session.dart';
 
@@ -15,6 +16,14 @@ mixin LedgerBackedNotifier<T> on AsyncNotifier<T> {
   }
 
   Ledger get ledger => _session.ledger;
+
+  AnalysisQueries get analysisQueries {
+    final queries = ref.watch(analysisQueriesProvider);
+    if (queries == null) {
+      throw StateError('$runtimeType requires ready analysis queries.');
+    }
+    return queries;
+  }
 
   void updateState(T Function(T current) apply) {
     if (!ref.mounted) return;

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/accounts/account_row.dart';
 import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
+import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/lists/responsive_summary_card.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
@@ -21,14 +22,13 @@ class AccountsScreen extends ConsumerWidget {
     final asyncState = ref.watch(accountsViewModelProvider);
     final viewModel = ref.watch(accountsViewModelProvider.notifier);
 
-    if (asyncState case AsyncError(:final error)) {
-      return Scaffold(body: Center(child: Text('$error')));
-    }
-    return Scaffold(
-      body: SafeArea(
-        child: _AccountsList(
-          viewState: asyncState.requireValue,
-          viewModel: viewModel,
+    return AsyncValueView(
+      value: asyncState,
+      onRetry: () => ref.invalidate(accountsViewModelProvider),
+      fullPage: true,
+      data: (viewState) => Scaffold(
+        body: SafeArea(
+          child: _AccountsList(viewState: viewState, viewModel: viewModel),
         ),
       ),
     );

@@ -120,7 +120,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
   @override
   BudgetsListViewState build() {
     final currentLedger = ledger;
-    final queries = ref.watch(analysisQueriesProvider)!;
+    final queries = analysisQueries;
     final month = ref.watch(budgetsMonthProvider);
     final today = ref.watch(todayProvider);
     final result = queries.readBudgets(month: month);
