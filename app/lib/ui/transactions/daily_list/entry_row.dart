@@ -1,14 +1,15 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
-import 'package:spendwise/ui/transactions/entry/entry_form.dart';
+import 'package:spendwise/ui/transactions/entry/edit_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_cell.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
 // MARK: - EntryRow
-class EntryRow extends StatelessWidget {
+class EntryRow extends ConsumerWidget {
   const EntryRow({
     super.key,
     required this.row,
@@ -21,7 +22,7 @@ class EntryRow extends StatelessWidget {
   final LedgerState state;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final entry = state.entries[row.id];
     if (entry == null) return const SizedBox.shrink();
 
@@ -31,7 +32,8 @@ class EntryRow extends StatelessWidget {
       onDeleted: () => ledger.deleteEntry(entry.id),
       child: TransactionCell(
         row: row,
-        onTap: () => showEntryFormSheet(context: context, entryId: entry.id),
+        onTap: () =>
+            openEditEntry(context: context, ref: ref, entryId: entry.id),
       ),
     );
   }

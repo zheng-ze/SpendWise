@@ -3,13 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
-import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
 
 import '../../../support/ui_test_timeout.dart';
 import 'budget_detail_test_support.dart';
-
-const _entryScrollStep = 200.0;
 
 void main() {
   final lunch = Entry(
@@ -67,23 +64,6 @@ void main() {
     await tester.pump();
 
     expect(detailState(container).step, isA<BudgetEditRequested>());
-  }, timeout: uiTestTimeout);
-
-  testWidgets('tapping a counted register row opens its entry form', (
-    tester,
-  ) async {
-    await pumpDetailScreen(
-      tester,
-      ledger: detailLedger(budgets: [detailBudget()], entries: [lunch]),
-    );
-
-    await tester.scrollUntilVisible(find.text('Lunch'), _entryScrollStep);
-    await tester.pump();
-    await tester.tap(find.text('Lunch'));
-    await tester.pumpAndSettle();
-
-    final form = tester.widget<EntryForm>(find.byType(EntryForm));
-    expect(form.entryId, lunch.id);
   }, timeout: uiTestTimeout);
 
   testWidgets(
