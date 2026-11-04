@@ -8,6 +8,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/transactions/entry/edit_entry_host.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_chrome.dart';
+import 'package:spendwise/ui/transactions/history_entry_selection.dart';
 
 final editEntryPresentationControllerProvider =
     Provider<EditEntryPresentationController>((ref) {
@@ -23,6 +24,10 @@ Future<void> openEditEntry({
   required String entryId,
 }) {
   final controller = ref.read(editEntryPresentationControllerProvider);
+  final selection = ref.read(historyEntrySelectionProvider);
+  if (selection == entryId) {
+    ref.read(historyEntrySelectionProvider.notifier).clear();
+  }
   return controller.open(context: context, entryId: entryId);
 }
 
