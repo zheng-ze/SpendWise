@@ -10,6 +10,7 @@ import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/format/amount_input.dart';
 import 'package:spendwise/ui/transactions/entry/add_amount_block.dart';
 import 'package:spendwise/ui/transactions/entry/animated_input_surface.dart';
+import 'package:spendwise/ui/transactions/entry/entry_pane_layout.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_chrome.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_rows.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
@@ -34,6 +35,7 @@ class NewEntryForm extends StatefulWidget {
     required this.viewModel,
     required this.state,
     required this.display,
+    this.frame = EntryFormFrame.sheet,
     this.alert,
     this.onAlertAction,
   });
@@ -42,6 +44,8 @@ class NewEntryForm extends StatefulWidget {
   final EntryFormViewModel viewModel;
   final EntryFormViewState state;
   final EntryFormDisplay display;
+
+  final EntryFormFrame frame;
 
   final SheetAlertData? alert;
 
@@ -125,9 +129,7 @@ class _NewEntryFormState extends State<NewEntryForm> {
   }
 
   bool get _usesPad =>
-      context
-          .getInheritedWidgetOfExactType<AppSheetAlertSlot>()
-          ?.presentation !=
+      entryFormPresentation(context, widget.frame) !=
       AppSheetPresentation.desktop;
 
   void _refresh() {
@@ -150,9 +152,7 @@ class _NewEntryFormState extends State<NewEntryForm> {
   Widget build(BuildContext context) {
     final viewModel = widget.viewModel;
     final state = widget.state;
-    final presentation =
-        AppSheetAlertSlot.maybeOf(context)?.presentation ??
-        AppSheetPresentation.phone;
+    final presentation = entryFormPresentation(context, widget.frame);
     final desktop = presentation == AppSheetPresentation.desktop;
     final focusedPad = !desktop && _amountFocus.hasFocus;
     final route = ModalRoute.of(context);
@@ -161,7 +161,18 @@ class _NewEntryFormState extends State<NewEntryForm> {
     final padVisible = leaving ? _padShown : focusedPad;
     _padShown = padVisible;
     final save = state.canSave ? viewModel.save : null;
-    final header = NewEntryHeader(presentation: presentation, onSave: save);
+    final editing = state.isEditing;
+    final header = NewEntryHeader(
+      presentation: presentation,
+      title: editing ? editEntryTitle : addEntryTitle,
+      actionLabel: editing ? editActionLabel : addActionLabel,
+      onSave: save,
+    );
+    final footer = NewEntrySaveFooter(
+      label: editing ? editFooterLabel : addFooterLabel,
+      onSave: save,
+      keypad: padVisible,
+    );
     final body = _NewEntryBody(
       formKey: widget.formKey,
       viewModel: viewModel,
@@ -191,10 +202,19 @@ class _NewEntryFormState extends State<NewEntryForm> {
           )
         : null;
     Widget sheet(BuildContext context, Widget surface) {
+      if (widget.frame == EntryFormFrame.pane) {
+        return EntryPaneLayout(
+          body: body,
+          footer: footer,
+          inputSurface: surface,
+          alert: widget.alert,
+          onAlertAction: widget.onAlertAction,
+        );
+      }
       return AppSheet(
         header: header,
         body: body,
-        footer: NewEntrySaveFooter(onSave: save, keypad: padVisible),
+        footer: footer,
         inputSurface: surface,
         dragToDismiss: true,
         variant: AppSheetVariant.form,
@@ -294,7 +314,7 @@ class _NewEntryBody extends ConsumerWidget {
         amount,
         const SizedBox(height: _sectionGap),
         group,
-        ReceiptScanStopHost(formKey: formKey),
+        if (!state.isEditing) ReceiptScanStopHost(formKey: formKey),
       ],
     );
   }
