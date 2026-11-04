@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: 7cc26306
+Last reconciled: f9c2bb9f
 
 ## Feature overview
 
@@ -138,8 +138,8 @@ its column still selects it; the month label above the empty copy is the selecti
 
 `BudgetCountedEntryList` groups rows by `startOfDayUtc(entry.date)` and displays days newest first.
 Each day header shows the negative folded expense contribution for its rows. It builds its own rows
-the way History does: `TransactionCell.register` inside a `SwipeRow`, with a tap that opens the entry
-form for that entry id and a swipe that deletes through the live ledger. A row whose entry no longer
+the way History does: `TransactionCell.register` inside a `SwipeRow`, with a tap that calls `openEditEntry`
+for that entry id (the Edit entry sheet) and a swipe that deletes through the live ledger. A row whose entry no longer
 exists in the live state is skipped. The shared `EntryRow` is not involved. Rows use the original
 transaction presentation, so a transfer can display its original positive amount while contributing
 to a negative expense day total. (`budget_counted_entry_list.dart`,

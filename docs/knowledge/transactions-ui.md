@@ -1,13 +1,13 @@
 # Transactions UI
 
-Last reconciled: 7cc26306
+Last reconciled: f9c2bb9f
 
 ## Feature overview
 
 The transactions list and its entry form. The unscoped list is the shell History destination;
 scoped lists live inside Money. Both show a month-navigated, day-sectioned register and render
-account-scoped with a custom title and source filter. The entry form creates, views
-(read-only-first), and edits entries and is the only place recurring plans are created.
+account-scoped with a custom title and source filter. One amount-first form creates entries (Add)
+and edits existing ones (Edit entry); Add is the only place recurring plans are created.
 
 ## Key files
 
@@ -22,22 +22,34 @@ account-scoped with a custom title and source filter. The entry form creates, vi
   state-free responsive Net/Spent/Income band shared by unscoped History and scoped Money routes.
 - `app/lib/ui/transactions/monthly/month_summaries.dart` - shared month/week projection helper;
   it remains available to other consumers although Transactions no longer presents that view.
-- `app/lib/ui/transactions/entry/` - the entry form sheet.
+- `app/lib/ui/transactions/entry/` - the entry form, shared by Add and Edit entry.
+- `app/lib/ui/transactions/entry/edit_entry_presenter.dart` - `openEditEntry` and the
+  container-scoped `EditEntryPresentationController`: duplicate-open guard, invalidation of
+  `entryFormViewModelProvider(entryId)` on every open so each open starts from persisted values, and
+  one owner per entry through claim tokens (`claim`, `owns`, `release`).
+- `app/lib/ui/transactions/entry/edit_entry_host.dart` - `EditEntryHost`: claims ownership,
+  subscribes to the form view model, dispatches its Steps from its own context with
+  `sheetPresentation: accountSheetPresentation` and `onPickerRouteCreated`, removes still-active
+  picker routes on dispose, and shows the load alert with Retry. Hosted in a sheet or in the History
+  detail pane (`EntryFormFrame.sheet` or `.pane`).
+- `app/lib/ui/transactions/history_entry_selection.dart` - `historyEntrySelectionProvider`
+  (autoDispose), the selected History entry id for the detail pane.
 - `app/lib/ui/transactions/entry/new_entry_presenter.dart` - the shared Add presenter
   (`openNewEntry`): reads `shellLayoutModeProvider` from the caller-side ref, opens the null-key
   entry form in `AppSheet` on the root navigator, and delegates to the container-local
   `NewEntryPresentationController`. Its private Add session owns the duplicate guard, the exact
   `AppSheetRoute`, the only null-form Step subscription, a mount-gated pending Step pickup and one
   completion that settles at `route.completed`. `EntryForm.onDismiss` is supplied only by Add and
-  closes exactly that route even under a picker; Edit and view dismissal is unchanged.
+  closes exactly that route even under a picker; Edit dismisses through `EditEntryHost.onDismiss`.
   Save, Back, drag or barrier dismissal, route removal, `AppShell` disposal and container
   disposal all retire the session once: the Step subscription closes and the receipt coordinator
   is invalidated in a deferred microtask. Route pop retires the session at `route.popped`;
   presentation ownership and its completion release at `route.completed`. A failed save keeps
   the session and draft.
 - `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart` - the shared source, destination,
-  category, recurrence, date, end-date and document-crop Step handlers used by both the presenter
-  and `TransactionsFlow`, presented above the sheet through the root navigator.
+  category, recurrence, date, end-date and document-crop Step handlers used by both hosts,
+  presented above the sheet through the root navigator. `dispatchEntryFormStep` requires
+  `sheetPresentation`; there is no legacy modal or `showDatePicker` fallback.
 - `app/lib/ui/transactions/receipt_scan/` - the OCR entry hook (see `ocr-receipt-entry.md`).
 - `app/lib/ui/transactions/transactions_flow.dart` - the Flow that owns this list's nested navigator.
   It takes an optional `backLabel` passed through to the screen's back control; the shell
@@ -89,8 +101,8 @@ resolve synthetic, uncategorized, unresolved and malformed metadata fallbacks. R
 
 The Transactions Flow owns a nested `Navigator` scoped with a `GlobalKey<NavigatorState>` local to
 the Flow (`ui-framework-mvvm.md`). The unscoped `TransactionsFlow` is the shell's History
-destination (`ShellDestination.history`); scoped instances live inside Money. Screens pushed: the entry form sheet for an existing entry, the
-category/source picker sheets, and the receipt scan screen. New entries open only through the shell's
+destination (`ShellDestination.history`); scoped instances live inside Money. Screens pushed: the picker sheets and the receipt scan screen; existing
+entries open as Edit entry (see Screens and flows). New entries open only through the shell's
 Add control and shared presenter. The Transactions screen has no local Add or Edit source control.
 The shell reads the top scoped Money route's preferred source on demand
 through its constructor-injected getter (`activeMoneySourceProvider`, backed by
@@ -156,15 +168,18 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   Rows show the note as the primary label,
   falling back to the category title when empty; the secondary label retains category and source
   when a note exists, or source alone otherwise. Icons use the row's symbol and colour, and amounts
-  keep signed formatting and `AmountStyle` colours. Tapping a row opens a read-only entry sheet.
+  keep signed formatting and `AmountStyle` colours. Tapping a row opens Edit entry (`EntryRow` calls `openEditEntry`).
   The empty state shows an inbox icon and "No transactions".
   Swipe leading-to-trailing opens a "Delete this transaction?" confirmation.
-- **Entry form** - three modes. New uses the amount-first `NewEntryForm`: kind selector,
-  `AddAmountBlock`, then the `NewEntryRows` group. Edit keeps
-  `EntryFields`; Add no longer uses it. `NewEntryRows` lays out Name, Category, Account (Transfer:
+- **Entry form** - one amount-first form serves Add and Edit (`EntryFormMode` is `newEntry` or
+  `editing`). `NewEntryForm` shows the kind selector, `AddAmountBlock`, then the `NewEntryRows` group;
+  `NewEntryLoadingForm` is its loading shell. Copy follows `state.isEditing` (title "Add entry" or
+  "Edit entry", footer "Save entry" or "Update entry"). `EntryForm` is the Add host only.
+  `NewEntryRows` lays out Name, Category, Account (Transfer:
   From, To), Date, Repeat, Ends (only while recurring), Note, Include in analysis and Add receipt
   (key `new-entry-receipt`, camera icon, empty value, no chevron; hidden when
-  `scanStripEnabledProvider` is false), with one `EntryRowDivider` between adjacent rows. The
+  `scanStripEnabledProvider` is false). Edit rows omit Repeat, Ends, the recurring hint and Add
+  receipt, keep Note editable, and end with `EditEntryDeleteAction` (key `edit-entry-delete`), with one `EntryRowDivider` between adjacent rows. The
   receipt row opens a content-height `AppSheet` chooser with the header "Add receipt", the hint
   "Scanning fills in a draft. You check it before saving.", and plain "Scan receipt" (camera icon)
   and "Choose photo" (image icon) rows. It has no Cancel and dismisses by dragging down on phone
@@ -191,8 +206,7 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   `NewEntrySaveFooter` supplies Save entry in all layouts, driven by `canSave`.
   Desktop uses docked form chrome without a grab handle; phone supports drag and barrier dismissal, and
   open and desktop dismiss by tapping the barrier.
-  (`new_entry_form.dart`, `new_entry_chrome.dart`, `fields/entry_fields.dart`,
-  `app/lib/ui/common/sheets/app_sheet.dart`)
+  (`new_entry_form.dart`, `new_entry_chrome.dart`, `app/lib/ui/common/sheets/app_sheet.dart`)
   The Add session installs its route before awaiting form initialization: a disabled shell with loading
   placeholders while initializing, the same shell with a "Couldn't load the entry form" alert and
   Retry on failure. `entryFormViewModelProvider` opts out of automatic retry
@@ -206,13 +220,16 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   `entryFormDisplayProvider`, a `Provider.family` projection of the raw draft and current ledger state
   that listens to `Ledger` notifications without rebuilding the draft; unresolvable selections
   show "Unavailable account" / "Unavailable category".
-  View existing ("Entry", leading ‹ Back, trailing ✎ Edit). Edit existing ("Edit Entry", leading ✕
-  Back reverts fields to persisted values and drops to view mode with the sheet open). Fields: kind
-  segmented (changing kind clears the selected category), amount, name, date, source pickers
-  (plus a To row for transfers, else a Category row), and an "Include in Analysis" toggle (Edit
-  and view; Add rows are described above, and recurrence with Ends exists only in Add). `canSave` is a pure function that requires a category for expense and income (transfers and system entries such as an opening balance have none), so Save stays disabled until one is chosen for a user entry; deeper rules are the
+  Edit entry opens directly as an editable `AppSheet` with no read-only step. `openEditEntry` shows
+  `EditEntryHost` on the root navigator with the account sheet presentation resolver. Update entry
+  saves and dismisses. Delete entry is the last body action, archives through `Ledger.archiveEntry`
+  with no confirmation and dismisses. System entries lock Name, Category and Include in analysis and
+  show no Delete; an edit save keeps the entry's `systemKind`. Drag-down, tapping outside or the
+  pane's Close discards the draft silently. Fields: kind segmented (changing kind clears the selected category),
+  amount, name, date, source pickers (plus a To row for transfers, else a Category row), Note and
+  an "Include in analysis" toggle; recurrence with Ends exists only in Add. `canSave` is a pure function that requires a category for expense and income (transfers and system entries such as an opening balance have none), so Save stays disabled until one is chosen for a user entry; deeper rules are the
   domain validator's job and surface via the `ErrorSection` ("Could not save entry: <error>"). Save
-  semantics: sign is applied from kind; edit stays open and flips to read-only; new without
+  semantics: sign is applied from kind; edit saves and dismisses; new without
   recurrence calls `addEntry`; new with recurrence builds an `EntryTemplate` and calls `addPlan`
   with `anchor = date` and `lastResolvedDate = date − 1 s` so the anchor day resolves, then calls
   `resolvePlans`. A saved or cancelled new entry resets on the next open through provider
@@ -229,15 +246,27 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   recurrence only) opens `showEndsChoiceSheet` (Never or Choose date, an `AppSheet` without a
   reference frame) and Choose date awaits `_pickEndDate` directly. A dismissed choice or calendar
   changes nothing, Never sets `hasEndDate` false and keeps the cached date, and
-  `applyPickedEndDate` sets `hasEndDate` and `endDate` together. Add passes its live sheet-presentation resolver to category, account,
-  repeat, receipt, and date pickers, which use `AppSheet`; without that resolver, category, account, and
-  repeat use their legacy modal sheets and date uses `showDatePicker` for Edit and view flows.
-  Picker option chevrons indicate parent drill-in; Add picker rows (Category, Account, From, To,
-  Date, Repeat, Ends) carry trailing chevrons, Edit rows do not.
+  `applyPickedEndDate` sets `hasEndDate` and `endDate` together. Add and Edit pass a sheet-presentation resolver to the category, account,
+  repeat, receipt, and date pickers, which use `AppSheet`.
+  Picker option chevrons indicate parent drill-in; picker rows (Category, Account, From, To,
+  Date, Repeat, Ends) carry trailing chevrons in Add and Edit.
   (`app/lib/ui/common/pickers/`, `app/lib/ui/transactions/entry/new_entry_presenter.dart`,
   `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart`)
 - **Shell Add** - phone bar, open rail and desktop sidebar share one callback to the presenter. Transactions
-  retains date selection, filtering, row view/edit and Back behavior.
+  retains date selection, filtering, row edit and Back behavior.
+- **Edit entry hosts** - `EntryRow` (day lists, Trends category detail via `FlatEntrySliver`) and the
+  budget counted row call `openEditEntry`. `TransactionsFlow` routes `EntryFormRequested` to
+  `openEditEntry` for scoped Money lists and for History on phone. On open and desktop layouts the
+  unscoped History shows Edit entry in the shell detail pane instead: `_HistoryPaneHost`
+  (`transactions_flow.dart`) supplies a `ShellDetail` with the date subtitle and Close, hosting
+  `EditEntryHost` with `EntryFormFrame.pane` (`EntryPaneLayout`, which never builds an `AppSheet`).
+  `historyEntrySelectionProvider` owns the selection; it is scoped through `shellLayoutModeProvider`
+  and resets when the layout becomes phone. Re-tapping the selected row keeps the draft, selecting
+  another row swaps the keyed pane, and `openEditEntry` clears a matching selection. Overview Recent
+  entries also call `openEditEntry` (see `overview-ui.md`). Swipe-to-delete on list rows still
+  hard-deletes through `Ledger.deleteEntry`.
+- **Drafts** - existing-entry drafts live in the keep-alive `entryFormViewModelProvider` family and
+  persist until the next open invalidates them.
 
 ## Add input and dismissal
 
@@ -284,8 +313,9 @@ and focus node beside Name's; Note focus alone does not change the phone sheet h
 
 ## Gotchas and invariants
 
-- The entry form is read-only-first for existing entries - a memory-pinned design fact, not to be
-  "improved" into edit-first.
+- Only one host owns an entry's form at a time: `EditEntryHost` claims the entry id in
+  `EditEntryPresentationController`, and a stale host stops consuming Steps once another claims it.
+- Delete entry archives without confirmation; swipe-delete on rows is a separate hard delete.
 - Amount sanitizer strips to digits and one `.`, max 2 fraction digits, dropped not rounded; only
   the balance field allows a leading `-`.
 - Malformed `colorHex` falls back to gray; writing back emits `#RRGGBB` uppercase, components
