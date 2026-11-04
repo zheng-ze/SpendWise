@@ -6,11 +6,14 @@ const _dismissDrag = Offset(0, 900);
 
 const _outsideTap = Offset(5, 5);
 
-Future<void> dismissAddSheet(WidgetTester tester) async {
+Future<void> dismissAddSheet(
+  WidgetTester tester, {
+  String title = 'Add entry',
+}) async {
   final sheet = tester.element(find.byType(AppSheet).last);
   final presentation = AppSheetAlertSlot.maybeOf(sheet)?.presentation;
   if (presentation == AppSheetPresentation.phone) {
-    await tester.drag(find.text('Add entry'), _dismissDrag);
+    await tester.drag(find.text(title), _dismissDrag);
   } else {
     await tester.tapAt(_outsideTap);
   }
