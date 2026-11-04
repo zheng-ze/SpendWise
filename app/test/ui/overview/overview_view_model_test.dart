@@ -106,9 +106,7 @@ void main() {
     test('openEntry emits an entry request for an active entry', () async {
       final container = await _keptContainer(Ledger(state: defaultState()));
 
-      container
-          .read(overviewViewModelProvider.notifier)
-          .openEntry(entryID(3));
+      container.read(overviewViewModelProvider.notifier).openEntry(entryID(3));
 
       final step = container.read(overviewViewModelProvider).requireValue.step;
       expect(step, isA<OverviewEntryRequested>());
@@ -118,9 +116,7 @@ void main() {
     test('openEntry emits nothing for an unknown id', () async {
       final container = await _keptContainer(Ledger(state: defaultState()));
 
-      container
-          .read(overviewViewModelProvider.notifier)
-          .openEntry(entryID(99));
+      container.read(overviewViewModelProvider.notifier).openEntry(entryID(99));
 
       expect(
         container.read(overviewViewModelProvider).requireValue.step,
@@ -134,9 +130,7 @@ void main() {
       ledger.archiveEntry(entryID(3));
       await settleAnalysis(container, ledger);
 
-      container
-          .read(overviewViewModelProvider.notifier)
-          .openEntry(entryID(3));
+      container.read(overviewViewModelProvider.notifier).openEntry(entryID(3));
 
       expect(
         container.read(overviewViewModelProvider).requireValue.step,
