@@ -143,16 +143,20 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       updateState((current) => current.copyWith(amountText: raw));
 
   @override
-  void setName(String raw) =>
-      updateState((current) => current.copyWith(nameText: raw));
+  void setName(String raw) {
+    if (state.value?.isSystemEntry ?? false) return;
+    updateState((current) => current.copyWith(nameText: raw));
+  }
 
   @override
   void setNote(String raw) =>
       updateState((current) => current.copyWith(noteText: raw));
 
   @override
-  void setIncludeInAnalysis(bool value) =>
-      updateState((current) => current.copyWith(includeInAnalysis: value));
+  void setIncludeInAnalysis(bool value) {
+    if (state.value?.isSystemEntry ?? false) return;
+    updateState((current) => current.copyWith(includeInAnalysis: value));
+  }
 
   @override
   void setEndDateEnabled(bool value) {
@@ -213,7 +217,10 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       updateState((current) => current.copyWith(destinationId: () => id));
 
   @override
-  void requestPickCategory() => emitStep(PickCategoryRequested());
+  void requestPickCategory() {
+    if (state.value?.isSystemEntry ?? false) return;
+    emitStep(PickCategoryRequested());
+  }
 
   @override
   void applyPickedCategory(String? id) =>
@@ -349,13 +356,23 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
 
   @override
   Future<void> delete() async {
-    final id = state.value?.entryId;
-    if (id == null) return;
-    ledger.deleteEntry(id);
-    updateState((current) => current.copyWith(dismissed: true));
+    final current = state.value;
+    final id = current?.entryId;
+    if (current == null ||
+        id == null ||
+        current.isSystemEntry ||
+        current.dismissed ||
+        _saving) {
+      return;
+    }
+    try {
+      ledger.archiveEntry(id);
+      updateState((c) => c.copyWith(dismissed: true));
+    } on LedgerError catch (thrown) {
+      updateState((c) => c.copyWith(error: () => thrown));
+    }
   }
 
-  @override
   // MARK: - Receipt Scan
   @override
   void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes}) {

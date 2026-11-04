@@ -28,6 +28,13 @@ class _ImmediateScanCoordinator extends ReceiptEntryCoordinator {
   }
 }
 
+class _ArchiveFailingLedger extends Ledger {
+  _ArchiveFailingLedger({super.state});
+
+  @override
+  List<LedgerChange> archiveEntry(String rawID) => throw UnknownEntry(rawID);
+}
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -255,11 +262,10 @@ void main() {
       'a domain rejection surfaces as state.error rather than throwing',
       () async {
         final entry = Entry(
-          amount: dec('250'),
-          name: 'Opening balance',
+          amount: dec('-5'),
+          name: 'Coffee run',
           sourceID: checking.id,
-          includeInAnalysis: false,
-          systemKind: SystemEntryKind.openingBalance,
+          categoryID: coffee.id,
         );
         final ledger = buildLedger(entries: {entry.id: entry});
         final container = containerFor(ledger);
@@ -269,15 +275,16 @@ void main() {
         );
 
         viewModel.startEditing();
-        viewModel.setName('Renamed opening balance');
+        viewModel.setName('Renamed coffee run');
+        ledger.deleteEntry(entry.id);
         await viewModel.save();
 
         final state = container
             .read(entryFormViewModelProvider(entry.id))
             .value!;
-        expect(state.error, isA<SystemEntryLocked>());
+        expect(state.error, isA<UnknownEntry>());
         expect(state.dismissed, isFalse);
-        expect(state.nameText, 'Renamed opening balance');
+        expect(state.nameText, 'Renamed coffee run');
       },
     );
   });
@@ -349,26 +356,190 @@ void main() {
     });
   });
 
-  group('delete', () {
-    test('deletes the entry and marks the form dismissed', () async {
-      final entry = Entry(
-        amount: dec('-5'),
-        name: 'Coffee run',
-        sourceID: checking.id,
-        categoryID: coffee.id,
-      );
+  group('edit-entry', () {
+    Entry coffeeEntry() => Entry(
+      amount: dec('-5'),
+      name: 'Coffee run',
+      sourceID: checking.id,
+      categoryID: coffee.id,
+    );
+
+    Future<EntryFormNotifier> openedFor(
+      ProviderContainer container,
+      Entry entry,
+    ) async {
+      await stateOf(container, entry.id);
+      return container.read(entryFormViewModelProvider(entry.id).notifier);
+    }
+
+    EntryFormViewState stateFor(ProviderContainer container, Entry entry) =>
+        container.read(entryFormViewModelProvider(entry.id)).value!;
+
+    test('delete archives the entry, restore brings it back', () async {
+      final entry = coffeeEntry();
       final ledger = buildLedger(entries: {entry.id: entry});
+      final container = containerFor(ledger);
+      final viewModel = await openedFor(container, entry);
+
+      await viewModel.delete();
+
+      expect(ledger.state.entries.containsKey(entry.id), isFalse);
+      expect(ledger.state.binnedEntries.containsKey(entry.id), isTrue);
+      expect(stateFor(container, entry).dismissed, isTrue);
+      expect(stateFor(container, entry).step, isNull);
+      ledger.restoreEntry(entry.id);
+      expect(ledger.state.entries.containsKey(entry.id), isTrue);
+    });
+
+    test('delete does nothing once the form is dismissed', () async {
+      final entry = coffeeEntry();
+      final ledger = buildLedger(entries: {entry.id: entry});
+      final container = containerFor(ledger);
+      final viewModel = await openedFor(container, entry);
+      viewModel.startEditing();
+      viewModel.setAmount('7');
+      await viewModel.save();
+      ledger.restoreEntry(entry.id);
+
+      await viewModel.delete();
+
+      expect(ledger.state.entries.containsKey(entry.id), isTrue);
+      expect(ledger.state.binnedEntries, isEmpty);
+    });
+
+    test('delete does nothing while a save is running', () async {
+      final entry = coffeeEntry();
+      final ledger = buildLedger(entries: {entry.id: entry});
+      final container = containerFor(ledger);
+      final viewModel = await openedFor(container, entry);
+      viewModel.startEditing();
+      viewModel.setAmount('7');
+
+      final saving = viewModel.save();
+      await viewModel.delete();
+      await saving;
+
+      expect(ledger.state.binnedEntries, isEmpty);
+      expect(ledger.state.entries[entry.id]!.amount, dec('-7'));
+    });
+
+    test('delete on a new entry does nothing', () async {
+      final ledger = buildLedger();
+      final container = containerFor(ledger);
+      await stateOf(container, null);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
+
+      await viewModel.delete();
+
+      final state = container.read(entryFormViewModelProvider(null)).value!;
+      expect(state.dismissed, isFalse);
+      expect(state.error, isNull);
+    });
+
+    test('a ledger error from delete is shown and keeps the form', () async {
+      final entry = coffeeEntry();
+      final ledger = _ArchiveFailingLedger(
+        state: LedgerState(
+          moneySources: {checking.id: MoneySource.account(checking)},
+          categories: {coffee.id: coffee},
+          entries: {entry.id: entry},
+        ),
+      );
+      final container = containerFor(ledger);
+      final viewModel = await openedFor(container, entry);
+
+      await viewModel.delete();
+
+      expect(stateFor(container, entry).error, isA<UnknownEntry>());
+      expect(stateFor(container, entry).dismissed, isFalse);
+    });
+
+    test('isEditing and canDelete follow the mode', () async {
+      final entry = coffeeEntry();
+      final container = containerFor(buildLedger(entries: {entry.id: entry}));
+      final viewModel = await openedFor(container, entry);
+
+      expect(stateFor(container, entry).isEditing, isFalse);
+      expect(stateFor(container, entry).canDelete, isFalse);
+      viewModel.startEditing();
+      expect(stateFor(container, entry).isEditing, isTrue);
+      expect(stateFor(container, entry).canDelete, isTrue);
+    });
+
+    test('canDelete is false for a new entry', () async {
+      final container = containerFor(buildLedger());
+      final state = await stateOf(container, null);
+
+      expect(state.isEditing, isFalse);
+      expect(state.canDelete, isFalse);
+    });
+  });
+
+  group('edit-system', () {
+    Entry openingBalance() => Entry(
+      date: DateTime.utc(2026, 1, 1),
+      amount: dec('250'),
+      name: 'Opening balance',
+      sourceID: checking.id,
+      includeInAnalysis: false,
+      systemKind: SystemEntryKind.openingBalance,
+    );
+
+    Future<({EntryFormNotifier viewModel, ProviderContainer container})>
+    openedSystem(Ledger ledger, Entry entry) async {
       final container = containerFor(ledger);
       await stateOf(container, entry.id);
       final viewModel = container.read(
         entryFormViewModelProvider(entry.id).notifier,
       );
+      viewModel.startEditing();
+      return (viewModel: viewModel, container: container);
+    }
 
-      await viewModel.delete();
+    test('delete does nothing and keeps the form open', () async {
+      final entry = openingBalance();
+      final ledger = buildLedger(entries: {entry.id: entry});
+      final opened = await openedSystem(ledger, entry);
 
-      expect(ledger.state.entries.containsKey(entry.id), isFalse);
-      final state = container.read(entryFormViewModelProvider(entry.id)).value!;
-      expect(state.dismissed, isTrue);
+      await opened.viewModel.delete();
+
+      final state = opened.container
+          .read(entryFormViewModelProvider(entry.id))
+          .value!;
+      expect(state.dismissed, isFalse);
+      expect(ledger.state.entries.containsKey(entry.id), isTrue);
+      expect(ledger.state.binnedEntries, isEmpty);
+    });
+
+    test('name, category and analysis changes are ignored', () async {
+      final entry = openingBalance();
+      final ledger = buildLedger(entries: {entry.id: entry});
+      final opened = await openedSystem(ledger, entry);
+
+      opened.viewModel.setName('Renamed');
+      opened.viewModel.setIncludeInAnalysis(true);
+      opened.viewModel.requestPickCategory();
+
+      final state = opened.container
+          .read(entryFormViewModelProvider(entry.id))
+          .value!;
+      expect(state.nameText, 'Opening balance');
+      expect(state.includeInAnalysis, isFalse);
+      expect(state.step, isNull);
+    });
+
+    test('canDelete is false', () async {
+      final entry = openingBalance();
+      final ledger = buildLedger(entries: {entry.id: entry});
+      final opened = await openedSystem(ledger, entry);
+
+      final state = opened.container
+          .read(entryFormViewModelProvider(entry.id))
+          .value!;
+      expect(state.isEditing, isTrue);
+      expect(state.canDelete, isFalse);
     });
   });
 

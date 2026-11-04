@@ -344,6 +344,35 @@ void main() {
     });
   });
 
+  group('archived entry', () {
+    test('leaves the register and its totals', () async {
+      final kept = Entry(
+        amount: dec('-5'),
+        name: 'Coffee',
+        sourceID: account.id,
+        date: day(1),
+      );
+      final archived = Entry(
+        amount: dec('-8'),
+        name: 'Lunch',
+        sourceID: account.id,
+        date: day(1),
+      );
+      final ledger = buildLedger(
+        entries: {kept.id: kept, archived.id: archived},
+      );
+      final container = containerFor(ledger);
+      stateOf(container, null);
+
+      ledger.archiveEntry(archived.id);
+
+      final state = container.read(transactionsViewModelProvider(null)).value!;
+      final rows = state.daySections.expand((section) => section.rows);
+      expect(rows.map((row) => row.id), [kept.id]);
+      expect(state.expenses, dec('5'));
+    });
+  });
+
   group('step emission', () {
     test(
       'openEntry emits EntryFormRequested with the resolved entry',

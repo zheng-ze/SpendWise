@@ -68,6 +68,10 @@ class EntryFormViewState
 
   // MARK: - Derived
 
+  bool get isEditing => mode == EntryFormMode.editing;
+
+  bool get canDelete => isEditing && entryId != null && !isSystemEntry;
+
   Decimal? get parsedAmount => parseAmountInput(amountText);
 
   bool get canSave => canSaveEntryForm(
