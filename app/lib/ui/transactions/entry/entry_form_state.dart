@@ -8,7 +8,7 @@ import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 // MARK: - Mode
 
-enum EntryFormMode { newEntry, viewing, editing }
+enum EntryFormMode { newEntry, editing }
 
 // MARK: - State
 

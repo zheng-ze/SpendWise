@@ -84,9 +84,6 @@ class _EditEntryHostState extends ConsumerState<EditEntryHost> {
     final state = ref.read(provider).value;
     if (state == null) return;
     final notifier = ref.read(provider.notifier);
-    // Existing entries still build in viewing mode until the view-first path
-    // is removed.
-    if (state.mode == EntryFormMode.viewing) return notifier.startEditing();
     final step = state.step;
     if (step == null) return;
     notifier.clearStep();
@@ -117,8 +114,7 @@ class _EditEntryHostState extends ConsumerState<EditEntryHost> {
   Widget build(BuildContext context) {
     final async = ref.watch(entryFormViewModelProvider(_entryId));
     final loaded = async.isLoading || async.hasError ? null : async.value;
-    final pending = loaded == null || loaded.mode == EntryFormMode.viewing;
-    if (pending) {
+    if (loaded == null) {
       final failed = async.hasError && !async.isLoading;
       return NewEntryLoadingForm(
         frame: widget.frame,

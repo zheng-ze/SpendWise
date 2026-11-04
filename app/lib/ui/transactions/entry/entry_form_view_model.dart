@@ -39,8 +39,6 @@ abstract class EntryFormViewModel {
   void applyPickedCategory(String? id);
   void requestPickRecurrence();
   void applyPickedRecurrence(RecurrenceFrequency? frequency);
-  void startEditing();
-  void revertToPersisted();
   Future<void> save();
   Future<void> delete();
   void requestDocumentCrop(Uint8List bytes);
@@ -107,7 +105,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       );
     });
     return EntryFormViewState(
-      mode: entry == null ? EntryFormMode.newEntry : EntryFormMode.viewing,
+      mode: entry == null ? EntryFormMode.newEntry : EntryFormMode.editing,
       kind: _kindOf(entry),
       amountText: entry == null ? '' : formatPlainAmount(entry.amount.abs()),
       nameText: entry?.name ?? '',
@@ -236,37 +234,6 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
         recurrence: () => frequency,
         hasEndDate: frequency == null ? false : current.hasEndDate,
         endDate: frequency == null ? () => null : null,
-      ),
-    );
-  }
-
-  // MARK: - Editing Lifecycle
-
-  @override
-  void startEditing() =>
-      updateState((current) => current.copyWith(mode: EntryFormMode.editing));
-
-  @override
-  void revertToPersisted() {
-    final entry = _persisted;
-    if (entry == null) return;
-    updateState(
-      (current) => EntryFormViewState(
-        mode: EntryFormMode.viewing,
-        kind: _kindOf(entry),
-        amountText: formatPlainAmount(entry.amount.abs()),
-        nameText: entry.name,
-        noteText: entry.note ?? '',
-        date: entry.date,
-        sourceId: entry.sourceID,
-        destinationId: entry.destinationID,
-        categoryId: entry.categoryID,
-        includeInAnalysis: entry.includeInAnalysis,
-        recurrence: null,
-        hasEndDate: false,
-        endDate: null,
-        isSystemEntry: entry.systemKind != null,
-        entryId: entry.id,
       ),
     );
   }

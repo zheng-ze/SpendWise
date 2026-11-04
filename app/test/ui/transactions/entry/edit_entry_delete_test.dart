@@ -50,7 +50,6 @@ Future<void> _pumpEditing(
     tester.element(find.byType(_EditForm)),
   );
   await container.read(entryFormViewModelProvider(entry.id).future);
-  container.read(entryFormViewModelProvider(entry.id).notifier).startEditing();
   await tester.pumpAndSettle();
 }
 
