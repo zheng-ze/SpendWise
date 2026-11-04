@@ -7,7 +7,6 @@ import 'package:spendwise/ui/common/inputs/amount_field.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/date_format.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
@@ -17,8 +16,6 @@ const _fieldContentPadding = EdgeInsets.zero;
 const _actionWidth = double.infinity;
 const _rowGap = 16.0;
 const _stackedValueGap = 4.0;
-const _dividerThickness = 1.0;
-
 // MARK: - EntryFields
 class EntryFields extends ConsumerStatefulWidget {
   const EntryFields({
@@ -207,19 +204,6 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
           ),
         ],
       ],
-    );
-  }
-}
-
-class EntryRowDivider extends StatelessWidget {
-  const EntryRowDivider({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Divider(
-      height: _dividerThickness,
-      thickness: _dividerThickness,
-      color: context.colors.edge,
     );
   }
 }
