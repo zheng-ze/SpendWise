@@ -18,6 +18,7 @@ Future<EndsChoice?> showEndsChoiceSheet({
   required BuildContext context,
   required AppSheetPresentation Function(BuildContext) presentation,
   required bool hasEndDate,
+  PickerRouteCallback? onRouteCreated,
 }) {
   final never = _EndsChoiceRow(
     label: _neverLabel,
@@ -36,6 +37,7 @@ Future<EndsChoice?> showEndsChoiceSheet({
   return showPickerAppSheet<EndsChoice>(
     context,
     presentation: presentation,
+    onRouteCreated: onRouteCreated,
     builder: (_) => sheet,
   );
 }

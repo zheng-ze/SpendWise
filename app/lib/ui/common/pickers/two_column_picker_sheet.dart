@@ -69,11 +69,13 @@ Future<PickerOutcome?> showTwoColumnPickerSheet({
   String? selectedId,
   bool useRootNavigator = false,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  PickerRouteCallback? onRouteCreated,
 }) {
   if (sheetPresentation != null) {
     return showPickerAppSheet<PickerOutcome>(
       context,
       presentation: sheetPresentation,
+      onRouteCreated: onRouteCreated,
       builder: (_) => AppPickerSheet(
         title: title,
         body: PickerGroupBody(groups: groups, selectedId: selectedId),
