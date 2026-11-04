@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,9 +7,7 @@ import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/stats/trends_flow.dart';
 import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.dart';
-import 'package:spendwise/ui/transactions/entry/entry_form.dart';
-import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
-import 'package:spendwise/ui/transactions/entry/steps/entry_step_handlers.dart';
+import 'package:spendwise/ui/transactions/entry/edit_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 // MARK: - TransactionsScope
@@ -47,22 +47,10 @@ class TransactionsFlow extends FlowBase<TransactionsStep> {
 // MARK: - TransactionsFlowState
 class _TransactionsFlowState
     extends FlowBaseState<TransactionsStep, TransactionsFlow> {
-  ProviderSubscription<AsyncValue<EntryFormViewState>>? _formSubscription;
-  String? _openFormKey;
-  bool _formKeyIsSet = false;
   Route<void>? _trendsRoute;
-
-  @override
-  void dispose() {
-    _formSubscription?.close();
-    super.dispose();
-  }
 
   TransactionsViewModel get _screenViewModel =>
       ref.read(transactionsViewModelProvider(widget.initialScope).notifier);
-
-  EntryFormViewModel _formViewModel(String? key) =>
-      ref.read(entryFormViewModelProvider(key).notifier);
 
   @override
   void Function() subscribeToStep(
@@ -79,7 +67,7 @@ class _TransactionsFlowState
   void handleStep(BuildContext context, TransactionsStep step) {
     switch (step) {
       case EntryFormRequested(:final entry):
-        _openEntryForm(context, entry.id);
+        unawaited(openEditEntry(context: context, ref: ref, entryId: entry.id));
       case HistoryTrendsRequested():
         _openTrends(context);
       case PickSourceRequested():
@@ -112,33 +100,6 @@ class _TransactionsFlowState
     final context = navigatorContext;
     if (context == null) return;
     Navigator.of(context).pop();
-  }
-
-  void _openEntryForm(BuildContext context, String entryId) {
-    _formSubscription?.close();
-    _openFormKey = entryId;
-    _formKeyIsSet = true;
-    _formSubscription = ref.listenManual(
-      entryFormViewModelProvider(entryId),
-      (previous, next) => _handleFormStep(entryId, next.value?.step),
-    );
-    showEntryFormSheet(context: context, entryId: entryId).whenComplete(() {
-      if (_openFormKey == entryId) {
-        _formSubscription?.close();
-        _formSubscription = null;
-        _formKeyIsSet = false;
-      }
-    });
-  }
-
-  void _handleFormStep(String? formKey, TransactionsStep? step) {
-    if (step == null) return;
-    if (!_formKeyIsSet || _openFormKey != formKey) return;
-    final context = navigatorContext;
-    if (context == null) return;
-
-    dispatchEntryFormStep(context, ref, formKey, step);
-    _formViewModel(formKey).clearStep();
   }
 
   @override
