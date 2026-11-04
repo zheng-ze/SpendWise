@@ -35,7 +35,7 @@ void dispatchEntryFormStep(
   TransactionsStep step, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  required AppSheetPresentation Function(BuildContext) sheetPresentation,
   void Function(AppSheetRoute<ReceiptChoice>)? onReceiptRouteCreated,
   PickerRouteCallback? onPickerRouteCreated,
 }) {
@@ -91,7 +91,6 @@ void dispatchEntryFormStep(
         ref,
         formKey,
         form,
-        useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
         onRouteCreated: onPickerRouteCreated,
@@ -102,7 +101,6 @@ void dispatchEntryFormStep(
         ref,
         formKey,
         form,
-        useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
         onRouteCreated: onPickerRouteCreated,
@@ -113,7 +111,6 @@ void dispatchEntryFormStep(
         ref,
         formKey,
         form,
-        useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
         onRouteCreated: onPickerRouteCreated,
@@ -152,7 +149,7 @@ Future<void> _pickSource(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  required AppSheetPresentation Function(BuildContext) sheetPresentation,
   PickerRouteCallback? onRouteCreated,
 }) async {
   final ledger = ref.read(ledgerProvider);
@@ -179,7 +176,7 @@ Future<void> _pickDestination(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  required AppSheetPresentation Function(BuildContext) sheetPresentation,
   PickerRouteCallback? onRouteCreated,
 }) async {
   final ledger = ref.read(ledgerProvider);
@@ -207,7 +204,7 @@ Future<void> _pickCategory(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  required AppSheetPresentation Function(BuildContext) sheetPresentation,
   PickerRouteCallback? onRouteCreated,
 }) async {
   final ledger = ref.read(ledgerProvider);
@@ -237,7 +234,7 @@ Future<void> _pickRecurrence(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  required AppSheetPresentation Function(BuildContext) sheetPresentation,
   PickerRouteCallback? onRouteCreated,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
@@ -259,31 +256,19 @@ String _idFromOutcome(PickerOutcome outcome) => switch (outcome) {
 // MARK: - Date Pickers
 Future<DateTime?> _chooseDate({
   required BuildContext context,
-  required bool useRootNavigator,
-  required AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  required AppSheetPresentation Function(BuildContext) sheetPresentation,
   required String title,
   required DateTime initialDate,
   required DateTime firstDate,
   PickerRouteCallback? onRouteCreated,
 }) {
-  final lastDate = DateTime.utc(_datePickerLastYear);
-  final presentation = sheetPresentation;
-  if (presentation == null) {
-    return showDatePicker(
-      context: context,
-      useRootNavigator: useRootNavigator,
-      initialDate: initialDate,
-      firstDate: firstDate,
-      lastDate: lastDate,
-    );
-  }
   return showDatePickerSheet(
     context: context,
-    presentation: presentation,
+    presentation: sheetPresentation,
     title: title,
     initialDate: initialDate,
     firstDate: firstDate,
-    lastDate: lastDate,
+    lastDate: DateTime.utc(_datePickerLastYear),
     onRouteCreated: onRouteCreated,
   );
 }
@@ -293,15 +278,13 @@ Future<void> _pickDate(
   WidgetRef ref,
   String? formKey,
   EntryFormNotifier form, {
-  bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  required AppSheetPresentation Function(BuildContext) sheetPresentation,
   PickerRouteCallback? onRouteCreated,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final picked = await _chooseDate(
     context: context,
-    useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
     title: 'Date',
     initialDate: formState?.date ?? DateTime.now(),
@@ -318,15 +301,13 @@ Future<void> _pickEndDate(
   WidgetRef ref,
   String? formKey,
   EntryFormNotifier form, {
-  bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  required AppSheetPresentation Function(BuildContext) sheetPresentation,
   PickerRouteCallback? onRouteCreated,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final picked = await _chooseDate(
     context: context,
-    useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
     title: 'End date',
     initialDate: formState?.endDate ?? formState?.date ?? DateTime.now(),
@@ -343,22 +324,20 @@ Future<void> _pickEnds(
   WidgetRef ref,
   String? formKey,
   EntryFormNotifier form, {
-  bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  required AppSheetPresentation Function(BuildContext) sheetPresentation,
   PickerRouteCallback? onRouteCreated,
 }) async {
-  final presentation = sheetPresentation;
   final provider = entryFormViewModelProvider(formKey);
   final formState = ref.read(provider).value;
   final addable =
       formState?.mode == EntryFormMode.newEntry &&
       formState?.recurrence != null;
-  if (presentation == null || !addable || !_isCurrent(isCurrent)) return;
+  if (!addable || !_isCurrent(isCurrent)) return;
   if (!context.mounted) return;
   final choice = await showEndsChoiceSheet(
     context: context,
-    presentation: presentation,
+    presentation: sheetPresentation,
     hasEndDate: formState!.hasEndDate,
     onRouteCreated: onRouteCreated,
   );
@@ -375,9 +354,8 @@ Future<void> _pickEnds(
         ref,
         formKey,
         form,
-        useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
-        sheetPresentation: presentation,
+        sheetPresentation: sheetPresentation,
         onRouteCreated: onRouteCreated,
       );
   }
@@ -389,18 +367,17 @@ Future<void> _pickReceipt(
   String? formKey,
   EntryFormNotifier form, {
   bool Function()? isCurrent,
-  AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  required AppSheetPresentation Function(BuildContext) sheetPresentation,
   void Function(AppSheetRoute<ReceiptChoice>)? onRouteCreated,
 }) async {
-  final presentation = sheetPresentation;
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final addable =
       formState?.mode == EntryFormMode.newEntry && formState?.scanning == false;
-  if (presentation == null || !addable || !_isCurrent(isCurrent)) return;
+  if (!addable || !_isCurrent(isCurrent)) return;
   if (!context.mounted) return;
   final choice = await showReceiptChoiceSheet(
     context: context,
-    presentation: presentation,
+    presentation: sheetPresentation,
     onRouteCreated: onRouteCreated,
   );
   if (!context.mounted || !_isCurrent(isCurrent)) return;
