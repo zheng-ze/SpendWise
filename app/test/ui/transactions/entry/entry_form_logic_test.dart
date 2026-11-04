@@ -176,6 +176,19 @@ void main() {
       expect(entry.note, 'Receipt kept');
     });
 
+    test('forwards a system kind and defaults to none', () {
+      final system = signedEntryForSave(
+        kind: EntryFormKind.income,
+        magnitude: dec('5'),
+        name: 'Opening balance',
+        sourceId: sourceId,
+        includeInAnalysis: false,
+        systemKind: SystemEntryKind.openingBalance,
+      );
+      expect(system.systemKind, SystemEntryKind.openingBalance);
+      expect(build(EntryFormKind.expense).systemKind, isNull);
+    });
+
     test('defaults to no note', () {
       expect(build(EntryFormKind.expense).note, isNull);
     });

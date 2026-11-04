@@ -111,6 +111,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       kind: _kindOf(entry),
       amountText: entry == null ? '' : formatPlainAmount(entry.amount.abs()),
       nameText: entry?.name ?? '',
+      noteText: entry?.note ?? '',
       date: entry?.date ?? _todayUtc(),
       sourceId: entry?.sourceID,
       destinationId: entry?.destinationID,
@@ -248,6 +249,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
         kind: _kindOf(entry),
         amountText: formatPlainAmount(entry.amount.abs()),
         nameText: entry.name,
+        noteText: entry.note ?? '',
         date: entry.date,
         sourceId: entry.sourceID,
         destinationId: entry.destinationID,
@@ -287,9 +289,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
 
   Future<void> _persist(EntryFormViewState current) async {
     final magnitude = current.parsedAmount!.abs();
-    final note = current.mode == EntryFormMode.editing
-        ? _persisted?.note
-        : current.noteText;
+    final isEditing = current.mode == EntryFormMode.editing;
     final signedEntry = signedEntryForSave(
       kind: current.kind,
       magnitude: magnitude,
@@ -300,15 +300,14 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       sourceId: current.sourceId!,
       destinationId: current.destinationId,
       includeInAnalysis: current.includeInAnalysis,
-      note: note,
+      note: current.noteText,
+      systemKind: isEditing ? _persisted?.systemKind : null,
     );
 
     try {
-      if (current.mode == EntryFormMode.editing) {
+      if (isEditing) {
         ledger.updateEntry(signedEntry);
-        updateState(
-          (c) => c.copyWith(mode: EntryFormMode.viewing, error: () => null),
-        );
+        updateState((c) => c.copyWith(dismissed: true));
         return;
       }
 

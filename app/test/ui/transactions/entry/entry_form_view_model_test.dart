@@ -172,7 +172,7 @@ void main() {
 
   group('save outcomes', () {
     test(
-      'editing an existing entry updates it and returns to viewing',
+      'editing an existing entry updates it, dismisses and creates no plan',
       () async {
         final entry = Entry(
           amount: dec('-5'),
@@ -195,8 +195,8 @@ void main() {
         final state = container
             .read(entryFormViewModelProvider(entry.id))
             .value!;
-        expect(state.mode, EntryFormMode.viewing);
-        expect(state.dismissed, isFalse);
+        expect(state.dismissed, isTrue);
+        expect(ledger.state.plans, isEmpty);
       },
     );
 
@@ -275,8 +275,9 @@ void main() {
         final state = container
             .read(entryFormViewModelProvider(entry.id))
             .value!;
-        expect(state.error, isNotNull);
         expect(state.error, isA<SystemEntryLocked>());
+        expect(state.dismissed, isFalse);
+        expect(state.nameText, 'Renamed opening balance');
       },
     );
   });
@@ -317,6 +318,34 @@ void main() {
       expect(saved.amount, dec('300'));
       expect(saved.date, editedDate);
       expect(saved.categoryID, isNull);
+    });
+
+    test('keeps the system kind so archiving still does nothing', () async {
+      final entry = Entry(
+        date: openingDate,
+        amount: dec('250'),
+        name: 'Opening balance',
+        sourceID: checking.id,
+        includeInAnalysis: false,
+        systemKind: SystemEntryKind.openingBalance,
+      );
+      final ledger = buildLedger(entries: {entry.id: entry});
+      final container = containerFor(ledger);
+      await stateOf(container, entry.id);
+      final viewModel = container.read(
+        entryFormViewModelProvider(entry.id).notifier,
+      );
+
+      viewModel.startEditing();
+      viewModel.setAmount('300');
+      viewModel.applyPickedDate(editedDate);
+      await viewModel.save();
+      ledger.archiveEntry(entry.id);
+
+      final saved = ledger.state.entries[entry.id]!;
+      expect(saved.amount, dec('300'));
+      expect(saved.systemKind, SystemEntryKind.openingBalance);
+      expect(ledger.state.binnedEntries, isEmpty);
     });
   });
 
@@ -536,7 +565,7 @@ void main() {
   });
 
   group('note preservation', () {
-    test('editing another field keeps the persisted note', () async {
+    test('an unchanged note round-trips through an edit save', () async {
       final entry = notedEntry(note: 'memo');
       final ledger = buildLedger(entries: {entry.id: entry});
       final container = containerFor(ledger);
@@ -549,18 +578,42 @@ void main() {
       expect(ledger.state.entries[entry.id]!.note, 'memo');
     });
 
-    test('saving picks up a note changed after the form opened', () async {
+    test('an edited note saves', () async {
       final entry = notedEntry(note: 'old');
       final ledger = buildLedger(entries: {entry.id: entry});
       final container = containerFor(ledger);
       final viewModel = await openedEditor(container, entry.id);
 
-      ledger.updateEntry(notedEntry(id: entry.id, note: 'new'));
-      viewModel.setName('Unrelated edit');
+      viewModel.setNote('  new  ');
       await viewModel.save();
 
-      expect(ledger.state.entries[entry.id]!.name, 'Unrelated edit');
       expect(ledger.state.entries[entry.id]!.note, 'new');
+    });
+
+    test('a blank note saves as null', () async {
+      final entry = notedEntry(note: 'old');
+      final ledger = buildLedger(entries: {entry.id: entry});
+      final container = containerFor(ledger);
+      final viewModel = await openedEditor(container, entry.id);
+
+      viewModel.setNote('   ');
+      await viewModel.save();
+
+      expect(ledger.state.entries[entry.id]!.note, isNull);
+    });
+
+    test('Edit, Back, Edit, Save keeps the persisted note', () async {
+      final entry = notedEntry(note: 'memo');
+      final ledger = buildLedger(entries: {entry.id: entry});
+      final container = containerFor(ledger);
+      final viewModel = await openedEditor(container, entry.id);
+
+      viewModel.revertToPersisted();
+      viewModel.startEditing();
+      viewModel.setName('Updated name');
+      await viewModel.save();
+
+      expect(ledger.state.entries[entry.id]!.note, 'memo');
     });
 
     test('a new entry save produces no note beside a noted entry', () async {
@@ -769,18 +822,18 @@ void main() {
       expect(state.categoryId, isNull);
     });
 
-    test('setNote on an editing form never leaks into the edit save', () async {
+    test('setNote on an editing form saves the edited note', () async {
       final entry = notedEntry(note: 'memo');
       final ledger = buildLedger(entries: {entry.id: entry});
       final container = containerFor(ledger);
       final viewModel = await openedEditor(container, entry.id);
 
-      viewModel.setNote('draft that must not save');
+      viewModel.setNote('edited memo');
       viewModel.setName('Updated name');
       await viewModel.save();
 
       expect(ledger.state.entries[entry.id]!.name, 'Updated name');
-      expect(ledger.state.entries[entry.id]!.note, 'memo');
+      expect(ledger.state.entries[entry.id]!.note, 'edited memo');
     });
 
     test('receipt prefill preserves a typed note', () async {
