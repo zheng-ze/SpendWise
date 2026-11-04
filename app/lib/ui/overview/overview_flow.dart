@@ -33,6 +33,8 @@ class _OverviewFlowState extends FlowBaseState<OverviewStep, OverviewFlow> {
     switch (step) {
       case OverviewHistoryRequested():
         widget.onHistorySelected();
+      case OverviewEntryRequested():
+        break;
     }
     ref.read(overviewViewModelProvider.notifier).clearStep();
   }
