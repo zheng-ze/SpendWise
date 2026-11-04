@@ -27,6 +27,7 @@ import '../../../support/number_pad_support.dart';
 import '../../../support/shell_sheet_harness.dart';
 import '../budget_shell_test_support.dart';
 import '../../../support/ui_test_timeout.dart';
+import '../../../support/phone_shell.dart';
 
 const _budgetDetailTryAgain = 'Try again';
 const _groceriesName = 'Groceries';
@@ -58,8 +59,10 @@ Entry _entry(int index) => Entry(
 );
 
 Widget _flowHost(ProviderContainer container, {required bool showFlow}) {
-  final body = showFlow ? const BudgetsFlow() : const SizedBox();
-  final app = MaterialApp(home: Scaffold(body: body));
+  final body = showFlow
+      ? const BudgetsFlow(header: SizedBox.shrink())
+      : const SizedBox();
+  final app = MaterialApp(home: phoneShell(Scaffold(body: body)));
   return UncontrolledProviderScope(container: container, child: app);
 }
 
@@ -571,7 +574,9 @@ void main() {
     'empty list space keeps phone selection and clears desktop selection',
     (tester) async {
       final container = buildShellContainer(ledger: buildShellLedger());
-      final app = MaterialApp(home: Scaffold(body: const BudgetsRoot()));
+      final app = MaterialApp(
+        home: phoneShell(Scaffold(body: const BudgetsRoot())),
+      );
       await tester.pumpWidget(
         UncontrolledProviderScope(container: container, child: app),
       );

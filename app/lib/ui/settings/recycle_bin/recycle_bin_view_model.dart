@@ -2,7 +2,6 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
@@ -175,48 +174,6 @@ abstract class RecycleBinViewModel {
   void clearStep();
 }
 
-// MARK: - RecycleBinProjection
-class RecycleBinProjection {
-  const RecycleBinProjection({
-    required this.entries,
-    required this.accounts,
-    required this.pockets,
-    required this.categories,
-  });
-
-  final List<BinEntryRow> entries;
-  final List<BinRow> accounts;
-  final List<BinRow> pockets;
-  final List<BinRow> categories;
-}
-
-// MARK: - RecycleBinProjectionNotifier
-class RecycleBinProjectionNotifier extends AsyncNotifier<RecycleBinProjection>
-    with LedgerBackedNotifier<RecycleBinProjection> {
-  @override
-  RecycleBinProjection build() {
-    final currentLedger = ledger;
-    currentLedger.addListener(_onLedgerChanged);
-    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
-    return _project(currentLedger);
-  }
-
-  void _onLedgerChanged() {
-    if (!ref.mounted) return;
-    state = AsyncData(_project(ledger));
-  }
-
-  RecycleBinProjection _project(Ledger ledger) {
-    final ledgerState = ledger.state;
-    return RecycleBinProjection(
-      entries: _entryRows(ledgerState),
-      accounts: _accountRows(ledgerState),
-      pockets: _pocketRows(ledgerState),
-      categories: _categoryRows(ledgerState),
-    );
-  }
-}
-
 // MARK: - RecycleBinNotifier
 class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
     with
@@ -225,18 +182,22 @@ class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
     implements RecycleBinViewModel {
   @override
   RecycleBinViewState build() {
-    final projection = ref.watch(recycleBinProjectionProvider);
-    if (projection case AsyncError(:final error, :final stackTrace)) {
-      Error.throwWithStackTrace(error, stackTrace);
-    }
-    final data = projection.requireValue;
-    final current = state.value;
+    final currentLedger = ledger;
+    currentLedger.addListener(_onLedgerChanged);
+    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
+    return _viewState();
+  }
+
+  void _onLedgerChanged() => state = AsyncData(_viewState());
+
+  RecycleBinViewState _viewState() {
+    final ledgerState = ledger.state;
     return RecycleBinViewState(
-      entries: data.entries,
-      accounts: data.accounts,
-      pockets: data.pockets,
-      categories: data.categories,
-      step: current?.step,
+      entries: _entryRows(ledgerState),
+      accounts: _accountRows(ledgerState),
+      pockets: _pocketRows(ledgerState),
+      categories: _categoryRows(ledgerState),
+      step: state.value?.step,
     );
   }
 
@@ -276,12 +237,8 @@ class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
 }
 
 // MARK: - Constants
-final recycleBinProjectionProvider =
-    AsyncNotifierProvider<RecycleBinProjectionNotifier, RecycleBinProjection>(
-      RecycleBinProjectionNotifier.new,
-    );
-
 final recycleBinViewModelProvider =
     AsyncNotifierProvider.autoDispose<RecycleBinNotifier, RecycleBinViewState>(
       RecycleBinNotifier.new,
+      retry: (_, _) => null,
     );

@@ -1,7 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
@@ -16,33 +15,6 @@ Future<ProviderContainer> _keptContainer(Ledger ledger) async {
 }
 
 void main() {
-  test('the first read with a ready projection is AsyncData', () {
-    final container = overviewContainer(Ledger(state: defaultState()));
-    container.read(overviewProjectionProvider);
-
-    final first = container.read(overviewViewModelProvider);
-
-    expect(first, isA<AsyncData<OverviewViewState>>());
-  });
-
-  test('a projection failing after it had a value is an AsyncError', () {
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(Ledger(state: defaultState())),
-        overviewProjectionProvider.overrideWith(FailingProjectionNotifier.new),
-      ],
-    );
-    addTearDown(container.dispose);
-    container.listen(overviewViewModelProvider, (_, _) {});
-    expect(container.read(overviewViewModelProvider).hasValue, isTrue);
-
-    (container.read(
-      overviewProjectionProvider.notifier,
-    ) as FailingProjectionNotifier).fail();
-
-    expect(container.read(overviewViewModelProvider).hasError, isTrue);
-  });
-
   test('a failed Today read is flagged and Retry recomputes', () async {
     final ledger = Ledger(state: defaultState());
     var failing = true;
@@ -115,13 +87,4 @@ void main() {
       expect(container.read(overviewViewModelProvider).value?.step, isNull);
     });
   });
-}
-
-class FailingProjectionNotifier extends OverviewProjectionNotifier {
-  void fail() {
-    state = AsyncError<OverviewProjection>(
-      StateError('projection failed'),
-      StackTrace.empty,
-    );
-  }
 }

@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: c7090f5a
+Last reconciled: 7cc26306
 
 ## Feature overview
 
@@ -147,7 +147,11 @@ to a negative expense day total. (`budget_counted_entry_list.dart`,
 
 ## Provider and subscription lifetime
 
-`budgetsListViewModelProvider` is an autoDispose provider. `selectedBudgetProvider` is an autoDispose
+`budgetsListViewModelProvider` is an autoDispose provider whose `build` is synchronous: the list has
+no loading state, section data that has not arrived is `overview == null` and renders as
+section skeletons, and a failed build shows `LoadErrorView` through `AsyncValueView`, whose Try again action invalidates the provider. The notifier keeps no ledger or
+analysis cache reference of its own and rebuilds through its watched `analysisQueriesProvider`,
+`budgetsMonthProvider`, `todayProvider` and `selectedBudgetProvider`. `selectedBudgetProvider` is an autoDispose
 notifier holding the selected budget ID or null. It watches no query. `select` sets the ID and `clear`
 removes it. `budgetDetailContextProvider(budgetID)` and `budgetDetailViewModelProvider(budgetID)`
 are autoDispose families. The mounted Budgets views keep these providers alive, so leaving the

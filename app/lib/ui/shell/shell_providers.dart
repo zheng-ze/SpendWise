@@ -57,8 +57,5 @@ final selectedDestinationProvider = StateProvider<ShellDestination>(
   (ref) => ShellDestination.overview,
 );
 
-// MARK: - Month Selection
-DateTime startOfMonthUtc(DateTime date) => DateTime.utc(date.year, date.month);
-
 // MARK: - Enrollment
 final enrollmentFlowOpenProvider = StateProvider<bool>((ref) => false);

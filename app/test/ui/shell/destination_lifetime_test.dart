@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart'
+    show startOfMonthUtc;
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
@@ -92,8 +94,8 @@ void main() {
       await tester.tap(find.text(overviewHistoryLink));
       await tester.pumpAndSettle();
 
-      final now = DateTime.now();
-      final currentMonth = formatMonthLabel(DateTime.utc(now.year, now.month));
+      final today = container.read(todayProvider);
+      final currentMonth = formatMonthLabel(startOfMonthUtc(today));
       expect(find.text(currentMonth), findsOneWidget);
       expect(find.byType(TrendsFlow), findsNothing);
     },

@@ -14,9 +14,9 @@ import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 // MARK: - AccountsFlow
 class AccountsFlow extends FlowBase<AccountsStep> {
-  const AccountsFlow({super.key, super.navigatorKey, this.header});
+  const AccountsFlow({super.key, super.navigatorKey, required this.header});
 
-  final Widget? header;
+  final Widget header;
 
   @override
   ConsumerState<AccountsFlow> createState() => _AccountsFlowState();

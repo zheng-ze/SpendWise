@@ -278,7 +278,7 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   shows a sidebar with Overview, History, Money, an Add entry button, and Settings, each selecting
   one of the four destinations. Trends is pushed inside History;
   it is not a shell destination. All Add controls open the shared entry presenter; the
-  shell captures the top scoped Money route's preferred source only while Money is selected.
+  shell captures the top scoped Money route's preferred source through a getter that returns nothing unless the Accounts segment is mounted.
   The shared Add presenter opens one root `AppSheetRoute` with a keyed entry form and a live
   presentation resolver: phone spans the bottom at full width, desktop centres a dialog, and open
   docks a full-height surface in the safe right half starting at half the window width behind a
@@ -298,10 +298,9 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   desktop; on iOS and Android the window is open exactly when at least 600 dp wide and at least
   480 dp high (both inclusive), otherwise phone, following runtime size changes with no
   hysteresis. Phones are locked to portrait where the platform honours the request (iPhone `UISupportedInterfaceOrientations` lists portrait only; Android `MainActivity` requests portrait through `requestedOrientation` while `smallestScreenWidthDp` is below 600 and re-applies on configuration change), but Android multi-window can ignore the request and still present a landscape-shaped window; tablets and unfolded foldables keep every orientation, and the 600 x 480 dp rule and its landscape-window tests are unchanged and still cover those cases. The inspected Flutter 3.47.4 iOS embedder reports no display features, and the
-  rule ignores display features on every platform. One fixed destination list resolves every
-  stack index. The
+  rule ignores display features on every platform. The
   shared `buildShellAppContent` app builder reads the root window size before `SafeArea` and
-  feeds a retained binding scope, so resize keeps the selected destination and provider
+  feeds a persistent binding scope, so resize keeps the selected destination and provider
   container identity.
   `ShellPaneScope` supplies mode, safe body width and whether the existing Add route is presented.
   `ShellPaneHost` calls its page builder with bounded constraints and
@@ -310,12 +309,13 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   detail starts at W/2 and is W/2 - 72 dp wide; the rail gutter is reserved once. `ShellDetail`
   requires stable identity, title, body builder and Close callback, with optional subtitle and
   header actions. The host retains the page child at one element location, owns the divider and
-  pinned detail header, and leaves scrolling to page and detail body builders. It retains hidden
-  detail offstage with feature selection intact and never pushes or pops routes. A supplied
-  floating action appears only on the active, current open page while Add is closed, at 10 dp from
+  pinned detail header, and leaves scrolling to page and detail body builders. It keeps a detail
+  hidden by mode or by a sheet offstage, and a list pane shifted out by a sheet offstage, with
+  feature selection and Flow State intact, and never pushes or pops routes. A supplied
+  floating action appears only on the current open page while no sheet is installed, at 10 dp from
   the bottom and 3 dp from the usable page's right edge, or 75 dp from the full body's right edge.
   Each feature owns `selectedDetailId` and selected-detail state in its ViewModel, independent of
-  mode. Phone and open actions update the same selection. The retained feature Flow owns at most one
+  mode. Phone and open actions update the same selection. The mounted feature Flow owns at most one
   managed phone detail route whose content observes the latest selection. One post-frame
   reconciliation coalesces mode and selection changes. Entering open removes only the tracked
   route through that Flow's Navigator as a presentation-only removal. Entering phone pushes one

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/boot/money_navigation_provider.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/ui/accounts/money_navigation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_pane.dart';
@@ -12,6 +11,10 @@ import 'package:spendwise/ui/money/money_segment.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
+
+final accountsNavigatorKeyProvider = Provider<GlobalKey<NavigatorState>>(
+  (ref) => GlobalKey<NavigatorState>(),
+);
 
 final activeMoneySourceProvider = Provider<String? Function()>((ref) {
   return () => scopedRegisterSourceId(
@@ -39,12 +42,10 @@ class MoneyFlow extends ConsumerWidget {
       );
     }
 
-    final page = ShellPaneScope.maybeOf(context) == null
-        ? moneyPage(ShellPagePresentation.fullPage)
-        : ShellPaneHost(
-            pageBuilder: (_, presentation) => moneyPage(presentation),
-            detail: budgetPane?.detail,
-          );
+    final page = ShellPaneHost(
+      pageBuilder: (_, presentation) => moneyPage(presentation),
+      detail: budgetPane?.detail,
+    );
     return PopScope<Object?>(
       canPop: budgetPane == null,
       onPopInvokedWithResult: (didPop, _) {

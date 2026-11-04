@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
 import 'package:spendwise/ui/format/date_format.dart';
@@ -57,26 +57,23 @@ class TransactionsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ledger = ref.watch(ledgerProvider);
-    if (ledger == null) return const SizedBox.shrink();
-
     final mode = ref.watch(shellLayoutModeProvider);
     final async = ref.watch(transactionsViewModelProvider(scope));
     final viewModel = ref.read(transactionsViewModelProvider(scope).notifier);
-
-    return async.when(
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, _) => Scaffold(body: Center(child: Text('$error'))),
+    final wideComposition =
+        presentation == ShellPagePresentation.fullPage &&
+        (mode == ShellLayoutMode.open || mode == ShellLayoutMode.desktop);
+    return AsyncValueView(
+      value: async,
+      onRetry: () => ref.invalidate(transactionsViewModelProvider(scope)),
+      fullPage: true,
       data: (state) => _TransactionsScreenBody(
         state: state,
         viewModel: viewModel,
         onBackPressed: onBackPressed,
         backLabel: backLabel,
         showsTrendsAction: scope == null,
-        wideComposition:
-            presentation == ShellPagePresentation.fullPage &&
-            (mode == ShellLayoutMode.open || mode == ShellLayoutMode.desktop),
+        wideComposition: wideComposition,
       ),
     );
   }

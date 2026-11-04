@@ -13,6 +13,7 @@ import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 
 import '../../../support/ui_test_timeout.dart';
 import '../budget_shell_test_support.dart';
+import '../../../support/phone_shell.dart';
 
 const _editTooltip = 'Edit';
 const _changeLimitLabel = 'Change limit';
@@ -31,7 +32,9 @@ Future<ProviderContainer> _pumpFlow(WidgetTester tester, Ledger ledger) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: BudgetsFlow()),
+      child: MaterialApp(
+        home: phoneShell(const BudgetsFlow(header: SizedBox.shrink())),
+      ),
     ),
   );
   await tester.pumpAndSettle();

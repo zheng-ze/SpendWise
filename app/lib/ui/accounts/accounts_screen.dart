@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/accounts/account_row.dart';
 import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
+import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/lists/responsive_summary_card.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
@@ -21,33 +22,16 @@ class AccountsScreen extends ConsumerWidget {
     final asyncState = ref.watch(accountsViewModelProvider);
     final viewModel = ref.watch(accountsViewModelProvider.notifier);
 
-    return asyncState.when(
+    return AsyncValueView(
+      value: asyncState,
+      onRetry: () => ref.invalidate(accountsViewModelProvider),
+      fullPage: true,
       data: (viewState) => Scaffold(
         body: SafeArea(
-          child: _AccountsBody(viewState: viewState, viewModel: viewModel),
+          child: _AccountsList(viewState: viewState, viewModel: viewModel),
         ),
       ),
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, stackTrace) =>
-          Scaffold(body: Center(child: Text('$error'))),
     );
-  }
-}
-
-class _AccountsBody extends StatelessWidget {
-  const _AccountsBody({required this.viewState, required this.viewModel});
-
-  final AccountsViewState viewState;
-  final AccountsViewModel viewModel;
-
-  @override
-  Widget build(BuildContext context) {
-    final accountList = _AccountsList(
-      viewState: viewState,
-      viewModel: viewModel,
-    );
-    return accountList;
   }
 }
 
@@ -64,11 +48,9 @@ class _AccountsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final netWorth = viewState.netWorth;
-    final pane = ShellPaneScope.maybeOf(context);
+    final pane = ShellPaneScope.of(context);
     final wideComposition =
-        pane != null &&
-        pane.mode != ShellLayoutMode.phone &&
-        !pane.sheetPresented;
+        pane.mode != ShellLayoutMode.phone && !pane.sheetPresented;
     final summary = ResponsiveSummaryCard(
       metrics: [
         SummaryMetric(

@@ -60,40 +60,6 @@ abstract class AccountsViewModel {
   void clearStep();
 }
 
-// MARK: - AccountsProjection
-class AccountsProjection {
-  const AccountsProjection({required this.sections, required this.netWorth});
-
-  final List<AccountSection> sections;
-  final NetWorth netWorth;
-}
-
-// MARK: - AccountsProjectionNotifier
-class AccountsProjectionNotifier extends AsyncNotifier<AccountsProjection>
-    with LedgerBackedNotifier<AccountsProjection> {
-  @override
-  AccountsProjection build() {
-    final currentLedger = ledger;
-    final today = ref.watch(todayProvider);
-    currentLedger.addListener(_onLedgerChanged);
-    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
-    return _project(currentLedger, today);
-  }
-
-  void _onLedgerChanged() {
-    if (!ref.mounted) return;
-    state = AsyncData(_project(ledger, ref.read(todayProvider)));
-  }
-
-  AccountsProjection _project(Ledger ledger, DateTime today) {
-    final ledgerState = ledger.state;
-    return AccountsProjection(
-      sections: accountSections(ledgerState, now: today),
-      netWorth: Accounting.netWorth(ledgerState),
-    );
-  }
-}
-
 // MARK: - AccountsNotifier
 class AccountsNotifier extends AsyncNotifier<AccountsViewState>
     with
@@ -102,15 +68,26 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
     implements AccountsViewModel {
   @override
   AccountsViewState build() {
-    final projection = ref.watch(accountsProjectionProvider);
-    if (projection case AsyncError(:final error, :final stackTrace)) {
-      Error.throwWithStackTrace(error, stackTrace);
-    }
-    final data = projection.requireValue;
-    final current = state.value;
+    final currentLedger = ledger;
+    final today = ref.watch(todayProvider);
+    currentLedger.addListener(_onLedgerChanged);
+    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
+    return _viewState(currentLedger, today, state.value);
+  }
+
+  void _onLedgerChanged() {
+    state = AsyncData(_viewState(ledger, ref.read(todayProvider), state.value));
+  }
+
+  AccountsViewState _viewState(
+    Ledger ledger,
+    DateTime today,
+    AccountsViewState? current,
+  ) {
+    final ledgerState = ledger.state;
     return AccountsViewState(
-      sections: data.sections,
-      netWorth: data.netWorth,
+      sections: accountSections(ledgerState, now: today),
+      netWorth: Accounting.netWorth(ledgerState),
       expandedAccountId: current?.expandedAccountId,
       step: current?.step,
     );
@@ -186,12 +163,8 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
 }
 
 // MARK: - Constants
-final accountsProjectionProvider =
-    AsyncNotifierProvider<AccountsProjectionNotifier, AccountsProjection>(
-      AccountsProjectionNotifier.new,
-    );
-
 final accountsViewModelProvider =
     AsyncNotifierProvider.autoDispose<AccountsNotifier, AccountsViewState>(
       AccountsNotifier.new,
+      retry: (_, _) => null,
     );

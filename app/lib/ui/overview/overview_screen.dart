@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
+import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/overview/overview_coming_up_section.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
@@ -26,11 +26,37 @@ class OverviewScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final viewState = ref.watch(overviewViewModelProvider).value;
+    final asyncState = ref.watch(overviewViewModelProvider);
     final viewModel = ref.watch(overviewViewModelProvider.notifier);
-    if (viewState == null) {
-      return const Scaffold(body: LoadingSkeleton());
-    }
+    return AsyncValueView(
+      value: asyncState,
+      onRetry: () => ref.invalidate(overviewViewModelProvider),
+      fullPage: true,
+      data: (viewState) => _OverviewBody(
+        viewState: viewState,
+        viewModel: viewModel,
+        layoutMode: layoutMode,
+        presentation: presentation,
+      ),
+    );
+  }
+}
+
+class _OverviewBody extends StatelessWidget {
+  const _OverviewBody({
+    required this.viewState,
+    required this.viewModel,
+    required this.layoutMode,
+    required this.presentation,
+  });
+
+  final OverviewViewState viewState;
+  final OverviewViewModel viewModel;
+  final ShellLayoutMode layoutMode;
+  final ShellPagePresentation presentation;
+
+  @override
+  Widget build(BuildContext context) {
     final today = TodayTray(viewState: viewState, viewModel: viewModel);
     final recent = RecentTray(rows: viewState.recent, viewModel: viewModel);
     final comingUp = ComingUpTray(rows: viewState.upcoming);

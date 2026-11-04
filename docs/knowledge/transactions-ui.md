@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 0667c5bf
+Last reconciled: 7cc26306
 
 ## Feature overview
 
@@ -60,8 +60,12 @@ account-scoped with a custom title and source filter. The entry form creates, vi
 
 ## Module interactions
 
-The view model calls `Ledger` query/mutation methods and reads `AnalysisCache` where totals apply;
-it never holds a `LedgerState` reference. Row resolution and section grouping are pure Dart
+`TransactionsNotifier` builds its state synchronously, so the list has no loading state; a failed
+build ends in `AsyncError` and shows an error state. It watches `todayProvider`, listens to the
+ledger itself (the listener is removed in `onDispose`) and rebuilds the day sections and the
+income and expense totals on each change, keeping `selectedDate` and the pending `Step` from its
+previous `state.value`. It calls `Ledger` mutation methods and holds no `LedgerState` beyond the
+state it derives from. Row resolution and section grouping are pure Dart
 functions in the application layer, unit-tested independently of any widget. Totals apply only
 entry-level `includeInAnalysis`, so Transactions and analysis-driven totals can diverge for the
 same month when category inclusion gates exclude entries from analysis
@@ -88,10 +92,10 @@ the Flow (`ui-framework-mvvm.md`). The unscoped `TransactionsFlow` is the shell'
 destination (`ShellDestination.history`); scoped instances live inside Money. Screens pushed: the entry form sheet for an existing entry, the
 category/source picker sheets, and the receipt scan screen. New entries open only through the shell's
 Add control and shared presenter. The Transactions screen has no local Add or Edit source control.
-When Money is selected, the shell reads the top scoped Money route's preferred source on demand
+The shell reads the top scoped Money route's preferred source on demand
 through its constructor-injected getter (`activeMoneySourceProvider`, backed by
-`accountsNavigatorKeyProvider`); every other destination and an unscoped Money route open Add
-without a source. The presenter captures that source at invocation, invalidates the null-key form
+`accountsNavigatorKeyProvider`, both in `app/lib/ui/money/money_flow.dart`); every other
+destination, the Budgets and Plans segments and an unscoped Money route open Add without a source. The presenter captures that source at invocation, invalidates the null-key form
 and receipt providers, starts an attempt bound to the session lifetime and installs the loading sheet
 before awaiting the attempt. Scoped prefill applies once on the first success; Retry starts a fresh
 form attempt on the same route. It maps the shell mode to phone, open or desktop and releases its
@@ -105,7 +109,7 @@ barrier consumes outside taps and dismisses. Desktop keeps the sidebar beneath t
 tapping it dismisses Add without navigating. (`app/lib/ui/transactions/entry/new_entry_presenter.dart`,
 `app/lib/ui/common/sheets/app_sheet_route.dart`, `app/lib/ui/common/sheets/app_sheet.dart`) The Add route re-resolves its
 presentation live through a resolver reading `ShellLayoutModeScope`, so a
-phone/open resize changes only the sheet geometry, alignment and chrome around the retained keyed
+phone/open resize changes only the sheet geometry, alignment and chrome around the keyed
 form and never replaces the route. A late receipt finish after invalidation writes no state
 (`ReceiptEntryCoordinator` checks `ref.mounted` in its asynchronous finally). The account-scoped
 screen reuses the same screen with a custom title and `sourceIDs` filter. Each destination owns its own
@@ -118,7 +122,7 @@ Shared sheet composition follows installed routes rather than an Add-specific pr
 `AppSheetRoute.install` registers with the optional `shellSheetOccupancyProvider` until
 `route.completed`, including exit animation. Nearest-non-AppSheet predecessor coverage preserves
 composition through picker stacks. On open and desktop, Add over the shell shifts the current exposed
-detail left while retaining the isolated list's Flow and Navigator State. Clearing selection exposes
+detail left while keeping the isolated list's Flow and Navigator State mounted. Clearing selection exposes
 the list without replacing Add or losing its draft. Desktop sheets always dock in the right column, like open, using
 shared safe pane geometry, while `AppSheetPresentation.desktop` keeps desktop input behavior. A sheet over a
 foreground root page keeps that page as its predecessor and leaves the

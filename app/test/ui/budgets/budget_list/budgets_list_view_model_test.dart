@@ -133,7 +133,8 @@ void main() {
         .read(budgetsListViewModelProvider.notifier)
         .requestBudgetDetail(overall.id);
     final loading = container.read(budgetsListViewModelProvider).requireValue;
-    expect(loading.loading, isTrue);
+    expect(loading.overview, isNull);
+    expect(loading.error, isNull);
     expect(loading.selectedBudgetID, overall.id);
 
     container.read(selectedBudgetProvider.notifier).clear();
@@ -285,8 +286,8 @@ void main() {
     );
     addTearDown(container.dispose);
     final initial = await container.read(budgetsListViewModelProvider.future);
-    expect(initial.loading, isTrue);
     expect(initial.overview, isNull);
+    expect(initial.error, isNull);
     pending.complete([]);
     await container
         .read(ledgerSessionProvider)!
@@ -294,7 +295,7 @@ void main() {
         .refresh(ledger.state, sourceRevision: ledger.revision);
     await container.pump();
     final ready = container.read(budgetsListViewModelProvider).requireValue;
-    expect(ready.loading, isFalse);
+    expect(ready.error, isNull);
     expect(ready.overview!.hasBudgets, isFalse);
   });
 

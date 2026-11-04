@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: c7090f5a
+Last reconciled: 7cc26306
 
 ## Feature overview
 
@@ -90,16 +90,17 @@ override while preserving session lifecycle wiring (`app/lib/boot/providers.dart
 current bus and rejects rebinding to a different bus (`analysis_cache.dart:AnalysisCache.start`).
 
 `LedgerBackedNotifier` watches `ledgerSessionProvider`, throws `StateError` when the session is
-null, and exposes the Ledger and cache from that same session
-(`app/lib/ui/common/base/ledger_backed_notifier.dart`).
-`CategoryDetailNotifier.build`, `BudgetsListNotifier.build`, and `BudgetDetailNotifier.build` capture
-that Ledger and cache in `_ledger` and `_cache`. Each build
-attaches listeners, registers removal against the captured instances, and awaits the initial
-cache refresh. Later notifications refresh the captured `_cache`; session replacement rebuilds
-the consumers through their watched dependency
-(`app/lib/ui/stats/category_detail/category_detail_view_model.dart`,
+null, and exposes the Ledger from that session; it exposes no cache
+(`app/lib/ui/common/base/ledger_backed_notifier.dart`). View models that read analysis watch
+`analysisQueriesProvider` and rebuild when it notifies, so `CategoryDetailNotifier`,
+`BudgetsListNotifier`, `BudgetDetailNotifier` and `OverviewNotifier` hold no cache or listener of
+their own, and a session replacement rebuilds them through the watched dependency. View models that
+compute from `LedgerState` alone (Accounts, Category list, Plan list, Recycle bin and History) are
+`autoDispose`, build synchronously, attach a Ledger listener in `build` and remove it in
+`onDispose` (`app/lib/ui/stats/category_detail/category_detail_view_model.dart`,
 `app/lib/ui/budgets/budget_list/budgets_list_view_model.dart`,
-`app/lib/ui/budgets/budget_detail/budget_detail_view_model.dart`).
+`app/lib/ui/budgets/budget_detail/budget_detail_view_model.dart`,
+`app/lib/ui/overview/overview_view_model.dart`, `app/lib/ui/accounts/accounts_view_model.dart`).
 
 `AnalysisCache.revision` counts received publications, ignoring stamps. `refresh(state,
 sourceRevision: ...)` chooses the explicit source revision, then the bound Ledger getter, then the

@@ -150,8 +150,7 @@ class _TransactionsFlowState
       presentation: presentation,
     );
 
-    if (widget.initialScope != null ||
-        ShellPaneScope.maybeOf(context) == null) {
+    if (widget.initialScope != null) {
       return screen(ShellPagePresentation.fullPage);
     }
     return ShellPaneHost(

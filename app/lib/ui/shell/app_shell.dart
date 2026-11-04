@@ -57,10 +57,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   void _openNewEntry(BuildContext context) {
-    final selected = ref.read(selectedDestinationProvider);
-    final sourceId = selected == ShellDestination.money
-        ? widget.moneySourceId?.call()
-        : null;
+    final sourceId = widget.moneySourceId?.call();
     _addController = ref.read(newEntryPresentationControllerProvider);
     openNewEntry(context: context, ref: ref, sourceId: sourceId);
   }

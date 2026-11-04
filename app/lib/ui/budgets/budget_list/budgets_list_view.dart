@@ -5,7 +5,9 @@ import 'package:spendwise/ui/budgets/budget_list/budget_card.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
+import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/feedback/empty_state.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
 import 'package:spendwise/ui/common/navigation/compact_labelled_fab.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
@@ -22,6 +24,7 @@ const _summaryBarHeight = 7.0;
 const _summaryBarRadius = 4.0;
 const _categoryHeaderGap = 4.0;
 const _categoryCardGap = 10.0;
+const _loadErrorTitle = "Couldn't load your budgets";
 const _singleColumn = 1;
 const _openColumns = 2;
 
@@ -43,26 +46,24 @@ class BudgetsRoot extends ConsumerWidget {
     final viewModel = ref.watch(budgetsListViewModelProvider.notifier);
     final mode = ref.watch(shellLayoutModeProvider);
     final desktop = mode == ShellLayoutMode.desktop;
-    final sheetPresented =
-        ShellPaneScope.maybeOf(context)?.sheetPresented ?? false;
+    final sheetPresented = ShellPaneScope.of(context).sheetPresented;
     final open = mode == ShellLayoutMode.open;
-    final body = state.when(
-      data: (value) => BudgetsListView(
-        viewState: value,
+    final body = AsyncValueView(
+      value: state,
+      onRetry: () => ref.invalidate(budgetsListViewModelProvider),
+      errorTitle: _loadErrorTitle,
+      data: (viewState) => BudgetsListView(
+        viewState: viewState,
         viewModel: viewModel,
         desktop: desktop,
         columns: budgetListColumnCount(
           openLayout: open,
           sheetPresented: sheetPresented,
-          selectionPresent: value.selectedBudgetID != null,
+          selectionPresent: viewState.selectedBudgetID != null,
         ),
         showFloatingAction: !sheetPresented,
         actionPadding: open ? _openActionPadding : _actionPadding,
       ),
-      loading: () =>
-          const Padding(padding: _contentPadding, child: LoadingTrays()),
-      error: (error, _) =>
-          BudgetListError(error: error, onRetry: viewModel.retry),
     );
     final dismissSelection = (open || desktop) && !sheetPresented
         ? ref.read(selectedBudgetProvider.notifier).clear
@@ -109,7 +110,13 @@ class BudgetsListView extends StatelessWidget {
     final error = viewState.error;
     final content = <Widget>[];
     if (error != null) {
-      content.add(BudgetListError(error: error, onRetry: viewModel.retry));
+      content.add(
+        LoadErrorView(
+          error: error,
+          onRetry: viewModel.retry,
+          title: _loadErrorTitle,
+        ),
+      );
     }
     if (overview == null) {
       if (error == null) content.add(const LoadingTrays());
@@ -325,32 +332,6 @@ class _BudgetCardLayout extends StatelessWidget {
         ];
         return Wrap(spacing: _sectionGap, children: tiles);
       },
-    );
-  }
-}
-
-class BudgetListError extends StatelessWidget {
-  const BudgetListError({
-    super.key,
-    required this.error,
-    required this.onRetry,
-  });
-  final Object error;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("Couldn't load your budgets"),
-        Text('$error'),
-        PrimaryButton(label: 'Try again', onPressed: onRetry),
-      ],
-    );
-    return Padding(
-      padding: _contentPadding,
-      child: Tray(child: content),
     );
   }
 }

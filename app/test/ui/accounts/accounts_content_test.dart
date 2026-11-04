@@ -52,8 +52,8 @@ void main() {
     return container;
   }
 
-  AccountRow? rowFor(AccountsProjection projection, String id) {
-    final rows = [for (final section in projection.sections) ...section.rows];
+  AccountRow? rowFor(AccountsViewState viewState, String id) {
+    final rows = [for (final section in viewState.sections) ...section.rows];
     return rows.where((row) => row.id == id).firstOrNull;
   }
 
@@ -63,23 +63,23 @@ void main() {
   test('groups active accounts into sections and computes net worth', () {
     final container = buildContainer(buildLedger());
 
-    final projection = container.read(accountsProjectionProvider).requireValue;
+    final viewState = container.read(accountsViewModelProvider).requireValue;
 
-    expect(rowFor(projection, checking.id), isNotNull);
-    expect(rowFor(projection, savings.id), isNotNull);
-    expect(projection.netWorth, Accounting.netWorth(buildLedger().state));
+    expect(rowFor(viewState, checking.id), isNotNull);
+    expect(rowFor(viewState, savings.id), isNotNull);
+    expect(viewState.netWorth, Accounting.netWorth(buildLedger().state));
   });
 
   test('a ledger change refreshes sections and net worth', () {
     final ledger = buildLedger();
     final container = buildContainer(ledger);
-    container.listen(accountsProjectionProvider, (previous, next) {});
+    container.listen(accountsViewModelProvider, (previous, next) {});
 
     ledger.deleteAccount(savings.id);
 
-    final projection = container.read(accountsProjectionProvider).requireValue;
-    expect(rowFor(projection, savings.id), isNull);
-    expect(projection.netWorth, Accounting.netWorth(ledger.state));
+    final viewState = container.read(accountsViewModelProvider).requireValue;
+    expect(rowFor(viewState, savings.id), isNull);
+    expect(viewState.netWorth, Accounting.netWorth(ledger.state));
   });
 
   test('advancing today refreshes the statement-cut outstanding', () {
@@ -91,9 +91,9 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    container.listen(accountsProjectionProvider, (previous, next) {});
+    container.listen(accountsViewModelProvider, (previous, next) {});
     final before = rowFor(
-      container.read(accountsProjectionProvider).requireValue,
+      container.read(accountsViewModelProvider).requireValue,
       card.id,
     );
 
@@ -101,7 +101,7 @@ void main() {
     container.invalidate(todayProvider);
 
     final after = rowFor(
-      container.read(accountsProjectionProvider).requireValue,
+      container.read(accountsViewModelProvider).requireValue,
       card.id,
     );
     expect(outstandingOf(before), Decimal.parse('40'));

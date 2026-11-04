@@ -23,6 +23,7 @@ import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import '../../../support/add_sheet_dismiss.dart';
 import '../../../support/image_picker_channel.dart';
 import '../../../support/ui_test_timeout.dart';
+import '../../../support/phone_shell.dart';
 
 const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
 const _cameraDenied = 'camera_access_denied';
@@ -99,7 +100,7 @@ void main() {
           ),
           if (mode != null) shellLayoutModeProvider.overrideWithValue(mode),
         ],
-        child: const MaterialApp(home: _PresenterHost()),
+        child: MaterialApp(home: phoneShell(const _PresenterHost())),
       ),
     );
     await tester.pumpAndSettle();
@@ -252,12 +253,14 @@ void main() {
           scanStripEnabledProvider.overrideWith((ref) async => true),
         ],
         child: MaterialApp(
-          home: Consumer(
-            builder: (context, ref, _) {
-              stashedContext = context;
-              stashedRef = ref;
-              return TransactionsFlow();
-            },
+          home: phoneShell(
+            Consumer(
+              builder: (context, ref, _) {
+                stashedContext = context;
+                stashedRef = ref;
+                return TransactionsFlow();
+              },
+            ),
           ),
         ),
       ),

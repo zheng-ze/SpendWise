@@ -6,7 +6,6 @@ import 'package:spendwise/settings/display_preferences_providers.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_overview.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
@@ -44,7 +43,6 @@ class BudgetsListViewState
   const BudgetsListViewState({
     this.overview,
     this.cards = const [],
-    this.loading = false,
     this.error,
     required this.today,
     this.chartColours = ChartColours.categoryColours,
@@ -54,7 +52,6 @@ class BudgetsListViewState
 
   final BudgetsOverview? overview;
   final List<BudgetListCard> cards;
-  final bool loading;
   final Object? error;
   final DateTime today;
   final ChartColours chartColours;
@@ -92,7 +89,6 @@ class BudgetsListViewState
     return BudgetsListViewState(
       overview: overview,
       cards: cards,
-      loading: loading,
       error: error,
       today: today,
       chartColours: chartColours,
@@ -121,13 +117,10 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
         LedgerBackedNotifier<BudgetsListViewState>,
         StepEmitting<BudgetsListViewState, BudgetsStep>
     implements BudgetsListViewModel {
-  BudgetsStep? _step;
-
   @override
   BudgetsListViewState build() {
     final currentLedger = ledger;
-    final queries = ref.watch(analysisQueriesProvider);
-    if (queries == null) throw StateError('Budgets requires analysis queries.');
+    final queries = analysisQueries;
     final month = ref.watch(budgetsMonthProvider);
     final today = ref.watch(todayProvider);
     final result = queries.readBudgets(month: month);
@@ -141,12 +134,11 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
       cards: result.value == null
           ? const []
           : _cardRows(result.value!, currentLedger.state),
-      loading: result.state == AnalysisQueryState.loading,
       error: error,
       today: today,
       chartColours: chartColours,
       selectedBudgetID: selection,
-      step: _step,
+      step: state.value?.step,
     );
   }
 
@@ -179,16 +171,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
   }
 
   @override
-  void requestNewBudget() {
-    _step = BudgetFormRequested();
-    emitStep(BudgetFormRequested());
-  }
-
-  @override
-  void clearStep() {
-    _step = null;
-    super.clearStep();
-  }
+  void requestNewBudget() => emitStep(BudgetFormRequested());
 }
 
 // MARK: - Constants
@@ -196,4 +179,4 @@ final budgetsListViewModelProvider =
     AsyncNotifierProvider.autoDispose<
       BudgetsListNotifier,
       BudgetsListViewState
-    >(BudgetsListNotifier.new);
+    >(BudgetsListNotifier.new, retry: (_, _) => null);

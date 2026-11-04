@@ -1,4 +1,5 @@
 import 'package:domain/domain.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -32,7 +33,11 @@ Ledger _ledger() => Ledger(
 );
 
 Future<void> _openEditor(WidgetTester tester, Ledger ledger) async {
-  await pumpApp(tester, const BudgetsFlow(), ledger: ledger);
+  await pumpApp(
+    tester,
+    const BudgetsFlow(header: SizedBox.shrink()),
+    ledger: ledger,
+  );
   final container = ProviderScope.containerOf(
     tester.element(find.byType(BudgetsFlow)),
   );
