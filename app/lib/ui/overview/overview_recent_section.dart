@@ -32,7 +32,10 @@ class RecentTray extends StatelessWidget {
           for (final (index, row) in rows.indexed)
             OverviewRowFrame(
               isLast: index == rows.length - 1,
-              child: RecentEntryRowContent(row: row),
+              child: InkWell(
+                onTap: () => viewModel.openEntry(row.entryId),
+                child: RecentEntryRowContent(row: row),
+              ),
             ),
         ],
       );

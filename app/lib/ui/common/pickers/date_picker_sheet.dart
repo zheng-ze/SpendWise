@@ -12,10 +12,12 @@ Future<DateTime?> showDatePickerSheet({
   required DateTime initialDate,
   required DateTime firstDate,
   required DateTime lastDate,
+  PickerRouteCallback? onRouteCreated,
 }) {
   return showPickerAppSheet<DateTime>(
     context,
     presentation: presentation,
+    onRouteCreated: onRouteCreated,
     builder: (_) => DatePickerSheet(
       title: title,
       initialDate: initialDate,

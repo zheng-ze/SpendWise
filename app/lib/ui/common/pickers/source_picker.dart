@@ -1,6 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
@@ -12,6 +13,7 @@ Future<PickerOutcome?> showSourcePickerSheet({
   String? selectedId,
   bool useRootNavigator = false,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  PickerRouteCallback? onRouteCreated,
 }) {
   final groups = [
     for (final account in state.activeAccounts)
@@ -32,5 +34,6 @@ Future<PickerOutcome?> showSourcePickerSheet({
     selectedId: selectedId,
     useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
+    onRouteCreated: onRouteCreated,
   );
 }

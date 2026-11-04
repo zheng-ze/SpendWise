@@ -1,5 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/analysis/budgets/budget_counted_entries.dart';
 import 'package:spendwise/ledger/ledger.dart';
@@ -7,7 +8,7 @@ import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_cell.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
-import 'package:spendwise/ui/transactions/entry/entry_form.dart';
+import 'package:spendwise/ui/transactions/entry/edit_entry_presenter.dart';
 
 // MARK: - Constants
 const _registerDayGap = 10.0;
@@ -82,7 +83,7 @@ class _BudgetDayGroup extends StatelessWidget {
 }
 
 // MARK: - CountedEntryRow
-class _CountedEntryRow extends StatelessWidget {
+class _CountedEntryRow extends ConsumerWidget {
   const _CountedEntryRow({
     required this.entry,
     required this.ledger,
@@ -96,12 +97,12 @@ class _CountedEntryRow extends StatelessWidget {
   final bool isLastInDay;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (!state.entries.containsKey(entry.id)) return const SizedBox.shrink();
     final row = transactionRow(entry, state);
     final cell = TransactionCell.register(
       row: row,
-      onTap: () => showEntryFormSheet(context: context, entryId: entry.id),
+      onTap: () => openEditEntry(context: context, ref: ref, entryId: entry.id),
       isLastInDay: isLastInDay,
     );
     return SwipeRow(

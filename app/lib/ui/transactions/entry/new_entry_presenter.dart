@@ -286,6 +286,8 @@ class _AddSession {
     if (step == null) return;
     _container.read(formProvider.notifier).clearStep();
     if (!eligible) return;
+    final liveRoute = route;
+    if (liveRoute == null) return;
     dispatchEntryFormStep(
       context,
       ref,
@@ -293,7 +295,7 @@ class _AddSession {
       step,
       useRootNavigator: true,
       isCurrent: () => eligible,
-      sheetPresentation: route?.resolveLive,
+      sheetPresentation: liveRoute.resolveLive,
       onReceiptRouteCreated: (created) => _receiptRoute = created,
     );
   }

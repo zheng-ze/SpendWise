@@ -8,7 +8,7 @@ import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 // MARK: - Mode
 
-enum EntryFormMode { newEntry, viewing, editing }
+enum EntryFormMode { newEntry, editing }
 
 // MARK: - State
 
@@ -67,6 +67,10 @@ class EntryFormViewState
   final TransactionsStep? step;
 
   // MARK: - Derived
+
+  bool get isEditing => mode == EntryFormMode.editing;
+
+  bool get canDelete => isEditing && entryId != null && !isSystemEntry;
 
   Decimal? get parsedAmount => parseAmountInput(amountText);
 

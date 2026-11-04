@@ -1,13 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/trends_flow.dart';
 import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.dart';
-import 'package:spendwise/ui/transactions/entry/entry_form.dart';
+import 'package:spendwise/ui/transactions/entry/edit_entry_host.dart';
+import 'package:spendwise/ui/transactions/entry/edit_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
-import 'package:spendwise/ui/transactions/entry/steps/entry_step_handlers.dart';
+import 'package:spendwise/ui/transactions/entry/new_entry_chrome.dart';
+import 'package:spendwise/ui/transactions/history_entry_selection.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 // MARK: - TransactionsScope
@@ -47,22 +53,10 @@ class TransactionsFlow extends FlowBase<TransactionsStep> {
 // MARK: - TransactionsFlowState
 class _TransactionsFlowState
     extends FlowBaseState<TransactionsStep, TransactionsFlow> {
-  ProviderSubscription<AsyncValue<EntryFormViewState>>? _formSubscription;
-  String? _openFormKey;
-  bool _formKeyIsSet = false;
   Route<void>? _trendsRoute;
-
-  @override
-  void dispose() {
-    _formSubscription?.close();
-    super.dispose();
-  }
 
   TransactionsViewModel get _screenViewModel =>
       ref.read(transactionsViewModelProvider(widget.initialScope).notifier);
-
-  EntryFormViewModel _formViewModel(String? key) =>
-      ref.read(entryFormViewModelProvider(key).notifier);
 
   @override
   void Function() subscribeToStep(
@@ -79,7 +73,7 @@ class _TransactionsFlowState
   void handleStep(BuildContext context, TransactionsStep step) {
     switch (step) {
       case EntryFormRequested(:final entry):
-        _openEntryForm(context, entry.id);
+        _editEntry(context, entry.id);
       case HistoryTrendsRequested():
         _openTrends(context);
       case PickSourceRequested():
@@ -94,6 +88,19 @@ class _TransactionsFlowState
         break;
     }
     _screenViewModel.clearStep();
+  }
+
+  void _editEntry(BuildContext context, String entryId) {
+    final paneHosted =
+        widget.initialScope == null &&
+        ref.read(shellLayoutModeProvider) != ShellLayoutMode.phone;
+    if (!paneHosted) {
+      unawaited(openEditEntry(context: context, ref: ref, entryId: entryId));
+      return;
+    }
+    if (ref.read(historyEntrySelectionProvider) == entryId) return;
+    ref.invalidate(entryFormViewModelProvider(entryId));
+    ref.read(historyEntrySelectionProvider.notifier).select(entryId);
   }
 
   void _openTrends(BuildContext context) {
@@ -114,33 +121,6 @@ class _TransactionsFlowState
     Navigator.of(context).pop();
   }
 
-  void _openEntryForm(BuildContext context, String entryId) {
-    _formSubscription?.close();
-    _openFormKey = entryId;
-    _formKeyIsSet = true;
-    _formSubscription = ref.listenManual(
-      entryFormViewModelProvider(entryId),
-      (previous, next) => _handleFormStep(entryId, next.value?.step),
-    );
-    showEntryFormSheet(context: context, entryId: entryId).whenComplete(() {
-      if (_openFormKey == entryId) {
-        _formSubscription?.close();
-        _formSubscription = null;
-        _formKeyIsSet = false;
-      }
-    });
-  }
-
-  void _handleFormStep(String? formKey, TransactionsStep? step) {
-    if (step == null) return;
-    if (!_formKeyIsSet || _openFormKey != formKey) return;
-    final context = navigatorContext;
-    if (context == null) return;
-
-    dispatchEntryFormStep(context, ref, formKey, step);
-    _formViewModel(formKey).clearStep();
-  }
-
   @override
   Widget buildRoot(BuildContext context) {
     Widget screen(ShellPagePresentation presentation) => TransactionsScreen(
@@ -153,8 +133,44 @@ class _TransactionsFlowState
     if (widget.initialScope != null) {
       return screen(ShellPagePresentation.fullPage);
     }
+    return _HistoryPaneHost(pageBuilder: screen);
+  }
+}
+
+// MARK: - HistoryPaneHost
+class _HistoryPaneHost extends ConsumerWidget {
+  const _HistoryPaneHost({required this.pageBuilder});
+
+  final Widget Function(ShellPagePresentation presentation) pageBuilder;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final phone = ref.watch(shellLayoutModeProvider) == ShellLayoutMode.phone;
+    final entryId = ref.watch(historyEntrySelectionProvider);
+    final showsPane = !phone && entryId != null;
+    final draftDate = showsPane
+        ? ref.watch(
+            entryFormViewModelProvider(entryId).select((s) => s.value?.date),
+          )
+        : null;
+    final clear = ref.read(historyEntrySelectionProvider.notifier).clear;
+    ShellDetail? detail;
+    if (showsPane) {
+      detail = ShellDetail(
+        id: entryId,
+        title: editEntryTitle,
+        subtitle: draftDate == null ? null : formatEntryDate(draftDate),
+        onClose: clear,
+        bodyBuilder: (_) => EditEntryHost(
+          entryId: entryId,
+          frame: EntryFormFrame.pane,
+          onDismiss: clear,
+        ),
+      );
+    }
     return ShellPaneHost(
-      pageBuilder: (_, presentation) => screen(presentation),
+      pageBuilder: (_, presentation) => pageBuilder(presentation),
+      detail: detail,
     );
   }
 }

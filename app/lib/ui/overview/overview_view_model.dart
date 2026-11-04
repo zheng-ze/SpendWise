@@ -24,6 +24,7 @@ const _unnamedCardTitle = 'Card';
 // MARK: - OverviewEntryRow
 class OverviewEntryRow {
   const OverviewEntryRow({
+    required this.entryId,
     required this.title,
     required this.caption,
     required this.symbolName,
@@ -32,6 +33,7 @@ class OverviewEntryRow {
     required this.amountKind,
   });
 
+  final String entryId;
   final String title;
   final String caption;
   final String symbolName;
@@ -99,10 +101,17 @@ sealed class OverviewStep {}
 
 class OverviewHistoryRequested extends OverviewStep {}
 
+class OverviewEntryRequested extends OverviewStep {
+  OverviewEntryRequested(this.entryId);
+
+  final String entryId;
+}
+
 // MARK: - OverviewViewModel
 abstract class OverviewViewModel {
   void retryToday();
   void requestHistory();
+  void openEntry(String id);
   void clearStep();
 }
 
@@ -146,6 +155,15 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
 
   @override
   void requestHistory() => emitStep(OverviewHistoryRequested());
+
+  @override
+  void openEntry(String id) {
+    final isActive =
+        ref.read(ledgerSessionProvider)?.ledger.state.entries.containsKey(id) ??
+        false;
+    if (!isActive) return;
+    emitStep(OverviewEntryRequested(id));
+  }
 }
 
 // MARK: - Row Mapping
@@ -154,6 +172,7 @@ OverviewEntryRow _entryRow(Entry entry, LedgerState ledger, DateTime today) {
   final isToday = entry.date == today;
   final date = isToday ? _todayLabel : formatDayMonthShort(entry.date);
   return OverviewEntryRow(
+    entryId: entry.id,
     title: row.note.isEmpty ? row.title : row.note,
     caption: [date, row.title, row.accountLine].join(_captionSeparator),
     symbolName: row.symbolName,

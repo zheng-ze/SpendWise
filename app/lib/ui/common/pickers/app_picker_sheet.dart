@@ -14,15 +14,19 @@ const _headerHeight = kMinInteractiveDimension;
 const _titleSpacing = 8.0;
 
 // MARK: - Show
+typedef PickerRouteCallback = void Function(ModalRoute<dynamic>);
+
 Future<T?> showPickerAppSheet<T>(
   BuildContext context, {
   required AppSheetPresentation Function(BuildContext) presentation,
   required WidgetBuilder builder,
+  PickerRouteCallback? onRouteCreated,
 }) {
   return showAppSheet<T>(
     context,
     presentation: presentation(context),
     presentationResolver: presentation,
+    onRouteCreated: onRouteCreated,
     builder: builder,
   );
 }

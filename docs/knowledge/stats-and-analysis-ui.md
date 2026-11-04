@@ -1,6 +1,6 @@
 # Trends & Category Detail UI
 
-Last reconciled: 7cc26306
+Last reconciled: f9c2bb9f
 
 ## Feature overview
 
@@ -265,7 +265,7 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
   `category_detail_projection.dart:_chips`, `_directRow`, `_share`).
   The trend tray always presents the effective selected period's signed amount and entries on initial
   load and after mode changes. Its entries use a flat lazy list, newest first, with short
-  date/category/account captions and no day headers. An empty selected period displays
+  date/category/account captions and no day headers. Tapping an entry opens Edit entry through `EntryRow`. An empty selected period displays
   `No entries in this period`
   (`category_detail_screen.dart:_CategoryDetailReadyView`,
   `flat_entry_sliver.dart:FlatEntrySliver`, `category_detail_trend.dart:_selectionSlivers`).

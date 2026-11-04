@@ -4,8 +4,8 @@ import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/entry/add_entry_row.dart';
+import 'package:spendwise/ui/transactions/entry/edit_entry_delete_action.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
-import 'package:spendwise/ui/transactions/entry/fields/entry_fields.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 
 // MARK: - Visual Constants
@@ -80,7 +80,9 @@ class NewEntryRows extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final transfer = state.kind == EntryFormKind.transfer;
-    final recurrence = state.recurrence;
+    final editing = state.isEditing;
+    final locked = state.isSystemEntry;
+    final recurrence = editing ? null : state.recurrence;
     final endDate = state.endDate;
 
     void open(VoidCallback request) {
@@ -108,14 +110,16 @@ class NewEntryRows extends StatelessWidget {
       FocusNode focusNode,
       Object groupId,
       ValueChanged<String> onChanged,
-      TextInputType keyboardType,
-    ) => _InlineTextRow(
+      TextInputType keyboardType, {
+      bool readOnly = false,
+    }) => _InlineTextRow(
       fieldKey: ValueKey('new-entry-$key'),
       label: label,
       controller: controller,
       focusNode: focusNode,
       groupId: groupId,
       keyboardType: keyboardType,
+      readOnly: readOnly,
       keypad: keypad,
       onChanged: onChanged,
       onOutsideDown: onOutsideDown,
@@ -130,6 +134,7 @@ class NewEntryRows extends StatelessWidget {
       nameGroupId,
       viewModel.setName,
       TextInputType.text,
+      readOnly: locked,
     );
     final noteRow = textRow(
       'note',
@@ -145,9 +150,22 @@ class NewEntryRows extends StatelessWidget {
       child: Switch(
         value: state.includeInAnalysis,
         materialTapTargetSize: _switchTapTarget,
-        onChanged: viewModel.setIncludeInAnalysis,
+        onChanged: locked ? null : viewModel.setIncludeInAnalysis,
       ),
     );
+    final categoryRow = locked
+        ? AddEntryRow(
+            key: const ValueKey('new-entry-category'),
+            label: 'Category',
+            value: Text(display.categoryLabel ?? '', textAlign: TextAlign.end),
+            keypad: keypad,
+          )
+        : picker(
+            'category',
+            'Category',
+            display.categoryLabel ?? _chooseCategoryLabel,
+            viewModel.requestPickCategory,
+          );
     final rows = <Widget>[
       nameRow,
       if (transfer)
@@ -158,12 +176,7 @@ class NewEntryRows extends StatelessWidget {
           viewModel.requestPickSource,
         )
       else
-        picker(
-          'category',
-          'Category',
-          display.categoryLabel ?? _chooseCategoryLabel,
-          viewModel.requestPickCategory,
-        ),
+        categoryRow,
       if (transfer)
         picker(
           'to',
@@ -184,12 +197,15 @@ class NewEntryRows extends StatelessWidget {
         formatEntryDate(state.date),
         viewModel.requestPickDate,
       ),
-      picker(
-        'repeat',
-        'Repeat',
-        recurrence == null ? addNoRepeatLabel : addFrequencyLabels[recurrence]!,
-        viewModel.requestPickRecurrence,
-      ),
+      if (!editing)
+        picker(
+          'repeat',
+          'Repeat',
+          recurrence == null
+              ? addNoRepeatLabel
+              : addFrequencyLabels[recurrence]!,
+          viewModel.requestPickRecurrence,
+        ),
       if (recurrence != null)
         picker(
           'ends',
@@ -205,9 +221,11 @@ class NewEntryRows extends StatelessWidget {
         label: 'Include in analysis',
         value: analysisSwitch,
         keypad: keypad,
-        onTap: () => viewModel.setIncludeInAnalysis(!state.includeInAnalysis),
+        onTap: locked
+            ? null
+            : () => viewModel.setIncludeInAnalysis(!state.includeInAnalysis),
       ),
-      if (receiptEnabled)
+      if (receiptEnabled && !editing)
         _ReceiptRow(
           key: const ValueKey('new-entry-receipt'),
           scanning: state.scanning,
@@ -231,7 +249,16 @@ class NewEntryRows extends StatelessWidget {
     }
     if (recurrence != null) children.add(const _RecurringHint());
 
-    return _FormGroup(children: children);
+    final group = _FormGroup(children: children);
+    if (!state.canDelete) return group;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        group,
+        EditEntryDeleteAction(onDelete: viewModel.delete),
+      ],
+    );
   }
 }
 
@@ -244,6 +271,7 @@ class _InlineTextRow extends StatelessWidget {
     required this.focusNode,
     required this.groupId,
     required this.keyboardType,
+    required this.readOnly,
     required this.keypad,
     required this.onChanged,
     required this.onOutsideDown,
@@ -256,6 +284,7 @@ class _InlineTextRow extends StatelessWidget {
   final FocusNode focusNode;
   final Object groupId;
   final TextInputType keyboardType;
+  final bool readOnly;
   final bool keypad;
   final ValueChanged<String> onChanged;
   final ValueChanged<PointerDownEvent> onOutsideDown;
@@ -270,6 +299,7 @@ class _InlineTextRow extends StatelessWidget {
       groupId: groupId,
       textAlign: TextAlign.end,
       keyboardType: keyboardType,
+      readOnly: readOnly,
       maxLines: null,
       style: addRowValueStyle(context),
       cursorColor: context.colors.focus,

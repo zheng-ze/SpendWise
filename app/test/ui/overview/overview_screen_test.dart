@@ -249,6 +249,7 @@ OverviewUpcomingRow _upcomingRow(int index) => OverviewUpcomingRow(
 );
 
 OverviewEntryRow _longRecentRow() => OverviewEntryRow(
+  entryId: 'e0000000-0000-4000-8000-000000000001',
   title: _repeatedText('Recent entry ', 24),
   caption: _repeatedText('Long account and category caption ', 12),
   symbolName: 'receipt',

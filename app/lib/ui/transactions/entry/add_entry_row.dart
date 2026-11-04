@@ -26,6 +26,8 @@ const _keypadVerticalPadding = 8.0;
 
 const _restVerticalPadding = 10.0;
 
+const _dividerThickness = 1.0;
+
 // MARK: - Styles
 TextStyle addRowValueStyle(BuildContext context) {
   return Theme.of(context).textTheme.bodyMedium!.copyWith(
@@ -136,5 +138,19 @@ class AddEntryRow extends StatelessWidget {
     final width = painter.width;
     painter.dispose();
     return width;
+  }
+}
+
+// MARK: - EntryRowDivider
+class EntryRowDivider extends StatelessWidget {
+  const EntryRowDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Divider(
+      height: _dividerThickness,
+      thickness: _dividerThickness,
+      color: context.colors.edge,
+    );
   }
 }

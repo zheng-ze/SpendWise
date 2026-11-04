@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 7cc26306
+Last reconciled: f9c2bb9f
 
 ## Feature overview
 
@@ -95,8 +95,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   never starts before the old receipt state is discarded. The coordinator's existing captured
   `initiatingRef.mounted` checks then reject an old scan's prefill and final state; receipt scan code
   is unchanged. `EntryFormNotifier.bindAddLifetime` lets the presenter gate only `save`,
-  `requestScan` and `applyCroppedDocument` on the live session; an unbound form keeps its Edit and
-  view behavior. A failed Ledger save is not retirement: the session, route, draft and error stay.
+  `requestScan` and `applyCroppedDocument` on the live session; an unbound form (Edit) is ungated. A failed Ledger save is not retirement: the session, route, draft and error stay.
   `AppShell` captures the controller when it opens Add and calls `ownerDisposed` from `dispose`
   without reading `WidgetRef`. Owner disposal retires the session; with an installed route it removes
   the route without animation in a microtask (an already outgoing route is left to finish), and with
@@ -114,8 +113,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   dispatches through `dispatchEntryFormStep`; clearing before dispatch means a replacement Step
   emitted during dispatch stays pending for its own consumption, and a later identical user request
   is a new occurrence. Add passes `isCurrent` to every source, destination, category, recurrence,
-  date, end-date and crop helper, which check it after each await before mutating; omitted guards
-  leave the Edit and view paths unchanged. Resize replaces neither the subscription, the mount
+  date, end-date and crop helper, which check it after each await before mutating; Edit passes its own ownership check. Resize replaces neither the subscription, the mount
   pickup nor the session identity.
   Add's private session controls duplicate admission and asynchronous eligibility. Shared sheet
   occupancy comes from installed `AppSheetRoute`s through `shellSheetOccupancyProvider`, rather than
@@ -127,11 +125,22 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   reads the source on demand from the live Accounts Navigator through `accountsNavigatorKeyProvider`
   (`app/lib/ui/money/money_flow.dart`). The getter returns the preferred source ID of the
   top route when that route is a scoped Transactions route, and null when the Accounts segment is not
-  mounted, which includes every state where Money is not selected. Scoped Transactions routes carry their preferred source ID. TransactionsFlow handles only
-  existing-entry forms. There is no `ProviderScope`, shared lock provider, nested `Navigator` or new Flow.
+  mounted, which includes every state where Money is not selected. Scoped Transactions routes carry their preferred source ID. There is no `ProviderScope`, shared lock provider, nested `Navigator` or new Flow.
   (`app/lib/ui/transactions/entry/new_entry_presenter.dart`,
-  `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart`,
-  `app/lib/ui/transactions/transactions_flow.dart`)
+  `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart`)
+- **Shared Edit presenter** - `openEditEntry`
+  (`app/lib/ui/transactions/entry/edit_entry_presenter.dart`) opens an existing entry directly as an
+  editable `AppSheet` with no read-only step. The container-scoped
+  `EditEntryPresentationController` (`editEntryPresentationControllerProvider`) guards duplicate
+  opens, invalidates `entryFormViewModelProvider(entryId)` on every open so each open starts from
+  persisted values, and tracks one owner per entry through claim tokens. `EditEntryHost` claims
+  ownership, subscribes to the form view model and dispatches its Steps from its own context with
+  `sheetPresentation: accountSheetPresentation`. It removes still-active picker routes on dispose and
+  shows a load alert with Retry. Callers are `EntryRow`, the budget counted row, `OverviewFlow` and
+  `TransactionsFlow`; on open and desktop layouts the unscoped History hosts the same
+  `EditEntryHost` in the shell detail pane through `_HistoryPaneHost` and
+  `historyEntrySelectionProvider` (see [transactions-ui.md](transactions-ui.md)). Drafts live in the
+  keep-alive `entryFormViewModelProvider` family until the next open invalidates them.
 - **State lifetime** - State lives exactly as long as its own view is in the view hierarchy. A view
   covered by a pushed route is still in the hierarchy and keeps its state; History keeps its
   selected month while Trends is pushed over it and after Back
@@ -169,7 +178,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   work after their route disposes. The sheet-form view models are not yet under this rule.
   `accountFormViewModelProvider`, `sourceEditFormViewModelProvider`, `entryFormViewModelProvider` and
   `receiptEntryCoordinatorProvider` are invalidated by hand (in `account_form.dart`,
-  `source_edit_form.dart` and `new_entry_presenter.dart`). `categoryFormViewModelProvider`,
+  `source_edit_form.dart`, `new_entry_presenter.dart` and `edit_entry_presenter.dart`). `categoryFormViewModelProvider`,
   `planFormViewModelProvider` and `entryFormDisplayProvider` have no manual invalidation and live for
   the container's lifetime, so a reopened category or plan form may show a previous draft. That has
   not been reproduced.
@@ -416,7 +425,7 @@ value, which then overwrites it. (issue #38)
   sheet's pop-result continuation, before that route's `completed` fires, so shell occupancy stays
   continuous. Retirement removes the route after the frame ends.
   No timer or captured pane owner is involved. See [budgets.md](budgets.md).
-- **Add form surface** - `AppSheetVariant.form` is used by the Add loading and loaded forms.
+- **Add form surface** - `AppSheetVariant.form` is used by the Add and Edit entry loading and loaded forms.
   In light mode its canvas backing uses `SpendWiseColors.base`; desktop form chrome docks in the right column with
   no grab handle. Standard sheets retain their existing chrome. Phone Add enables
   `dragToDismiss`; `SheetDismissPhysics` shares drag displacement between the body and enclosing

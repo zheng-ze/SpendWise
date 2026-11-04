@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
+import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
+import 'package:spendwise/ui/transactions/entry/entry_pane_layout.dart';
 
 // MARK: - Visual Constants
 
@@ -39,19 +41,54 @@ const _loadingIndicatorSize = 36.0;
 
 const _loadingBodySpacing = 24.0;
 
+const addEntryTitle = 'Add entry';
+
+const editEntryTitle = 'Edit entry';
+
+const addActionLabel = 'Save';
+
+const editActionLabel = 'Update';
+
+const addFooterLabel = 'Save entry';
+
+const editFooterLabel = 'Update entry';
+
+// MARK: - EntryFormFrame
+enum EntryFormFrame { sheet, pane }
+
+AppSheetPresentation entryFormPresentation(
+  BuildContext context,
+  EntryFormFrame frame,
+) {
+  if (frame == EntryFormFrame.pane) return accountSheetPresentation(context);
+
+  return AppSheetAlertSlot.maybeOf(context)?.presentation ??
+      AppSheetPresentation.phone;
+}
+
 // MARK: - NewEntryHeader
 class NewEntryHeader extends StatelessWidget {
-  const NewEntryHeader({super.key, required this.presentation, this.onSave});
+  const NewEntryHeader({
+    super.key,
+    required this.presentation,
+    required this.title,
+    required this.actionLabel,
+    this.onSave,
+  });
 
   final AppSheetPresentation presentation;
+
+  final String title;
+
+  final String actionLabel;
 
   final Future<void> Function()? onSave;
 
   @override
   Widget build(BuildContext context) {
     final base = Theme.of(context).textTheme.titleMedium;
-    final title = Text(
-      'Add entry',
+    final titleText = Text(
+      title,
       textAlign: TextAlign.center,
       style: base?.copyWith(
         fontSize: _titleSize,
@@ -63,15 +100,15 @@ class NewEntryHeader extends StatelessWidget {
     if (presentation != AppSheetPresentation.open) {
       return ConstrainedBox(
         constraints: bounds,
-        child: Center(child: title),
+        child: Center(child: titleText),
       );
     }
-    final save = _SideAction(label: 'Save', onPressed: onSave);
+    final save = _SideAction(label: actionLabel, onPressed: onSave);
 
     return Row(
       children: [
         const SizedBox(width: _sideColumnWidth),
-        Expanded(child: title),
+        Expanded(child: titleText),
         SizedBox(width: _sideColumnWidth, child: save),
       ],
     );
@@ -104,9 +141,12 @@ class _SideAction extends StatelessWidget {
 class NewEntrySaveFooter extends StatelessWidget {
   const NewEntrySaveFooter({
     super.key,
+    required this.label,
     required this.onSave,
     required this.keypad,
   });
+
+  final String label;
 
   final Future<void> Function()? onSave;
 
@@ -129,7 +169,7 @@ class NewEntrySaveFooter extends StatelessWidget {
     final button = FilledButton(
       style: style,
       onPressed: onSave,
-      child: const Text('Save entry'),
+      child: Text(label),
     );
 
     return Padding(
@@ -141,7 +181,17 @@ class NewEntrySaveFooter extends StatelessWidget {
 
 // MARK: - NewEntryLoadingForm
 class NewEntryLoadingForm extends StatelessWidget {
-  const NewEntryLoadingForm({super.key, this.alert, this.onAlertAction});
+  const NewEntryLoadingForm({
+    super.key,
+    this.frame = EntryFormFrame.sheet,
+    this.title = addEntryTitle,
+    this.alert,
+    this.onAlertAction,
+  });
+
+  final EntryFormFrame frame;
+
+  final String title;
 
   final SheetAlertData? alert;
 
@@ -149,15 +199,31 @@ class NewEntryLoadingForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final presentation = AppSheetAlertSlot.maybeOf(context)?.presentation;
+    final editing = title == editEntryTitle;
+    final footer = NewEntrySaveFooter(
+      label: editing ? editFooterLabel : addFooterLabel,
+      onSave: null,
+      keypad: false,
+    );
+    const body = _NewEntryLoadingBody();
+    if (frame == EntryFormFrame.pane) {
+      return EntryPaneLayout(
+        body: body,
+        footer: footer,
+        alert: alert,
+        onAlertAction: onAlertAction,
+      );
+    }
     final header = NewEntryHeader(
-      presentation: presentation ?? AppSheetPresentation.phone,
+      presentation: entryFormPresentation(context, frame),
+      title: title,
+      actionLabel: editing ? editActionLabel : addActionLabel,
     );
 
     return AppSheet(
       header: header,
-      body: const _NewEntryLoadingBody(),
-      footer: const NewEntrySaveFooter(onSave: null, keypad: false),
+      body: body,
+      footer: footer,
       dragToDismiss: true,
       variant: AppSheetVariant.form,
       alert: alert,

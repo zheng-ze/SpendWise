@@ -87,4 +87,55 @@ void main() {
       expect(container.read(overviewViewModelProvider).value?.step, isNull);
     });
   });
+
+  group('entry rows', () {
+    test('recent rows carry their entry id', () async {
+      final container = await _keptContainer(Ledger(state: defaultState()));
+
+      final recent = container
+          .read(overviewViewModelProvider)
+          .requireValue
+          .recent!;
+
+      expect(
+        recent.singleWhere((row) => row.title == 'Shop run').entryId,
+        entryID(3),
+      );
+    });
+
+    test('openEntry emits an entry request for an active entry', () async {
+      final container = await _keptContainer(Ledger(state: defaultState()));
+
+      container.read(overviewViewModelProvider.notifier).openEntry(entryID(3));
+
+      final step = container.read(overviewViewModelProvider).requireValue.step;
+      expect(step, isA<OverviewEntryRequested>());
+      expect((step! as OverviewEntryRequested).entryId, entryID(3));
+    });
+
+    test('openEntry emits nothing for an unknown id', () async {
+      final container = await _keptContainer(Ledger(state: defaultState()));
+
+      container.read(overviewViewModelProvider.notifier).openEntry(entryID(99));
+
+      expect(
+        container.read(overviewViewModelProvider).requireValue.step,
+        isNull,
+      );
+    });
+
+    test('openEntry emits nothing for an archived entry', () async {
+      final ledger = Ledger(state: defaultState());
+      final container = await _keptContainer(ledger);
+      ledger.archiveEntry(entryID(3));
+      await settleAnalysis(container, ledger);
+
+      container.read(overviewViewModelProvider.notifier).openEntry(entryID(3));
+
+      expect(
+        container.read(overviewViewModelProvider).requireValue.step,
+        isNull,
+      );
+    });
+  });
 }

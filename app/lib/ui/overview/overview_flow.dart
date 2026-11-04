@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/overview/overview_screen.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
+import 'package:spendwise/ui/transactions/entry/edit_entry_presenter.dart';
 
 // MARK: - OverviewFlow
 class OverviewFlow extends FlowBase<OverviewStep> {
@@ -33,6 +36,8 @@ class _OverviewFlowState extends FlowBaseState<OverviewStep, OverviewFlow> {
     switch (step) {
       case OverviewHistoryRequested():
         widget.onHistorySelected();
+      case OverviewEntryRequested(:final entryId):
+        unawaited(openEditEntry(context: context, ref: ref, entryId: entryId));
     }
     ref.read(overviewViewModelProvider.notifier).clearStep();
   }

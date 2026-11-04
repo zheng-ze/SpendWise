@@ -1,10 +1,10 @@
 # Overview UI
 
-Last reconciled: 7cc26306
+Last reconciled: f9c2bb9f
 
 ## Feature overview
 
-The Overview screen renders three read-only sections in fixed default order: Today, Recent entries
+The Overview screen renders three sections in fixed default order: Today, Recent entries
 and Coming up. A full-page open layout places Today across row one columns one and two, leaves the
 third column empty, then places Recent entries across row two columns one and two and Coming up in
 column three. Three equal columns use the named 10 dp tray gap. The row-two cards stretch to the
@@ -21,13 +21,15 @@ section whose read has not settled renders a `LoadingSkeleton`. The screen reads
 - `app/lib/ui/overview/overview_view_model.dart` - `OverviewViewModel` (abstract), `OverviewNotifier`
   (`AsyncNotifier` with `LedgerBackedNotifier`, `overviewViewModelProvider`), `OverviewViewState`,
   and the row types `OverviewEntryRow` and `OverviewUpcomingRow`. The view state carries an
-  `OverviewStep` (`HasStep`/`StepEmitting`); `requestHistory` emits `OverviewHistoryRequested` and
-  `clearStep` clears it. Rebuilds preserve a pending step.
+  `OverviewStep` (`HasStep`/`StepEmitting`); `requestHistory` emits `OverviewHistoryRequested`,
+  `openEntry` emits `OverviewEntryRequested` and `clearStep` clears it. `OverviewEntryRow.entryId`
+  identifies the entry a Recent row opens. Rebuilds preserve a pending step.
 - `app/lib/ui/overview/overview_screen.dart` - `OverviewScreen`, its open-layout grid and its
   standalone section widgets. The Recent entries tray ends in a `TextButton` action labelled 'View
   History' with a chevron, shown for nonempty, empty and section-loading rows.
 - `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) subscribing to
-  `OverviewStep` once and calling its required `onHistorySelected` callback. When hosted in the shell it supplies its
+  `OverviewStep` once, calling its required `onHistorySelected` callback for history requests and
+  `openEditEntry` for entry requests. When hosted in the shell it supplies its
   page through `ShellPaneHost`, which provides bounded width and full-page or single-column
   presentation.
 - `app/lib/ledger/analysis/summaries/today_summary.dart` - `TodaySummary` carries `spent`, `dailyGuide` and
@@ -58,6 +60,10 @@ Navigator mounts. On every layout `BootChrome` supplies a callback that selects 
 `ShellDestination.history` slot (`app/lib/ui/shell/boot_chrome.dart`); the flow pushes no route and
 History mounts fresh at the current month with an empty stack, and nothing is carried over from Overview before it mounts.
 History has no back-to-Overview control.
+Recent entries rows are tappable: `OverviewViewModel.openEntry` emits `OverviewEntryRequested` only
+for entries active in the ledger, and `OverviewFlow` calls `openEditEntry`
+(`app/lib/ui/transactions/entry/edit_entry_presenter.dart`). The Edit entry sheet presents over the
+Overview tab and does not change the shell selection.
 
 ## Read definitions
 

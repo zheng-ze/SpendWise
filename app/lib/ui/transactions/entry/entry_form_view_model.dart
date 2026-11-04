@@ -39,8 +39,6 @@ abstract class EntryFormViewModel {
   void applyPickedCategory(String? id);
   void requestPickRecurrence();
   void applyPickedRecurrence(RecurrenceFrequency? frequency);
-  void startEditing();
-  void revertToPersisted();
   Future<void> save();
   Future<void> delete();
   void requestDocumentCrop(Uint8List bytes);
@@ -107,10 +105,11 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       );
     });
     return EntryFormViewState(
-      mode: entry == null ? EntryFormMode.newEntry : EntryFormMode.viewing,
+      mode: entry == null ? EntryFormMode.newEntry : EntryFormMode.editing,
       kind: _kindOf(entry),
       amountText: entry == null ? '' : formatPlainAmount(entry.amount.abs()),
       nameText: entry?.name ?? '',
+      noteText: entry?.note ?? '',
       date: entry?.date ?? _todayUtc(),
       sourceId: entry?.sourceID,
       destinationId: entry?.destinationID,
@@ -142,16 +141,20 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       updateState((current) => current.copyWith(amountText: raw));
 
   @override
-  void setName(String raw) =>
-      updateState((current) => current.copyWith(nameText: raw));
+  void setName(String raw) {
+    if (state.value?.isSystemEntry ?? false) return;
+    updateState((current) => current.copyWith(nameText: raw));
+  }
 
   @override
   void setNote(String raw) =>
       updateState((current) => current.copyWith(noteText: raw));
 
   @override
-  void setIncludeInAnalysis(bool value) =>
-      updateState((current) => current.copyWith(includeInAnalysis: value));
+  void setIncludeInAnalysis(bool value) {
+    if (state.value?.isSystemEntry ?? false) return;
+    updateState((current) => current.copyWith(includeInAnalysis: value));
+  }
 
   @override
   void setEndDateEnabled(bool value) {
@@ -212,7 +215,10 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       updateState((current) => current.copyWith(destinationId: () => id));
 
   @override
-  void requestPickCategory() => emitStep(PickCategoryRequested());
+  void requestPickCategory() {
+    if (state.value?.isSystemEntry ?? false) return;
+    emitStep(PickCategoryRequested());
+  }
 
   @override
   void applyPickedCategory(String? id) =>
@@ -228,36 +234,6 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
         recurrence: () => frequency,
         hasEndDate: frequency == null ? false : current.hasEndDate,
         endDate: frequency == null ? () => null : null,
-      ),
-    );
-  }
-
-  // MARK: - Editing Lifecycle
-
-  @override
-  void startEditing() =>
-      updateState((current) => current.copyWith(mode: EntryFormMode.editing));
-
-  @override
-  void revertToPersisted() {
-    final entry = _persisted;
-    if (entry == null) return;
-    updateState(
-      (current) => EntryFormViewState(
-        mode: EntryFormMode.viewing,
-        kind: _kindOf(entry),
-        amountText: formatPlainAmount(entry.amount.abs()),
-        nameText: entry.name,
-        date: entry.date,
-        sourceId: entry.sourceID,
-        destinationId: entry.destinationID,
-        categoryId: entry.categoryID,
-        includeInAnalysis: entry.includeInAnalysis,
-        recurrence: null,
-        hasEndDate: false,
-        endDate: null,
-        isSystemEntry: entry.systemKind != null,
-        entryId: entry.id,
       ),
     );
   }
@@ -287,9 +263,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
 
   Future<void> _persist(EntryFormViewState current) async {
     final magnitude = current.parsedAmount!.abs();
-    final note = current.mode == EntryFormMode.editing
-        ? _persisted?.note
-        : current.noteText;
+    final isEditing = current.mode == EntryFormMode.editing;
     final signedEntry = signedEntryForSave(
       kind: current.kind,
       magnitude: magnitude,
@@ -300,15 +274,14 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       sourceId: current.sourceId!,
       destinationId: current.destinationId,
       includeInAnalysis: current.includeInAnalysis,
-      note: note,
+      note: current.noteText,
+      systemKind: isEditing ? _persisted?.systemKind : null,
     );
 
     try {
-      if (current.mode == EntryFormMode.editing) {
+      if (isEditing) {
         ledger.updateEntry(signedEntry);
-        updateState(
-          (c) => c.copyWith(mode: EntryFormMode.viewing, error: () => null),
-        );
+        updateState((c) => c.copyWith(dismissed: true));
         return;
       }
 
@@ -350,13 +323,23 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
 
   @override
   Future<void> delete() async {
-    final id = state.value?.entryId;
-    if (id == null) return;
-    ledger.deleteEntry(id);
-    updateState((current) => current.copyWith(dismissed: true));
+    final current = state.value;
+    final id = current?.entryId;
+    if (current == null ||
+        id == null ||
+        current.isSystemEntry ||
+        current.dismissed ||
+        _saving) {
+      return;
+    }
+    try {
+      ledger.archiveEntry(id);
+      updateState((c) => c.copyWith(dismissed: true));
+    } on LedgerError catch (thrown) {
+      updateState((c) => c.copyWith(error: () => thrown));
+    }
   }
 
-  @override
   // MARK: - Receipt Scan
   @override
   void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes}) {
