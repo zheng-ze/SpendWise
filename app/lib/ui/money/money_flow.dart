@@ -7,6 +7,7 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_pane.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/money/money_header.dart';
 import 'package:spendwise/ui/money/money_segment.dart';
+import 'package:spendwise/ui/plans/plan_pane.dart';
 import 'package:spendwise/ui/plans/plans_flow.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
@@ -30,7 +31,7 @@ class MoneyFlow extends ConsumerWidget {
     final ShellPane? pane = switch (segment) {
       MoneySegment.budgets => ref.watch(budgetPaneProvider),
       MoneySegment.accounts => null,
-      MoneySegment.plans => null,
+      MoneySegment.plans => ref.watch(planPaneProvider),
     };
     Widget moneyPage(ShellPagePresentation presentation) {
       final header = MoneyHeader(segment: segment, presentation: presentation);
