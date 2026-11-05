@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/plans/plan_list_view_model.dart';
+import 'package:spendwise/ui/plans/plan_selection.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
@@ -143,40 +145,17 @@ void main() {
   });
 
   group('PlanListNotifier', () {
-    final today = DateTime.now().toUtc();
-    final soonerPlan = RecurringPlan(
-      template: EntryTemplate(
-        amount: dec('-10'),
-        name: 'Bravo',
-        sourceID: source.id,
-      ),
-      frequency: RecurrenceFrequency.weekly,
-      anchor: today,
-      lastResolvedDate: today.subtract(const Duration(days: 1)),
-    );
-    final laterPlan = RecurringPlan(
-      template: EntryTemplate(
-        amount: dec('5'),
-        name: 'Alpha',
-        sourceID: source.id,
-      ),
-      frequency: RecurrenceFrequency.yearly,
-      anchor: today,
-      lastResolvedDate: today.subtract(const Duration(days: 1)),
+    final clockToday = DateTime.utc(2026, 1, 1);
+    final target = Account(
+      id: 'a0000000-0000-0000-0000-000000000002',
+      name: 'Savings',
+      type: AccountType.savings,
     );
 
-    test('build starts with editing off and no step', () {
-      final container = buildContainer(buildLedger([soonerPlan]));
+    PlanListViewState read(ProviderContainer container) =>
+        container.read(planListViewModelProvider).requireValue;
 
-      final state = container.read(planListViewModelProvider).value;
-
-      expect(state?.plans.map((p) => p.id), [soonerPlan.id]);
-      expect(state?.editing, isFalse);
-      expect(state?.step, isNull);
-    });
-
-    test('plans sort by ascending next occurrence', () {
-      final clockToday = DateTime.utc(2026, 1, 1);
+    test('rows sort by ascending next occurrence', () {
       final sooner = plan(
         name: 'Bravo',
         frequency: RecurrenceFrequency.weekly,
@@ -192,43 +171,177 @@ void main() {
         now: () => clockToday,
       );
 
-      final state = container.read(planListViewModelProvider).value;
-
-      expect(state?.plans.map((p) => p.id), [sooner.id, later.id]);
+      expect(read(container).rows.map((r) => r.id), [sooner.id, later.id]);
     });
 
-    test('a plan due today keeps today as its next occurrence', () {
-      final clockToday = DateTime.utc(2026, 1, 1);
-      final dueToday = plan(
-        name: 'Zulu',
+    test('an expense plan projects date, caption and signed amount', () {
+      final rent = plan(
+        name: 'Rent',
         frequency: RecurrenceFrequency.monthly,
-        anchor: clockToday,
-      );
-      final dueLater = plan(
-        name: 'Alpha',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: DateTime.utc(2026, 1, 15),
+        anchor: DateTime.utc(2026, 1, 5),
       );
       final container = buildContainer(
-        buildLedger([dueLater, dueToday]),
+        buildLedger([rent]),
         now: () => clockToday,
       );
 
-      final state = container.read(planListViewModelProvider).value;
+      final row = read(container).rows.single;
 
-      expect(state?.plans.first.id, dueToday.id);
-      expect(state?.nextOccurrences[dueToday.id], clockToday);
-      expect(state?.nextOccurrences[dueLater.id], DateTime.utc(2026, 1, 15));
+      expect(row.name, 'Rent');
+      expect(row.day, '5');
+      expect(row.month, 'Jan');
+      expect(row.caption, 'Every month / Wallet');
+      expect(row.amount, '-10.00');
+      expect(row.kind, AmountKind.expense);
     });
 
-    test('a ledger change refreshes the plans', () {
-      final ledger = buildLedger([soonerPlan, laterPlan]);
+    test('an income plan projects a plus-signed income amount', () {
+      final salary = RecurringPlan(
+        template: EntryTemplate(
+          amount: dec('3000'),
+          name: 'Salary',
+          sourceID: source.id,
+        ),
+        frequency: RecurrenceFrequency.biweekly,
+        anchor: DateTime.utc(2026, 1, 9),
+        lastResolvedDate: DateTime.utc(2026, 1, 8),
+      );
+      final container = buildContainer(
+        buildLedger([salary]),
+        now: () => clockToday,
+      );
+
+      final row = read(container).rows.single;
+
+      expect(row.amount, '+3,000.00');
+      expect(row.kind, AmountKind.income);
+      expect(row.caption, 'Every two weeks / Wallet');
+    });
+
+    test('a plan with a destination is a transfer without a sign', () {
+      final move = RecurringPlan(
+        template: EntryTemplate(
+          amount: dec('-500'),
+          name: 'To savings',
+          sourceID: source.id,
+          destinationID: target.id,
+        ),
+        frequency: RecurrenceFrequency.quarterly,
+        anchor: DateTime.utc(2026, 1, 9),
+        lastResolvedDate: DateTime.utc(2026, 1, 8),
+      );
+      final ledger = Ledger(
+        state: LedgerState(
+          moneySources: {
+            source.id: MoneySource.account(source),
+            target.id: MoneySource.account(target),
+          },
+          plans: {move.id: move},
+        ),
+      );
+      final container = buildContainer(ledger, now: () => clockToday);
+
+      final row = read(container).rows.single;
+
+      expect(row.amount, '500.00');
+      expect(row.kind, AmountKind.transfer);
+      expect(row.caption, 'Every three months / Wallet');
+    });
+
+    test('a plan whose account is missing names it Unknown', () {
+      final orphan = plan(
+        name: 'Orphan',
+        frequency: RecurrenceFrequency.yearly,
+        anchor: DateTime.utc(2026, 2, 1),
+      );
+      final container = buildContainer(
+        Ledger(state: LedgerState(plans: {orphan.id: orphan})),
+        now: () => clockToday,
+      );
+
+      expect(read(container).rows.single.caption, 'Every year / Unknown');
+    });
+
+    test('an ended plan has no date, and sorts last', () {
+      final ended = plan(
+        name: 'Aardvark',
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2025, 1, 1),
+        endDate: DateTime.utc(2025, 2, 1),
+      );
+      final live = plan(
+        name: 'Zebra',
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2026, 3, 1),
+      );
+      final container = buildContainer(
+        buildLedger([ended, live]),
+        now: () => clockToday,
+      );
+
+      final rows = read(container).rows;
+
+      expect(rows.map((r) => r.id), [live.id, ended.id]);
+      expect(rows.last.ended, isTrue);
+      expect(rows.last.day, isNull);
+      expect(rows.last.month, isNull);
+      expect(rows.first.ended, isFalse);
+    });
+
+    test('the count label is singular for one plan and plural otherwise', () {
+      final one = plan(
+        name: 'One',
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2026, 2, 1),
+      );
+      final two = plan(
+        name: 'Two',
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2026, 2, 2),
+      );
+      final single = buildContainer(buildLedger([one]));
+      final pair = buildContainer(buildLedger([one, two]));
+      final none = buildContainer(buildLedger([]));
+
+      expect(read(single).countLabel, '1 plan');
+      expect(read(pair).countLabel, '2 plans');
+      expect(read(none).countLabel, '0 plans');
+    });
+
+    test('selectPlan sets the selected plan in state and provider', () {
+      final one = plan(
+        name: 'One',
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2026, 2, 1),
+      );
+      final container = buildContainer(buildLedger([one]));
+      final viewModel = container.read(planListViewModelProvider.notifier);
+      expect(read(container).selectedPlanID, isNull);
+
+      viewModel.selectPlan(one.id);
+
+      expect(container.read(selectedPlanProvider), one.id);
+      expect(read(container).selectedPlanID, one.id);
+    });
+
+    test('a ledger change refreshes the rows', () {
+      final first = plan(
+        name: 'First',
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2026, 2, 1),
+      );
+      final second = plan(
+        name: 'Second',
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2026, 2, 2),
+      );
+      final ledger = buildLedger([first, second]);
       final container = buildContainer(ledger);
 
-      ledger.deletePlan(laterPlan.id);
+      ledger.deletePlan(second.id);
 
-      final state = container.read(planListViewModelProvider).value;
-      expect(state?.plans.map((p) => p.id), [soonerPlan.id]);
+      expect(read(container).rows.map((r) => r.id), [first.id]);
+      expect(read(container).countLabel, '1 plan');
     });
 
     test('advancing today refreshes the next-occurrence order', () {
@@ -247,18 +360,23 @@ void main() {
         buildLedger([early, late]),
         now: () => now,
       );
-      final before = container.read(planListViewModelProvider).value;
+      final before = read(container);
 
       now = DateTime.utc(2026, 1, 10);
       container.invalidate(todayProvider);
 
-      final after = container.read(planListViewModelProvider).value;
-      expect(before?.plans.map((p) => p.id), [early.id, late.id]);
-      expect(after?.plans.map((p) => p.id), [late.id, early.id]);
+      final after = read(container);
+      expect(before.rows.map((r) => r.id), [early.id, late.id]);
+      expect(after.rows.map((r) => r.id), [late.id, early.id]);
     });
 
     test('an unmounted view model stops listening to the ledger', () async {
-      final ledger = ListenerTrackingLedger(buildLedger([soonerPlan]).state);
+      final one = plan(
+        name: 'One',
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2026, 2, 1),
+      );
+      final ledger = ListenerTrackingLedger(buildLedger([one]).state);
       final container = ProviderContainer(
         overrides: [ledgerProvider.overrideWithValue(ledger)],
       );
@@ -270,102 +388,6 @@ void main() {
       await container.pump();
 
       expect(ledger.isListened, isFalse);
-    });
-
-    test('a ledger change keeps editing and the pending step', () {
-      final ledger = buildLedger([soonerPlan, laterPlan]);
-      final container = buildContainer(ledger);
-      final viewModel = container.read(planListViewModelProvider.notifier);
-      viewModel.toggleEditing();
-      viewModel.requestEditPlan(soonerPlan);
-
-      ledger.deletePlan(laterPlan.id);
-
-      final state = container.read(planListViewModelProvider).value;
-      expect(state?.editing, isTrue);
-      expect(state?.step, isA<PlanFormRequested>());
-    });
-
-    test('toggleEditing flips editing on and off', () async {
-      final container = buildContainer(buildLedger([soonerPlan]));
-      final viewModel = container.read(planListViewModelProvider.notifier);
-
-      viewModel.toggleEditing();
-      expect(container.read(planListViewModelProvider).value?.editing, isTrue);
-
-      viewModel.toggleEditing();
-      expect(container.read(planListViewModelProvider).value?.editing, isFalse);
-    });
-
-    test('requestEditPlan emits PlanFormRequested carrying the plan', () async {
-      final container = buildContainer(buildLedger([soonerPlan]));
-      final viewModel = container.read(planListViewModelProvider.notifier);
-
-      viewModel.requestEditPlan(soonerPlan);
-
-      final step = container.read(planListViewModelProvider).value?.step;
-      expect(step, isA<PlanFormRequested>());
-      expect((step as PlanFormRequested).plan.id, soonerPlan.id);
-    });
-
-    test('deletePlan removes the plan without emitting a step', () async {
-      final ledger = buildLedger([soonerPlan]);
-      final container = buildContainer(ledger);
-      final viewModel = container.read(planListViewModelProvider.notifier);
-
-      viewModel.deletePlan(soonerPlan.id);
-
-      expect(ledger.state.plans.containsKey(soonerPlan.id), isFalse);
-      expect(container.read(planListViewModelProvider).value?.step, isNull);
-    });
-
-    test(
-      'requestDeletePlan emits DeleteConfirmationRequested without deleting',
-      () async {
-        final ledger = buildLedger([soonerPlan]);
-        final container = buildContainer(ledger);
-        final viewModel = container.read(planListViewModelProvider.notifier);
-
-        viewModel.requestDeletePlan(soonerPlan.id);
-
-        final step = container.read(planListViewModelProvider).value?.step;
-        expect(step, isA<DeleteConfirmationRequested>());
-        expect((step as DeleteConfirmationRequested).plan.id, soonerPlan.id);
-        expect(ledger.state.plans.containsKey(soonerPlan.id), isTrue);
-      },
-    );
-
-    test('applyDeleteConfirmed(true) deletes the requested plan', () async {
-      final ledger = buildLedger([soonerPlan]);
-      final container = buildContainer(ledger);
-      final viewModel = container.read(planListViewModelProvider.notifier);
-
-      viewModel.requestDeletePlan(soonerPlan.id);
-      viewModel.applyDeleteConfirmed(true);
-
-      expect(ledger.state.plans.containsKey(soonerPlan.id), isFalse);
-    });
-
-    test('applyDeleteConfirmed(false) leaves the plan in place', () async {
-      final ledger = buildLedger([soonerPlan]);
-      final container = buildContainer(ledger);
-      final viewModel = container.read(planListViewModelProvider.notifier);
-
-      viewModel.requestDeletePlan(soonerPlan.id);
-      viewModel.applyDeleteConfirmed(false);
-
-      expect(ledger.state.plans.containsKey(soonerPlan.id), isTrue);
-    });
-
-    test('clearStep resets the step to null', () async {
-      final container = buildContainer(buildLedger([soonerPlan]));
-      final viewModel = container.read(planListViewModelProvider.notifier);
-
-      viewModel.requestEditPlan(soonerPlan);
-      expect(container.read(planListViewModelProvider).value?.step, isNotNull);
-
-      viewModel.clearStep();
-      expect(container.read(planListViewModelProvider).value?.step, isNull);
     });
   });
 }

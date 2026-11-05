@@ -8,7 +8,7 @@ import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/common/layout/headered_page.dart';
 import 'package:spendwise/ui/money/money_header.dart';
 import 'package:spendwise/ui/money/money_segment.dart';
-import 'package:spendwise/ui/plans/plan_list_screen.dart';
+import 'package:spendwise/ui/plans/plans_list_view.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -74,7 +74,7 @@ class _MoneySegmentBody extends ConsumerWidget {
       ),
       MoneySegment.plans => HeaderedPage(
         header: header,
-        body: const PlanListScreen(),
+        body: const PlansRoot(),
       ),
     };
   }

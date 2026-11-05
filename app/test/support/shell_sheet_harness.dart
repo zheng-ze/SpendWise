@@ -7,6 +7,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
 const sheetCompletionTimeout = Duration(seconds: 5);
 
@@ -28,9 +29,14 @@ Future<void> pumpShellApp(
   ProviderContainer container, {
   required Map<ShellDestination, WidgetBuilder> bodies,
   String? Function()? moneySourceId,
+  Brightness? brightness,
 }) async {
   final shell = AppShell(bodies: bodies, moneySourceId: moneySourceId);
-  final app = MaterialApp(builder: buildShellAppContent, home: shell);
+  final app = MaterialApp(
+    theme: brightness == null ? null : buildSpendWiseTheme(brightness),
+    builder: buildShellAppContent,
+    home: shell,
+  );
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: app),
   );
