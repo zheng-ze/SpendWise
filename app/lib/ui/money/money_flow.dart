@@ -28,9 +28,11 @@ class MoneyFlow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final segment = ref.watch(moneySegmentProvider);
-    final budgetPane = segment == MoneySegment.budgets
-        ? ref.watch(budgetPaneProvider)
-        : null;
+    final ShellPane? pane = switch (segment) {
+      MoneySegment.budgets => ref.watch(budgetPaneProvider),
+      MoneySegment.accounts => null,
+      MoneySegment.plans => null,
+    };
     Widget moneyPage(ShellPagePresentation presentation) {
       final header = MoneyHeader(segment: segment, presentation: presentation);
       final body = KeyedSubtree(
@@ -44,12 +46,12 @@ class MoneyFlow extends ConsumerWidget {
 
     final page = ShellPaneHost(
       pageBuilder: (_, presentation) => moneyPage(presentation),
-      detail: budgetPane?.detail,
+      detail: pane?.detail,
     );
     return PopScope<Object?>(
-      canPop: budgetPane == null,
+      canPop: pane == null,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) budgetPane?.close();
+        if (!didPop) pane?.close();
       },
       child: page,
     );

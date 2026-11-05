@@ -75,6 +75,8 @@ class ShellDetail {
   final List<Widget> headerActions;
 }
 
+typedef ShellPane = ({ShellDetail detail, VoidCallback close});
+
 class ShellPaneHost extends StatelessWidget {
   const ShellPaneHost({
     super.key,
@@ -320,8 +322,9 @@ class _DetailHeader extends StatelessWidget {
           const SizedBox(height: _detailSubtitleGap),
           Text(
             subtitle,
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(color: colors.subtext),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.subtext),
           ),
         ],
       ],
