@@ -1,0 +1,96 @@
+import 'package:flutter/material.dart';
+
+import 'package:spendwise/ui/common/sheets/tray.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
+import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/plans/plan_detail_view_model.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
+
+// MARK: - Constants
+const _contentPadding = EdgeInsets.all(12);
+const _frequencyGap = 2.0;
+const _rowsTopGap = 6.0;
+const _rowPadding = EdgeInsets.symmetric(vertical: 4);
+const _rowValueWeight = FontWeight.w600;
+const _nextLabel = 'Next';
+const _accountLabel = 'Account';
+const _startedLabel = 'Started';
+const _lastAddedLabel = 'Last added';
+const _endsLabel = 'Ends';
+
+// MARK: - PlanDetailContent
+class PlanDetailContent extends StatelessWidget {
+  const PlanDetailContent({super.key, required this.viewState});
+
+  final PlanDetailViewState viewState;
+
+  @override
+  Widget build(BuildContext context) {
+    if (viewState.phase == PlanDetailPhase.deleted) {
+      return const SizedBox.shrink();
+    }
+
+    final amountColor = AmountStyle.of(context, kind: viewState.kind).color;
+    final amount = Text(
+      formatSignedMoney(viewState.amount, kind: viewState.kind),
+      style: context.text.headline.copyWith(color: amountColor),
+    );
+    final frequency = Text(
+      viewState.frequencyLabel,
+      style: TextStyle(color: context.colors.subtext),
+    );
+    final rows = [
+      _DetailRow(label: _nextLabel, value: viewState.next),
+      _DetailRow(label: _accountLabel, value: viewState.account),
+      _DetailRow(
+        label: viewState.relationRow.label,
+        value: viewState.relationRow.value,
+      ),
+      _DetailRow(label: _startedLabel, value: viewState.started),
+      _DetailRow(label: _lastAddedLabel, value: viewState.lastAdded),
+      _DetailRow(label: _endsLabel, value: viewState.ends),
+    ];
+    final tray = Tray(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          amount,
+          const SizedBox(height: _frequencyGap),
+          frequency,
+          const SizedBox(height: _rowsTopGap),
+          ...rows,
+        ],
+      ),
+    );
+
+    return Padding(padding: _contentPadding, child: tray);
+  }
+}
+
+// MARK: - DetailRow
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelText = Text(
+      label,
+      style: TextStyle(color: context.colors.subtext),
+    );
+    final valueText = Text(
+      value,
+      style: const TextStyle(fontWeight: _rowValueWeight),
+    );
+
+    return Padding(
+      padding: _rowPadding,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [labelText, valueText],
+      ),
+    );
+  }
+}
