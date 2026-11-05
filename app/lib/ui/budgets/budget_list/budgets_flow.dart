@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budget_delete_confirmation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_edit_actions_sheet.dart';
@@ -20,10 +19,16 @@ import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/common/feedback/destructive_confirmation.dart';
 import 'package:spendwise/ui/common/layout/headered_page.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
+
+// MARK: - Constants
+
+const _deleteBodyText =
+    'Your entries stay as they are. Only the limit is removed.';
 
 // MARK: - BudgetsFlow
 class BudgetsFlow extends FlowBase<BudgetsStep> {
@@ -280,7 +285,11 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
         ?.title;
     if (context == null || title == null) return;
 
-    final confirmed = await showBudgetDeleteConfirmation(context, title: title);
+    final confirmed = await showDestructiveConfirmation(
+      context,
+      title: 'Delete the $title budget?',
+      body: _deleteBodyText,
+    );
     if (!confirmed || !_editStillValid(session)) return;
     _detailViewModel(session.budgetID).deleteBudget();
     ref.read(selectedBudgetProvider.notifier).clear();
