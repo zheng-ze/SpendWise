@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/feedback/async_value_view.dart';
+import 'package:spendwise/ui/common/feedback/empty_state.dart';
 import 'package:spendwise/ui/common/lists/date_badge.dart';
 import 'package:spendwise/ui/common/lists/medallion_row.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
@@ -21,6 +22,10 @@ const _trayTitle = 'Next up';
 const _endedLabel = 'Ended';
 const _helperCopy =
     'To add a plan, add an entry and choose how often it repeats.';
+const _loadErrorTitle = "Couldn't load your plans";
+const _emptyIcon = Icons.repeat;
+const _emptyTitle = 'Make regular entries easier';
+const _emptyBody = 'Choose Repeat when adding an entry to create a plan.';
 
 // MARK: - PlansRoot
 class PlansRoot extends ConsumerWidget {
@@ -33,6 +38,7 @@ class PlansRoot extends ConsumerWidget {
     return AsyncValueView(
       value: state,
       onRetry: () => ref.invalidate(planListViewModelProvider),
+      errorTitle: _loadErrorTitle,
       data: (viewState) =>
           PlansListView(viewState: viewState, viewModel: viewModel),
     );
@@ -68,12 +74,21 @@ class PlansListView extends StatelessWidget {
       child: Column(children: rows),
     );
     final helper = Text(_helperCopy, style: helperStyle);
+    const emptyState = EmptyState(
+      icon: _emptyIcon,
+      title: _emptyTitle,
+      body: _emptyBody,
+    );
     return ListView(
       padding: _contentPadding,
       children: [
-        if (rows.isNotEmpty) tray,
-        const SizedBox(height: _helperTopGap),
-        helper,
+        if (rows.isEmpty)
+          emptyState
+        else ...[
+          tray,
+          const SizedBox(height: _helperTopGap),
+          helper,
+        ],
       ],
     );
   }

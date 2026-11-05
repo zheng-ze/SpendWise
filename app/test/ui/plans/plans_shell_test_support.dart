@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
@@ -128,6 +129,7 @@ Future<ProviderContainer> pumpPlansShell(
   required Ledger ledger,
   required Brightness brightness,
   Size size = plansShellWindow,
+  List<Override> overrides = const [],
 }) async {
   useShellWindow(tester, size);
   final container = ProviderContainer(
@@ -138,6 +140,7 @@ Future<ProviderContainer> pumpPlansShell(
         (ref) => ref.watch(plansShellModeFixture),
       ),
       moneySegmentProvider.overrideWith((ref) => MoneySegment.plans),
+      ...overrides,
     ],
   );
   addTearDown(container.dispose);
