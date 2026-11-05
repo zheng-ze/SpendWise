@@ -164,6 +164,11 @@ class PlanDetailNotifier extends AsyncNotifier<PlanDetailViewState>
 
   bool get _planExists => ledger.state.plans.containsKey(_planID);
 
+  void requestEdit() {
+    if (!_planExists) return;
+    emitStep(PlanEditRequested());
+  }
+
   void requestDelete() {
     if (!_planExists) return;
     emitStep(PlanDeleteRequested());

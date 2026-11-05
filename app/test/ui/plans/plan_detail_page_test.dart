@@ -51,7 +51,7 @@ void main() {
         expect(find.text('Not yet'), findsOneWidget);
         expect(find.text('Ends'), findsOneWidget);
         expect(find.text('Never'), findsOneWidget);
-        expect(find.text('Edit plan'), findsNothing);
+        expect(find.text('Edit plan'), findsOneWidget);
         expect(find.text('Delete plan'), findsOneWidget);
       },
       timeout: uiTestTimeout,

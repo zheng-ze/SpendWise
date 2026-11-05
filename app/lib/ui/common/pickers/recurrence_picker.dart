@@ -33,6 +33,7 @@ Future<RecurrenceFrequency?> showRecurrencePickerSheet({
   required BuildContext context,
   RecurrenceFrequency? selected,
   bool useRootNavigator = false,
+  bool includesNoRepeat = true,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
   PickerRouteCallback? onRouteCreated,
 }) {
@@ -53,6 +54,7 @@ Future<RecurrenceFrequency?> showRecurrencePickerSheet({
             body: Column(
               children: _recurrenceRows(
                 selected,
+                includesNoRepeat: includesNoRepeat,
                 oneTimeLabel: addNoRepeatLabel,
                 labels: addFrequencyLabels,
               ),
@@ -73,15 +75,17 @@ class _RecurrenceOutcome {
 // MARK: - Rows
 List<Widget> _recurrenceRows(
   RecurrenceFrequency? selected, {
+  bool includesNoRepeat = true,
   String oneTimeLabel = _oneTimeLabel,
   Map<RecurrenceFrequency, String> labels = frequencyLabels,
 }) {
   return [
-    _RecurrenceRow(
-      label: oneTimeLabel,
-      selected: selected == null,
-      outcome: const _RecurrenceOutcome(null),
-    ),
+    if (includesNoRepeat)
+      _RecurrenceRow(
+        label: oneTimeLabel,
+        selected: selected == null,
+        outcome: const _RecurrenceOutcome(null),
+      ),
     for (final frequency in RecurrenceFrequency.values)
       _RecurrenceRow(
         label: labels[frequency]!,

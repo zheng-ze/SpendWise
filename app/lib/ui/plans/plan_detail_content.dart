@@ -19,6 +19,8 @@ const _accountLabel = 'Account';
 const _startedLabel = 'Started';
 const _lastAddedLabel = 'Last added';
 const _endsLabel = 'Ends';
+const _editLabel = 'Edit plan';
+const _buttonsGap = 8.0;
 const _deleteLabel = 'Delete plan';
 
 // MARK: - PlanDetailContent
@@ -26,10 +28,12 @@ class PlanDetailContent extends StatelessWidget {
   const PlanDetailContent({
     super.key,
     required this.viewState,
+    required this.onEdit,
     required this.onDelete,
   });
 
   final PlanDetailViewState viewState;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -58,6 +62,7 @@ class PlanDetailContent extends StatelessWidget {
       _DetailRow(label: _lastAddedLabel, value: viewState.lastAdded),
       _DetailRow(label: _endsLabel, value: viewState.ends),
     ];
+    final editButton = PrimaryButton(label: _editLabel, onPressed: onEdit);
     final deleteButton = PrimaryButton(
       label: _deleteLabel,
       destructive: true,
@@ -73,6 +78,8 @@ class PlanDetailContent extends StatelessWidget {
           const SizedBox(height: _rowsTopGap),
           ...rows,
           const SizedBox(height: _buttonsTopGap),
+          editButton,
+          const SizedBox(height: _buttonsGap),
           deleteButton,
         ],
       ),

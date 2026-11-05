@@ -29,6 +29,7 @@ class PlanDetailScreen extends ConsumerWidget {
       data: (viewState) {
         final content = PlanDetailContent(
           viewState: viewState,
+          onEdit: ref.read(provider.notifier).requestEdit,
           onDelete: ref.read(provider.notifier).requestDelete,
         );
         return ListView(

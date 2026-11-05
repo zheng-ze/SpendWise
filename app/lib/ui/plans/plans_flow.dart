@@ -8,8 +8,10 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/common/feedback/destructive_confirmation.dart';
 import 'package:spendwise/ui/common/layout/headered_page.dart';
+import 'package:spendwise/ui/common/sheets/sheet_session.dart';
 import 'package:spendwise/ui/plans/plan_detail_screen.dart';
 import 'package:spendwise/ui/plans/plan_detail_view_model.dart';
+import 'package:spendwise/ui/plans/plan_form.dart';
 import 'package:spendwise/ui/plans/plan_selection.dart';
 import 'package:spendwise/ui/plans/plan_steps.dart';
 import 'package:spendwise/ui/plans/plans_list_view.dart';
@@ -38,8 +40,11 @@ class _PlansFlowState extends FlowBaseState<PlanDetailStep, PlansFlow> {
     navigatorContext: () => navigatorContext,
     mounted: () => mounted,
     openOwners: _openOwners,
-    onShownChanged: (_) {},
+    onShownChanged: (_) => _editSession?.sheet.retire(),
   );
+
+  _EditSession? _editSession;
+  ProviderSubscription<Ledger?>? _ledgerSubscription;
 
   void Function(PlanDetailStep? step)? _forwardStep;
 
@@ -49,11 +54,20 @@ class _PlansFlowState extends FlowBaseState<PlanDetailStep, PlansFlow> {
   void initState() {
     super.initState();
     _detail.start();
+    _ledgerSubscription = ref.listenManual(ledgerProvider, (_, next) {
+      final session = _editSession;
+      if (session != null && !identical(next, session.ledger)) {
+        session.sheet.retire();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _ledgerSubscription?.close();
     _detail.dispose();
+    _editSession?.sheet.retire();
+    _editSession = null;
     super.dispose();
   }
 
@@ -95,9 +109,40 @@ class _PlansFlowState extends FlowBaseState<PlanDetailStep, PlansFlow> {
     if (planID == null) return;
     ref.read(planDetailViewModelProvider(planID).notifier).clearStep();
     switch (step) {
+      case PlanEditRequested():
+        _openEditSession(context, planID);
       case PlanDeleteRequested():
         unawaited(_confirmDelete(context, planID));
     }
+  }
+
+  void _openEditSession(BuildContext context, String planID) {
+    if (_editSession != null) return;
+    final ledger = ref.read(ledgerProvider);
+    if (ledger == null || !ledger.state.plans.containsKey(planID)) return;
+
+    final session = _EditSession(planID, ledger);
+    _editSession = session;
+    unawaited(
+      showPlanFormSheet(
+        context: context,
+        planID: planID,
+        onRouteCreated: (route) {
+          session.sheet.route = route;
+          unawaited(
+            session.sheet.endWhenCompleted(
+              route,
+              () => _endEditSession(session),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _endEditSession(_EditSession session) {
+    session.sheet.end();
+    if (identical(_editSession, session)) _editSession = null;
   }
 
   Future<void> _confirmDelete(BuildContext context, String planID) async {
@@ -125,4 +170,13 @@ class _PlansFlowState extends FlowBaseState<PlanDetailStep, PlansFlow> {
   @override
   Widget buildRoot(BuildContext context) =>
       HeaderedPage(header: widget.header, body: const PlansRoot());
+}
+
+// MARK: - EditSession
+class _EditSession {
+  _EditSession(this.planID, this.ledger);
+
+  final String planID;
+  final Ledger ledger;
+  final sheet = SheetSession();
 }

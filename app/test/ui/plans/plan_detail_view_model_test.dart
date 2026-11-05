@@ -192,6 +192,32 @@ void main() {
       sourceID: wallet.id,
     );
 
+    test('requestEdit emits PlanEditRequested while the plan exists', () {
+      final plan = buildPlan();
+      final container = buildContainer(buildLedger(plan));
+      final provider = planDetailViewModelProvider(plan.id);
+      container.listen(provider, (_, _) {});
+
+      container.read(provider.notifier).requestEdit();
+
+      expect(
+        container.read(provider).requireValue.step,
+        isA<PlanEditRequested>(),
+      );
+    });
+
+    test('requestEdit emits nothing when the plan is missing', () {
+      final container = buildContainer(buildLedger(null));
+      final provider = planDetailViewModelProvider(
+        'f0000000-0000-0000-0000-00000000000f',
+      );
+      container.listen(provider, (_, _) {});
+
+      container.read(provider.notifier).requestEdit();
+
+      expect(container.read(provider).requireValue.step, isNull);
+    });
+
     test('requestDelete emits PlanDeleteRequested while the plan exists', () {
       final plan = buildPlan();
       final container = buildContainer(buildLedger(plan));

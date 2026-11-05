@@ -49,6 +49,7 @@ class PlanPaneBody extends ConsumerWidget {
     if (viewState == null) return const SizedBox.shrink();
     final content = PlanDetailContent(
       viewState: viewState,
+      onEdit: ref.read(provider.notifier).requestEdit,
       onDelete: ref.read(provider.notifier).requestDelete,
     );
     return ListView(physics: _paneScrollPhysics, children: [content]);
