@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
+import 'package:spendwise/ui/common/lists/date_badge.dart';
 import 'package:spendwise/ui/common/lists/medallion_row.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
@@ -53,9 +54,6 @@ class UpcomingRowContent extends StatelessWidget {
 
   final OverviewUpcomingRow row;
 
-  static const _dateWidth = 30.0;
-  static const _dayFontSize = 18.0;
-  static const _dayLineHeight = 1.05;
   static const _statementIconSize = 17.0;
 
   @override
@@ -73,32 +71,8 @@ class UpcomingRowContent extends StatelessWidget {
             ),
           )
         : OverviewAmountText(amount: amount, kind: kind);
-    final date = SizedBox(
-      width: _dateWidth,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            row.day,
-            style: const TextStyle(
-              fontSize: _dayFontSize,
-              fontWeight: overviewSemiBold,
-              height: _dayLineHeight,
-            ),
-          ),
-          Text(
-            row.month,
-            style: TextStyle(
-              fontSize: overviewSmallFontSize,
-              color: colors.subtext,
-              height: _dayLineHeight,
-            ),
-          ),
-        ],
-      ),
-    );
     return MedallionRow(
-      leading: date,
+      leading: DateBadge(day: row.day, month: row.month),
       title: row.title,
       subtitle: row.caption,
       trailing: trailing,
