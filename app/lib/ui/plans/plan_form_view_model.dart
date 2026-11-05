@@ -184,7 +184,7 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
     updateState(
       (s) => s.copyWith(
         hasEndDate: value,
-        endDate: value ? () => s.endDate ?? s.anchor : null,
+        endDate: () => value ? s.endDate ?? s.anchor : null,
       ),
     );
   }
@@ -212,7 +212,13 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
     final current = state.value;
     if (current == null) return;
 
-    final originalTemplate = _plan().template;
+    final stored = ledger.state.plans[_planId];
+    if (stored == null) {
+      updateState((s) => s.copyWith(error: () => UnknownPlan(_planId)));
+      return;
+    }
+
+    final originalTemplate = stored.template;
     final magnitude = current.parsedAmount!.abs();
     final amount = applyOriginalSign(
       magnitude: magnitude,
@@ -235,7 +241,7 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
       frequency: current.frequency,
       anchor: current.anchor,
       endDate: current.hasEndDate ? current.endDate : null,
-      lastResolvedDate: _plan().lastResolvedDate,
+      lastResolvedDate: stored.lastResolvedDate,
     );
 
     try {
@@ -250,7 +256,8 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
 }
 
 // MARK: - Constants
-final planFormViewModelProvider =
-    AsyncNotifierProvider.family<PlanFormNotifier, PlanFormViewState, String>(
+final planFormViewModelProvider = AsyncNotifierProvider.autoDispose
+    .family<PlanFormNotifier, PlanFormViewState, String>(
       PlanFormNotifier.new,
+      retry: (_, _) => null,
     );
