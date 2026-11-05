@@ -1,13 +1,16 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_edit_sheet.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_limit_editor_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 import '../../../support/number_pad_support.dart';
@@ -19,6 +22,15 @@ const _budgetID = 'b1';
 const _title = 'Change limit';
 const _saveLabel = 'Save';
 const _seededAmountLength = 6;
+const _loadErrorMessage =
+    "Couldn't load the budget limit\nBad state: Limit unavailable";
+
+class _UnavailableLimitNotifier extends BudgetLimitEditorNotifier {
+  _UnavailableLimitNotifier(super.draftKey);
+
+  @override
+  BudgetLimitEditorState build() => throw StateError('Limit unavailable');
+}
 
 Ledger _ledger() => Ledger(
   state: LedgerState(
@@ -32,11 +44,16 @@ Ledger _ledger() => Ledger(
   ),
 );
 
-Future<void> _openEditor(WidgetTester tester, Ledger ledger) async {
+Future<void> _openEditor(
+  WidgetTester tester,
+  Ledger ledger, {
+  List<Override> overrides = const [],
+}) async {
   await pumpApp(
     tester,
     const BudgetsFlow(header: SizedBox.shrink()),
     ledger: ledger,
+    overrides: overrides,
   );
   final container = ProviderScope.containerOf(
     tester.element(find.byType(BudgetsFlow)),
@@ -113,5 +130,25 @@ void main() {
 
     expect(find.text(_saveLabel), findsNothing);
     expect(ledger.state.budgets.containsKey(_budgetID), isFalse);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('le-budget-limit-err shows the reason and keeps Save disabled', (
+    tester,
+  ) async {
+    await _openEditor(
+      tester,
+      _ledger(),
+      overrides: [
+        budgetLimitEditorViewModelProvider.overrideWith2(
+          _UnavailableLimitNotifier.new,
+        ),
+      ],
+    );
+
+    expect(find.text(_loadErrorMessage), findsOneWidget);
+    final save = tester.widget<PrimaryButton>(
+      find.widgetWithText(PrimaryButton, _saveLabel),
+    );
+    expect(save.onPressed, isNull);
   }, timeout: uiTestTimeout);
 }

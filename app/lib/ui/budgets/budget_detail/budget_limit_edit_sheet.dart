@@ -8,6 +8,7 @@ import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 
 // MARK: - Constants
@@ -59,40 +60,21 @@ class _BudgetLimitEditSheetState extends ConsumerState<BudgetLimitEditSheet> {
     final provider = budgetLimitEditorViewModelProvider(widget.draftKey);
     final editorState = ref.watch(provider).value;
     if (editorState == null) {
-      return _BudgetLimitLoadError(error: ref.watch(provider).error);
+      const save = SizedBox(
+        width: _footerWidth,
+        child: PrimaryButton(label: _saveLabel, onPressed: null),
+      );
+      return FormSheetLoadError(
+        title: _sheetTitle,
+        message: _loadErrorTitle,
+        error: ref.watch(provider).error,
+        footer: save,
+      );
     }
     return _BudgetLimitBody(
       editorState: editorState,
       viewModel: ref.read(provider.notifier),
       amountController: _amountController,
-    );
-  }
-}
-
-// MARK: - BudgetLimitLoadError
-class _BudgetLimitLoadError extends StatelessWidget {
-  const _BudgetLimitLoadError({required this.error});
-
-  final Object? error;
-
-  @override
-  Widget build(BuildContext context) {
-    const save = SizedBox(
-      width: _footerWidth,
-      child: PrimaryButton(label: _saveLabel, onPressed: null),
-    );
-    final alert = SheetAlertData(
-      message: '$_loadErrorTitle\n$error',
-      severity: SheetAlertSeverity.error,
-    );
-
-    return AppSheet(
-      header: const AppPickerHeader(title: _sheetTitle),
-      body: const SizedBox.shrink(),
-      footer: save,
-      alert: alert,
-      dragToDismiss: true,
-      variant: AppSheetVariant.form,
     );
   }
 }
