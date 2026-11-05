@@ -4,10 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/feedback/empty_state.dart';
 import 'package:spendwise/ui/common/lists/date_badge.dart';
+import 'package:spendwise/ui/common/layout/open_split_layout.dart';
 import 'package:spendwise/ui/common/lists/medallion_row.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/plans/plan_list_view_model.dart';
+import 'package:spendwise/ui/plans/plan_selection.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
@@ -27,6 +31,13 @@ const _emptyIcon = Icons.repeat;
 const _emptyTitle = 'Make regular entries easier';
 const _emptyBody = 'Choose Repeat when adding an entry to create a plan.';
 
+// MARK: - Helpers
+bool plansWideComposition({
+  required bool wideLayout,
+  required bool sheetPresented,
+  required bool selectionPresent,
+}) => wideLayout && !sheetPresented && !selectionPresent;
+
 // MARK: - PlansRoot
 class PlansRoot extends ConsumerWidget {
   const PlansRoot({super.key});
@@ -35,12 +46,20 @@ class PlansRoot extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(planListViewModelProvider);
     final viewModel = ref.watch(planListViewModelProvider.notifier);
+    final wideComposition = plansWideComposition(
+      wideLayout: ref.watch(shellLayoutModeProvider) != ShellLayoutMode.phone,
+      sheetPresented: ref.watch(shellSheetOccupancyProvider).hasSheets,
+      selectionPresent: ref.watch(selectedPlanProvider) != null,
+    );
     return AsyncValueView(
       value: state,
       onRetry: () => ref.invalidate(planListViewModelProvider),
       errorTitle: _loadErrorTitle,
-      data: (viewState) =>
-          PlansListView(viewState: viewState, viewModel: viewModel),
+      data: (viewState) {
+        final list = PlansListView(viewState: viewState, viewModel: viewModel);
+        if (!wideComposition) return list;
+        return OpenSplitLayout(primary: list, secondary: const SizedBox());
+      },
     );
   }
 }
