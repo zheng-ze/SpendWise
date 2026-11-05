@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/format/analysis_bucket_name.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/plans/plan_last_added.dart';
+import 'package:spendwise/ui/plans/plan_steps.dart';
 
 // MARK: - Constants
 const _unknownAccountLabel = 'Unknown';
@@ -22,7 +24,8 @@ enum PlanDetailPhase { shown, deleted }
 
 typedef PlanDetailRow = ({String label, String value});
 
-class PlanDetailViewState {
+class PlanDetailViewState
+    implements HasStep<PlanDetailViewState, PlanDetailStep> {
   const PlanDetailViewState({
     required this.phase,
     required this.name,
@@ -35,6 +38,7 @@ class PlanDetailViewState {
     required this.started,
     required this.lastAdded,
     required this.ends,
+    this.step,
   });
 
   factory PlanDetailViewState.deleted() {
@@ -64,6 +68,26 @@ class PlanDetailViewState {
   final String started;
   final String lastAdded;
   final String ends;
+  @override
+  final PlanDetailStep? step;
+
+  @override
+  PlanDetailViewState withStep(PlanDetailStep? Function() step) {
+    return PlanDetailViewState(
+      phase: phase,
+      name: name,
+      amount: amount,
+      kind: kind,
+      frequencyLabel: frequencyLabel,
+      next: next,
+      account: account,
+      relationRow: relationRow,
+      started: started,
+      lastAdded: lastAdded,
+      ends: ends,
+      step: step(),
+    );
+  }
 }
 
 PlanDetailRow _relationRow(EntryTemplate template, LedgerState ledgerState) {
@@ -112,7 +136,9 @@ PlanDetailViewState _shownState(
 
 // MARK: - PlanDetailNotifier
 class PlanDetailNotifier extends AsyncNotifier<PlanDetailViewState>
-    with LedgerBackedNotifier<PlanDetailViewState> {
+    with
+        LedgerBackedNotifier<PlanDetailViewState>,
+        StepEmitting<PlanDetailViewState, PlanDetailStep> {
   PlanDetailNotifier(this._planID);
 
   final String _planID;
@@ -134,6 +160,18 @@ class PlanDetailNotifier extends AsyncNotifier<PlanDetailViewState>
     final plan = ledgerState.plans[_planID];
     if (plan == null) return PlanDetailViewState.deleted();
     return _shownState(plan, ledgerState, today);
+  }
+
+  bool get _planExists => ledger.state.plans.containsKey(_planID);
+
+  void requestDelete() {
+    if (!_planExists) return;
+    emitStep(PlanDeleteRequested());
+  }
+
+  void deletePlan() {
+    if (!ref.mounted || !_planExists) return;
+    ledger.deletePlan(_planID);
   }
 }
 

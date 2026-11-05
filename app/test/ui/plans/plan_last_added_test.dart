@@ -90,16 +90,13 @@ void main() {
       },
     );
 
-    test(
-      'edited earlier anchor with cursor at the old anchor reports the new schedule date (schedule-only)',
-      () {
-        final plan = monthlyPlan(
-          anchor: DateTime.utc(2026, 3, 5),
-          lastResolvedDate: DateTime.utc(2026, 3, 10),
-        );
+    test('edited earlier anchor with cursor at the old anchor reports the new schedule date (schedule-only)', () {
+      final plan = monthlyPlan(
+        anchor: DateTime.utc(2026, 3, 5),
+        lastResolvedDate: DateTime.utc(2026, 3, 10),
+      );
 
-        expect(lastAddedDate(plan), DateTime.utc(2026, 3, 5));
-      },
-    );
+      expect(lastAddedDate(plan), DateTime.utc(2026, 3, 5));
+    });
   });
 }

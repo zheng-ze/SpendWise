@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
@@ -10,6 +11,7 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 const _contentPadding = EdgeInsets.all(12);
 const _frequencyGap = 2.0;
 const _rowsTopGap = 6.0;
+const _buttonsTopGap = 12.0;
 const _rowPadding = EdgeInsets.symmetric(vertical: 4);
 const _rowValueWeight = FontWeight.w600;
 const _nextLabel = 'Next';
@@ -17,12 +19,18 @@ const _accountLabel = 'Account';
 const _startedLabel = 'Started';
 const _lastAddedLabel = 'Last added';
 const _endsLabel = 'Ends';
+const _deleteLabel = 'Delete plan';
 
 // MARK: - PlanDetailContent
 class PlanDetailContent extends StatelessWidget {
-  const PlanDetailContent({super.key, required this.viewState});
+  const PlanDetailContent({
+    super.key,
+    required this.viewState,
+    required this.onDelete,
+  });
 
   final PlanDetailViewState viewState;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +58,11 @@ class PlanDetailContent extends StatelessWidget {
       _DetailRow(label: _lastAddedLabel, value: viewState.lastAdded),
       _DetailRow(label: _endsLabel, value: viewState.ends),
     ];
+    final deleteButton = PrimaryButton(
+      label: _deleteLabel,
+      destructive: true,
+      onPressed: onDelete,
+    );
     final tray = Tray(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -59,6 +72,8 @@ class PlanDetailContent extends StatelessWidget {
           frequency,
           const SizedBox(height: _rowsTopGap),
           ...rows,
+          const SizedBox(height: _buttonsTopGap),
+          deleteButton,
         ],
       ),
     );

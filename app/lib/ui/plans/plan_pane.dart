@@ -44,9 +44,13 @@ class PlanPaneBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final viewState = ref.watch(planDetailViewModelProvider(planID)).value;
+    final provider = planDetailViewModelProvider(planID);
+    final viewState = ref.watch(provider).value;
     if (viewState == null) return const SizedBox.shrink();
-    final content = PlanDetailContent(viewState: viewState);
+    final content = PlanDetailContent(
+      viewState: viewState,
+      onDelete: ref.read(provider.notifier).requestDelete,
+    );
     return ListView(physics: _paneScrollPhysics, children: [content]);
   }
 }

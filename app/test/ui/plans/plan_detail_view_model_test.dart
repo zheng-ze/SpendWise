@@ -7,6 +7,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/plans/plan_detail_view_model.dart';
+import 'package:spendwise/ui/plans/plan_steps.dart';
 
 void main() {
   final today = DateTime.utc(2026, 3, 15);
@@ -180,6 +181,86 @@ void main() {
 
       expect(first, formatEntryDate(DateTime.utc(2026, 4, 10)));
       expect(later, formatEntryDate(DateTime.utc(2026, 5, 10)));
+    });
+  });
+
+  group('PlanDetailNotifier delete', () {
+    final generated = Entry(
+      date: DateTime.utc(2026, 2, 10),
+      amount: Decimal.parse('-12.50'),
+      name: 'Rent',
+      sourceID: wallet.id,
+    );
+
+    test('requestDelete emits PlanDeleteRequested while the plan exists', () {
+      final plan = buildPlan();
+      final container = buildContainer(buildLedger(plan));
+      final provider = planDetailViewModelProvider(plan.id);
+      container.listen(provider, (_, _) {});
+
+      container.read(provider.notifier).requestDelete();
+
+      expect(
+        container.read(provider).requireValue.step,
+        isA<PlanDeleteRequested>(),
+      );
+    });
+
+    test('requestDelete emits nothing when the plan is missing', () {
+      final container = buildContainer(buildLedger(null));
+      final provider = planDetailViewModelProvider(
+        'f0000000-0000-0000-0000-00000000000f',
+      );
+      container.listen(provider, (_, _) {});
+
+      container.read(provider.notifier).requestDelete();
+
+      expect(container.read(provider).requireValue.step, isNull);
+    });
+
+    test('clearStep removes the emitted step', () {
+      final plan = buildPlan();
+      final container = buildContainer(buildLedger(plan));
+      final provider = planDetailViewModelProvider(plan.id);
+      container.listen(provider, (_, _) {});
+      container.read(provider.notifier).requestDelete();
+
+      container.read(provider.notifier).clearStep();
+
+      expect(container.read(provider).requireValue.step, isNull);
+    });
+
+    test('deletePlan removes only the plan and keeps its entries', () {
+      final plan = buildPlan();
+      final ledger = Ledger(
+        state: LedgerState(
+          moneySources: {wallet.id: MoneySource.account(wallet)},
+          entries: {generated.id: generated},
+          plans: {plan.id: plan},
+        ),
+      );
+      final container = buildContainer(ledger);
+      final provider = planDetailViewModelProvider(plan.id);
+      container.listen(provider, (_, _) {});
+
+      container.read(provider.notifier).deletePlan();
+
+      expect(ledger.state.plans, isEmpty);
+      expect(ledger.state.entries.keys, [generated.id]);
+    });
+
+    test('deletePlan on a missing plan writes nothing', () {
+      final ledger = buildLedger(null);
+      final container = buildContainer(ledger);
+      final provider = planDetailViewModelProvider(
+        'f0000000-0000-0000-0000-00000000000f',
+      );
+      container.listen(provider, (_, _) {});
+      final revision = ledger.revision;
+
+      container.read(provider.notifier).deletePlan();
+
+      expect(ledger.revision, revision);
     });
   });
 

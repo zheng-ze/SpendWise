@@ -52,7 +52,7 @@ void main() {
         expect(find.text('Ends'), findsOneWidget);
         expect(find.text('Never'), findsOneWidget);
         expect(find.text('Edit plan'), findsNothing);
-        expect(find.text('Delete plan'), findsNothing);
+        expect(find.text('Delete plan'), findsOneWidget);
       },
       timeout: uiTestTimeout,
     );
