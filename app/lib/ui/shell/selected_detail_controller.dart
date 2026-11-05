@@ -5,6 +5,8 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 
+import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 
@@ -17,6 +19,8 @@ class SelectedDetailController {
     required this.buildPage,
     required this.navigatorContext,
     required this.mounted,
+    required this.openOwners,
+    required this.onShownChanged,
   });
 
   final WidgetRef ref;
@@ -25,7 +29,11 @@ class SelectedDetailController {
   final ModalRoute<Object?> Function(String id) buildPage;
   final BuildContext? Function() navigatorContext;
   final bool Function() mounted;
+  final List<ProviderSubscription<Object?>> Function(String id) openOwners;
+  final void Function(String? shownID) onShownChanged;
 
+  String? _shownID;
+  List<ProviderSubscription<Object?>> _shownSubscriptions = const [];
   bool _reconcileScheduled = false;
   ModalRoute<Object?>? _page;
   String? _pageID;
@@ -33,16 +41,23 @@ class SelectedDetailController {
   NavigatorState? _rootNavigator;
 
   late final ProviderSubscription<String?> _selectionSubscription;
+  late final ProviderSubscription<Ledger?> _ledgerSubscription;
   late final ProviderSubscription<ShellLayoutMode> _modeSubscription;
   late final ProviderSubscription<ShellSheetOccupancy> _occupancySubscription;
+
+  String? get shownID => _shownID;
 
   // MARK: - Lifecycle
 
   void start() {
-    _selectionSubscription = ref.listenManual(
-      selection,
-      (_, _) => _scheduleReconcile(),
-    );
+    _selectionSubscription = ref.listenManual(selection, (_, next) {
+      _show(next);
+      _scheduleReconcile();
+    });
+    _ledgerSubscription = ref.listenManual(ledgerProvider, (previous, next) {
+      if (identical(previous, next)) return;
+      clearSelection();
+    });
     _modeSubscription = ref.listenManual(
       shellLayoutModeProvider,
       (_, _) => _scheduleReconcile(),
@@ -51,14 +66,29 @@ class SelectedDetailController {
       shellSheetOccupancyProvider,
       (_, _) => _scheduleReconcile(),
     );
+    _show(ref.read(selection));
     _scheduleReconcile();
   }
 
   void dispose() {
     _occupancySubscription.close();
     _selectionSubscription.close();
+    _ledgerSubscription.close();
+    _show(null);
     _modeSubscription.close();
     _removePageAfterFrame();
+  }
+
+  // MARK: - Owners
+
+  void _show(String? id) {
+    if (_shownID == id) return;
+    for (final subscription in _shownSubscriptions) {
+      subscription.close();
+    }
+    onShownChanged(id);
+    _shownID = id;
+    _shownSubscriptions = id == null ? const [] : openOwners(id);
   }
 
   // MARK: - Reconciliation

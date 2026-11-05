@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/base/id_selection.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/selected_detail_controller.dart';
@@ -15,6 +17,23 @@ const _openSize = Size(900, 700);
 
 final _selectionProvider = NotifierProvider<IdSelectionNotifier, String?>(
   IdSelectionNotifier.new,
+);
+
+final _events = <String>[];
+
+final _ownerProvider = Provider.autoDispose.family<String, String>(
+  (ref, id) => id,
+);
+
+class _LedgerSource extends Notifier<Ledger?> {
+  @override
+  Ledger? build() => Ledger();
+
+  void replace() => state = Ledger();
+}
+
+final _ledgerSourceProvider = NotifierProvider<_LedgerSource, Ledger?>(
+  _LedgerSource.new,
 );
 
 class _Host extends ConsumerStatefulWidget {
@@ -34,7 +53,16 @@ class _HostState extends ConsumerState<_Host> {
     buildPage: _buildPage,
     navigatorContext: () => context,
     mounted: () => mounted,
+    openOwners: _openOwners,
+    onShownChanged: _onShownChanged,
   );
+
+  List<ProviderSubscription<Object?>> _openOwners(String id) {
+    _events.add('open $id');
+    return [ref.listenManual(_ownerProvider(id), (_, _) {})];
+  }
+
+  void _onShownChanged(String? shownID) => _events.add('shown $shownID');
 
   void _clearSelection() {
     widget.clears.add(ref.read(_selectionProvider));
@@ -70,6 +98,15 @@ class _Harness {
   final hostVisible = ValueNotifier<bool>(true);
   final clears = <String?>[];
 
+  List<String> get events => _events;
+
+  bool ownerOpen(String id) => container.exists(_ownerProvider(id));
+
+  void replaceLedger() =>
+      container.read(_ledgerSourceProvider.notifier).replace();
+
+  void clear() => container.read(_selectionProvider.notifier).clear();
+
   String? get selection => container.read(_selectionProvider);
 
   void select(String id) =>
@@ -97,11 +134,13 @@ class _Harness {
 }
 
 Future<_Harness> _pump(WidgetTester tester) async {
+  _events.clear();
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = _phoneSize;
   addTearDown(tester.view.reset);
   final container = ProviderContainer(
     overrides: [
+      ledgerProvider.overrideWith((ref) => ref.watch(_ledgerSourceProvider)),
       shellPlatformProvider.overrideWithValue((
         isWeb: false,
         targetPlatform: TargetPlatform.iOS,
@@ -224,5 +263,78 @@ void main() {
     expect(find.text('page a'), findsNothing);
     expect(harness.selection, 'a');
     expect(harness.clears, isEmpty);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('owners open for the selected id and report it as shown', (
+    tester,
+  ) async {
+    final harness = await _pump(tester);
+
+    harness.select('a');
+    await harness.settle();
+
+    expect(harness.events, ['shown a', 'open a']);
+    expect(harness.ownerOpen('a'), isTrue);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('a new selection reports the change then opens the new owners', (
+    tester,
+  ) async {
+    final harness = await _pump(tester);
+    harness.select('a');
+    await harness.settle();
+    harness.events.clear();
+
+    harness.select('b');
+    await harness.settle();
+
+    expect(harness.events, ['shown b', 'open b']);
+    expect(harness.ownerOpen('a'), isFalse);
+    expect(harness.ownerOpen('b'), isTrue);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('clearing the selection closes the owners', (tester) async {
+    final harness = await _pump(tester);
+    harness.select('a');
+    await harness.settle();
+    harness.events.clear();
+
+    harness.clear();
+    await harness.settle();
+
+    expect(harness.events, ['shown null']);
+    expect(harness.ownerOpen('a'), isFalse);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('dispose closes the owners and reports nothing shown', (
+    tester,
+  ) async {
+    final harness = await _pump(tester);
+    harness.select('a');
+    await harness.settle();
+    harness.events.clear();
+
+    harness.hostVisible.value = false;
+    await harness.settle();
+
+    expect(harness.events, ['shown null']);
+    expect(harness.ownerOpen('a'), isFalse);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('a replaced ledger clears the selection and closes owners', (
+    tester,
+  ) async {
+    final harness = await _pump(tester);
+    harness.select('a');
+    await harness.settle();
+    harness.events.clear();
+
+    harness.replaceLedger();
+    await harness.settle();
+
+    expect(harness.selection, isNull);
+    expect(harness.clears, ['a']);
+    expect(harness.events, ['shown null']);
+    expect(harness.ownerOpen('a'), isFalse);
   }, timeout: uiTestTimeout);
 }

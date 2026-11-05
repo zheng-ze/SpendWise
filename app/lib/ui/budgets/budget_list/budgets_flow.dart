@@ -40,9 +40,6 @@ class BudgetsFlow extends FlowBase<BudgetsStep> {
 
 // MARK: - BudgetsFlowState
 class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
-  String? _shownBudgetID;
-  List<ProviderSubscription<Object?>> _shownSubscriptions = const [];
-
   late final SelectedDetailController _detail = SelectedDetailController(
     ref: ref,
     selection: selectedBudgetProvider,
@@ -50,10 +47,9 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     buildPage: _buildDetailPage,
     navigatorContext: () => navigatorContext,
     mounted: () => mounted,
+    openOwners: _openOwners,
+    onShownChanged: (_) => _editSession?.sheet.retire(),
   );
-
-  late final ProviderSubscription<String?> _selectionSubscription;
-  late final ProviderSubscription<Ledger?> _ledgerSubscription;
 
   _FormSession? _formSession;
   _EditSession? _editSession;
@@ -63,26 +59,13 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   @override
   void initState() {
     super.initState();
-    _selectionSubscription = ref.listenManual(
-      selectedBudgetProvider,
-      (_, selection) => _showBudget(selection),
-    );
-    _ledgerSubscription = ref.listenManual(ledgerProvider, (previous, next) {
-      if (identical(previous, next)) return;
-      _editSession?.sheet.retire();
-      ref.read(selectedBudgetProvider.notifier).clear();
-    });
-    _showBudget(ref.read(selectedBudgetProvider));
     _detail.start();
   }
 
   @override
   void dispose() {
-    _selectionSubscription.close();
-    _ledgerSubscription.close();
-    _showBudget(null);
-    _editSession?.sheet.retire();
     _detail.dispose();
+    _editSession?.sheet.retire();
     _formSession?.sheet.end();
     _formSession = null;
     super.dispose();
@@ -132,16 +115,6 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   // MARK: - Budget Subscriptions
 
-  void _showBudget(String? budgetID) {
-    if (_shownBudgetID == budgetID) return;
-    for (final subscription in _shownSubscriptions) {
-      subscription.close();
-    }
-    _editSession?.sheet.retire();
-    _shownBudgetID = budgetID;
-    _shownSubscriptions = budgetID == null ? const [] : _openOwners(budgetID);
-  }
-
   List<ProviderSubscription<Object?>> _openOwners(String budgetID) {
     final context = ref.listenManual(
       budgetDetailContextProvider(budgetID),
@@ -159,13 +132,13 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   void _clearSelectionWhenMissing(String budgetID, BudgetDetailPhase? phase) {
     if (phase != BudgetDetailPhase.deleted) return;
-    if (_shownBudgetID != budgetID) return;
+    if (_detail.shownID != budgetID) return;
     ref.read(selectedBudgetProvider.notifier).clear();
   }
 
   Future<void> _handleDetailStep(String budgetID, BudgetsStep? step) async {
     if (step is! BudgetEditRequested) return;
-    if (_shownBudgetID != budgetID) return;
+    if (_detail.shownID != budgetID) return;
     final context = navigatorContext;
     if (context == null) return;
 
@@ -200,7 +173,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   // explicit calls; revisit this if sync becomes constant live updates.
   bool _editStillValid(_EditSession session) {
     if (!mounted || session.sheet.retired) return false;
-    if (_shownBudgetID != session.budgetID) return false;
+    if (_detail.shownID != session.budgetID) return false;
     if (!identical(ref.read(ledgerProvider), session.ledger)) return false;
     return _detailViewModel(session.budgetID).liveLimit != null;
   }
