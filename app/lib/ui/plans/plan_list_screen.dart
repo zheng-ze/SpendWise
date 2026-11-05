@@ -8,8 +8,8 @@ import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/settings/plan/plan_form.dart';
-import 'package:spendwise/ui/settings/plan/plan_list_view_model.dart';
+import 'package:spendwise/ui/plans/plan_form.dart';
+import 'package:spendwise/ui/plans/plan_list_view_model.dart';
 
 // MARK: - Constants
 

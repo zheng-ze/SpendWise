@@ -7,7 +7,7 @@ import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
 import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/format/date_format.dart';
-import 'package:spendwise/ui/settings/plan/plan_form_view_model.dart';
+import 'package:spendwise/ui/plans/plan_form_view_model.dart';
 
 // MARK: - Constants
 
