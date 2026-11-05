@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
@@ -22,8 +21,7 @@ import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/common/feedback/destructive_confirmation.dart';
 import 'package:spendwise/ui/common/layout/headered_page.dart';
 import 'package:spendwise/ui/common/sheets/sheet_session.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
+import 'package:spendwise/ui/shell/selected_detail_controller.dart';
 
 // MARK: - Constants
 
@@ -42,18 +40,20 @@ class BudgetsFlow extends FlowBase<BudgetsStep> {
 
 // MARK: - BudgetsFlowState
 class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
-  bool _reconcileScheduled = false;
   String? _shownBudgetID;
   List<ProviderSubscription<Object?>> _shownSubscriptions = const [];
-  ModalRoute<Object?>? _page;
-  String? _pageBudgetID;
-  final Set<ModalRoute<Object?>> _flowRemovedPages = {};
-  NavigatorState? _rootNavigator;
+
+  late final SelectedDetailController _detail = SelectedDetailController(
+    ref: ref,
+    selection: selectedBudgetProvider,
+    clearSelection: () => ref.read(selectedBudgetProvider.notifier).clear(),
+    buildPage: _buildDetailPage,
+    navigatorContext: () => navigatorContext,
+    mounted: () => mounted,
+  );
 
   late final ProviderSubscription<String?> _selectionSubscription;
-  late final ProviderSubscription<ShellLayoutMode> _modeSubscription;
   late final ProviderSubscription<Ledger?> _ledgerSubscription;
-  late final ProviderSubscription<ShellSheetOccupancy> _occupancySubscription;
 
   _FormSession? _formSession;
   _EditSession? _editSession;
@@ -63,43 +63,35 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   @override
   void initState() {
     super.initState();
-    _selectionSubscription = ref.listenManual(selectedBudgetProvider, (
-      _,
-      selection,
-    ) {
-      _showBudget(selection);
-      _scheduleReconcile();
-    });
-    _modeSubscription = ref.listenManual(
-      shellLayoutModeProvider,
-      (_, _) => _scheduleReconcile(),
+    _selectionSubscription = ref.listenManual(
+      selectedBudgetProvider,
+      (_, selection) => _showBudget(selection),
     );
     _ledgerSubscription = ref.listenManual(ledgerProvider, (previous, next) {
       if (identical(previous, next)) return;
       _editSession?.sheet.retire();
       ref.read(selectedBudgetProvider.notifier).clear();
     });
-    _occupancySubscription = ref.listenManual(
-      shellSheetOccupancyProvider,
-      (_, _) => _scheduleReconcile(),
-    );
     _showBudget(ref.read(selectedBudgetProvider));
-    _scheduleReconcile();
+    _detail.start();
   }
 
   @override
   void dispose() {
-    _occupancySubscription.close();
     _selectionSubscription.close();
-    _modeSubscription.close();
     _ledgerSubscription.close();
     _showBudget(null);
     _editSession?.sheet.retire();
-    _removePageAfterFrame();
+    _detail.dispose();
     _formSession?.sheet.end();
     _formSession = null;
     super.dispose();
   }
+
+  ModalRoute<Object?> _buildDetailPage(String budgetID) =>
+      MaterialPageRoute<Object?>(
+        builder: (_) => BudgetDetailScreen(budgetID: budgetID),
+      );
 
   // MARK: - View Model Contracts
 
@@ -136,74 +128,6 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
         break;
     }
     _listViewModel.clearStep();
-  }
-
-  // MARK: - Detail Page
-
-  void _scheduleReconcile() {
-    if (_reconcileScheduled) return;
-    _reconcileScheduled = true;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _reconcileScheduled = false;
-      if (mounted) _reconcilePage();
-    });
-  }
-
-  void _reconcilePage() {
-    final selected = ref.read(selectedBudgetProvider);
-    final phone = ref.read(shellLayoutModeProvider) == ShellLayoutMode.phone;
-    final wanted = phone ? selected : null;
-    if (_pageBudgetID == wanted) return;
-    _removePage();
-    final context = navigatorContext;
-    if (wanted == null || context == null) return;
-    if (ref.read(shellSheetOccupancyProvider).hasSheets) return;
-    _pushPage(context, wanted);
-  }
-
-  void _pushPage(BuildContext context, String budgetID) {
-    final navigator = Navigator.of(context, rootNavigator: true);
-    final route = MaterialPageRoute<Object?>(
-      builder: (_) => BudgetDetailScreen(budgetID: budgetID),
-    );
-    _rootNavigator = navigator;
-    _page = route;
-    _pageBudgetID = budgetID;
-    unawaited(navigator.push(route));
-    unawaited(_clearSelectionWhenPopped(route, budgetID));
-  }
-
-  Future<void> _clearSelectionWhenPopped(
-    ModalRoute<Object?> route,
-    String budgetID,
-  ) async {
-    await route.completed;
-    if (_flowRemovedPages.remove(route) || !mounted) return;
-    if (identical(_page, route)) {
-      _page = null;
-      _pageBudgetID = null;
-    }
-    if (ref.read(selectedBudgetProvider) != budgetID) return;
-    ref.read(selectedBudgetProvider.notifier).clear();
-  }
-
-  void _removePage() {
-    final route = _page;
-    _page = null;
-    _pageBudgetID = null;
-    if (route == null || !route.isActive) return;
-    _flowRemovedPages.add(route);
-    _rootNavigator?.removeRoute(route);
-  }
-
-  void _removePageAfterFrame() {
-    final route = _page;
-    final navigator = _rootNavigator;
-    _page = null;
-    if (route == null || navigator == null) return;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (navigator.mounted && route.isActive) navigator.removeRoute(route);
-    });
   }
 
   // MARK: - Budget Subscriptions
@@ -297,7 +221,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     if (!confirmed || !_editStillValid(session)) return;
     _detailViewModel(session.budgetID).deleteBudget();
     ref.read(selectedBudgetProvider.notifier).clear();
-    _reconcilePage();
+    _detail.reconcileNow();
   }
 
   Future<void> _openLimitEditor(_EditSession session) async {
