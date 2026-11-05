@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
+import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/transactions/entry/edit_entry_host.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
@@ -54,8 +54,8 @@ class EditEntryPresentationController {
       unawaited(
         showAppSheet<void>(
           context,
-          presentation: accountSheetPresentation(context),
-          presentationResolver: accountSheetPresentation,
+          presentation: shellSheetPresentation(context),
+          presentationResolver: shellSheetPresentation,
           showShellNavigation: true,
           onRouteCreated: (route) {
             created = route;

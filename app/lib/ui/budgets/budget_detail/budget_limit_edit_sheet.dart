@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_amount_input.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_editor_view_model.dart';
-import 'package:spendwise/ui/budgets/budget_sheet_presentation.dart';
+import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
@@ -26,8 +26,8 @@ Future<void> showBudgetLimitEditSheet({
 }) {
   return showAppSheet<void>(
     context,
-    presentation: budgetSheetPresentation(context),
-    presentationResolver: budgetSheetPresentation,
+    presentation: shellSheetPresentation(context),
+    presentationResolver: shellSheetPresentation,
     onRouteCreated: onRouteCreated,
     builder: (_) => BudgetLimitEditSheet(draftKey: draftKey),
   );

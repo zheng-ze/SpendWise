@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
 import 'package:spendwise/ui/accounts/source_edit/source_edit_form_view_model.dart';
-import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
+import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/pickers/account_type_picker.dart';
 import 'package:spendwise/ui/common/inputs/amount_field.dart';
@@ -27,8 +27,8 @@ Future<void> showSourceEditFormSheet({
   AppSheetRoute<void>? route;
   await showAppSheet<void>(
     context,
-    presentation: accountSheetPresentation(context),
-    presentationResolver: accountSheetPresentation,
+    presentation: shellSheetPresentation(context),
+    presentationResolver: shellSheetPresentation,
     onRouteCreated: (createdRoute) => route = createdRoute,
     builder: (_) => SourceEditForm(holderID: holderID),
   );
@@ -150,14 +150,14 @@ class _SourceEditFormBody extends StatelessWidget {
           AccountTypePicker(
             selected: formState.type,
             onSelected: viewModel.setType,
-            sheetPresentation: accountSheetPresentation,
+            sheetPresentation: shellSheetPresentation,
           ),
           if (formState.type == AccountType.card) ...[
             const SizedBox(height: _fieldGap),
             StatementDayPicker(
               selected: formState.statementDay,
               onSelected: viewModel.setStatementDay,
-              sheetPresentation: accountSheetPresentation,
+              sheetPresentation: shellSheetPresentation,
             ),
           ],
         ],
