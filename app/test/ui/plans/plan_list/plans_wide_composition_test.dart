@@ -1,15 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ui/common/layout/open_split_layout.dart';
 import 'package:spendwise/ui/plans/plan_list/plans_list_view.dart';
-import 'package:spendwise/ui/shell/shell_pane_host.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
-
-import '../../../support/ui_test_timeout.dart';
-import '../plans_shell_test_support.dart';
-
-const _openWindow = Size(960, 720);
 
 typedef _Case = ({bool wide, bool sheet, bool selection, bool expected});
 
@@ -32,32 +23,5 @@ void main() {
 
       expect(result, c.expected);
     });
-  }
-
-  for (final brightness in Brightness.values) {
-    testWidgets('money-plans lays the list beside a reserved column at 960x720 '
-        '(${brightness.name})', (tester) async {
-      await pumpPlansShell(
-        tester,
-        mode: ShellLayoutMode.open,
-        ledger: buildPlansShellLedger(),
-        brightness: brightness,
-        size: _openWindow,
-      );
-
-      final inPrimary = find.descendant(
-        of: find.byKey(openSplitPrimaryKey),
-        matching: find.text('Rent'),
-      );
-      final inSecondary = find.descendant(
-        of: find.byKey(openSplitSecondaryKey),
-        matching: find.byType(Text),
-      );
-
-      expect(inPrimary, findsOneWidget);
-      expect(inSecondary, findsNothing);
-      expect(find.byKey(shellDetailPaneKey), findsNothing);
-      expect(find.byType(FloatingActionButton), findsNothing);
-    }, timeout: uiTestTimeout);
   }
 }

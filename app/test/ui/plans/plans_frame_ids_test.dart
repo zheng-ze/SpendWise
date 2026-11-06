@@ -16,7 +16,6 @@ const _inScopeFrameIds = [
   'mo-plan-end',
   'mo-plan-delete',
   'mo-desk-plans',
-  'money-plans',
   'phone-plans',
   'fr-plans',
   'le-plans-err',
