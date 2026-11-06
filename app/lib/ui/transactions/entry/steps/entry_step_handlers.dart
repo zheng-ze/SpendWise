@@ -80,7 +80,6 @@ void dispatchEntryFormStep(
         ref,
         formKey,
         form,
-        useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
         onRouteCreated: onPickerRouteCreated,
@@ -232,7 +231,6 @@ Future<void> _pickRecurrence(
   WidgetRef ref,
   String? formKey,
   EntryFormNotifier form, {
-  bool useRootNavigator = false,
   bool Function()? isCurrent,
   required AppSheetPresentation Function(BuildContext) sheetPresentation,
   PickerRouteCallback? onRouteCreated,
@@ -240,7 +238,6 @@ Future<void> _pickRecurrence(
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final chosen = await showRecurrencePickerSheet(
     context: context,
-    useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
     selected: formState?.recurrence,
     onRouteCreated: onRouteCreated,

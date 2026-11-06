@@ -5,17 +5,7 @@ import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 // MARK: - Constants
-const _oneTimeLabel = 'One time';
-
 const _titleLabel = 'Repeat';
-
-const Map<RecurrenceFrequency, String> frequencyLabels = {
-  RecurrenceFrequency.weekly: 'Weekly',
-  RecurrenceFrequency.biweekly: 'Biweekly',
-  RecurrenceFrequency.monthly: 'Monthly',
-  RecurrenceFrequency.quarterly: 'Quarterly',
-  RecurrenceFrequency.yearly: 'Yearly',
-};
 
 const addNoRepeatLabel = 'Does not repeat';
 
@@ -31,36 +21,27 @@ const Map<RecurrenceFrequency, String> addFrequencyLabels = {
 
 Future<RecurrenceFrequency?> showRecurrencePickerSheet({
   required BuildContext context,
+  required AppSheetPresentation Function(BuildContext) sheetPresentation,
   RecurrenceFrequency? selected,
-  bool useRootNavigator = false,
   bool includesNoRepeat = true,
-  AppSheetPresentation Function(BuildContext)? sheetPresentation,
   PickerRouteCallback? onRouteCreated,
 }) {
-  final outcome = sheetPresentation == null
-      ? showModalBottomSheet<_RecurrenceOutcome>(
-          context: context,
-          isScrollControlled: true,
-          useSafeArea: true,
-          useRootNavigator: useRootNavigator,
-          builder: (_) => _RecurrencePickerSheet(selected: selected),
-        )
-      : showPickerAppSheet<_RecurrenceOutcome>(
-          context,
-          presentation: sheetPresentation,
-          onRouteCreated: onRouteCreated,
-          builder: (_) => AppPickerSheet(
-            title: _titleLabel,
-            body: Column(
-              children: _recurrenceRows(
-                selected,
-                includesNoRepeat: includesNoRepeat,
-                oneTimeLabel: addNoRepeatLabel,
-                labels: addFrequencyLabels,
-              ),
-            ),
-          ),
-        );
+  final outcome = showPickerAppSheet<_RecurrenceOutcome>(
+    context,
+    presentation: sheetPresentation,
+    onRouteCreated: onRouteCreated,
+    builder: (_) => AppPickerSheet(
+      title: _titleLabel,
+      body: Column(
+        children: _recurrenceRows(
+          selected,
+          includesNoRepeat: includesNoRepeat,
+          oneTimeLabel: addNoRepeatLabel,
+          labels: addFrequencyLabels,
+        ),
+      ),
+    ),
+  );
   return outcome.then((chosen) => chosen == null ? selected : chosen.frequency);
 }
 
@@ -75,9 +56,9 @@ class _RecurrenceOutcome {
 // MARK: - Rows
 List<Widget> _recurrenceRows(
   RecurrenceFrequency? selected, {
-  bool includesNoRepeat = true,
-  String oneTimeLabel = _oneTimeLabel,
-  Map<RecurrenceFrequency, String> labels = frequencyLabels,
+  required bool includesNoRepeat,
+  required String oneTimeLabel,
+  required Map<RecurrenceFrequency, String> labels,
 }) {
   return [
     if (includesNoRepeat)
@@ -93,44 +74,6 @@ List<Widget> _recurrenceRows(
         outcome: _RecurrenceOutcome(frequency),
       ),
   ];
-}
-
-// MARK: - RecurrencePickerSheet
-class _RecurrencePickerSheet extends StatelessWidget {
-  const _RecurrencePickerSheet({required this.selected});
-
-  final RecurrenceFrequency? selected;
-
-  static const _titlePadding = EdgeInsets.fromLTRB(16, 16, 16, 8);
-
-  Widget _title(BuildContext context) {
-    return Padding(
-      padding: _titlePadding,
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          _titleLabel,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _title(context),
-        Flexible(
-          child: ListView(
-            shrinkWrap: true,
-            children: _recurrenceRows(selected),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 // MARK: - RecurrenceRow
