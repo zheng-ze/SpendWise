@@ -6,7 +6,7 @@ import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/plans/plan_selection.dart';
+import 'package:spendwise/ui/plans/plan_list/plan_selection.dart';
 
 // MARK: - Constants
 const _unknownAccount = 'Unknown';

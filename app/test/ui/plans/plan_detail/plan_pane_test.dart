@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ui/plans/plan_detail_screen.dart';
-import 'package:spendwise/ui/plans/plan_selection.dart';
+import 'package:spendwise/ui/plans/plan_detail/plan_detail_screen.dart';
+import 'package:spendwise/ui/plans/plan_list/plan_selection.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
-import '../../support/ui_test_timeout.dart';
-import 'plans_shell_test_support.dart';
+import '../../../support/ui_test_timeout.dart';
+import '../plans_shell_test_support.dart';
 
 const _openLayouts = [ShellLayoutMode.open, ShellLayoutMode.desktop];
 

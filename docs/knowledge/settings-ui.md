@@ -55,7 +55,7 @@ enrollment flow. Selecting another destination disposes the flow and its child r
 selecting Settings again builds it fresh at the root. The Categories row opens category management, whose forms and symbol picker
 retain their existing navigation. Settings has no Recurring Plans row, request Step or Plans route.
 `MoneyFlow` hosts the Plans segment through `PlansFlow`; the Money header has no Plans action, and
-plan forms open as AppSheets (`app/lib/ui/plans/plan_form.dart`).
+plan forms open as AppSheets (`app/lib/ui/plans/plan_form/plan_form.dart`).
 (`app/lib/ui/settings/settings_root_screen.dart`, `settings_root_view_model.dart`,
 `settings_flow.dart`, `app/lib/ui/money/money_flow.dart`)
 

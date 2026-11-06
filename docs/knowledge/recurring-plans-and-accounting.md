@@ -72,7 +72,7 @@ Changing a template note affects only subsequently generated occurrences. The no
 occurrence timing, deterministic ids, plan validation or accounting. Plan edits that rebuild the
 template preserve the latest persisted note. Source:
 `packages/domain/test/entries/entry_template_note_test.dart` - all groups;
-`app/test/ui/plans/plan_form_view_model_test.dart` - template-note preservation.
+`app/test/ui/plans/plan_form/plan_form_view_model_test.dart` - template-note preservation.
 
 The resolve cursor stops at the first failure because a later cursor would skip the failed
 occurrence's retry; replaying a stale window yields the same result.
@@ -208,7 +208,7 @@ The Money Plans UI lives in `app/lib/ui/plans/` and its tests in `app/test/ui/pl
   `plan.occurrences(after: anchor - 1 day, upTo: lastResolvedDate)` and taking its last value. Clamping
   by `endDate` happens inside `occurrences`. It returns null when nothing is covered, and the detail
   then shows "Not yet". It reads the schedule and cursor only, never History. Consequence (accepted
-  limitation, pinned by `app/test/ui/plans/plan_last_added_test.dart`): after Edit moves the First date
+  limitation, pinned by `app/test/ui/plans/plan_detail/plan_last_added_test.dart`): after Edit moves the First date
   earlier, Last added can show a date with no entry, and a later edit can show "Not yet" while History
   holds an entry.
 - **Edit** opens an AppSheet form (`plan_form.dart`, header "Edit plan", footer "Save plan", no

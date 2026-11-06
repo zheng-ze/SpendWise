@@ -19,7 +19,7 @@ import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/settings/category/category_list_screen.dart';
 import 'package:spendwise/ui/settings/category/category_list_view_model.dart';
-import 'package:spendwise/ui/plans/plan_list_view_model.dart';
+import 'package:spendwise/ui/plans/plan_list/plan_list_view_model.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 

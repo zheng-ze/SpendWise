@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ui/common/layout/open_split_layout.dart';
-import 'package:spendwise/ui/plans/plans_list_view.dart';
+import 'package:spendwise/ui/plans/plan_list/plans_list_view.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
-import '../../support/ui_test_timeout.dart';
-import 'plans_shell_test_support.dart';
+import '../../../support/ui_test_timeout.dart';
+import '../plans_shell_test_support.dart';
 
 const _openWindow = Size(960, 720);
 

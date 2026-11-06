@@ -5,8 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/plans/plan_list_view_model.dart';
-import 'package:spendwise/ui/plans/plan_selection.dart';
+import 'package:spendwise/ui/plans/plan_list/plan_list_view_model.dart';
+import 'package:spendwise/ui/plans/plan_list/plan_selection.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);

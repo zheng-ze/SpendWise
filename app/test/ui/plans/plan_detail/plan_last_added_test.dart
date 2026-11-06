@@ -1,7 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ui/plans/plan_last_added.dart';
+import 'package:spendwise/ui/plans/plan_detail/plan_last_added.dart';
 
 void main() {
   final source = Account(
@@ -90,13 +90,16 @@ void main() {
       },
     );
 
-    test('edited earlier anchor with cursor at the old anchor reports the new schedule date (schedule-only)', () {
-      final plan = monthlyPlan(
-        anchor: DateTime.utc(2026, 3, 5),
-        lastResolvedDate: DateTime.utc(2026, 3, 10),
-      );
+    test(
+      'edited earlier anchor with cursor at the old anchor reports the new schedule date (schedule-only)',
+      () {
+        final plan = monthlyPlan(
+          anchor: DateTime.utc(2026, 3, 5),
+          lastResolvedDate: DateTime.utc(2026, 3, 10),
+        );
 
-      expect(lastAddedDate(plan), DateTime.utc(2026, 3, 5));
-    });
+        expect(lastAddedDate(plan), DateTime.utc(2026, 3, 5));
+      },
+    );
   });
 }

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ui/plans/plan_list_view_model.dart';
+import 'package:spendwise/ui/plans/plan_list/plan_list_view_model.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
-import '../../support/ui_test_timeout.dart';
-import 'plans_shell_test_support.dart';
+import '../../../support/ui_test_timeout.dart';
+import '../plans_shell_test_support.dart';
 
 const _emptyTitle = 'Make regular entries easier';
 const _emptyBody = 'Choose Repeat when adding an entry to create a plan.';

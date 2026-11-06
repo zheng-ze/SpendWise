@@ -6,12 +6,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/inputs/amount_field.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
-import 'package:spendwise/ui/plans/plan_form.dart';
-import 'package:spendwise/ui/plans/plan_selection.dart';
+import 'package:spendwise/ui/plans/plan_form/plan_form.dart';
+import 'package:spendwise/ui/plans/plan_list/plan_selection.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
-import '../../support/ui_test_timeout.dart';
-import 'plans_shell_test_support.dart';
+import '../../../support/ui_test_timeout.dart';
+import '../plans_shell_test_support.dart';
 
 const _modes = [ShellLayoutMode.phone, ShellLayoutMode.open];
 const _sheetTitle = 'Edit plan';

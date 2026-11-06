@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ui/plans/plan_detail_content.dart';
-import 'package:spendwise/ui/plans/plan_detail_view_model.dart';
-import 'package:spendwise/ui/plans/plan_selection.dart';
+import 'package:spendwise/ui/plans/plan_detail/plan_detail_content.dart';
+import 'package:spendwise/ui/plans/plan_detail/plan_detail_view_model.dart';
+import 'package:spendwise/ui/plans/plan_list/plan_selection.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 

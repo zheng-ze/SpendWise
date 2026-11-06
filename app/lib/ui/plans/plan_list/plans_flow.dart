@@ -9,12 +9,12 @@ import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/common/feedback/destructive_confirmation.dart';
 import 'package:spendwise/ui/common/layout/headered_page.dart';
 import 'package:spendwise/ui/common/sheets/sheet_session.dart';
-import 'package:spendwise/ui/plans/plan_detail_screen.dart';
-import 'package:spendwise/ui/plans/plan_detail_view_model.dart';
-import 'package:spendwise/ui/plans/plan_form.dart';
-import 'package:spendwise/ui/plans/plan_selection.dart';
-import 'package:spendwise/ui/plans/plan_steps.dart';
-import 'package:spendwise/ui/plans/plans_list_view.dart';
+import 'package:spendwise/ui/plans/plan_detail/plan_detail_screen.dart';
+import 'package:spendwise/ui/plans/plan_detail/plan_detail_view_model.dart';
+import 'package:spendwise/ui/plans/plan_form/plan_form.dart';
+import 'package:spendwise/ui/plans/plan_list/plan_selection.dart';
+import 'package:spendwise/ui/plans/plan_detail/plan_steps.dart';
+import 'package:spendwise/ui/plans/plan_list/plans_list_view.dart';
 import 'package:spendwise/ui/shell/selected_detail_controller.dart';
 
 // MARK: - Constants

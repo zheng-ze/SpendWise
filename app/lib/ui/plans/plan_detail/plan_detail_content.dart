@@ -4,7 +4,7 @@ import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/plans/plan_detail_view_model.dart';
+import 'package:spendwise/ui/plans/plan_detail/plan_detail_view_model.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants

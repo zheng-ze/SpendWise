@@ -8,8 +8,8 @@ import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/format/analysis_bucket_name.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/plans/plan_last_added.dart';
-import 'package:spendwise/ui/plans/plan_steps.dart';
+import 'package:spendwise/ui/plans/plan_detail/plan_last_added.dart';
+import 'package:spendwise/ui/plans/plan_detail/plan_steps.dart';
 
 // MARK: - Constants
 const _unknownAccountLabel = 'Unknown';

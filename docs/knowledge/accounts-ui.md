@@ -26,7 +26,7 @@ resolves one `ShellPane` from the visible segment only: `budgetPaneProvider` for
 `PopScope` closes it on system Back, so a segment that supplies no pane never intercepts Back.
 (`app/lib/ui/money/money_flow.dart`, `app/lib/ui/money/money_header.dart`,
 `app/lib/ui/money/money_segment.dart`, `app/lib/ui/budgets/budget_detail/budget_pane.dart`,
-`app/lib/ui/plans/plan_pane.dart`, `app/lib/ui/shell/shell_pane_host.dart`, `accounts_flow.dart`,
+`app/lib/ui/plans/plan_detail/plan_pane.dart`, `app/lib/ui/shell/shell_pane_host.dart`, `accounts_flow.dart`,
 `accounts_screen.dart`)
 
 The Budgets month choice (`budgetsMonthChoiceProvider`) is an autoDispose provider watched only by
@@ -36,7 +36,7 @@ has one presentation owner in Money; Settings has no recurring-plan entry.
 
 ## Plans segment
 
-`PlansFlow` (`app/lib/ui/plans/plans_flow.dart`) hosts the Plans segment. Its root is a "Next up"
+`PlansFlow` (`app/lib/ui/plans/plan_list/plans_flow.dart`) hosts the Plans segment. Its root is a "Next up"
 tray of plans sorted by next occurrence, with a count aside and one `MedallionRow` per plan whose
 leading `DateBadge` shows the next date (`plans_list_view.dart`, `plan_list_view_model.dart`). The
 root has no Add plan control, no Edit/Done toggle and no swipe delete: plans are created only from

@@ -12,7 +12,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/format/date_format.dart';
-import 'package:spendwise/ui/plans/plan_form_view_model.dart';
+import 'package:spendwise/ui/plans/plan_form/plan_form_view_model.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 
 // MARK: - Constants

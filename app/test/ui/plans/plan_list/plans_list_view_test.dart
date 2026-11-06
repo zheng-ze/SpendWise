@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ui/plans/plan_selection.dart';
+import 'package:spendwise/ui/plans/plan_list/plan_selection.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
-import '../../support/ui_test_timeout.dart';
-import 'plans_shell_test_support.dart';
+import '../../../support/ui_test_timeout.dart';
+import '../plans_shell_test_support.dart';
 
 const _helperCopy =
     'To add a plan, add an entry and choose how often it repeats.';
