@@ -18,6 +18,7 @@ import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 // MARK: - Constants
 const _sheetTitle = 'Edit plan';
 const _saveLabel = 'Save plan';
+const _retryLabel = 'Try again';
 const _nameHint = 'Name';
 const _accountLabel = 'Account';
 const _repeatLabel = 'Repeat';
@@ -204,15 +205,19 @@ class _PlanFormState extends ConsumerState<PlanForm> {
     }
     final error = asyncState.error;
     if (error == null) return const FormSheetLoading(title: _sheetTitle);
-    const save = SizedBox(
+    final provider = planFormViewModelProvider(widget.planId);
+    final retry = SizedBox(
       width: _footerWidth,
-      child: PrimaryButton(label: _saveLabel, onPressed: null),
+      child: PrimaryButton(
+        label: _retryLabel,
+        onPressed: () => ref.invalidate(provider),
+      ),
     );
     return FormSheetLoadError(
       title: _sheetTitle,
       message: _loadErrorTitle,
       error: error,
-      footer: save,
+      footer: retry,
     );
   }
 }
