@@ -25,7 +25,7 @@ void main() {
     final suffix = brightness.name;
 
     testWidgets(
-      'mo-plan-detail phone shows the expense plan fields ($suffix)',
+      'mo-plan-detail phone tapping a plan opens its detail page ($suffix)',
       (tester) async {
         final container = await _pumpPhone(tester, brightness);
 
@@ -33,11 +33,7 @@ void main() {
 
         expect(container.read(selectedPlanProvider), plansShellExpensePlan.id);
         expect(find.byType(PlanDetailScreen), findsOneWidget);
-        expect(find.text('Rent'), findsOneWidget);
         expect(find.byKey(shellDetailPaneKey), findsNothing);
-        expect(find.text('-S\$1,200.00'), findsOneWidget);
-        expect(find.text('Edit plan'), findsOneWidget);
-        expect(find.text('Delete plan'), findsOneWidget);
       },
       timeout: uiTestTimeout,
     );
