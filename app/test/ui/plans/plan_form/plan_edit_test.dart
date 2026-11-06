@@ -224,6 +224,24 @@ void main() {
     expect(_form, findsNothing);
   }, timeout: uiTestTimeout);
 
+  testWidgets('removing the form also closes its open picker', (tester) async {
+    final container = await _pumpEdit(
+      tester,
+      ShellLayoutMode.open,
+      Brightness.light,
+      buildPlansShellLedger(),
+    );
+    await _tapRow(tester, _repeatLabel);
+    expect(find.byType(AppPickerSheet), findsOneWidget);
+
+    container.read(plansShellLedgerFixture.notifier).state =
+        buildPlansShellLedger();
+    await tester.pumpAndSettle();
+
+    expect(_form, findsNothing);
+    expect(find.byType(AppPickerSheet), findsNothing);
+  }, timeout: uiTestTimeout);
+
   testWidgets('deleting the plan removes the open sheet', (tester) async {
     final ledger = buildPlansShellLedger();
     await _pumpEdit(tester, ShellLayoutMode.open, Brightness.light, ledger);

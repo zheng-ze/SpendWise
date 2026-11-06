@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
@@ -38,6 +39,7 @@ const _footerWidth = double.infinity;
 const _lockIcon = Icons.lock_outline;
 const _lockIconSize = 16.0;
 const _lockGap = 6.0;
+const _lockedAccountMaxWidth = 200.0;
 final _pickerFirstDate = DateTime.utc(2000);
 final _pickerLastDate = DateTime.utc(2100);
 
@@ -75,6 +77,7 @@ class _PlanFormState extends ConsumerState<PlanForm> {
 
   ProviderSubscription<AsyncValue<PlanFormViewState>>? _subscription;
   ModalRoute<Object?>? _route;
+  final List<ModalRoute<dynamic>> _pickerRoutes = [];
 
   @override
   void initState() {
@@ -93,6 +96,7 @@ class _PlanFormState extends ConsumerState<PlanForm> {
 
   @override
   void dispose() {
+    _closePickers();
     _subscription?.close();
     _nameController.dispose();
     _amountController.dispose();
@@ -104,6 +108,18 @@ class _PlanFormState extends ConsumerState<PlanForm> {
   PlanFormViewState? get _formState => ref.read(_provider).value;
 
   bool get _formIsActive => mounted && (_route?.isActive ?? false);
+
+  void _trackPicker(ModalRoute<dynamic> route) => _pickerRoutes.add(route);
+
+  // The removal waits for the frame end so it never runs while the tree is being finalized.
+  void _closePickers() {
+    final routes = List.of(_pickerRoutes);
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      for (final route in routes) {
+        dismissSheetRoute(route);
+      }
+    });
+  }
 
   void _handleStep(PlanFormStep? step) {
     if (step == null) return;
@@ -128,6 +144,7 @@ class _PlanFormState extends ConsumerState<PlanForm> {
       selected: formState.frequency,
       includesNoRepeat: false,
       sheetPresentation: shellSheetPresentation,
+      onRouteCreated: _trackPicker,
     );
     if (!_formIsActive) return;
     _viewModel.applyPickedRecurrence(picked);
@@ -144,6 +161,7 @@ class _PlanFormState extends ConsumerState<PlanForm> {
       initialDate: initialDate,
       firstDate: _pickerFirstDate,
       lastDate: _pickerLastDate,
+      onRouteCreated: _trackPicker,
     );
   }
 
@@ -176,6 +194,7 @@ class _PlanFormState extends ConsumerState<PlanForm> {
       context: context,
       presentation: shellSheetPresentation,
       hasEndDate: formState.hasEndDate,
+      onRouteCreated: _trackPicker,
     );
     if (!_formIsActive || choice == null) return;
     _viewModel.setHasEndDate(choice == EndsChoice.chooseDate);
@@ -247,13 +266,22 @@ class _PlanFormBody extends StatelessWidget {
       allowsNegative: false,
       onChanged: viewModel.setAmount,
     );
-    final lockedAccount = Row(
+    final lockedAccountName = Text(
+      formState.sourceName,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    final lockedAccountRow = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         const Icon(_lockIcon, size: _lockIconSize),
         const SizedBox(width: _lockGap),
-        Text(formState.sourceName),
+        Flexible(child: lockedAccountName),
       ],
+    );
+    final lockedAccount = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _lockedAccountMaxWidth),
+      child: lockedAccountRow,
     );
     final account = FormSheetRow(label: _accountLabel, trailing: lockedAccount);
     final repeat = FormSheetRow(

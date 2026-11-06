@@ -15,6 +15,7 @@ const _rowsTopGap = 6.0;
 const _buttonsTopGap = 12.0;
 const _rowPadding = EdgeInsets.symmetric(vertical: 4);
 const _rowValueWeight = FontWeight.w600;
+const _labelValueGap = 12.0;
 const _nextLabel = 'Next';
 const _accountLabel = 'Account';
 const _startedLabel = 'Started';
@@ -106,14 +107,19 @@ class _DetailRow extends StatelessWidget {
     );
     final valueText = Text(
       value,
+      textAlign: TextAlign.end,
       style: const TextStyle(fontWeight: _rowValueWeight),
     );
 
     return Padding(
       padding: _rowPadding,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [labelText, valueText],
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          labelText,
+          const SizedBox(width: _labelValueGap),
+          Expanded(child: valueText),
+        ],
       ),
     );
   }
