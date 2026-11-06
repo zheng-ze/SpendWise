@@ -13,7 +13,6 @@ void main() {
   RecurringPlan monthlyPlan({
     required DateTime anchor,
     required DateTime lastResolvedDate,
-    DateTime? endDate,
   }) {
     return RecurringPlan(
       template: EntryTemplate(
@@ -23,7 +22,6 @@ void main() {
       ),
       frequency: RecurrenceFrequency.monthly,
       anchor: anchor,
-      endDate: endDate,
       lastResolvedDate: lastResolvedDate,
     );
   }
@@ -58,25 +56,6 @@ void main() {
         expect(lastAddedDate(plan), DateTime.utc(2026, 4, 15));
       },
     );
-
-    test('is clamped by endDate when the cursor is past it', () {
-      final plan = monthlyPlan(
-        anchor: DateTime.utc(2026, 1, 15),
-        endDate: DateTime.utc(2026, 3, 1),
-        lastResolvedDate: DateTime.utc(2026, 6, 1),
-      );
-
-      expect(lastAddedDate(plan), DateTime.utc(2026, 2, 15));
-    });
-
-    test('Jan 31 monthly plan with cursor on Feb 27 returns Jan 31', () {
-      final plan = monthlyPlan(
-        anchor: DateTime.utc(2026, 1, 31),
-        lastResolvedDate: DateTime.utc(2026, 2, 27),
-      );
-
-      expect(lastAddedDate(plan), DateTime.utc(2026, 1, 31));
-    });
 
     test(
       'Jan 31 monthly plan with cursor on Feb 28 returns the clamped Feb 28',

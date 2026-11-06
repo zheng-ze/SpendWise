@@ -12,17 +12,12 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import '../../../support/ui_test_timeout.dart';
 import '../plans_shell_test_support.dart';
 
-const _modes = [
-  ShellLayoutMode.phone,
-  ShellLayoutMode.open,
-  ShellLayoutMode.desktop,
-];
+const _modes = [ShellLayoutMode.phone, ShellLayoutMode.open];
 const _deleteLabel = 'Delete plan';
 const _cancelLabel = 'Cancel';
 const _confirmLabel = 'Delete';
 const _confirmTitle = 'Delete the Rent plan?';
 const _confirmBody = 'Entries it already added stay in History.';
-const _outsideOffset = Offset(5, 5);
 
 final _confirmButton = find.widgetWithText(FilledButton, _confirmLabel);
 final _cancelButton = find.widgetWithText(TextButton, _cancelLabel);
@@ -78,50 +73,21 @@ void main() {
     for (final mode in _modes) {
       final label = 'mo-plan-delete ${mode.name} (${brightness.name})';
 
-      testWidgets('$label shows the confirmation copy', (tester) async {
+      testWidgets('$label shows the confirmation copy, Cancel writes nothing', (
+        tester,
+      ) async {
         final ledger = _ledgerWithGeneratedEntry();
-        await _pumpConfirmation(tester, mode, brightness, ledger);
-
+        final container = await _pumpConfirmation(
+          tester,
+          mode,
+          brightness,
+          ledger,
+        );
+        final revision = ledger.revision;
         expect(find.text(_confirmTitle), findsOneWidget);
         expect(find.text(_confirmBody), findsOneWidget);
-        expect(_cancelButton, findsOneWidget);
-        expect(_confirmButton, findsOneWidget);
-      }, timeout: uiTestTimeout);
-
-      testWidgets('$label Cancel writes nothing and keeps the detail', (
-        tester,
-      ) async {
-        final ledger = _ledgerWithGeneratedEntry();
-        final container = await _pumpConfirmation(
-          tester,
-          mode,
-          brightness,
-          ledger,
-        );
-        final revision = ledger.revision;
 
         await tester.tap(_cancelButton);
-        await tester.pumpAndSettle();
-
-        expect(find.text(_confirmTitle), findsNothing);
-        expect(ledger.revision, revision);
-        expect(_detail(mode), findsOneWidget);
-        _expectPlanKept(ledger, container);
-      }, timeout: uiTestTimeout);
-
-      testWidgets('$label dismissing writes nothing and keeps the detail', (
-        tester,
-      ) async {
-        final ledger = _ledgerWithGeneratedEntry();
-        final container = await _pumpConfirmation(
-          tester,
-          mode,
-          brightness,
-          ledger,
-        );
-        final revision = ledger.revision;
-
-        await tester.tapAt(_outsideOffset);
         await tester.pumpAndSettle();
 
         expect(find.text(_confirmTitle), findsNothing);

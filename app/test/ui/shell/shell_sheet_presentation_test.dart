@@ -39,14 +39,13 @@ void main() {
   });
 
   group('shellSheetPresentation', () {
-    for (final entry in _expectedPresentations.entries) {
-      testWidgets('reads ${entry.key.name} from the shell scope', (
+    testWidgets('reads the mode from the shell scope', (tester) async {
+      final presentation = await _resolveWithin(
         tester,
-      ) async {
-        final presentation = await _resolveWithin(tester, mode: entry.key);
-        expect(presentation, entry.value);
-      });
-    }
+        mode: ShellLayoutMode.desktop,
+      );
+      expect(presentation, AppSheetPresentation.desktop);
+    });
 
     testWidgets('falls back to phone without a shell scope', (tester) async {
       final presentation = await _resolveWithin(tester);

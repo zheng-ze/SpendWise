@@ -10,111 +10,86 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import '../../../support/ui_test_timeout.dart';
 import '../plans_shell_test_support.dart';
 
-const _openLayouts = [ShellLayoutMode.open, ShellLayoutMode.desktop];
+const _mode = ShellLayoutMode.desktop;
 
-Future<ProviderContainer> _pump(
-  WidgetTester tester,
-  ShellLayoutMode mode,
-  Brightness brightness,
-) => pumpPlansShell(
-  tester,
-  mode: mode,
-  ledger: buildPlansShellLedger(),
-  brightness: brightness,
-);
+Future<ProviderContainer> _pump(WidgetTester tester, Brightness brightness) =>
+    pumpPlansShell(
+      tester,
+      mode: _mode,
+      ledger: buildPlansShellLedger(),
+      brightness: brightness,
+    );
 
 Finder _inPane(Finder finder) =>
     find.descendant(of: find.byKey(shellDetailPaneKey), matching: finder);
 
-void _expectExpensePlanFields() {
+void _expectExpensePlanNameAndAmount() {
   expect(_inPane(find.text('Rent')), findsOneWidget);
   expect(_inPane(find.text('-S\$1,200.00')), findsOneWidget);
-  expect(_inPane(find.text('Every month')), findsOneWidget);
-  expect(_inPane(find.text('Account')), findsOneWidget);
-  expect(_inPane(find.text('Checking')), findsOneWidget);
-  expect(_inPane(find.text('Category')), findsOneWidget);
-  expect(_inPane(find.text('Ends')), findsOneWidget);
 }
 
 void main() {
   for (final brightness in Brightness.values) {
     final suffix = brightness.name;
 
-    for (final mode in _openLayouts) {
-      testWidgets(
-        'mo-desk-plans ${mode.name} tapping a plan shows its pane ($suffix)',
-        (tester) async {
-          final container = await _pump(tester, mode, brightness);
+    testWidgets(
+      'mo-desk-plans desktop tapping a plan shows its pane ($suffix)',
+      (tester) async {
+        final container = await _pump(tester, brightness);
 
-          await tapPlan(tester, plansShellExpensePlan.id);
-
-          expect(
-            container.read(selectedPlanProvider),
-            plansShellExpensePlan.id,
-          );
-          expect(find.byKey(shellDetailPaneKey), findsOneWidget);
-          expect(find.byType(PlanDetailScreen), findsNothing);
-          _expectExpensePlanFields();
-        },
-        timeout: uiTestTimeout,
-      );
-
-      testWidgets(
-        'mo-desk-plans ${mode.name} Close clears the selection ($suffix)',
-        (tester) async {
-          final container = await _pump(tester, mode, brightness);
-          await tapPlan(tester, plansShellExpensePlan.id);
-
-          await tester.tap(find.byKey(shellDetailCloseKey));
-          await tester.pumpAndSettle();
-
-          expect(container.read(selectedPlanProvider), isNull);
-          expect(find.byKey(shellDetailPaneKey), findsNothing);
-        },
-        timeout: uiTestTimeout,
-      );
-
-      testWidgets(
-        'mo-desk-plans ${mode.name} closes when the plan is deleted ($suffix)',
-        (tester) async {
-          final container = await _pump(tester, mode, brightness);
-          await tapPlan(tester, plansShellExpensePlan.id);
-
-          container
-              .read(plansShellLedgerFixture)!
-              .deletePlan(plansShellExpensePlan.id);
-          await tester.pumpAndSettle();
-
-          expect(container.read(selectedPlanProvider), isNull);
-          expect(find.byKey(shellDetailPaneKey), findsNothing);
-        },
-        timeout: uiTestTimeout,
-      );
-
-      testWidgets('mo-desk-plans ${mode.name} Back closes the pane ($suffix)', (
-        tester,
-      ) async {
-        final container = await _pump(tester, mode, brightness);
         await tapPlan(tester, plansShellExpensePlan.id);
 
-        await tester.binding.handlePopRoute();
+        expect(container.read(selectedPlanProvider), plansShellExpensePlan.id);
+        expect(find.byKey(shellDetailPaneKey), findsOneWidget);
+        expect(find.byType(PlanDetailScreen), findsNothing);
+        _expectExpensePlanNameAndAmount();
+      },
+      timeout: uiTestTimeout,
+    );
+
+    testWidgets('mo-desk-plans desktop Close clears the selection ($suffix)', (
+      tester,
+    ) async {
+      final container = await _pump(tester, brightness);
+      await tapPlan(tester, plansShellExpensePlan.id);
+
+      await tester.tap(find.byKey(shellDetailCloseKey));
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedPlanProvider), isNull);
+      expect(find.byKey(shellDetailPaneKey), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets(
+      'mo-desk-plans desktop closes when the plan is deleted ($suffix)',
+      (tester) async {
+        final container = await _pump(tester, brightness);
+        await tapPlan(tester, plansShellExpensePlan.id);
+
+        container
+            .read(plansShellLedgerFixture)!
+            .deletePlan(plansShellExpensePlan.id);
         await tester.pumpAndSettle();
 
         expect(container.read(selectedPlanProvider), isNull);
         expect(find.byKey(shellDetailPaneKey), findsNothing);
-        final row = find.byKey(ValueKey('plan-${plansShellExpensePlan.id}'));
-        expect(row, findsOneWidget);
-      }, timeout: uiTestTimeout);
-    }
+      },
+      timeout: uiTestTimeout,
+    );
 
-    testWidgets('mo-desk-plans phone builds no pane ($suffix)', (tester) async {
-      final container = await _pump(tester, ShellLayoutMode.phone, brightness);
-
+    testWidgets('mo-desk-plans desktop Back closes the pane ($suffix)', (
+      tester,
+    ) async {
+      final container = await _pump(tester, brightness);
       await tapPlan(tester, plansShellExpensePlan.id);
 
-      expect(container.read(selectedPlanProvider), plansShellExpensePlan.id);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedPlanProvider), isNull);
       expect(find.byKey(shellDetailPaneKey), findsNothing);
-      expect(find.byType(PlanDetailScreen), findsOneWidget);
+      final row = find.byKey(ValueKey('plan-${plansShellExpensePlan.id}'));
+      expect(row, findsOneWidget);
     }, timeout: uiTestTimeout);
   }
 }

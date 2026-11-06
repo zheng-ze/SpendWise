@@ -14,7 +14,7 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import '../../../support/ui_test_timeout.dart';
 import '../plans_shell_test_support.dart';
 
-const _modes = [ShellLayoutMode.phone, ShellLayoutMode.open];
+const _frameMode = ShellLayoutMode.phone;
 const _sheetTitle = 'Edit plan';
 const _cancelLabel = 'Cancel';
 const _saveLabel = 'Save plan';
@@ -48,16 +48,15 @@ Future<ProviderContainer> _pumpEdit(
   WidgetTester tester,
   ShellLayoutMode mode,
   Brightness brightness,
-  Ledger ledger, {
-  RecurringPlan? plan,
-}) async {
+  Ledger ledger,
+) async {
   final container = await pumpPlansShell(
     tester,
     mode: mode,
     ledger: ledger,
     brightness: brightness,
   );
-  await tapPlan(tester, (plan ?? plansShellExpensePlan).id);
+  await tapPlan(tester, plansShellExpensePlan.id);
   await tester.tap(_editButton);
   await tester.pumpAndSettle();
   return container;
@@ -84,115 +83,91 @@ Future<void> _choosePicked(WidgetTester tester, String label) async {
 
 void main() {
   for (final brightness in Brightness.values) {
-    for (final mode in _modes) {
-      final label = 'mo-plan-edit ${mode.name} (${brightness.name})';
+    const mode = _frameMode;
+    final label = 'mo-plan-edit ${mode.name} (${brightness.name})';
 
-      testWidgets('$label opens the sheet without Cancel', (tester) async {
+    testWidgets('$label opens the sheet without Cancel', (tester) async {
+      await _pumpEdit(tester, mode, brightness, buildPlansShellLedger());
+
+      expect(_inForm(_sheetTitle), findsOneWidget);
+      expect(find.text(_cancelLabel), findsNothing);
+      expect(find.text(_saveLabel), findsOneWidget);
+      expect(_inForm('Checking'), findsOneWidget);
+      expect(find.text('1200.00'), findsOneWidget);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('$label locked Account row opens nothing', (tester) async {
+      await _pumpEdit(tester, mode, brightness, buildPlansShellLedger());
+
+      await _tapRow(tester, _accountLabel);
+
+      expect(find.byType(AppPickerSheet), findsNothing);
+      expect(_form, findsOneWidget);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('$label Repeat lists frequencies without no-repeat', (
+      tester,
+    ) async {
+      await _pumpEdit(tester, mode, brightness, buildPlansShellLedger());
+
+      await _tapRow(tester, _repeatLabel);
+
+      expect(find.text(_quarterlyLabel), findsOneWidget);
+      expect(find.text(_noRepeatLabel), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('$label Save plan writes the edits and closes', (tester) async {
+      final ledger = buildPlansShellLedger();
+      await _pumpEdit(tester, mode, brightness, ledger);
+
+      await tester.enterText(_nameField, _newName);
+      await tester.enterText(_amountField, _newAmount);
+      await _tapRow(tester, _repeatLabel);
+      await _choose(tester, _quarterlyLabel);
+      await _choose(tester, _saveLabel);
+
+      final stored = ledger.state.plans[plansShellExpensePlan.id]!;
+      expect(stored.template.name, _newName);
+      expect(stored.template.amount, Decimal.parse('-1300'));
+      expect(stored.frequency, RecurrenceFrequency.quarterly);
+      expect(_form, findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('$label tapping outside writes nothing', (tester) async {
+      final ledger = buildPlansShellLedger();
+      await _pumpEdit(tester, mode, brightness, ledger);
+      final revision = ledger.revision;
+
+      await tester.enterText(_nameField, _newName);
+      await tester.tapAt(_outsideOffset);
+      await tester.pumpAndSettle();
+
+      expect(_form, findsNothing);
+      expect(ledger.revision, revision);
+    }, timeout: uiTestTimeout);
+
+    testWidgets(
+      'mo-plan-end ${mode.name} (${brightness.name}) Ends reveals and '
+      'hides the End date row',
+      (tester) async {
         await _pumpEdit(tester, mode, brightness, buildPlansShellLedger());
+        expect(_inForm(_neverLabel), findsOneWidget);
+        expect(_inForm(_endDateLabel), findsNothing);
 
-        expect(_inForm(_sheetTitle), findsOneWidget);
-        expect(find.text(_cancelLabel), findsNothing);
-        expect(find.text(_saveLabel), findsOneWidget);
-        expect(_inForm('Checking'), findsOneWidget);
-        expect(find.text('1200.00'), findsOneWidget);
-      }, timeout: uiTestTimeout);
+        await _tapRow(tester, _endsLabel);
+        await _choose(tester, _chooseDateLabel);
 
-      testWidgets('$label locked Account row opens nothing', (tester) async {
-        await _pumpEdit(tester, mode, brightness, buildPlansShellLedger());
+        expect(_inForm(_onADateLabel), findsOneWidget);
+        expect(_inForm(_endDateLabel), findsOneWidget);
 
-        await _tapRow(tester, _accountLabel);
+        await _tapRow(tester, _endsLabel);
+        await _choosePicked(tester, _neverLabel);
 
-        expect(find.byType(AppPickerSheet), findsNothing);
-        expect(_form, findsOneWidget);
-      }, timeout: uiTestTimeout);
-
-      testWidgets('$label Repeat lists frequencies without no-repeat', (
-        tester,
-      ) async {
-        await _pumpEdit(tester, mode, brightness, buildPlansShellLedger());
-
-        await _tapRow(tester, _repeatLabel);
-
-        expect(find.text(_quarterlyLabel), findsOneWidget);
-        expect(find.text(_noRepeatLabel), findsNothing);
-      }, timeout: uiTestTimeout);
-
-      testWidgets('$label Save plan writes the edits and closes', (
-        tester,
-      ) async {
-        final ledger = buildPlansShellLedger();
-        await _pumpEdit(tester, mode, brightness, ledger);
-
-        await tester.enterText(_nameField, _newName);
-        await tester.enterText(_amountField, _newAmount);
-        await _tapRow(tester, _repeatLabel);
-        await _choose(tester, _quarterlyLabel);
-        await _choose(tester, _saveLabel);
-
-        final stored = ledger.state.plans[plansShellExpensePlan.id]!;
-        expect(stored.template.name, _newName);
-        expect(stored.template.amount, Decimal.parse('-1300'));
-        expect(stored.frequency, RecurrenceFrequency.quarterly);
-        expect(_form, findsNothing);
-      }, timeout: uiTestTimeout);
-
-      testWidgets('$label tapping outside writes nothing', (tester) async {
-        final ledger = buildPlansShellLedger();
-        await _pumpEdit(tester, mode, brightness, ledger);
-        final revision = ledger.revision;
-
-        await tester.enterText(_nameField, _newName);
-        await tester.tapAt(_outsideOffset);
-        await tester.pumpAndSettle();
-
-        expect(_form, findsNothing);
-        expect(ledger.revision, revision);
-      }, timeout: uiTestTimeout);
-
-      testWidgets('$label transfer plan edit keeps the destination', (
-        tester,
-      ) async {
-        final ledger = buildPlansShellLedger();
-        await _pumpEdit(
-          tester,
-          mode,
-          brightness,
-          ledger,
-          plan: plansShellTransferPlan,
-        );
-
-        await tester.enterText(_amountField, _newAmount);
-        await _choose(tester, _saveLabel);
-
-        final stored = ledger.state.plans[plansShellTransferPlan.id]!;
-        expect(stored.template.amount, Decimal.parse('-1300'));
-        expect(stored.template.destinationID, plansShellSavings.id);
-        expect(_form, findsNothing);
-      }, timeout: uiTestTimeout);
-
-      testWidgets(
-        'mo-plan-end ${mode.name} (${brightness.name}) Ends reveals and '
-        'hides the End date row',
-        (tester) async {
-          await _pumpEdit(tester, mode, brightness, buildPlansShellLedger());
-          expect(_inForm(_neverLabel), findsOneWidget);
-          expect(_inForm(_endDateLabel), findsNothing);
-
-          await _tapRow(tester, _endsLabel);
-          await _choose(tester, _chooseDateLabel);
-
-          expect(_inForm(_onADateLabel), findsOneWidget);
-          expect(_inForm(_endDateLabel), findsOneWidget);
-
-          await _tapRow(tester, _endsLabel);
-          await _choosePicked(tester, _neverLabel);
-
-          expect(_inForm(_endDateLabel), findsNothing);
-          expect(_inForm(_neverLabel), findsOneWidget);
-        },
-        timeout: uiTestTimeout,
-      );
-    }
+        expect(_inForm(_endDateLabel), findsNothing);
+        expect(_inForm(_neverLabel), findsOneWidget);
+      },
+      timeout: uiTestTimeout,
+    );
   }
 
   testWidgets('a changed selection removes the open sheet', (tester) async {

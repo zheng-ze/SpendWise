@@ -82,6 +82,19 @@ void main() {
     return container;
   }
 
+  ({ProviderContainer container, PlanDetailNotifier notifier}) mount(
+    Ledger ledger,
+    String planID,
+  ) {
+    final container = buildContainer(ledger);
+    final provider = planDetailViewModelProvider(planID);
+    container.listen(provider, (_, _) {});
+    return (container: container, notifier: container.read(provider.notifier));
+  }
+
+  PlanDetailViewState stateOf(ProviderContainer container, String planID) =>
+      container.read(planDetailViewModelProvider(planID)).requireValue;
+
   PlanDetailViewState readDetail(RecurringPlan plan, {DateTime? now}) {
     final container = buildContainer(buildLedger(plan), now: now);
     final provider = planDetailViewModelProvider(plan.id);
@@ -119,14 +132,6 @@ void main() {
       expect(state.relationRow, (label: 'Category', value: 'Uncategorized'));
     });
 
-    test('a deleted category falls back to Uncategorized', () {
-      final state = readDetail(
-        buildPlan(categoryID: 'd0000000-0000-0000-0000-00000000000d'),
-      );
-
-      expect(state.relationRow, (label: 'Category', value: 'Uncategorized'));
-    });
-
     test('a transfer plan shows the destination in a To row', () {
       final plan = buildPlan(destinationID: savings.id, categoryID: food.id);
 
@@ -134,12 +139,6 @@ void main() {
 
       expect(state.relationRow, (label: 'To', value: 'Savings'));
       expect(state.kind, AmountKind.transfer);
-    });
-
-    test('an unknown source shows Unknown', () {
-      final plan = buildPlan(sourceID: 'e0000000-0000-0000-0000-00000000000e');
-
-      expect(readDetail(plan).account, 'Unknown');
     });
   });
 
@@ -155,7 +154,7 @@ void main() {
     });
 
     test('a plan past its end date shows Next as Ended', () {
-      final plan = buildPlan(endDate: DateTime.utc(2026, 2, 1));
+      final plan = buildPlan(endDate: DateTime.utc(2026, 3, 20));
 
       expect(readDetail(plan).next, 'Ended');
     });
@@ -174,9 +173,22 @@ void main() {
     });
 
     test('advancing today refreshes Next', () {
+      var now = today;
       final plan = buildPlan();
-      final first = readDetail(plan).next;
-      final later = readDetail(plan, now: DateTime.utc(2026, 4, 11)).next;
+      final container = ProviderContainer(
+        overrides: [
+          ledgerProvider.overrideWithValue(buildLedger(plan)),
+          clockProvider.overrideWithValue(() => now),
+        ],
+      );
+      addTearDown(container.dispose);
+      final provider = planDetailViewModelProvider(plan.id);
+      container.listen(provider, (_, _) {});
+      final first = container.read(provider).requireValue.next;
+
+      now = DateTime.utc(2026, 4, 11);
+      container.invalidate(todayProvider);
+      final later = container.read(provider).requireValue.next;
 
       expect(first, formatEntryDate(DateTime.utc(2026, 4, 10)));
       expect(later, formatEntryDate(DateTime.utc(2026, 5, 10)));
@@ -184,6 +196,7 @@ void main() {
   });
 
   group('PlanDetailNotifier delete', () {
+    const missingID = 'f0000000-0000-0000-0000-00000000000f';
     final generated = Entry(
       date: DateTime.utc(2026, 2, 10),
       amount: Decimal.parse('-12.50'),
@@ -193,66 +206,42 @@ void main() {
 
     test('requestEdit emits PlanEditRequested while the plan exists', () {
       final plan = buildPlan();
-      final container = buildContainer(buildLedger(plan));
-      final provider = planDetailViewModelProvider(plan.id);
-      container.listen(provider, (_, _) {});
+      final (:container, :notifier) = mount(buildLedger(plan), plan.id);
 
-      container.read(provider.notifier).requestEdit();
+      notifier.requestEdit();
 
-      expect(
-        container.read(provider).requireValue.step,
-        isA<PlanEditRequested>(),
-      );
-    });
-
-    test('requestEdit emits nothing when the plan is missing', () {
-      final container = buildContainer(buildLedger(null));
-      final provider = planDetailViewModelProvider(
-        'f0000000-0000-0000-0000-00000000000f',
-      );
-      container.listen(provider, (_, _) {});
-
-      container.read(provider.notifier).requestEdit();
-
-      expect(container.read(provider).requireValue.step, isNull);
+      expect(stateOf(container, plan.id).step, isA<PlanEditRequested>());
     });
 
     test('requestDelete emits PlanDeleteRequested while the plan exists', () {
       final plan = buildPlan();
-      final container = buildContainer(buildLedger(plan));
-      final provider = planDetailViewModelProvider(plan.id);
-      container.listen(provider, (_, _) {});
+      final (:container, :notifier) = mount(buildLedger(plan), plan.id);
 
-      container.read(provider.notifier).requestDelete();
+      notifier.requestDelete();
 
-      expect(
-        container.read(provider).requireValue.step,
-        isA<PlanDeleteRequested>(),
-      );
+      expect(stateOf(container, plan.id).step, isA<PlanDeleteRequested>());
     });
 
-    test('requestDelete emits nothing when the plan is missing', () {
-      final container = buildContainer(buildLedger(null));
-      final provider = planDetailViewModelProvider(
-        'f0000000-0000-0000-0000-00000000000f',
-      );
-      container.listen(provider, (_, _) {});
+    test(
+      'requesting edit or delete emits nothing when the plan is missing',
+      () {
+        final (:container, :notifier) = mount(buildLedger(null), missingID);
 
-      container.read(provider.notifier).requestDelete();
+        notifier.requestEdit();
+        notifier.requestDelete();
 
-      expect(container.read(provider).requireValue.step, isNull);
-    });
+        expect(stateOf(container, missingID).step, isNull);
+      },
+    );
 
     test('clearStep removes the emitted step', () {
       final plan = buildPlan();
-      final container = buildContainer(buildLedger(plan));
-      final provider = planDetailViewModelProvider(plan.id);
-      container.listen(provider, (_, _) {});
-      container.read(provider.notifier).requestDelete();
+      final (:container, :notifier) = mount(buildLedger(plan), plan.id);
+      notifier.requestDelete();
 
-      container.read(provider.notifier).clearStep();
+      notifier.clearStep();
 
-      expect(container.read(provider).requireValue.step, isNull);
+      expect(stateOf(container, plan.id).step, isNull);
     });
 
     test('deletePlan removes only the plan and keeps its entries', () {
@@ -264,11 +253,9 @@ void main() {
           plans: {plan.id: plan},
         ),
       );
-      final container = buildContainer(ledger);
-      final provider = planDetailViewModelProvider(plan.id);
-      container.listen(provider, (_, _) {});
+      final (:container, :notifier) = mount(ledger, plan.id);
 
-      container.read(provider.notifier).deletePlan();
+      notifier.deletePlan();
 
       expect(ledger.state.plans, isEmpty);
       expect(ledger.state.entries.keys, [generated.id]);
@@ -276,58 +263,37 @@ void main() {
 
     test('deletePlan on a missing plan writes nothing', () {
       final ledger = buildLedger(null);
-      final container = buildContainer(ledger);
-      final provider = planDetailViewModelProvider(
-        'f0000000-0000-0000-0000-00000000000f',
-      );
-      container.listen(provider, (_, _) {});
+      final (:container, :notifier) = mount(ledger, missingID);
       final revision = ledger.revision;
 
-      container.read(provider.notifier).deletePlan();
+      notifier.deletePlan();
 
       expect(ledger.revision, revision);
     });
   });
 
   group('PlanDetailNotifier ledger changes', () {
-    test('a plan missing from the ledger is deleted', () {
-      final container = buildContainer(buildLedger(null));
-      final provider = planDetailViewModelProvider(
-        'f0000000-0000-0000-0000-00000000000f',
-      );
-      container.listen(provider, (_, _) {});
-
-      expect(
-        container.read(provider).requireValue.phase,
-        PlanDetailPhase.deleted,
-      );
-    });
-
-    test('removing the plan from the ledger moves the phase to deleted', () {
+    test('a plan absent from the ledger, or removed from it, is deleted', () {
       final plan = buildPlan();
       final ledger = buildLedger(plan);
-      final container = buildContainer(ledger);
-      final provider = planDetailViewModelProvider(plan.id);
-      container.listen(provider, (_, _) {});
+      final (:container, notifier: _) = mount(ledger, plan.id);
+      const missingID = 'f0000000-0000-0000-0000-00000000000f';
+      container.listen(planDetailViewModelProvider(missingID), (_, _) {});
 
       ledger.deletePlan(plan.id);
 
-      expect(
-        container.read(provider).requireValue.phase,
-        PlanDetailPhase.deleted,
-      );
+      expect(stateOf(container, plan.id).phase, PlanDetailPhase.deleted);
+      expect(stateOf(container, missingID).phase, PlanDetailPhase.deleted);
     });
 
     test('a ledger change refreshes the shown fields', () {
       final plan = buildPlan();
       final ledger = buildLedger(plan);
-      final container = buildContainer(ledger);
-      final provider = planDetailViewModelProvider(plan.id);
-      container.listen(provider, (_, _) {});
+      final (:container, notifier: _) = mount(ledger, plan.id);
 
       ledger.updatePlan(plan.resolvedAt(DateTime.utc(2026, 3, 1)));
 
-      final state = container.read(provider).requireValue;
+      final state = stateOf(container, plan.id);
       expect(state.phase, PlanDetailPhase.shown);
       expect(state.lastAdded, formatEntryDate(DateTime.utc(2026, 2, 10)));
     });

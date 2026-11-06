@@ -8,6 +8,7 @@ const _hostLabel = 'host';
 const _dialogTitle = 'Delete the thing?';
 const _dialogBody = 'It will be gone.';
 const _outsideTap = Offset(2, 2);
+const _partialPump = Duration(milliseconds: 10);
 
 Future<BuildContext> _pumpHost(WidgetTester tester) async {
   await tester.pumpWidget(
@@ -16,14 +17,16 @@ Future<BuildContext> _pumpHost(WidgetTester tester) async {
   return tester.element(find.text(_hostLabel));
 }
 
+Future<bool> _show(BuildContext context) => showDestructiveConfirmation(
+  context,
+  title: _dialogTitle,
+  body: _dialogBody,
+);
+
 void main() {
   testWidgets('Delete returns true', (tester) async {
     final context = await _pumpHost(tester);
-    final future = showDestructiveConfirmation(
-      context,
-      title: _dialogTitle,
-      body: _dialogBody,
-    );
+    final future = _show(context);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Delete'));
@@ -34,11 +37,7 @@ void main() {
 
   testWidgets('Cancel returns false', (tester) async {
     final context = await _pumpHost(tester);
-    final future = showDestructiveConfirmation(
-      context,
-      title: _dialogTitle,
-      body: _dialogBody,
-    );
+    final future = _show(context);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Cancel'));
@@ -49,11 +48,7 @@ void main() {
 
   testWidgets('Back returns false', (tester) async {
     final context = await _pumpHost(tester);
-    final future = showDestructiveConfirmation(
-      context,
-      title: _dialogTitle,
-      body: _dialogBody,
-    );
+    final future = _show(context);
     await tester.pumpAndSettle();
 
     await tester.binding.handlePopRoute();
@@ -64,11 +59,7 @@ void main() {
 
   testWidgets('outside tap returns false', (tester) async {
     final context = await _pumpHost(tester);
-    final future = showDestructiveConfirmation(
-      context,
-      title: _dialogTitle,
-      body: _dialogBody,
-    );
+    final future = _show(context);
     await tester.pumpAndSettle();
 
     await tester.tapAt(_outsideTap);
@@ -80,16 +71,12 @@ void main() {
   testWidgets('returns only after the dialog route completed', (tester) async {
     final context = await _pumpHost(tester);
     var returned = false;
-    showDestructiveConfirmation(
-      context,
-      title: _dialogTitle,
-      body: _dialogBody,
-    ).then((_) => returned = true);
+    _show(context).then((_) => returned = true);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Delete'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 10));
+    await tester.pump(_partialPump);
     expect(returned, isFalse);
 
     await tester.pumpAndSettle();

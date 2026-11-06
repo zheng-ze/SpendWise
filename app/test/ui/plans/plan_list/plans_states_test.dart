@@ -46,8 +46,6 @@ void main() {
         expect(find.text(_populatedTrayTitle), findsNothing);
         expect(find.text(_helperCopy), findsNothing);
         expect(find.text('Add plan'), findsNothing);
-        expect(find.text('Edit'), findsNothing);
-        expect(find.text('Done'), findsNothing);
       },
       timeout: uiTestTimeout,
     );

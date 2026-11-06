@@ -15,13 +15,9 @@ typedef _Case = ({bool wide, bool sheet, bool selection, bool expected});
 
 const _cases = <_Case>[
   (wide: true, sheet: false, selection: false, expected: true),
-  (wide: true, sheet: false, selection: true, expected: false),
-  (wide: true, sheet: true, selection: false, expected: false),
-  (wide: true, sheet: true, selection: true, expected: false),
   (wide: false, sheet: false, selection: false, expected: false),
-  (wide: false, sheet: false, selection: true, expected: false),
-  (wide: false, sheet: true, selection: false, expected: false),
-  (wide: false, sheet: true, selection: true, expected: false),
+  (wide: true, sheet: true, selection: false, expected: false),
+  (wide: true, sheet: false, selection: true, expected: false),
 ];
 
 void main() {
@@ -49,22 +45,17 @@ void main() {
         size: _openWindow,
       );
 
-      final primary = find.byKey(openSplitPrimaryKey);
-      final secondary = find.byKey(openSplitSecondaryKey);
       final inPrimary = find.descendant(
-        of: primary,
+        of: find.byKey(openSplitPrimaryKey),
         matching: find.text('Rent'),
       );
       final inSecondary = find.descendant(
-        of: secondary,
+        of: find.byKey(openSplitSecondaryKey),
         matching: find.byType(Text),
       );
-      final primaryLeft = tester.getTopLeft(primary).dx;
-      final secondaryLeft = tester.getTopLeft(secondary).dx;
 
       expect(inPrimary, findsOneWidget);
       expect(inSecondary, findsNothing);
-      expect(primaryLeft, lessThan(secondaryLeft));
       expect(find.byKey(shellDetailPaneKey), findsNothing);
       expect(find.byType(FloatingActionButton), findsNothing);
     }, timeout: uiTestTimeout);

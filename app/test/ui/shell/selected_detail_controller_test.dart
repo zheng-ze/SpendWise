@@ -231,26 +231,11 @@ void main() {
     expect(find.text('page b'), findsOneWidget);
   }, timeout: uiTestTimeout);
 
-  testWidgets('replacing the selection swaps the page without clearing', (
-    tester,
-  ) async {
+  testWidgets('dispose removes the page and closes the owners', (tester) async {
     final harness = await _pump(tester);
     harness.select('a');
     await harness.settle();
-
-    harness.select('b');
-    await harness.settle();
-
-    expect(find.text('page a'), findsNothing);
-    expect(find.text('page b'), findsOneWidget);
-    expect(harness.selection, 'b');
-    expect(harness.clears, isEmpty);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('dispose removes the page after the frame', (tester) async {
-    final harness = await _pump(tester);
-    harness.select('a');
-    await harness.settle();
+    harness.events.clear();
 
     harness.hostVisible.value = false;
     await harness.settle();
@@ -258,6 +243,8 @@ void main() {
     expect(find.text('page a'), findsNothing);
     expect(harness.selection, 'a');
     expect(harness.clears, isEmpty);
+    expect(harness.events, ['shown null']);
+    expect(harness.ownerOpen('a'), isFalse);
   }, timeout: uiTestTimeout);
 
   testWidgets('owners open for the selected id and report it as shown', (
@@ -295,21 +282,6 @@ void main() {
     harness.events.clear();
 
     harness.clear();
-    await harness.settle();
-
-    expect(harness.events, ['shown null']);
-    expect(harness.ownerOpen('a'), isFalse);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('dispose closes the owners and reports nothing shown', (
-    tester,
-  ) async {
-    final harness = await _pump(tester);
-    harness.select('a');
-    await harness.settle();
-    harness.events.clear();
-
-    harness.hostVisible.value = false;
     await harness.settle();
 
     expect(harness.events, ['shown null']);

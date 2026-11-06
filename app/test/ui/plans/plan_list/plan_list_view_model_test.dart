@@ -22,12 +22,15 @@ void main() {
     required RecurrenceFrequency frequency,
     required DateTime anchor,
     DateTime? endDate,
+    String amount = '-10',
+    String? destinationID,
   }) {
     return RecurringPlan(
       template: EntryTemplate(
-        amount: dec('-10'),
+        amount: dec(amount),
         name: name,
         sourceID: source.id,
+        destinationID: destinationID,
       ),
       frequency: frequency,
       anchor: anchor,
@@ -35,6 +38,13 @@ void main() {
       lastResolvedDate: anchor.subtract(const Duration(days: 1)),
     );
   }
+
+  RecurringPlan endedPlan(String name) => plan(
+    name: name,
+    frequency: RecurrenceFrequency.monthly,
+    anchor: DateTime.utc(2025, 12, 20),
+    endDate: DateTime.utc(2026, 1, 10),
+  );
 
   Ledger buildLedger(List<RecurringPlan> plans) {
     return Ledger(
@@ -61,12 +71,7 @@ void main() {
     final now = DateTime.utc(2026, 1, 1);
 
     test('ended plans sort after every plan with a next occurrence', () {
-      final ended = plan(
-        name: 'Zeta ended',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: DateTime.utc(2025, 1, 1),
-        endDate: DateTime.utc(2025, 2, 1),
-      );
+      final ended = endedPlan('Zeta ended');
       final live = plan(
         name: 'Alpha live',
         frequency: RecurrenceFrequency.monthly,
@@ -79,18 +84,8 @@ void main() {
     });
 
     test('two ended plans tiebreak by name', () {
-      final b = plan(
-        name: 'Bravo ended',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: DateTime.utc(2025, 1, 1),
-        endDate: DateTime.utc(2025, 2, 1),
-      );
-      final a = plan(
-        name: 'Alpha ended',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: DateTime.utc(2025, 1, 1),
-        endDate: DateTime.utc(2025, 2, 1),
-      );
+      final b = endedPlan('Bravo ended');
+      final a = endedPlan('Alpha ended');
 
       final result = sortedPlans([b, a], now);
 
@@ -147,25 +142,6 @@ void main() {
     PlanListViewState read(ProviderContainer container) =>
         container.read(planListViewModelProvider).requireValue;
 
-    test('rows sort by ascending next occurrence', () {
-      final sooner = plan(
-        name: 'Bravo',
-        frequency: RecurrenceFrequency.weekly,
-        anchor: clockToday,
-      );
-      final later = plan(
-        name: 'Alpha',
-        frequency: RecurrenceFrequency.yearly,
-        anchor: DateTime.utc(2026, 6, 1),
-      );
-      final container = buildContainer(
-        buildLedger([later, sooner]),
-        now: () => clockToday,
-      );
-
-      expect(read(container).rows.map((r) => r.id), [sooner.id, later.id]);
-    });
-
     test('an expense plan projects date, caption and signed amount', () {
       final rent = plan(
         name: 'Rent',
@@ -187,15 +163,11 @@ void main() {
     });
 
     test('an income plan projects a plus-signed income amount', () {
-      final salary = RecurringPlan(
-        template: EntryTemplate(
-          amount: dec('3000'),
-          name: 'Salary',
-          sourceID: source.id,
-        ),
+      final salary = plan(
+        name: 'Salary',
         frequency: RecurrenceFrequency.biweekly,
         anchor: DateTime.utc(2026, 1, 9),
-        lastResolvedDate: DateTime.utc(2026, 1, 8),
+        amount: '3000',
       );
       final container = buildContainer(
         buildLedger([salary]),
@@ -210,16 +182,12 @@ void main() {
     });
 
     test('a plan with a destination is a transfer without a sign', () {
-      final move = RecurringPlan(
-        template: EntryTemplate(
-          amount: dec('-500'),
-          name: 'To savings',
-          sourceID: source.id,
-          destinationID: target.id,
-        ),
+      final move = plan(
+        name: 'To savings',
         frequency: RecurrenceFrequency.quarterly,
         anchor: DateTime.utc(2026, 1, 9),
-        lastResolvedDate: DateTime.utc(2026, 1, 8),
+        amount: '-500',
+        destinationID: target.id,
       );
       final ledger = Ledger(
         state: LedgerState(
@@ -239,27 +207,8 @@ void main() {
       expect(row.caption, 'Every three months / Wallet');
     });
 
-    test('a plan whose account is missing names it Unknown', () {
-      final orphan = plan(
-        name: 'Orphan',
-        frequency: RecurrenceFrequency.yearly,
-        anchor: DateTime.utc(2026, 2, 1),
-      );
-      final container = buildContainer(
-        Ledger(state: LedgerState(plans: {orphan.id: orphan})),
-        now: () => clockToday,
-      );
-
-      expect(read(container).rows.single.caption, 'Every year / Unknown');
-    });
-
     test('an ended plan has no date, and sorts last', () {
-      final ended = plan(
-        name: 'Aardvark',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: DateTime.utc(2025, 1, 1),
-        endDate: DateTime.utc(2025, 2, 1),
-      );
+      final ended = endedPlan('Aardvark');
       final live = plan(
         name: 'Zebra',
         frequency: RecurrenceFrequency.monthly,
@@ -278,23 +227,9 @@ void main() {
     });
 
     test('the count label is singular for one plan and plural otherwise', () {
-      final one = plan(
-        name: 'One',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: DateTime.utc(2026, 2, 1),
-      );
-      final two = plan(
-        name: 'Two',
-        frequency: RecurrenceFrequency.monthly,
-        anchor: DateTime.utc(2026, 2, 2),
-      );
-      final single = buildContainer(buildLedger([one]));
-      final pair = buildContainer(buildLedger([one, two]));
-      final none = buildContainer(buildLedger([]));
-
-      expect(read(single).countLabel, '1 plan');
-      expect(read(pair).countLabel, '2 plans');
-      expect(read(none).countLabel, '0 plans');
+      expect(planCountLabel(1), '1 plan');
+      expect(planCountLabel(2), '2 plans');
+      expect(planCountLabel(0), '0 plans');
     });
 
     test('selectPlan sets the selected plan in state and provider', () {

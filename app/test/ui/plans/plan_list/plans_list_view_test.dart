@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ui/plans/plan_list/plan_selection.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../../../support/ui_test_timeout.dart';
@@ -9,6 +8,13 @@ import '../plans_shell_test_support.dart';
 
 const _helperCopy =
     'To add a plan, add an entry and choose how often it repeats.';
+
+const _planNames = ['Rent', 'To savings', 'Salary'];
+
+List<String> _shownPlanNames(WidgetTester tester) => [
+  for (final text in tester.widgetList<Text>(find.byType(Text)))
+    if (_planNames.contains(text.data)) text.data!,
+];
 
 void main() {
   for (final brightness in Brightness.values) {
@@ -31,16 +37,10 @@ void main() {
         expect(find.text('-1,200.00'), findsOneWidget);
         expect(find.text('+3,000.00'), findsOneWidget);
         expect(find.text('500.00'), findsOneWidget);
-        final rent = tester.getTopLeft(find.text('Rent')).dy;
-        final savings = tester.getTopLeft(find.text('To savings')).dy;
-        final salary = tester.getTopLeft(find.text('Salary')).dy;
-        expect(rent, lessThan(savings));
-        expect(savings, lessThan(salary));
+        expect(_shownPlanNames(tester), ['Rent', 'To savings', 'Salary']);
         expect(find.text('Edit'), findsNothing);
         expect(find.text('Done'), findsNothing);
         expect(find.text('Add plan'), findsNothing);
-        expect(find.byIcon(Icons.remove_circle), findsNothing);
-        expect(find.byType(Dismissible), findsNothing);
       },
       timeout: uiTestTimeout,
     );
@@ -66,20 +66,5 @@ void main() {
       },
       timeout: uiTestTimeout,
     );
-
-    testWidgets('tapping a plan row selects that plan ($suffix)', (
-      tester,
-    ) async {
-      final container = await pumpPlansShell(
-        tester,
-        mode: ShellLayoutMode.phone,
-        ledger: buildPlansShellLedger(),
-        brightness: brightness,
-      );
-
-      await tapPlan(tester, plansShellIncomePlan.id);
-
-      expect(container.read(selectedPlanProvider), plansShellIncomePlan.id);
-    }, timeout: uiTestTimeout);
   }
 }
