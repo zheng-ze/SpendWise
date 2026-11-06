@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: f9c2bb9f
+Last reconciled: ae736584
 
 ## Feature overview
 
@@ -135,7 +135,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   opens, invalidates `entryFormViewModelProvider(entryId)` on every open so each open starts from
   persisted values, and tracks one owner per entry through claim tokens. `EditEntryHost` claims
   ownership, subscribes to the form view model and dispatches its Steps from its own context with
-  `sheetPresentation: accountSheetPresentation`. It removes still-active picker routes on dispose and
+  `sheetPresentation: shellSheetPresentation`. It removes still-active picker routes on dispose and
   shows a load alert with Retry. Callers are `EntryRow`, the budget counted row, `OverviewFlow` and
   `TransactionsFlow`; on open and desktop layouts the unscoped History hosts the same
   `EditEntryHost` in the shell detail pane through `_HistoryPaneHost` and
@@ -178,10 +178,10 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   work after their route disposes. The sheet-form view models are not yet under this rule.
   `accountFormViewModelProvider`, `sourceEditFormViewModelProvider`, `entryFormViewModelProvider` and
   `receiptEntryCoordinatorProvider` are invalidated by hand (in `account_form.dart`,
-  `source_edit_form.dart`, `new_entry_presenter.dart` and `edit_entry_presenter.dart`). `categoryFormViewModelProvider`,
-  `planFormViewModelProvider` and `entryFormDisplayProvider` have no manual invalidation and live for
-  the container's lifetime, so a reopened category or plan form may show a previous draft. That has
-  not been reproduced.
+  `source_edit_form.dart`, `new_entry_presenter.dart` and `edit_entry_presenter.dart`). `categoryFormViewModelProvider`
+  and `entryFormDisplayProvider` have no manual invalidation and live for the container's lifetime, so
+  a reopened category form may show a previous draft. That has not been reproduced.
+  `planFormViewModelProvider` is autoDispose, so it resets once nothing watches it.
 - **One ViewModel per View**; shared presentation widgets own no ViewModel because they never read
   Riverpod state (zero `ConsumerWidget`/`WidgetRef` usage).
 - **AppShell** gets no ViewModel: its only state is the layout mode, no async
@@ -254,12 +254,13 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   desktop sidebar remains mounted. (`app/lib/ui/shell/shell_pane_geometry.dart`,
   `app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/desktop_sidebar.dart`)
 
-  Selected detail belongs to the feature. Budgets uses a managed root detail page only on phone,
-  reconciled after the frame from current selection, mode and AppSheet occupancy. Entering open
-  or desktop removes that tracked page as a presentation-only change. A matching phone page stays
-  when a sheet opens; a new phone push waits until every AppSheet completes. User Back clears the
-  selection, while Flow-owned removal preserves it. See [budgets.md](budgets.md) for the route
-  completion and subscription contracts (`app/lib/ui/budgets/budget_list/budgets_flow.dart`).
+  Selected detail belongs to the feature. Budgets and Plans use a managed root detail page only on
+  phone, reconciled by the shared `SelectedDetailController` after the frame from current selection,
+  mode and AppSheet occupancy. Entering open or desktop removes that tracked page as a
+  presentation-only change. A matching phone page stays when a sheet opens; a new phone push waits
+  until every AppSheet completes. User Back clears the selection, while Flow-owned removal preserves
+  it. See [budgets.md](budgets.md) for the route completion and subscription contracts
+  (`app/lib/ui/shell/selected_detail_controller.dart`, `app/lib/ui/budgets/budget_list/budgets_flow.dart`).
   Trends is an in-page exception to this managed selected-detail presentation:
   open and desktop modes compose its selected-period content in `TrendsOpenLayout`,
   while Category Detail remains a nested route opened by the Trends Flow
@@ -362,16 +363,54 @@ value, which then overwrites it. (issue #38)
   the rail, while an IgnorePointer layer dims only the pane region. The open
   dialog has a 308 dp maximum width and bounded scrolling. Phone and desktop
   remain centred over the full window. Delete and recycle-bin purge helpers
-  use this route and map null to false, preserving their wording and results. The budget delete
-  confirmation (`showBudgetDeleteConfirmation`) also uses it; it is a plain modal route that shell
-  occupancy does not track.
+  use this route and map null to false, preserving their wording and results. The shared
+  `showDestructiveConfirmation` (`app/lib/ui/common/feedback/destructive_confirmation.dart`) also uses
+  it, for the budget delete, the plan delete and the recycle-bin purge. It is a plain modal route that
+  shell occupancy does not track, and it returns only after the dialog route completes. The
+  `SwipeRow` confirmation (`showDeleteConfirmation`) is a separate custom Dialog and is not migrated.
   (`app/lib/ui/shell/shell_confirmation.dart`,
-  `app/lib/ui/budgets/budget_detail/budget_delete_confirmation.dart`,
   `app/lib/ui/common/feedback/delete_confirmation.dart`,
   `app/lib/ui/settings/recycle_bin/recycle_bin_purge_dialog.dart`)
 - **Destructive confirmation styling** - the confirm action is a filled button
   in the error token with the on-action label colour; cancel stays text.
   (`app/lib/ui/common/feedback/delete_confirmation.dart`)
+
+## Shared feature helpers
+
+These helpers were extracted when Plans was built and migrated the existing Budgets, Accounts,
+Overview, History and Recycle bin callers without behavior change, except for the purge timing noted
+under the confirmation helper.
+
+- **`shellSheetPresentation(context)`** (`app/lib/ui/shell/shell_sheet_presentation.dart`) maps the
+  shell layout mode to `AppSheetPresentation`, falling back to phone without a scope.
+  `sheetPresentationForMode` is the pure mapping. It replaces the former per-feature resolvers, and
+  every AppSheet caller passes it as both presentation and live resolver.
+- **`IdSelectionNotifier`** (`app/lib/ui/common/base/id_selection.dart`) is a `Notifier<String?>` with
+  `select` and `clear`. `selectedBudgetProvider`, `selectedPlanProvider` and
+  `HistoryEntrySelectionNotifier` use it; the History notifier overrides `build` for its phone reset.
+- **`ShellPane`** (`app/lib/ui/shell/shell_pane_host.dart`) is a record of a `ShellDetail` and a `close`
+  callback. `budgetPaneProvider` and `planPaneProvider` return `ShellPane?`, and `MoneyFlow` watches only
+  the visible segment's provider, with a `PopScope` that closes the pane.
+- **`showDestructiveConfirmation`** (`app/lib/ui/common/feedback/destructive_confirmation.dart`) shows a
+  titled AlertDialog through `showShellConfirmation`, with Cancel and a filled error-token confirm
+  button. It returns false on Cancel, Back or an outside tap, and returns only after the dialog route
+  completes. Budget delete, plan delete and recycle-bin purge use it. Purge previously returned before
+  the dialog finished its exit animation; now it waits.
+- **`DateBadge`** (`app/lib/ui/common/lists/date_badge.dart`) renders a day over a month in a fixed-width
+  column, used by Overview's Coming up rows and by Plans rows.
+- **`FormSheetLoading` and `FormSheetLoadError`** (`app/lib/ui/common/sheets/form_sheet_load_states.dart`)
+  are the loading and load-error states of a form AppSheet. The caller supplies the title, message and
+  footer. Budget form, budget limit editor and Plan edit use them.
+- **`SheetSession`** (`app/lib/ui/common/sheets/sheet_session.dart`) holds one sheet's route, Step
+  subscription and retired flag. It provides `retire` (idempotent, removes the route after the frame),
+  `dismiss` (pops when current, removes when covered), `end` and `endWhenCompleted`. Budgets' form and
+  edit sessions and Plans' edit session compose it.
+- **`SelectedDetailController`** (`app/lib/ui/shell/selected_detail_controller.dart`) keeps a feature's
+  phone detail page reconciled with its selection. It also opens, replaces and closes the feature's
+  owner subscriptions for the shown ID, and reports shown-ID changes so the feature can retire its
+  sheet session. Budgets and Plans use it. See [budgets.md](budgets.md).
+- **`OpenSplitLayout`** (`app/lib/ui/common/layout/open_split_layout.dart`) lays out a primary and a
+  secondary column at a 3:2 flex ratio with a named gap. Plans is the first caller.
 
 ## Sheet and component kit
 
@@ -419,9 +458,10 @@ value, which then overwrites it. (issue #38)
   `app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_pane_host.dart`)
   Sheets dismiss through their mounted route context or captured exact route. A Flow's
   `navigatorContext` can refer to a different Navigator. Budgets ships this exact-route session
-  pattern: `_FormSession` and `_EditSession` in `budgets_flow.dart` capture the sheet's
-  `AppSheetRoute` through `onRouteCreated`, dismiss it with `pop` when current or `removeRoute`
-  when covered, and end at `route.completed`. The Edit flow installs its next surface from the action
+  pattern: `_FormSession` and `_EditSession` in `budgets_flow.dart` each hold a shared `SheetSession`
+  that captures the sheet's `AppSheetRoute` through `onRouteCreated`, dismisses it with `pop` when
+  current or `removeRoute` when covered, and ends at `route.completed`. Plans' edit session uses the
+  same `SheetSession`. The Edit flow installs its next surface from the action
   sheet's pop-result continuation, before that route's `completed` fires, so shell occupancy stays
   continuous. Retirement removes the route after the frame ends.
   No timer or captured pane owner is involved. See [budgets.md](budgets.md).

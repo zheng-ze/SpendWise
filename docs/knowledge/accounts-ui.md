@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: 7cc26306
+Last reconciled: ae736584
 
 ## Feature overview
 
@@ -20,16 +20,44 @@ previous segment and resets its state; Money opens at Accounts again after the d
 its own root page (`HeaderedPage`), so the header is part of the segment and a route pushed over the
 root, such as a scoped Transactions screen, covers it and owns its own heading. The header shows
 Money and one segmented control; only Budgets shows the month selector. Accounts supplies Add
-account, and Plans supplies Edit/Done. On open and desktop, only the mounted Budgets segment supplies
-`ShellPaneHost` with a budget detail; Accounts and Plans supply none.
+account; Plans supplies no header action and no floating action. On open and desktop, `MoneyFlow`
+resolves one `ShellPane` from the visible segment only: `budgetPaneProvider` for Budgets,
+`planPaneProvider` for Plans, and none for Accounts. It passes that pane to `ShellPaneHost`, and a
+`PopScope` closes it on system Back, so a segment that supplies no pane never intercepts Back.
 (`app/lib/ui/money/money_flow.dart`, `app/lib/ui/money/money_header.dart`,
 `app/lib/ui/money/money_segment.dart`, `app/lib/ui/budgets/budget_detail/budget_pane.dart`,
-`accounts_flow.dart`, `accounts_screen.dart`, `app/lib/ui/settings/plan/plan_list_screen.dart`)
+`app/lib/ui/plans/plan_pane.dart`, `app/lib/ui/shell/shell_pane_host.dart`, `accounts_flow.dart`,
+`accounts_screen.dart`)
 
 The Budgets month choice (`budgetsMonthChoiceProvider`) is an autoDispose provider watched only by
 Budgets views and the Budgets month selector in the header. It falls back to the month of today and
 resets when Budgets is unmounted, that is, when another segment or destination is selected. Plans
 has one presentation owner in Money; Settings has no recurring-plan entry.
+
+## Plans segment
+
+`PlansFlow` (`app/lib/ui/plans/plans_flow.dart`) hosts the Plans segment. Its root is a "Next up"
+tray of plans sorted by next occurrence, with a count aside and one `MedallionRow` per plan whose
+leading `DateBadge` shows the next date (`plans_list_view.dart`, `plan_list_view_model.dart`). The
+root has no Add plan control, no Edit/Done toggle and no swipe delete: plans are created only from
+Repeat in Add entry. The empty state and the load error (Try again invalidates the provider) use the
+shared `EmptyState` and `AsyncValueView`.
+
+A row tap calls `selectPlan`, which sets `selectedPlanProvider` (`plan_selection.dart`, an autoDispose
+`IdSelectionNotifier`). On phone, `PlansFlow` pushes `PlanDetailScreen` through the shared
+`SelectedDetailController`. On open and desktop, `planPaneProvider` returns a `ShellPane` with a Close
+control, and `MoneyFlow` shows it in the right pane. The detail content (`plan_detail_content.dart`)
+shows the signed amount, frequency, and key-value rows for Next, Account, Category (or To for a
+transfer), Started, Last added and Ends, followed by Edit plan and Delete plan. The view model is
+`planDetailViewModelProvider`, an autoDispose family keyed by plan ID.
+
+Edit plan opens the AppSheet form in `plan_form.dart` (`showPlanFormSheet`, header "Edit plan", footer
+"Save plan", no Cancel) through one `SheetSession` owned by `PlansFlow`. Delete plan asks through
+`showDestructiveConfirmation` with the title "Delete the <name> plan?" and the body "Entries it already
+added stay in History.", then deletes only the plan. On open and desktop, the list uses
+`OpenSplitLayout` (3:2) only when `plansWideComposition` is true, which means no sheet and no selection.
+The secondary column is empty and reserved for #323, and no floating action is shown. The needs-attention
+notice is out of scope (issue 593).
 
 ## Key files
 
@@ -40,6 +68,7 @@ has one presentation owner in Money; Settings has no recurring-plan entry.
 - `app/lib/ui/accounts/account_form/` - the New Account / New Subpocket sheet.
 - `app/lib/ui/accounts/source_edit/` - the Edit Account / Edit Subpocket sheet.
 - `app/lib/ui/common/pickers/` - the account type and day pickers.
+- `app/lib/ui/plans/` - the Plans segment (see "Plans segment").
 - `packages/domain/lib/src/accounting.dart` - `accountTotal`, `netWorth`, `balance` (see
   `recurring-plans-and-accounting.md`).
 
@@ -79,7 +108,7 @@ Navigator is not mounted), roots and untagged routes. Leaving the Accounts segme
 (`app/lib/ui/money/money_flow.dart`: `activeMoneySourceProvider`,
 `app/lib/ui/accounts/money_navigation.dart`: `scopedRegisterSourceId`)
 
-Account and source-edit forms use root `showAppSheet` routes with `accountSheetPresentation` as the
+Account and source-edit forms use root `showAppSheet` routes with `shellSheetPresentation` as the
 live resolver. `showAccountFormSheet` and `showSourceEditFormSheet` capture the exact route and wait
 for `route.completed` before invalidating their form providers. Installed/exiting AppSheet occupancy
 comes from the shared `shellSheetOccupancyProvider`; callers set no manual presentation flag.
@@ -88,7 +117,7 @@ and bottom sheets on phone. Nested account type, day and parent AppSheets inheri
 through their nearest non-AppSheet predecessor. The page slot's stable isolation wrappers keep
 Money, Budgets and Accounts Flow State mounted while a budget detail shifts under another sheet.
 (`app/lib/ui/accounts/account_form/account_form.dart`, `source_edit/source_edit_form.dart`,
-`account_sheet_presentation.dart`, `app/lib/ui/common/sheets/app_sheet_route.dart`,
+`app/lib/ui/shell/shell_sheet_presentation.dart`, `app/lib/ui/common/sheets/app_sheet_route.dart`,
 `app/lib/ui/shell/shell_pane_host.dart`)
 
 ## Screens and flows
