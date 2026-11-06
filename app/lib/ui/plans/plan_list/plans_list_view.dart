@@ -123,9 +123,8 @@ class _PlanRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final day = row.day;
-    final month = row.month;
-    final leading = day == null || month == null
+    final nextDate = row.nextDate;
+    final leading = nextDate == null
         ? SizedBox(
             width: _endedWidth,
             child: Text(
@@ -134,7 +133,7 @@ class _PlanRow extends StatelessWidget {
               style: TextStyle(fontSize: _endedFontSize, color: colors.subtext),
             ),
           )
-        : DateBadge(day: day, month: month);
+        : DateBadge(day: nextDate.day, month: nextDate.month);
     final amountStyle = context.text.small.copyWith(
       color: AmountStyle.of(context, kind: row.kind).color,
     );

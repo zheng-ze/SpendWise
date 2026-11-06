@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/plans/plan_detail/plan_detail_content.dart';
 import 'package:spendwise/ui/plans/plan_detail/plan_detail_view_model.dart';
 import 'package:spendwise/ui/plans/plan_list/plan_selection.dart';
@@ -9,17 +8,7 @@ import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 // MARK: - Constants
-const _paneScrollPhysics = ClampingScrollPhysics();
 const _missingPlanTitle = '';
-
-// MARK: - PlanPaneTitle
-final planPaneTitleProvider = Provider.autoDispose.family<String, String>((
-  ref,
-  planID,
-) {
-  final plan = ref.watch(ledgerProvider)?.state.plans[planID];
-  return plan?.template.name ?? _missingPlanTitle;
-});
 
 // MARK: - PlanPane
 final planPaneProvider = Provider.autoDispose<ShellPane?>((ref) {
@@ -27,9 +16,13 @@ final planPaneProvider = Provider.autoDispose<ShellPane?>((ref) {
   final phone = ref.watch(shellLayoutModeProvider) == ShellLayoutMode.phone;
   if (planID == null || phone) return null;
   void close() => ref.read(selectedPlanProvider.notifier).clear();
+  final title = ref.watch(
+    planDetailViewModelProvider(planID)
+        .select((state) => state.value?.name ?? _missingPlanTitle),
+  );
   final detail = ShellDetail(
     id: planID,
-    title: ref.watch(planPaneTitleProvider(planID)),
+    title: title,
     bodyBuilder: (_) => PlanPaneBody(planID: planID),
     onClose: close,
   );
@@ -47,11 +40,10 @@ class PlanPaneBody extends ConsumerWidget {
     final provider = planDetailViewModelProvider(planID);
     final viewState = ref.watch(provider).value;
     if (viewState == null) return const SizedBox.shrink();
-    final content = PlanDetailContent(
+    return PlanDetailContent(
       viewState: viewState,
       onEdit: ref.read(provider.notifier).requestEdit,
       onDelete: ref.read(provider.notifier).requestDelete,
     );
-    return ListView(physics: _paneScrollPhysics, children: [content]);
   }
 }

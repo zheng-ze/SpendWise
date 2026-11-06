@@ -3,19 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
-
 const _badgeWidth = 30.0;
-
 const _dayFontSize = 18.0;
-
 const _dayFontWeight = FontWeight.w600;
-
 const _monthFontSize = 10.0;
-
 const _badgeLineHeight = 1.05;
 
 // MARK: - DateBadge
-
 class DateBadge extends StatelessWidget {
   const DateBadge({super.key, required this.day, required this.month});
 

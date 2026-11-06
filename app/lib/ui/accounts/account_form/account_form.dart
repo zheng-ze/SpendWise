@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_view_model.dart';
+import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
@@ -17,8 +18,6 @@ import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Visual Constants
-
-const _fieldContentPadding = EdgeInsets.zero;
 
 // MARK: - Helpers
 Future<void> showAccountFormSheet({
@@ -214,14 +213,10 @@ class _AccountFormBody extends StatelessWidget {
             onChanged: viewModel.setBalance,
           ),
         ] else
-          Material(
-            type: MaterialType.transparency,
-            child: ListTile(
-              contentPadding: _fieldContentPadding,
-              title: const Text('Account'),
-              trailing: Text(_parentLabel() ?? 'Select'),
-              onTap: viewModel.requestPickParent,
-            ),
+          FormSheetRow(
+            label: 'Account',
+            trailing: Text(_parentLabel() ?? 'Select'),
+            onTap: viewModel.requestPickParent,
           ),
         ErrorSection(subject: 'account', error: formState.error),
       ],

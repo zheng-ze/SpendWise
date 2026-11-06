@@ -9,6 +9,7 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
 const _contentPadding = EdgeInsets.all(12);
+const _scrollPhysics = ClampingScrollPhysics();
 const _frequencyGap = 2.0;
 const _rowsTopGap = 6.0;
 const _buttonsTopGap = 12.0;
@@ -85,7 +86,8 @@ class PlanDetailContent extends StatelessWidget {
       ),
     );
 
-    return Padding(padding: _contentPadding, child: tray);
+    final padded = Padding(padding: _contentPadding, child: tray);
+    return ListView(physics: _scrollPhysics, children: [padded]);
   }
 }
 

@@ -38,16 +38,16 @@ void main() {
 
   Future<PlanFormNotifier> openForm(
     ProviderContainer container,
-    String planId,
+    String planID,
   ) async {
-    final provider = planFormViewModelProvider(planId);
+    final provider = planFormViewModelProvider(planID);
     container.listen(provider, (_, _) {});
     await container.read(provider.future);
     return container.read(provider.notifier);
   }
 
-  PlanFormViewState readForm(ProviderContainer container, String planId) =>
-      container.read(planFormViewModelProvider(planId)).requireValue;
+  PlanFormViewState readForm(ProviderContainer container, String planID) =>
+      container.read(planFormViewModelProvider(planID)).requireValue;
 
   ProviderContainer buildContainer(Ledger ledger) {
     final container = ProviderContainer(
@@ -93,21 +93,6 @@ void main() {
         originalAmount: dec('10'),
       );
       expect(result, dec('75'));
-    });
-  });
-
-  group('applyPickerResult', () {
-    test('an explicit one-time choice keeps the current frequency', () {
-      final result = applyPickerResult(RecurrenceFrequency.monthly, null);
-      expect(result, RecurrenceFrequency.monthly);
-    });
-
-    test('a genuinely picked frequency replaces the current one', () {
-      final result = applyPickerResult(
-        RecurrenceFrequency.monthly,
-        RecurrenceFrequency.yearly,
-      );
-      expect(result, RecurrenceFrequency.yearly);
     });
   });
 

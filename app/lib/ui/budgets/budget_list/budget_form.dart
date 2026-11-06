@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_amount_input.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
+import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
@@ -19,7 +20,6 @@ const _retryLabel = 'Try again';
 const _loadErrorTitle = "Couldn't load the budget form";
 const _saveErrorTitle = 'Could not save budget';
 
-const _fieldContentPadding = EdgeInsets.zero;
 const _fieldGap = 16.0;
 const _footerWidth = double.infinity;
 
@@ -107,14 +107,10 @@ class _BudgetFormBody extends StatelessWidget {
       amountController.text = formState.amountText;
     }
 
-    final categoryRow = Material(
-      type: MaterialType.transparency,
-      child: ListTile(
-        contentPadding: _fieldContentPadding,
-        title: const Text(_categoryLabel),
-        trailing: Text(formState.scopeLabel),
-        onTap: viewModel.requestPickCategory,
-      ),
+    final categoryRow = FormSheetRow(
+      label: _categoryLabel,
+      trailing: Text(formState.scopeLabel),
+      onTap: viewModel.requestPickCategory,
     );
     final amount = BudgetAmountInput(
       controller: amountController,

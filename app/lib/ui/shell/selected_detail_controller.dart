@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/common/base/id_selection.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 
@@ -15,7 +15,6 @@ class SelectedDetailController {
   SelectedDetailController({
     required this.ref,
     required this.selection,
-    required this.clearSelection,
     required this.buildPage,
     required this.navigatorContext,
     required this.mounted,
@@ -24,8 +23,7 @@ class SelectedDetailController {
   });
 
   final WidgetRef ref;
-  final ProviderListenable<String?> selection;
-  final VoidCallback clearSelection;
+  final NotifierProvider<IdSelectionNotifier, String?> selection;
   final ModalRoute<Object?> Function(String id) buildPage;
   final BuildContext? Function() navigatorContext;
   final bool Function() mounted;
@@ -56,7 +54,7 @@ class SelectedDetailController {
     });
     _ledgerSubscription = ref.listenManual(ledgerProvider, (previous, next) {
       if (identical(previous, next)) return;
-      clearSelection();
+      ref.read(selection.notifier).clear();
     });
     _modeSubscription = ref.listenManual(
       shellLayoutModeProvider,
@@ -135,7 +133,7 @@ class SelectedDetailController {
       _pageID = null;
     }
     if (ref.read(selection) != id) return;
-    clearSelection();
+    ref.read(selection.notifier).clear();
   }
 
   void _removePage() {

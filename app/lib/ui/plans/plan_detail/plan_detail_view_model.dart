@@ -8,16 +8,21 @@ import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/format/analysis_bucket_name.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/plans/plan_detail/plan_last_added.dart';
-import 'package:spendwise/ui/plans/plan_detail/plan_steps.dart';
+import 'package:spendwise/ui/plans/plan_projection.dart';
 
 // MARK: - Constants
-const _unknownAccountLabel = 'Unknown';
 const _endedLabel = 'Ended';
 const _notYetLabel = 'Not yet';
 const _neverLabel = 'Never';
 const _categoryRowLabel = 'Category';
 const _destinationRowLabel = 'To';
+
+// MARK: - Steps
+sealed class PlanDetailStep {}
+
+class PlanEditRequested extends PlanDetailStep {}
+
+class PlanDeleteRequested extends PlanDetailStep {}
 
 // MARK: - PlanDetailViewState
 enum PlanDetailPhase { shown, deleted }
@@ -95,18 +100,11 @@ PlanDetailRow _relationRow(EntryTemplate template, LedgerState ledgerState) {
   if (destinationID != null) {
     return (
       label: _destinationRowLabel,
-      value: ledgerState.sourceName(destinationID) ?? _unknownAccountLabel,
+      value: planAccountName(ledgerState, destinationID),
     );
   }
   final categoryName = ledgerState.categories[template.categoryID]?.name;
   return (label: _categoryRowLabel, value: categoryName ?? uncategorizedName);
-}
-
-AmountKind _amountKind(EntryTemplate template) {
-  if (template.destinationID != null) return AmountKind.transfer;
-  return template.amount >= Decimal.zero
-      ? AmountKind.income
-      : AmountKind.expense;
 }
 
 PlanDetailViewState _shownState(
@@ -123,10 +121,10 @@ PlanDetailViewState _shownState(
     phase: PlanDetailPhase.shown,
     name: template.name,
     amount: template.amount,
-    kind: _amountKind(template),
+    kind: planAmountKind(template),
     frequencyLabel: addFrequencyLabels[plan.frequency]!,
     next: nextDate == null ? _endedLabel : formatEntryDate(nextDate),
-    account: ledgerState.sourceName(template.sourceID) ?? _unknownAccountLabel,
+    account: planAccountName(ledgerState, template.sourceID),
     relationRow: _relationRow(template, ledgerState),
     started: formatEntryDate(plan.anchor),
     lastAdded: lastAdded == null ? _notYetLabel : formatEntryDate(lastAdded),

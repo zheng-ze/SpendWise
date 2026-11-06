@@ -37,9 +37,7 @@ final _ledgerSourceProvider = NotifierProvider<_LedgerSource, Ledger?>(
 );
 
 class _Host extends ConsumerStatefulWidget {
-  const _Host({required this.clears});
-
-  final List<String?> clears;
+  const _Host();
 
   @override
   ConsumerState<_Host> createState() => _HostState();
@@ -49,7 +47,6 @@ class _HostState extends ConsumerState<_Host> {
   late final SelectedDetailController controller = SelectedDetailController(
     ref: ref,
     selection: _selectionProvider,
-    clearSelection: _clearSelection,
     buildPage: _buildPage,
     navigatorContext: () => context,
     mounted: () => mounted,
@@ -63,11 +60,6 @@ class _HostState extends ConsumerState<_Host> {
   }
 
   void _onShownChanged(String? shownID) => _events.add('shown $shownID');
-
-  void _clearSelection() {
-    widget.clears.add(ref.read(_selectionProvider));
-    ref.read(_selectionProvider.notifier).clear();
-  }
 
   ModalRoute<Object?> _buildPage(String id) => MaterialPageRoute<Object?>(
     builder: (_) => Scaffold(body: Text('page $id')),
@@ -117,7 +109,7 @@ class _Harness {
   Widget buildHome(BuildContext context) => ValueListenableBuilder<bool>(
     valueListenable: hostVisible,
     builder: (_, visible, _) =>
-        visible ? _Host(clears: clears) : const Scaffold(body: Text('gone')),
+        visible ? const _Host() : const Scaffold(body: Text('gone')),
   );
 
   AppSheetRoute<void> pushSheet() {
@@ -149,6 +141,9 @@ Future<_Harness> _pump(WidgetTester tester) async {
   );
   addTearDown(container.dispose);
   final harness = _Harness(tester, container);
+  container.listen(_selectionProvider, (previous, next) {
+    if (previous != null && next == null) harness.clears.add(previous);
+  });
   final app = MaterialApp(
     navigatorKey: harness.navigator,
     builder: buildShellAppContent,

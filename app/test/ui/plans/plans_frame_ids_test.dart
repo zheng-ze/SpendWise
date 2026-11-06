@@ -32,9 +32,9 @@ bool _isPlanTestFile(FileSystemEntity entity) {
 }
 
 List<String> _planTestSources() {
-  final planTestFiles = Directory(
-    _plansTestDirectory,
-  ).listSync(recursive: true).where(_isPlanTestFile);
+  final planTestFiles = Directory(_plansTestDirectory)
+      .listSync(recursive: true)
+      .where(_isPlanTestFile);
   return [for (final file in planTestFiles) (file as File).readAsStringSync()];
 }
 

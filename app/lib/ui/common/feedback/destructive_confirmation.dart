@@ -4,13 +4,10 @@ import 'package:spendwise/ui/shell/shell_confirmation.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
-
 const _cancelLabel = 'Cancel';
-
 const _defaultConfirmLabel = 'Delete';
 
 // MARK: - Dialog
-
 Future<bool> showDestructiveConfirmation(
   BuildContext context, {
   required String title,
@@ -34,7 +31,6 @@ Future<bool> showDestructiveConfirmation(
 }
 
 // MARK: - DestructiveDialog
-
 class _DestructiveDialog extends StatelessWidget {
   const _DestructiveDialog({
     required this.title,

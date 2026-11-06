@@ -29,7 +29,7 @@ final _nameField = find
     .first;
 
 class _FlakyPlanFormNotifier extends PlanFormNotifier {
-  _FlakyPlanFormNotifier(super.planId, this._shouldFail);
+  _FlakyPlanFormNotifier(super.planID, this._shouldFail);
 
   final bool Function() _shouldFail;
 

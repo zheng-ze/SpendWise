@@ -43,7 +43,6 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   late final SelectedDetailController _detail = SelectedDetailController(
     ref: ref,
     selection: selectedBudgetProvider,
-    clearSelection: () => ref.read(selectedBudgetProvider.notifier).clear(),
     buildPage: _buildDetailPage,
     navigatorContext: () => navigatorContext,
     mounted: () => mounted,
@@ -219,9 +218,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       draftKey: draftKey,
       onRouteCreated: (route) {
         session.sheet.route = route;
-        unawaited(
-          session.sheet.endWhenCompleted(route, () => _endEditSession(session)),
-        );
+        unawaited(route.completed.then((_) => _endEditSession(session)));
       },
     );
   }
@@ -254,12 +251,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
         draftKey: draftKey,
         onRouteCreated: (route) {
           session.sheet.route = route;
-          unawaited(
-            session.sheet.endWhenCompleted(
-              route,
-              () => _endFormSession(session),
-            ),
-          );
+          unawaited(route.completed.then((_) => _endFormSession(session)));
         },
       ),
     );

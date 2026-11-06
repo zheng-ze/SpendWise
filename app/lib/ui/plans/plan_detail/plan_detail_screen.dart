@@ -26,17 +26,11 @@ class PlanDetailScreen extends ConsumerWidget {
       value: asyncState,
       onRetry: () => ref.invalidate(provider),
       errorTitle: _loadErrorTitle,
-      data: (viewState) {
-        final content = PlanDetailContent(
-          viewState: viewState,
-          onEdit: ref.read(provider.notifier).requestEdit,
-          onDelete: ref.read(provider.notifier).requestDelete,
-        );
-        return ListView(
-          physics: const ClampingScrollPhysics(),
-          children: [content],
-        );
-      },
+      data: (viewState) => PlanDetailContent(
+        viewState: viewState,
+        onEdit: ref.read(provider.notifier).requestEdit,
+        onDelete: ref.read(provider.notifier).requestDelete,
+      ),
     );
 
     return Scaffold(

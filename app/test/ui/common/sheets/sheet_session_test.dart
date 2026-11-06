@@ -144,22 +144,4 @@ void main() {
     expect(ending.subscription, isNull);
     expect(ending.retired, isFalse);
   });
-
-  testWidgets('endWhenCompleted fires after the route completes', (
-    tester,
-  ) async {
-    final harness = await _pump(tester);
-    final route = harness.push();
-    await tester.pumpAndSettle();
-    var ended = 0;
-    final done = harness.session.endWhenCompleted(route, () => ended++);
-    await tester.pump();
-    expect(ended, 0);
-
-    harness.state.pop();
-    await tester.pumpAndSettle();
-    await done.timeout(_completionTimeout);
-
-    expect(ended, 1);
-  }, timeout: uiTestTimeout);
 }

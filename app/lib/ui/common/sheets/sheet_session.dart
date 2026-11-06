@@ -1,10 +1,20 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
+
+// MARK: - Dismissal
+void dismissSheetRoute(ModalRoute<Object?>? route) {
+  final navigator = route?.navigator;
+  if (route == null || navigator == null || !route.isActive) return;
+  // A non-current sheet route sits under a picker; pop() would close the picker instead.
+  if (route.isCurrent) {
+    navigator.pop();
+  } else {
+    navigator.removeRoute(route);
+  }
+}
 
 // MARK: - SheetSession
 class SheetSession {
@@ -30,23 +40,5 @@ class SheetSession {
     });
   }
 
-  void dismiss() {
-    final route = this.route;
-    final navigator = route?.navigator;
-    if (route == null || navigator == null || !route.isActive) return;
-    // A non-current sheet route sits under a picker; pop() would close the picker instead.
-    if (route.isCurrent) {
-      navigator.pop();
-    } else {
-      navigator.removeRoute(route);
-    }
-  }
-
-  Future<void> endWhenCompleted(
-    TransitionRoute<Object?> route,
-    void Function() onEnd,
-  ) async {
-    await route.completed;
-    onEnd();
-  }
+  void dismiss() => dismissSheetRoute(route);
 }

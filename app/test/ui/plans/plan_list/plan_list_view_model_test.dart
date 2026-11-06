@@ -73,11 +73,7 @@ void main() {
         anchor: DateTime.utc(2026, 3, 1),
       );
 
-      final result = sortedPlans(
-        [ended, live],
-        buildLedger([ended, live]).state,
-        now,
-      );
+      final result = sortedPlans([ended, live], now);
 
       expect(result.map((p) => p.template.name), ['Alpha live', 'Zeta ended']);
     });
@@ -96,7 +92,7 @@ void main() {
         endDate: DateTime.utc(2025, 2, 1),
       );
 
-      final result = sortedPlans([b, a], buildLedger([b, a]).state, now);
+      final result = sortedPlans([b, a], now);
 
       expect(result.map((p) => p.template.name), [
         'Alpha ended',
@@ -117,7 +113,7 @@ void main() {
         anchor: anchor,
       );
 
-      final result = sortedPlans([b, a], buildLedger([b, a]).state, now);
+      final result = sortedPlans([b, a], now);
 
       expect(result.map((p) => p.template.name), ['Alpha live', 'Bravo live']);
     });
@@ -134,11 +130,7 @@ void main() {
         anchor: DateTime.utc(2026, 1, 15),
       );
 
-      final result = sortedPlans(
-        [later, sooner],
-        buildLedger([later, sooner]).state,
-        now,
-      );
+      final result = sortedPlans([later, sooner], now);
 
       expect(result.map((p) => p.template.name), ['Sooner', 'Later']);
     });
@@ -188,8 +180,7 @@ void main() {
       final row = read(container).rows.single;
 
       expect(row.name, 'Rent');
-      expect(row.day, '5');
-      expect(row.month, 'Jan');
+      expect(row.nextDate, (day: '5', month: 'Jan'));
       expect(row.caption, 'Every month / Wallet');
       expect(row.amount, '-10.00');
       expect(row.kind, AmountKind.expense);
@@ -282,10 +273,8 @@ void main() {
       final rows = read(container).rows;
 
       expect(rows.map((r) => r.id), [live.id, ended.id]);
-      expect(rows.last.ended, isTrue);
-      expect(rows.last.day, isNull);
-      expect(rows.last.month, isNull);
-      expect(rows.first.ended, isFalse);
+      expect(rows.last.nextDate, isNull);
+      expect(rows.first.nextDate, isNotNull);
     });
 
     test('the count label is singular for one plan and plural otherwise', () {
@@ -316,12 +305,10 @@ void main() {
       );
       final container = buildContainer(buildLedger([one]));
       final viewModel = container.read(planListViewModelProvider.notifier);
-      expect(read(container).selectedPlanID, isNull);
 
       viewModel.selectPlan(one.id);
 
       expect(container.read(selectedPlanProvider), one.id);
-      expect(read(container).selectedPlanID, one.id);
     });
 
     test('a ledger change refreshes the rows', () {

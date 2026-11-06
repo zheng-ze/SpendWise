@@ -8,6 +8,7 @@ import 'package:spendwise/ui/common/inputs/amount_field.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/plans/plan_form/plan_form.dart';
 import 'package:spendwise/ui/plans/plan_list/plan_selection.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../../../support/ui_test_timeout.dart';
@@ -211,6 +212,41 @@ void main() {
 
     expect(_form, findsNothing);
     expect(ledger.revision, revision);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('open pane header shows the new name after Save plan', (
+    tester,
+  ) async {
+    await _pumpEdit(
+      tester,
+      ShellLayoutMode.open,
+      Brightness.light,
+      buildPlansShellLedger(),
+    );
+    final paneTitle = find.descendant(
+      of: find.byKey(shellDetailPaneKey),
+      matching: find.text(_newName),
+    );
+
+    await tester.enterText(_nameField, _newName);
+    await _choose(tester, _saveLabel);
+
+    expect(paneTitle, findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('replacing the ledger removes the open sheet', (tester) async {
+    final container = await _pumpEdit(
+      tester,
+      ShellLayoutMode.open,
+      Brightness.light,
+      buildPlansShellLedger(),
+    );
+
+    container.read(plansShellLedgerFixture.notifier).state =
+        buildPlansShellLedger();
+    await tester.pumpAndSettle();
+
+    expect(_form, findsNothing);
   }, timeout: uiTestTimeout);
 
   testWidgets('deleting the plan removes the open sheet', (tester) async {

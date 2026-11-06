@@ -33,12 +33,7 @@ Future<RecurrenceFrequency?> showRecurrencePickerSheet({
     builder: (_) => AppPickerSheet(
       title: _titleLabel,
       body: Column(
-        children: _recurrenceRows(
-          selected,
-          includesNoRepeat: includesNoRepeat,
-          oneTimeLabel: addNoRepeatLabel,
-          labels: addFrequencyLabels,
-        ),
+        children: _recurrenceRows(selected, includesNoRepeat: includesNoRepeat),
       ),
     ),
   );
@@ -57,19 +52,17 @@ class _RecurrenceOutcome {
 List<Widget> _recurrenceRows(
   RecurrenceFrequency? selected, {
   required bool includesNoRepeat,
-  required String oneTimeLabel,
-  required Map<RecurrenceFrequency, String> labels,
 }) {
   return [
     if (includesNoRepeat)
       _RecurrenceRow(
-        label: oneTimeLabel,
+        label: addNoRepeatLabel,
         selected: selected == null,
         outcome: const _RecurrenceOutcome(null),
       ),
     for (final frequency in RecurrenceFrequency.values)
       _RecurrenceRow(
-        label: labels[frequency]!,
+        label: addFrequencyLabels[frequency]!,
         selected: selected == frequency,
         outcome: _RecurrenceOutcome(frequency),
       ),

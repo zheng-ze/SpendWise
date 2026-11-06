@@ -322,9 +322,8 @@ class _DetailHeader extends StatelessWidget {
           const SizedBox(height: _detailSubtitleGap),
           Text(
             subtitle,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: colors.subtext),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: colors.subtext),
           ),
         ],
       ],

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/inputs/amount_field.dart';
+import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/date_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/ends_choice_sheet.dart';
@@ -11,6 +12,7 @@ import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
+import 'package:spendwise/ui/common/sheets/sheet_session.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/plans/plan_form/plan_form_view_model.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
@@ -30,7 +32,6 @@ const _onADateLabel = 'On a date';
 const _loadErrorTitle = "Couldn't load this plan";
 const _saveErrorTitle = 'Could not save plan';
 
-const _rowContentPadding = EdgeInsets.zero;
 const _fieldGap = 16.0;
 const _footerWidth = double.infinity;
 const _lockIcon = Icons.lock_outline;
@@ -50,15 +51,15 @@ Future<void> showPlanFormSheet({
     presentation: shellSheetPresentation(context),
     presentationResolver: shellSheetPresentation,
     onRouteCreated: onRouteCreated,
-    builder: (_) => PlanForm(planId: planID),
+    builder: (_) => PlanForm(planID: planID),
   );
 }
 
 // MARK: - PlanForm
 class PlanForm extends ConsumerStatefulWidget {
-  const PlanForm({super.key, required this.planId});
+  const PlanForm({super.key, required this.planID});
 
-  final String planId;
+  final String planID;
 
   @override
   ConsumerState<PlanForm> createState() => _PlanFormState();
@@ -69,6 +70,8 @@ class _PlanFormState extends ConsumerState<PlanForm> {
   late final TextEditingController _nameController = TextEditingController();
   late final TextEditingController _amountController = TextEditingController();
 
+  late final _provider = planFormViewModelProvider(widget.planID);
+
   ProviderSubscription<AsyncValue<PlanFormViewState>>? _subscription;
   ModalRoute<Object?>? _route;
 
@@ -76,7 +79,7 @@ class _PlanFormState extends ConsumerState<PlanForm> {
   void initState() {
     super.initState();
     _subscription = ref.listenManual(
-      planFormViewModelProvider(widget.planId),
+      _provider,
       (previous, next) => _handleStep(next.value?.step),
     );
   }
@@ -95,11 +98,9 @@ class _PlanFormState extends ConsumerState<PlanForm> {
     super.dispose();
   }
 
-  PlanFormViewModel get _viewModel =>
-      ref.read(planFormViewModelProvider(widget.planId).notifier);
+  PlanFormViewModel get _viewModel => ref.read(_provider.notifier);
 
-  PlanFormViewState? get _formState =>
-      ref.read(planFormViewModelProvider(widget.planId)).value;
+  PlanFormViewState? get _formState => ref.read(_provider).value;
 
   bool get _formIsActive => mounted && (_route?.isActive ?? false);
 
@@ -114,18 +115,7 @@ class _PlanFormState extends ConsumerState<PlanForm> {
       case PickEndDateRequested():
         _pickEndDate();
       case PlanFormSaved():
-        _closeOwnRoute();
-    }
-  }
-
-  void _closeOwnRoute() {
-    final route = _route;
-    final navigator = route?.navigator;
-    if (route == null || navigator == null || !route.isActive) return;
-    if (route.isCurrent) {
-      navigator.pop();
-    } else {
-      navigator.removeRoute(route);
+        dismissSheetRoute(_route);
     }
   }
 
@@ -192,7 +182,7 @@ class _PlanFormState extends ConsumerState<PlanForm> {
 
   @override
   Widget build(BuildContext context) {
-    final asyncState = ref.watch(planFormViewModelProvider(widget.planId));
+    final asyncState = ref.watch(_provider);
     final formState = asyncState.value;
     if (formState != null) {
       return _PlanFormBody(
@@ -205,12 +195,11 @@ class _PlanFormState extends ConsumerState<PlanForm> {
     }
     final error = asyncState.error;
     if (error == null) return const FormSheetLoading(title: _sheetTitle);
-    final provider = planFormViewModelProvider(widget.planId);
     final retry = SizedBox(
       width: _footerWidth,
       child: PrimaryButton(
         label: _retryLabel,
-        onPressed: () => ref.invalidate(provider),
+        onPressed: () => ref.invalidate(_provider),
       ),
     );
     return FormSheetLoadError(
@@ -257,26 +246,31 @@ class _PlanFormBody extends StatelessWidget {
       allowsNegative: false,
       onChanged: viewModel.setAmount,
     );
-    final account = _FormRow(
-      label: _accountLabel,
-      trailing: _LockedValue(value: formState.sourceName),
+    final lockedAccount = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(_lockIcon, size: _lockIconSize),
+        const SizedBox(width: _lockGap),
+        Text(formState.sourceName),
+      ],
     );
-    final repeat = _FormRow(
+    final account = FormSheetRow(label: _accountLabel, trailing: lockedAccount);
+    final repeat = FormSheetRow(
       label: _repeatLabel,
       trailing: Text(addFrequencyLabels[formState.frequency]!),
       onTap: viewModel.requestPickRecurrence,
     );
-    final firstDate = _FormRow(
+    final firstDate = FormSheetRow(
       label: _firstDateLabel,
       trailing: Text(formatEntryDate(formState.anchor)),
       onTap: viewModel.requestPickAnchor,
     );
-    final ends = _FormRow(
+    final ends = FormSheetRow(
       label: _endsLabel,
       trailing: Text(formState.hasEndDate ? _onADateLabel : _neverLabel),
       onTap: onPickEnds,
     );
-    final endDate = _FormRow(
+    final endDate = FormSheetRow(
       label: _endDateLabel,
       trailing: Text(formatEntryDate(formState.endDate ?? formState.anchor)),
       onTap: viewModel.requestPickEndDate,
@@ -318,47 +312,6 @@ class _PlanFormBody extends StatelessWidget {
       alert: alert,
       dragToDismiss: true,
       variant: AppSheetVariant.form,
-    );
-  }
-}
-
-// MARK: - FormRow
-class _FormRow extends StatelessWidget {
-  const _FormRow({required this.label, required this.trailing, this.onTap});
-
-  final String label;
-  final Widget trailing;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      type: MaterialType.transparency,
-      child: ListTile(
-        contentPadding: _rowContentPadding,
-        title: Text(label),
-        trailing: trailing,
-        onTap: onTap,
-      ),
-    );
-  }
-}
-
-// MARK: - LockedValue
-class _LockedValue extends StatelessWidget {
-  const _LockedValue({required this.value});
-
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(_lockIcon, size: _lockIconSize),
-        const SizedBox(width: _lockGap),
-        Text(value),
-      ],
     );
   }
 }

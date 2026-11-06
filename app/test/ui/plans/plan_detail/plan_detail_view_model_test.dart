@@ -7,7 +7,6 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/plans/plan_detail/plan_detail_view_model.dart';
-import 'package:spendwise/ui/plans/plan_detail/plan_steps.dart';
 
 void main() {
   final today = DateTime.utc(2026, 3, 15);
