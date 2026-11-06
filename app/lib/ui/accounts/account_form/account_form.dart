@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_view_model.dart';
+import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
@@ -15,7 +16,6 @@ import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Visual Constants
 
@@ -162,29 +162,25 @@ class _AccountFormBody extends StatelessWidget {
     final title = formState.effectiveKind == AccountFormKind.subpocket
         ? 'New Subpocket'
         : 'New Account';
-    final fields = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        IgnorePointer(
-          ignoring: formState.isLockedToAccount,
-          child: SegmentedButton<AccountFormKind>(
-            segments: const [
-              ButtonSegment(
-                value: AccountFormKind.account,
-                label: Text('Account'),
-              ),
-              ButtonSegment(
-                value: AccountFormKind.subpocket,
-                label: Text('Subpocket'),
-              ),
-            ],
-            selected: {formState.effectiveKind},
-            onSelectionChanged: formState.isLockedToAccount
-                ? null
-                : (selection) => viewModel.setKind(selection.first),
+    final kindSelector = IgnorePointer(
+      ignoring: formState.isLockedToAccount,
+      child: SegmentedButton<AccountFormKind>(
+        segments: const [
+          ButtonSegment(value: AccountFormKind.account, label: Text('Account')),
+          ButtonSegment(
+            value: AccountFormKind.subpocket,
+            label: Text('Subpocket'),
           ),
-        ),
-        const SizedBox(height: _fieldGap),
+        ],
+        selected: {formState.effectiveKind},
+        onSelectionChanged: formState.isLockedToAccount
+            ? null
+            : (selection) => viewModel.setKind(selection.first),
+      ),
+    );
+    final fieldRows = FormSectionCard(
+      padding: FormSectionCard.fieldsPadding,
+      children: [
         TextField(
           controller: nameController,
           decoration: const InputDecoration(hintText: 'Name'),
@@ -218,6 +214,14 @@ class _AccountFormBody extends StatelessWidget {
             trailing: Text(_parentLabel() ?? 'Select'),
             onTap: viewModel.requestPickParent,
           ),
+      ],
+    );
+    final fields = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        kindSelector,
+        const SizedBox(height: _fieldGap),
+        fieldRows,
         ErrorSection(subject: 'account', error: formState.error),
       ],
     );
@@ -235,7 +239,6 @@ class _AccountFormBody extends StatelessWidget {
       footer: saveButton,
       dragToDismiss: true,
       variant: AppSheetVariant.form,
-      surfaceColor: context.colors.raised,
     );
   }
 

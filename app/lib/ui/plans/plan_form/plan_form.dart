@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/inputs/amount_field.dart';
+import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/date_picker_sheet.dart';
@@ -275,8 +276,8 @@ class _PlanFormBody extends StatelessWidget {
       trailing: Text(formatEntryDate(formState.endDate ?? formState.anchor)),
       onTap: viewModel.requestPickEndDate,
     );
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final body = FormSectionCard(
+      padding: FormSectionCard.fieldsPadding,
       children: [
         name,
         const SizedBox(height: _fieldGap),

@@ -6,6 +6,7 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_limit_editor_view_mode
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
@@ -102,7 +103,10 @@ class _BudgetLimitBody extends StatelessWidget {
       amountText: editorState.amountText,
       onChanged: viewModel.setAmount,
     );
-    final amount = Align(alignment: _amountAlignment, child: amountInput);
+    final amount = FormSectionCard(
+      padding: FormSectionCard.fieldsPadding,
+      children: [Align(alignment: _amountAlignment, child: amountInput)],
+    );
     final save = SizedBox(
       width: _footerWidth,
       child: PrimaryButton(

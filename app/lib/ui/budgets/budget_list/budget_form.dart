@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_amount_input.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
+import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
@@ -117,8 +118,8 @@ class _BudgetFormBody extends StatelessWidget {
       amountText: formState.amountText,
       onChanged: viewModel.setAmount,
     );
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final body = FormSectionCard(
+      padding: FormSectionCard.fieldsPadding,
       children: [
         categoryRow,
         const SizedBox(height: _fieldGap),

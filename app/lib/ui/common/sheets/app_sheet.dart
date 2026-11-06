@@ -60,7 +60,6 @@ class AppSheet extends StatefulWidget {
     this.alert,
     this.onAlertAction,
     this.phoneMaxHeightFraction = defaultMaxHeightFraction,
-    this.surfaceColor,
     this.dragToDismiss = false,
     this.variant = AppSheetVariant.standard,
   });
@@ -80,8 +79,6 @@ class AppSheet extends StatefulWidget {
   final VoidCallback? onAlertAction;
 
   final double phoneMaxHeightFraction;
-
-  final Color? surfaceColor;
 
   final bool dragToDismiss;
 
@@ -172,7 +169,6 @@ class _AppSheetState extends State<AppSheet> {
       presentation: presentation,
       variant: widget.variant,
       bottomInset: phone ? media.padding.bottom : _noSheetInset,
-      surfaceColor: widget.surfaceColor,
       child: scrollBody,
     );
     final constrainedSheet = ConstrainedBox(
@@ -271,7 +267,6 @@ class _SheetChrome extends StatelessWidget {
     required this.presentation,
     required this.variant,
     required this.bottomInset,
-    required this.surfaceColor,
     required this.child,
   });
 
@@ -309,8 +304,6 @@ class _SheetChrome extends StatelessWidget {
 
   final double bottomInset;
 
-  final Color? surfaceColor;
-
   final Widget child;
 
   @override
@@ -319,8 +312,7 @@ class _SheetChrome extends StatelessWidget {
     final open = presentation == AppSheetPresentation.open;
     final desktop = presentation == AppSheetPresentation.desktop;
     final form = variant == AppSheetVariant.form;
-    final canvas = form && Theme.of(context).brightness == Brightness.light;
-    final topBorder = canvas
+    final topBorder = form
         ? BorderSide(color: colors.edge, width: _formTopBorderWidth)
         : BorderSide(color: colors.control, width: _topBorderWidth);
     final radius = desktop || open
@@ -331,8 +323,8 @@ class _SheetChrome extends StatelessWidget {
             left: BorderSide(color: colors.control, width: _openBorderWidth),
           )
         : Border(top: topBorder);
-    final shadow = canvas && !desktop && !open ? [_formShadow] : null;
-    final fill = surfaceColor ?? colors.raised;
+    final shadow = form && !desktop && !open ? [_formShadow] : null;
+    final fill = form ? colors.base : colors.raised;
     final decoration = BoxDecoration(
       color: fill,
       border: border,

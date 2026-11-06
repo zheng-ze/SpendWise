@@ -8,11 +8,11 @@ import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/pickers/account_type_picker.dart';
 import 'package:spendwise/ui/common/inputs/amount_field.dart';
+import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Visual Constants
 
@@ -137,8 +137,8 @@ class _SourceEditFormBody extends StatelessWidget {
     }
 
     final title = formState.isAccount ? 'Edit Account' : 'Edit Subpocket';
-    final fields = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final fieldRows = FormSectionCard(
+      padding: FormSectionCard.fieldsPadding,
       children: [
         TextField(
           controller: nameController,
@@ -170,30 +170,30 @@ class _SourceEditFormBody extends StatelessWidget {
         ),
         if (formState.showsTransferToggle) ...[
           const SizedBox(height: _fieldGap),
-          Material(
-            type: MaterialType.transparency,
-            child: SwitchListTile(
-              contentPadding: _fieldContentPadding,
-              title: const Text('Transfers in count as expenses'),
-              subtitle: const Text(
-                'When on, money transferred into this holder is treated as '
-                'spending in analysis.',
-              ),
-              value: formState.incomingTransfersAsExpenses,
-              onChanged: viewModel.setIncomingTransfersAsExpenses,
+          SwitchListTile(
+            contentPadding: _fieldContentPadding,
+            title: const Text('Transfers in count as expenses'),
+            subtitle: const Text(
+              'When on, money transferred into this holder is treated as '
+              'spending in analysis.',
             ),
+            value: formState.incomingTransfersAsExpenses,
+            onChanged: viewModel.setIncomingTransfersAsExpenses,
           ),
         ],
         if (formState.isAccount)
-          Material(
-            type: MaterialType.transparency,
-            child: SwitchListTile(
-              contentPadding: _fieldContentPadding,
-              title: const Text('Include in net worth'),
-              value: formState.includeInNetWorth,
-              onChanged: viewModel.setIncludeInNetWorth,
-            ),
+          SwitchListTile(
+            contentPadding: _fieldContentPadding,
+            title: const Text('Include in net worth'),
+            value: formState.includeInNetWorth,
+            onChanged: viewModel.setIncludeInNetWorth,
           ),
+      ],
+    );
+    final fields = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        fieldRows,
         ErrorSection(subject: 'account', error: formState.error),
       ],
     );
@@ -211,7 +211,6 @@ class _SourceEditFormBody extends StatelessWidget {
       footer: saveButton,
       dragToDismiss: true,
       variant: AppSheetVariant.form,
-      surfaceColor: context.colors.raised,
     );
   }
 }

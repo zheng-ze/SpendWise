@@ -472,8 +472,9 @@ under the confirmation helper.
   continuous. Retirement removes the route after the frame ends.
   No timer or captured pane owner is involved. See [budgets.md](budgets.md).
 - **Add form surface** - `AppSheetVariant.form` is used by the Add and Edit entry loading and loaded forms.
-  Its surface is `SpendWiseColors.raised` in both brightnesses unless a caller passes `surfaceColor`; the light-mode
-  canvas flag only adds the top border and shadow. Desktop form chrome docks in the right column with
+  Its surface is `SpendWiseColors.base` in both brightnesses, with the field rows grouped in
+  `FormSectionCard` surface cards as in the Edit entry pane; the top border and shadow apply to
+  the form variant in both brightnesses. Desktop form chrome docks in the right column with
   no grab handle. Standard sheets retain their existing chrome. Phone Add enables
   `dragToDismiss`; `SheetDismissPhysics` shares drag displacement between the body and enclosing
   sheet scrollers, so handle/header drags and body drags at minimum scroll offset move the sheet.
