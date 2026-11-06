@@ -20,6 +20,7 @@ import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/common/feedback/destructive_confirmation.dart';
 import 'package:spendwise/ui/common/layout/headered_page.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
 import 'package:spendwise/ui/common/sheets/sheet_session.dart';
 import 'package:spendwise/ui/shell/selected_detail_controller.dart';
 
@@ -218,7 +219,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       draftKey: draftKey,
       onRouteCreated: (route) {
         session.sheet.route = route;
-        unawaited(route.completed.then((_) => _endEditSession(session)));
+        unawaited(_endEditSessionWhenClosed(route, session));
       },
     );
   }
@@ -229,6 +230,22 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   }
 
   // MARK: - Form Navigation
+
+  Future<void> _endFormSessionWhenClosed(
+    AppSheetRoute<void> route,
+    _FormSession session,
+  ) async {
+    await route.completed;
+    _endFormSession(session);
+  }
+
+  Future<void> _endEditSessionWhenClosed(
+    AppSheetRoute<void> route,
+    _EditSession session,
+  ) async {
+    await route.completed;
+    _endEditSession(session);
+  }
 
   void _endFormSession(_FormSession session) {
     session.sheet.end();
@@ -251,7 +268,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
         draftKey: draftKey,
         onRouteCreated: (route) {
           session.sheet.route = route;
-          unawaited(route.completed.then((_) => _endFormSession(session)));
+          unawaited(_endFormSessionWhenClosed(route, session));
         },
       ),
     );

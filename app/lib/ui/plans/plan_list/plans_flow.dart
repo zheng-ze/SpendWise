@@ -111,7 +111,7 @@ class _PlansFlowState extends FlowBaseState<PlanDetailStep, PlansFlow> {
     _editSheet = sheet;
     void trackRoute(AppSheetRoute<void> route) {
       sheet.route = route;
-      unawaited(route.completed.then((_) => _releaseEditSheet(sheet)));
+      unawaited(_releaseEditSheetWhenClosed(route, sheet));
     }
 
     unawaited(
@@ -123,7 +123,11 @@ class _PlansFlowState extends FlowBaseState<PlanDetailStep, PlansFlow> {
     );
   }
 
-  void _releaseEditSheet(SheetSession sheet) {
+  Future<void> _releaseEditSheetWhenClosed(
+    AppSheetRoute<void> route,
+    SheetSession sheet,
+  ) async {
+    await route.completed;
     if (identical(_editSheet, sheet)) _editSheet = null;
   }
 
