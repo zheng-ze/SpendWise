@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
-import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
+import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/transactions/entry/entry_pane_layout.dart';
 
 // MARK: - Visual Constants
@@ -60,7 +60,7 @@ AppSheetPresentation entryFormPresentation(
   BuildContext context,
   EntryFormFrame frame,
 ) {
-  if (frame == EntryFormFrame.pane) return accountSheetPresentation(context);
+  if (frame == EntryFormFrame.pane) return shellSheetPresentation(context);
 
   return AppSheetAlertSlot.maybeOf(context)?.presentation ??
       AppSheetPresentation.phone;

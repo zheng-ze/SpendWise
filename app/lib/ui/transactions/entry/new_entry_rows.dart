@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
@@ -9,12 +10,6 @@ import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 
 // MARK: - Visual Constants
-
-const _groupRadius = 14.0;
-
-const _groupBorderWidth = 1.0;
-
-const _groupPadding = EdgeInsets.symmetric(horizontal: 10.0);
 
 const _focusedUnderlineHeight = 2.0;
 
@@ -249,7 +244,7 @@ class NewEntryRows extends StatelessWidget {
     }
     if (recurrence != null) children.add(const _RecurringHint());
 
-    final group = _FormGroup(children: children);
+    final group = FormSectionCard(children: children);
     if (!state.canDelete) return group;
 
     return Column(
@@ -419,35 +414,6 @@ class _RecurringHint extends StatelessWidget {
     return Padding(
       padding: _hintPadding,
       child: Text(_recurringHint, style: style),
-    );
-  }
-}
-
-// MARK: - FormGroup
-class _FormGroup extends StatelessWidget {
-  const _FormGroup({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(_groupRadius),
-      side: BorderSide(color: colors.edge, width: _groupBorderWidth),
-    );
-
-    return Material(
-      color: colors.surface,
-      shape: shape,
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: _groupPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children,
-        ),
-      ),
     );
   }
 }

@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
+import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
 const sheetCompletionTimeout = Duration(seconds: 5);
 
@@ -28,9 +29,14 @@ Future<void> pumpShellApp(
   ProviderContainer container, {
   required Map<ShellDestination, WidgetBuilder> bodies,
   String? Function()? moneySourceId,
+  Brightness? brightness,
 }) async {
   final shell = AppShell(bodies: bodies, moneySourceId: moneySourceId);
-  final app = MaterialApp(builder: buildShellAppContent, home: shell);
+  final app = MaterialApp(
+    theme: brightness == null ? null : buildSpendWiseTheme(brightness),
+    builder: buildShellAppContent,
+    home: shell,
+  );
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: app),
   );
@@ -47,8 +53,8 @@ AppSheetRoute<void> pushShellSheet(
   WidgetBuilder builder = _defaultSheetBuilder,
 }) {
   final route = AppSheetRoute<void>(
-    presentation: accountSheetPresentation(context),
-    presentationResolver: accountSheetPresentation,
+    presentation: shellSheetPresentation(context),
+    presentationResolver: shellSheetPresentation,
     builder: builder,
   );
   Navigator.of(context, rootNavigator: true).push(route);

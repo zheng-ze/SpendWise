@@ -7,6 +7,7 @@ import 'package:spendwise/ui/common/pickers/receipt_choice_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_step_handlers.dart';
@@ -21,13 +22,6 @@ final newEntryPresentationControllerProvider =
 
 // MARK: - Helpers
 const newEntryFormKey = ValueKey('new-entry-form');
-
-AppSheetPresentation _presentationForMode(ShellLayoutMode mode) =>
-    switch (mode) {
-      ShellLayoutMode.phone => AppSheetPresentation.phone,
-      ShellLayoutMode.open => AppSheetPresentation.open,
-      ShellLayoutMode.desktop => AppSheetPresentation.desktop,
-    };
 
 Future<void> openNewEntry({
   required BuildContext context,
@@ -103,7 +97,7 @@ class NewEntryPresentationController {
   ) async {
     session.beginOpening(sourceId);
     final attempt = session.beginAttempt(resetReceipt: true);
-    final initial = _presentationForMode(
+    final initial = sheetPresentationForMode(
       session.ref.read(shellLayoutModeProvider),
     );
     session.listenForSteps();
@@ -133,7 +127,7 @@ class NewEntryPresentationController {
   ) => (routeContext) {
     final mode = ShellLayoutModeScope.maybeOf(routeContext);
     if (mode == null) return initial;
-    return _presentationForMode(mode);
+    return sheetPresentationForMode(mode);
   };
 
   bool _owns(_AddSession session) => !_disposed && identical(_session, session);

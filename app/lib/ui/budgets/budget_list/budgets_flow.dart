@@ -1,12 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budget_delete_confirmation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_edit_actions_sheet.dart';
@@ -20,10 +18,16 @@ import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/common/feedback/destructive_confirmation.dart';
 import 'package:spendwise/ui/common/layout/headered_page.dart';
-import 'package:spendwise/ui/common/sheets/app_sheet.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
+import 'package:spendwise/ui/common/sheets/sheet_session.dart';
+import 'package:spendwise/ui/shell/selected_detail_controller.dart';
+
+// MARK: - Constants
+
+const _deleteBodyText =
+    'Your entries stay as they are. Only the limit is removed.';
 
 // MARK: - BudgetsFlow
 class BudgetsFlow extends FlowBase<BudgetsStep> {
@@ -37,18 +41,15 @@ class BudgetsFlow extends FlowBase<BudgetsStep> {
 
 // MARK: - BudgetsFlowState
 class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
-  bool _reconcileScheduled = false;
-  String? _shownBudgetID;
-  List<ProviderSubscription<Object?>> _shownSubscriptions = const [];
-  ModalRoute<Object?>? _page;
-  String? _pageBudgetID;
-  final Set<ModalRoute<Object?>> _flowRemovedPages = {};
-  NavigatorState? _rootNavigator;
-
-  late final ProviderSubscription<String?> _selectionSubscription;
-  late final ProviderSubscription<ShellLayoutMode> _modeSubscription;
-  late final ProviderSubscription<Ledger?> _ledgerSubscription;
-  late final ProviderSubscription<ShellSheetOccupancy> _occupancySubscription;
+  late final SelectedDetailController _detail = SelectedDetailController(
+    ref: ref,
+    selection: selectedBudgetProvider,
+    buildPage: _buildDetailPage,
+    navigatorContext: () => navigatorContext,
+    mounted: () => mounted,
+    openOwners: _openOwners,
+    onShownChanged: (_) => _editSession?.sheet.retire(),
+  );
 
   _FormSession? _formSession;
   _EditSession? _editSession;
@@ -58,43 +59,22 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   @override
   void initState() {
     super.initState();
-    _selectionSubscription = ref.listenManual(selectedBudgetProvider, (
-      _,
-      selection,
-    ) {
-      _showBudget(selection);
-      _scheduleReconcile();
-    });
-    _modeSubscription = ref.listenManual(
-      shellLayoutModeProvider,
-      (_, _) => _scheduleReconcile(),
-    );
-    _ledgerSubscription = ref.listenManual(ledgerProvider, (previous, next) {
-      if (identical(previous, next)) return;
-      _retireEditSession();
-      ref.read(selectedBudgetProvider.notifier).clear();
-    });
-    _occupancySubscription = ref.listenManual(
-      shellSheetOccupancyProvider,
-      (_, _) => _scheduleReconcile(),
-    );
-    _showBudget(ref.read(selectedBudgetProvider));
-    _scheduleReconcile();
+    _detail.start();
   }
 
   @override
   void dispose() {
-    _occupancySubscription.close();
-    _selectionSubscription.close();
-    _modeSubscription.close();
-    _ledgerSubscription.close();
-    _showBudget(null);
-    _retireEditSession();
-    _removePageAfterFrame();
-    _formSession?.subscription?.close();
+    _detail.dispose();
+    _editSession?.sheet.retire();
+    _formSession?.sheet.end();
     _formSession = null;
     super.dispose();
   }
+
+  ModalRoute<Object?> _buildDetailPage(String budgetID) =>
+      MaterialPageRoute<Object?>(
+        builder: (_) => BudgetDetailScreen(budgetID: budgetID),
+      );
 
   // MARK: - View Model Contracts
 
@@ -133,85 +113,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     _listViewModel.clearStep();
   }
 
-  // MARK: - Detail Page
-
-  void _scheduleReconcile() {
-    if (_reconcileScheduled) return;
-    _reconcileScheduled = true;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _reconcileScheduled = false;
-      if (mounted) _reconcilePage();
-    });
-  }
-
-  void _reconcilePage() {
-    final selected = ref.read(selectedBudgetProvider);
-    final phone = ref.read(shellLayoutModeProvider) == ShellLayoutMode.phone;
-    final wanted = phone ? selected : null;
-    if (_pageBudgetID == wanted) return;
-    _removePage();
-    final context = navigatorContext;
-    if (wanted == null || context == null) return;
-    if (ref.read(shellSheetOccupancyProvider).hasSheets) return;
-    _pushPage(context, wanted);
-  }
-
-  void _pushPage(BuildContext context, String budgetID) {
-    final navigator = Navigator.of(context, rootNavigator: true);
-    final route = MaterialPageRoute<Object?>(
-      builder: (_) => BudgetDetailScreen(budgetID: budgetID),
-    );
-    _rootNavigator = navigator;
-    _page = route;
-    _pageBudgetID = budgetID;
-    unawaited(navigator.push(route));
-    unawaited(_clearSelectionWhenPopped(route, budgetID));
-  }
-
-  Future<void> _clearSelectionWhenPopped(
-    ModalRoute<Object?> route,
-    String budgetID,
-  ) async {
-    await route.completed;
-    if (_flowRemovedPages.remove(route) || !mounted) return;
-    if (identical(_page, route)) {
-      _page = null;
-      _pageBudgetID = null;
-    }
-    if (ref.read(selectedBudgetProvider) != budgetID) return;
-    ref.read(selectedBudgetProvider.notifier).clear();
-  }
-
-  void _removePage() {
-    final route = _page;
-    _page = null;
-    _pageBudgetID = null;
-    if (route == null || !route.isActive) return;
-    _flowRemovedPages.add(route);
-    _rootNavigator?.removeRoute(route);
-  }
-
-  void _removePageAfterFrame() {
-    final route = _page;
-    final navigator = _rootNavigator;
-    _page = null;
-    if (route == null || navigator == null) return;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (navigator.mounted && route.isActive) navigator.removeRoute(route);
-    });
-  }
-
   // MARK: - Budget Subscriptions
-
-  void _showBudget(String? budgetID) {
-    if (_shownBudgetID == budgetID) return;
-    for (final subscription in _shownSubscriptions) {
-      subscription.close();
-    }
-    _retireEditSession();
-    _shownBudgetID = budgetID;
-    _shownSubscriptions = budgetID == null ? const [] : _openOwners(budgetID);
-  }
 
   List<ProviderSubscription<Object?>> _openOwners(String budgetID) {
     final context = ref.listenManual(
@@ -230,13 +132,13 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   void _clearSelectionWhenMissing(String budgetID, BudgetDetailPhase? phase) {
     if (phase != BudgetDetailPhase.deleted) return;
-    if (_shownBudgetID != budgetID) return;
+    if (_detail.shownID != budgetID) return;
     ref.read(selectedBudgetProvider.notifier).clear();
   }
 
   Future<void> _handleDetailStep(String budgetID, BudgetsStep? step) async {
     if (step is! BudgetEditRequested) return;
-    if (_shownBudgetID != budgetID) return;
+    if (_detail.shownID != budgetID) return;
     final context = navigatorContext;
     if (context == null) return;
 
@@ -251,7 +153,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     try {
       final action = await showBudgetEditActionsSheet(
         context: context,
-        onRouteCreated: (route) => session.route = route,
+        onRouteCreated: (route) => session.sheet.route = route,
       );
       if (action == null || !_editStillValid(session)) return;
       switch (action) {
@@ -265,9 +167,13 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     }
   }
 
+  // Retiring removes only the session's sheet route. An open delete confirmation is a plain modal route
+  // the Flow does not track, so it stays up and its Delete fails this gate without writing. Nothing can
+  // replace the ledger or change the shown budget while it blocks the screen, because sync runs only on
+  // explicit calls; revisit this if sync becomes constant live updates.
   bool _editStillValid(_EditSession session) {
-    if (!mounted || session.retired) return false;
-    if (_shownBudgetID != session.budgetID) return false;
+    if (!mounted || session.sheet.retired) return false;
+    if (_detail.shownID != session.budgetID) return false;
     if (!identical(ref.read(ledgerProvider), session.ledger)) return false;
     return _detailViewModel(session.budgetID).liveLimit != null;
   }
@@ -280,11 +186,15 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
         ?.title;
     if (context == null || title == null) return;
 
-    final confirmed = await showBudgetDeleteConfirmation(context, title: title);
+    final confirmed = await showDestructiveConfirmation(
+      context,
+      title: 'Delete the $title budget?',
+      body: _deleteBodyText,
+    );
     if (!confirmed || !_editStillValid(session)) return;
     _detailViewModel(session.budgetID).deleteBudget();
     ref.read(selectedBudgetProvider.notifier).clear();
-    _reconcilePage();
+    _detail.reconcileNow();
   }
 
   Future<void> _openLimitEditor(_EditSession session) async {
@@ -297,60 +207,48 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       initialLimit: current,
     );
     final provider = budgetLimitEditorViewModelProvider(draftKey);
-    session.subscription = ref.listenManual(provider, (_, next) {
-      if (session.retired || next.value?.step is! BudgetLimitSaved) return;
-      _dismissSheetRoute(session.route);
+    final subscription = ref.listenManual(provider, (_, next) {
+      if (session.sheet.retired) return;
+      if (next.value?.step is! BudgetLimitSaved) return;
+      session.sheet.dismiss();
       ref.read(provider.notifier).clearStep();
     });
+    session.sheet.subscription = subscription;
     await showBudgetLimitEditSheet(
       context: context,
       draftKey: draftKey,
       onRouteCreated: (route) {
-        session.route = route;
-        unawaited(_endWhenCompleted(route, () => _endEditSession(session)));
+        session.sheet.route = route;
+        unawaited(_endEditSessionWhenClosed(route, session));
       },
     );
   }
 
-  Future<void> _endWhenCompleted(
-    TransitionRoute<Object?> route,
-    void Function() end,
-  ) async {
-    await route.completed;
-    end();
-  }
-
   void _endEditSession(_EditSession session) {
-    session.subscription?.close();
-    session.subscription = null;
+    session.sheet.end();
     if (identical(_editSession, session)) _editSession = null;
-  }
-
-  // Removes only the session's sheet route. An open delete confirmation is a plain modal route
-  // the Flow does not track, so it stays up and its Delete fails the _editStillValid gate without
-  // writing. Nothing can replace the ledger or change the shown budget while it blocks the
-  // screen, because sync runs only on explicit calls; revisit this if sync becomes constant
-  // live updates.
-  void _retireEditSession() {
-    final session = _editSession;
-    if (session == null || session.retired) return;
-    session.retired = true;
-    session.subscription?.close();
-    session.subscription = null;
-    final route = session.route;
-    final navigator = route?.navigator;
-    if (route == null || navigator == null) return;
-    // The removal waits for the frame end so it never runs inside a provider notification or tree finalization.
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (navigator.mounted && route.isActive) navigator.removeRoute(route);
-    });
   }
 
   // MARK: - Form Navigation
 
+  Future<void> _endFormSessionWhenClosed(
+    AppSheetRoute<void> route,
+    _FormSession session,
+  ) async {
+    await route.completed;
+    _endFormSession(session);
+  }
+
+  Future<void> _endEditSessionWhenClosed(
+    AppSheetRoute<void> route,
+    _EditSession session,
+  ) async {
+    await route.completed;
+    _endEditSession(session);
+  }
+
   void _endFormSession(_FormSession session) {
-    session.subscription?.close();
-    session.subscription = null;
+    session.sheet.end();
     if (identical(_formSession, session)) _formSession = null;
   }
 
@@ -359,31 +257,21 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     final draftKey = BudgetDraftKey();
     final session = _FormSession(draftKey);
     _formSession = session;
-    session.subscription = ref.listenManual(
+    final subscription = ref.listenManual(
       budgetFormViewModelProvider(draftKey),
       (previous, next) => unawaited(_handleFormStep(session, next.value?.step)),
     );
+    session.sheet.subscription = subscription;
     unawaited(
       showBudgetFormSheet(
         context: context,
         draftKey: draftKey,
         onRouteCreated: (route) {
-          session.route = route;
-          unawaited(_endWhenCompleted(route, () => _endFormSession(session)));
+          session.sheet.route = route;
+          unawaited(_endFormSessionWhenClosed(route, session));
         },
       ),
     );
-  }
-
-  void _dismissSheetRoute(AppSheetRoute<void>? route) {
-    final navigator = route?.navigator;
-    if (route == null || navigator == null || !route.isActive) return;
-    // A non-current sheet route sits under the picker; pop() would close the picker instead.
-    if (route.isCurrent) {
-      navigator.pop();
-    } else {
-      navigator.removeRoute(route);
-    }
   }
 
   Future<void> _handleFormStep(_FormSession session, BudgetsStep? step) async {
@@ -392,7 +280,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       case PickCategoryRequested():
         await _pickScope(session);
       case BudgetFormSaved():
-        _dismissSheetRoute(session.route);
+        session.sheet.dismiss();
         _formViewModel(session.draftKey).clearStep();
       case BudgetFormRequested():
       case BudgetEditRequested():
@@ -414,7 +302,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       options: budgetScopeOptions(formState.ledgerState),
       selected: formState.scope,
     );
-    final formRoute = session.route;
+    final formRoute = session.sheet.route;
     if (chosen == null || !mounted || !identical(_formSession, session)) return;
     if (formRoute == null || !formRoute.isActive) return;
     _formViewModel(session.draftKey).applyPickedScope(chosen);
@@ -430,8 +318,7 @@ class _FormSession {
   _FormSession(this.draftKey);
 
   final BudgetDraftKey draftKey;
-  AppSheetRoute<void>? route;
-  ProviderSubscription<AsyncValue<BudgetFormViewState>>? subscription;
+  final sheet = SheetSession();
 }
 
 // MARK: - EditSession
@@ -440,7 +327,5 @@ class _EditSession {
 
   final String budgetID;
   final Ledger ledger;
-  AppSheetRoute<void>? route;
-  ProviderSubscription<AsyncValue<BudgetLimitEditorState>>? subscription;
-  bool retired = false;
+  final sheet = SheetSession();
 }

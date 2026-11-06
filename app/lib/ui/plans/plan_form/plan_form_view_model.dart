@@ -5,6 +5,7 @@ import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/plans/plan_projection.dart';
 
 // MARK: - Helpers
 bool canSavePlanForm({required String name, required Decimal amount}) {
@@ -19,11 +20,6 @@ Decimal applyOriginalSign({
 }) {
   return originalAmount < Decimal.zero ? -magnitude : magnitude;
 }
-
-RecurrenceFrequency applyPickerResult(
-  RecurrenceFrequency current,
-  RecurrenceFrequency? picked,
-) => picked ?? current;
 
 // MARK: - Steps
 sealed class PlanFormStep {}
@@ -115,14 +111,14 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
         LedgerBackedNotifier<PlanFormViewState>,
         StepEmitting<PlanFormViewState, PlanFormStep>
     implements PlanFormViewModel {
-  PlanFormNotifier(this._planId);
+  PlanFormNotifier(this._planID);
 
-  final String _planId;
+  final String _planID;
 
   RecurringPlan _plan() {
-    final plan = ledger.state.plans[_planId];
+    final plan = ledger.state.plans[_planID];
     if (plan == null) {
-      throw StateError('No plan with id $_planId.');
+      throw StateError('No plan with id $_planID.');
     }
     return plan;
   }
@@ -137,7 +133,7 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
       anchor: plan.anchor,
       hasEndDate: plan.endDate != null,
       endDate: plan.endDate,
-      sourceName: ledger.state.sourceName(plan.template.sourceID) ?? 'Unknown',
+      sourceName: planAccountName(ledger.state, plan.template.sourceID),
     );
   }
 
@@ -152,13 +148,7 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
 
   @override
   void applyPickedRecurrence(RecurrenceFrequency? picked) {
-    if (!ref.mounted) return;
-    updateState(
-      (s) => s.copyWith(
-        frequency: applyPickerResult(s.frequency, picked),
-        step: () => null,
-      ),
-    );
+    updateState((s) => s.copyWith(frequency: picked, step: () => null));
   }
 
   @override
@@ -166,17 +156,8 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
 
   @override
   void applyPickedAnchor(DateTime? picked) {
-    if (!ref.mounted) return;
-    if (picked == null) {
-      updateState((s) => s.copyWith(step: () => null));
-      return;
-    }
-    updateState(
-      (s) => s.copyWith(
-        anchor: DateTime.utc(picked.year, picked.month, picked.day),
-        step: () => null,
-      ),
-    );
+    final anchor = picked == null ? null : startOfDayUtc(picked);
+    updateState((s) => s.copyWith(anchor: anchor, step: () => null));
   }
 
   @override
@@ -184,7 +165,7 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
     updateState(
       (s) => s.copyWith(
         hasEndDate: value,
-        endDate: value ? () => s.endDate ?? s.anchor : null,
+        endDate: () => value ? s.endDate ?? s.anchor : null,
       ),
     );
   }
@@ -194,17 +175,8 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
 
   @override
   void applyPickedEndDate(DateTime? picked) {
-    if (!ref.mounted) return;
-    if (picked == null) {
-      updateState((s) => s.copyWith(step: () => null));
-      return;
-    }
-    updateState(
-      (s) => s.copyWith(
-        endDate: () => DateTime.utc(picked.year, picked.month, picked.day),
-        step: () => null,
-      ),
-    );
+    final endDate = picked == null ? null : () => startOfDayUtc(picked);
+    updateState((s) => s.copyWith(endDate: endDate, step: () => null));
   }
 
   @override
@@ -212,7 +184,13 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
     final current = state.value;
     if (current == null) return;
 
-    final originalTemplate = _plan().template;
+    final stored = ledger.state.plans[_planID];
+    if (stored == null) {
+      updateState((s) => s.copyWith(error: () => UnknownPlan(_planID)));
+      return;
+    }
+
+    final originalTemplate = stored.template;
     final magnitude = current.parsedAmount!.abs();
     final amount = applyOriginalSign(
       magnitude: magnitude,
@@ -230,12 +208,12 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
     );
 
     final plan = RecurringPlan(
-      id: _planId,
+      id: _planID,
       template: template,
       frequency: current.frequency,
       anchor: current.anchor,
       endDate: current.hasEndDate ? current.endDate : null,
-      lastResolvedDate: _plan().lastResolvedDate,
+      lastResolvedDate: stored.lastResolvedDate,
     );
 
     try {
@@ -250,7 +228,8 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
 }
 
 // MARK: - Constants
-final planFormViewModelProvider =
-    AsyncNotifierProvider.family<PlanFormNotifier, PlanFormViewState, String>(
+final planFormViewModelProvider = AsyncNotifierProvider.autoDispose
+    .family<PlanFormNotifier, PlanFormViewState, String>(
       PlanFormNotifier.new,
+      retry: (_, _) => null,
     );

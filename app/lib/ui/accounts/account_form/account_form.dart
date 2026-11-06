@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_view_model.dart';
-import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
+import 'package:spendwise/ui/common/inputs/form_section_card.dart';
+import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
+import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/inputs/amount_field.dart';
@@ -14,11 +16,8 @@ import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Visual Constants
-
-const _fieldContentPadding = EdgeInsets.zero;
 
 // MARK: - Helpers
 Future<void> showAccountFormSheet({
@@ -28,8 +27,8 @@ Future<void> showAccountFormSheet({
   AppSheetRoute<void>? route;
   await showAppSheet<void>(
     context,
-    presentation: accountSheetPresentation(context),
-    presentationResolver: accountSheetPresentation,
+    presentation: shellSheetPresentation(context),
+    presentationResolver: shellSheetPresentation,
     onRouteCreated: (createdRoute) => route = createdRoute,
     builder: (_) => const AccountForm(),
   );
@@ -104,7 +103,7 @@ class _AccountFormState extends ConsumerState<AccountForm> {
           PickerOption(id: account.id, label: account.name),
       ],
       selectedId: formState.parentId,
-      sheetPresentation: accountSheetPresentation,
+      sheetPresentation: shellSheetPresentation,
     );
     if (!context.mounted ||
         !formRoute.isActive ||
@@ -163,29 +162,25 @@ class _AccountFormBody extends StatelessWidget {
     final title = formState.effectiveKind == AccountFormKind.subpocket
         ? 'New Subpocket'
         : 'New Account';
-    final fields = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        IgnorePointer(
-          ignoring: formState.isLockedToAccount,
-          child: SegmentedButton<AccountFormKind>(
-            segments: const [
-              ButtonSegment(
-                value: AccountFormKind.account,
-                label: Text('Account'),
-              ),
-              ButtonSegment(
-                value: AccountFormKind.subpocket,
-                label: Text('Subpocket'),
-              ),
-            ],
-            selected: {formState.effectiveKind},
-            onSelectionChanged: formState.isLockedToAccount
-                ? null
-                : (selection) => viewModel.setKind(selection.first),
+    final kindSelector = IgnorePointer(
+      ignoring: formState.isLockedToAccount,
+      child: SegmentedButton<AccountFormKind>(
+        segments: const [
+          ButtonSegment(value: AccountFormKind.account, label: Text('Account')),
+          ButtonSegment(
+            value: AccountFormKind.subpocket,
+            label: Text('Subpocket'),
           ),
-        ),
-        const SizedBox(height: _fieldGap),
+        ],
+        selected: {formState.effectiveKind},
+        onSelectionChanged: formState.isLockedToAccount
+            ? null
+            : (selection) => viewModel.setKind(selection.first),
+      ),
+    );
+    final fieldRows = FormSectionCard(
+      padding: FormSectionCard.fieldsPadding,
+      children: [
         TextField(
           controller: nameController,
           decoration: const InputDecoration(hintText: 'Name'),
@@ -196,14 +191,14 @@ class _AccountFormBody extends StatelessWidget {
           AccountTypePicker(
             selected: formState.type,
             onSelected: viewModel.setType,
-            sheetPresentation: accountSheetPresentation,
+            sheetPresentation: shellSheetPresentation,
           ),
           if (formState.type == AccountType.card) ...[
             const SizedBox(height: _fieldGap),
             StatementDayPicker(
               selected: formState.statementDay,
               onSelected: viewModel.setStatementDay,
-              sheetPresentation: accountSheetPresentation,
+              sheetPresentation: shellSheetPresentation,
             ),
           ],
           const SizedBox(height: _fieldGap),
@@ -214,15 +209,19 @@ class _AccountFormBody extends StatelessWidget {
             onChanged: viewModel.setBalance,
           ),
         ] else
-          Material(
-            type: MaterialType.transparency,
-            child: ListTile(
-              contentPadding: _fieldContentPadding,
-              title: const Text('Account'),
-              trailing: Text(_parentLabel() ?? 'Select'),
-              onTap: viewModel.requestPickParent,
-            ),
+          FormSheetRow(
+            label: 'Account',
+            trailing: Text(_parentLabel() ?? 'Select'),
+            onTap: viewModel.requestPickParent,
           ),
+      ],
+    );
+    final fields = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        kindSelector,
+        const SizedBox(height: _fieldGap),
+        fieldRows,
         ErrorSection(subject: 'account', error: formState.error),
       ],
     );
@@ -240,7 +239,6 @@ class _AccountFormBody extends StatelessWidget {
       footer: saveButton,
       dragToDismiss: true,
       variant: AppSheetVariant.form,
-      surfaceColor: context.colors.raised,
     );
   }
 

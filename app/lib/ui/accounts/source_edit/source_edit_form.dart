@@ -4,15 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
 import 'package:spendwise/ui/accounts/source_edit/source_edit_form_view_model.dart';
-import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
+import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/pickers/account_type_picker.dart';
 import 'package:spendwise/ui/common/inputs/amount_field.dart';
+import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Visual Constants
 
@@ -27,8 +27,8 @@ Future<void> showSourceEditFormSheet({
   AppSheetRoute<void>? route;
   await showAppSheet<void>(
     context,
-    presentation: accountSheetPresentation(context),
-    presentationResolver: accountSheetPresentation,
+    presentation: shellSheetPresentation(context),
+    presentationResolver: shellSheetPresentation,
     onRouteCreated: (createdRoute) => route = createdRoute,
     builder: (_) => SourceEditForm(holderID: holderID),
   );
@@ -137,8 +137,8 @@ class _SourceEditFormBody extends StatelessWidget {
     }
 
     final title = formState.isAccount ? 'Edit Account' : 'Edit Subpocket';
-    final fields = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final fieldRows = FormSectionCard(
+      padding: FormSectionCard.fieldsPadding,
       children: [
         TextField(
           controller: nameController,
@@ -150,14 +150,14 @@ class _SourceEditFormBody extends StatelessWidget {
           AccountTypePicker(
             selected: formState.type,
             onSelected: viewModel.setType,
-            sheetPresentation: accountSheetPresentation,
+            sheetPresentation: shellSheetPresentation,
           ),
           if (formState.type == AccountType.card) ...[
             const SizedBox(height: _fieldGap),
             StatementDayPicker(
               selected: formState.statementDay,
               onSelected: viewModel.setStatementDay,
-              sheetPresentation: accountSheetPresentation,
+              sheetPresentation: shellSheetPresentation,
             ),
           ],
         ],
@@ -170,30 +170,30 @@ class _SourceEditFormBody extends StatelessWidget {
         ),
         if (formState.showsTransferToggle) ...[
           const SizedBox(height: _fieldGap),
-          Material(
-            type: MaterialType.transparency,
-            child: SwitchListTile(
-              contentPadding: _fieldContentPadding,
-              title: const Text('Transfers in count as expenses'),
-              subtitle: const Text(
-                'When on, money transferred into this holder is treated as '
-                'spending in analysis.',
-              ),
-              value: formState.incomingTransfersAsExpenses,
-              onChanged: viewModel.setIncomingTransfersAsExpenses,
+          SwitchListTile(
+            contentPadding: _fieldContentPadding,
+            title: const Text('Transfers in count as expenses'),
+            subtitle: const Text(
+              'When on, money transferred into this holder is treated as '
+              'spending in analysis.',
             ),
+            value: formState.incomingTransfersAsExpenses,
+            onChanged: viewModel.setIncomingTransfersAsExpenses,
           ),
         ],
         if (formState.isAccount)
-          Material(
-            type: MaterialType.transparency,
-            child: SwitchListTile(
-              contentPadding: _fieldContentPadding,
-              title: const Text('Include in net worth'),
-              value: formState.includeInNetWorth,
-              onChanged: viewModel.setIncludeInNetWorth,
-            ),
+          SwitchListTile(
+            contentPadding: _fieldContentPadding,
+            title: const Text('Include in net worth'),
+            value: formState.includeInNetWorth,
+            onChanged: viewModel.setIncludeInNetWorth,
           ),
+      ],
+    );
+    final fields = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        fieldRows,
         ErrorSection(subject: 'account', error: formState.error),
       ],
     );
@@ -211,7 +211,6 @@ class _SourceEditFormBody extends StatelessWidget {
       footer: saveButton,
       dragToDismiss: true,
       variant: AppSheetVariant.form,
-      surfaceColor: context.colors.raised,
     );
   }
 }

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
+import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/transactions/entry/edit_entry_presenter.dart';
@@ -95,7 +95,7 @@ class _EditEntryHostState extends ConsumerState<EditEntryHost> {
       step,
       useRootNavigator: true,
       isCurrent: () => _active,
-      sheetPresentation: accountSheetPresentation,
+      sheetPresentation: shellSheetPresentation,
       onPickerRouteCreated: _pickerRoutes.add,
     );
   }

@@ -1,12 +1,13 @@
 # Settings UI
 
-Last reconciled: 7cc26306
+Last reconciled: ae736584
 
 ## Feature overview
 
 Settings contains category management (list, form, symbol picker), the Recycle Bin for archived
 rows, and Hosted Sync status, enrollment, and device-access repair. Recurring-plan management lives
-in the Money Plans segment; its list and form modules remain under `ui/settings/plan/`. The ledger
+in the Money Plans segment; its list, detail, form and pane modules live under `app/lib/ui/plans/`,
+not under Settings. The ledger
 screens are mostly stateless facades over `Ledger`, with per-sheet form view models keyed by their arguments.
 
 ## Key files
@@ -14,7 +15,6 @@ screens are mostly stateless facades over `Ledger`, with per-sheet form view mod
 - `app/lib/ui/settings/settings_root_view_model.dart`, `settings_root_screen.dart`,
   `settings_flow.dart` - the root list of navigation links.
 - `app/lib/ui/settings/category/` - category list, form, and the symbol picker.
-- `app/lib/ui/settings/plan/` - plan list and form, hosted by Money Plans.
 - `app/lib/ui/settings/recycle_bin/` - the recycle bin.
 - `app/lib/boot/providers.dart`, `app/lib/sync/hosted_sync_status.dart` - the Hosted Sync status
   provider and durable-metadata projection.
@@ -32,14 +32,15 @@ screens are mostly stateless facades over `Ledger`, with per-sheet form view mod
 
 ## Module interactions
 
-The category list, plan list and recycle bin view models (`categoryListViewModelProvider`,
-`planListViewModelProvider`, `recycleBinViewModelProvider`) are `autoDispose` providers scoped to
-their mounted view. Each computes its state synchronously from `LedgerState` (e.g. `categories(of:)`
-ordering per `ledger_runtime.md` §1.3), listens to the ledger itself with the listener removed in
-`onDispose`, carries UI-only state (the pending step, and the plan list's Edit/Done) across ledger
-changes through its previous `state.value`, and mutates through `Ledger`. They have no loading state; a failed build ends in
-`AsyncError` and shows an error state. Forms use view-model families keyed by their arguments (`categoryFormViewModelProvider`,
-`planFormViewModelProvider`), which are not autoDispose and are seeded with the initial data. Delete copies (recycle-bin messaging) are derived from referencing
+The category list and recycle bin view models (`categoryListViewModelProvider`,
+`recycleBinViewModelProvider`) are `autoDispose` providers scoped to their mounted view. Each computes
+its state synchronously from `LedgerState` (e.g. `categories(of:)` ordering per `ledger_runtime.md` §1.3),
+listens to the ledger itself with the listener removed in `onDispose`, carries UI-only state (the
+pending step) across ledger changes through its previous `state.value`, and mutates through `Ledger`.
+They have no loading state; a failed build ends in `AsyncError` and shows an error state. The category
+form uses a view-model family keyed by its arguments (`categoryFormViewModelProvider`), which is not
+autoDispose and is seeded with the initial data. The plan list, detail and form view models live with
+the Plans segment (see `accounts-ui.md`). Delete copies (recycle-bin messaging) are derived from referencing
 counts. These counts include active and binned entries through `entriesReferencing`,
 `entryCount` and `entryCountReferencing`
 (`packages/domain/lib/src/ledger_state/queries/ledger_state_queries.dart`).
@@ -53,8 +54,8 @@ resize keeps the mounted flow and its open enrollment route in place, without re
 enrollment flow. Selecting another destination disposes the flow and its child routes, and
 selecting Settings again builds it fresh at the root. The Categories row opens category management, whose forms and symbol picker
 retain their existing navigation. Settings has no Recurring Plans row, request Step or Plans route.
-`MoneyFlow` hosts the existing plan list, which has no app bar of its own, and exposes Edit/Done
-in the Money header. Plan forms still open as sheets via `FormScaffold`.
+`MoneyFlow` hosts the Plans segment through `PlansFlow`; the Money header has no Plans action, and
+plan forms open as AppSheets (`app/lib/ui/plans/plan_form/plan_form.dart`).
 (`app/lib/ui/settings/settings_root_screen.dart`, `settings_root_view_model.dart`,
 `settings_flow.dart`, `app/lib/ui/money/money_flow.dart`)
 
@@ -138,16 +139,10 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 - **Symbol picker** - searchable sectioned grid (6 columns) of the `CategorySymbols` catalog,
   rendered as `CategoryIcon`s in the form's color; search filters names by substring, empty sections
   drop out, section headers are sticky.
-- **Plan list (Money Plans)** - rows sorted by next occurrence ascending, ended plans (nil next) last, with name
-  as the deterministic tiebreak (including between two ended plans). Amount is bare (no symbol) in
-  the income token when the template amount is income and in the expense token when it is an
-  expense. No add button - plans are created from the entry
-  form's recurrence flow only. Delete message: "Already generated transactions are kept." →
-  `deletePlan`.
-- **Plan form** - name, amount magnitude (template's original sign preserved on save), read-only
-  source line, Repeat row (`RecurrencePickerSheet` with non-optional binding - "One time" is ignored
-  because a plan cannot become one-shot), first-date picker, end-date toggle + picker. Editing the
-  anchor/frequency does not retro-generate or delete existing entries.
+- **Plans** - the Money Plans list, detail, edit form and delete are no longer part of Settings. They
+  live in `app/lib/ui/plans/`; see `accounts-ui.md` (Plans segment) and
+  `recurring-plans-and-accounting.md` (Plan UI). Editing the anchor or frequency does not
+  retro-generate or delete existing entries.
 - **Recycle bin Entries section** - first section, built from `LedgerState.binnedEntries` by
   `RecycleBinViewModel` as `BinEntryRow`s, newest date first, with no filter. A row shows the entry
   name (the category title when the name is empty), "d MMM yyyy / \<source name\>" (transfers show
@@ -157,7 +152,9 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 - **Recycle bin** - archived items in the three sections below the Entries section; rows show name (pockets qualified as
   "Parent/Pocket") and a "N references" badge, sorted by name ascending. Leading swipe → Restore
   (silent no-op if the parent account is still binned - restore the account first); trailing swipe →
-  purge confirmation ("\<name\> leaves the bin for good..."). Purge routing: money source →
+  purge confirmation ("\<name\> leaves the bin for good..."), which `confirmBinPurge` builds and presents
+  through the shared `showDestructiveConfirmation`; the purge runs only after that dialog has finished
+  closing (`app/lib/ui/settings/recycle_bin/recycle_bin_purge_dialog.dart`). Purge routing: money source →
   `purgeAccount`/`purgePocket`, category → `purgeCategory`.
 
 ## Gotchas and invariants

@@ -14,6 +14,7 @@ export 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
 const _unboundedExtent = double.infinity;
 
 const _noSheetInset = 0.0;
+const _formFooterTopGap = 12.0;
 
 // MARK: - Presentation
 
@@ -60,7 +61,6 @@ class AppSheet extends StatefulWidget {
     this.alert,
     this.onAlertAction,
     this.phoneMaxHeightFraction = defaultMaxHeightFraction,
-    this.surfaceColor,
     this.dragToDismiss = false,
     this.variant = AppSheetVariant.standard,
   });
@@ -80,8 +80,6 @@ class AppSheet extends StatefulWidget {
   final VoidCallback? onAlertAction;
 
   final double phoneMaxHeightFraction;
-
-  final Color? surfaceColor;
 
   final bool dragToDismiss;
 
@@ -154,7 +152,13 @@ class _AppSheetState extends State<AppSheet> {
     final hasBottom = widget.footer != null || widget.inputSurface != null;
     final top = _SheetTop(header: widget.header, showHandle: phone);
     final bottom = hasBottom
-        ? _SheetBottom(footer: widget.footer, inputSurface: widget.inputSurface)
+        ? _SheetBottom(
+            footer: widget.footer,
+            inputSurface: widget.inputSurface,
+            footerTopGap: widget.variant == AppSheetVariant.form
+                ? _formFooterTopGap
+                : _noSheetInset,
+          )
         : null;
     final scrollBody = _SheetScrollBody(
       top: top,
@@ -172,7 +176,6 @@ class _AppSheetState extends State<AppSheet> {
       presentation: presentation,
       variant: widget.variant,
       bottomInset: phone ? media.padding.bottom : _noSheetInset,
-      surfaceColor: widget.surfaceColor,
       child: scrollBody,
     );
     final constrainedSheet = ConstrainedBox(
@@ -205,17 +208,31 @@ class _SheetTop extends StatelessWidget {
 }
 
 class _SheetBottom extends StatelessWidget {
-  const _SheetBottom({required this.footer, required this.inputSurface});
+  const _SheetBottom({
+    required this.footer,
+    required this.inputSurface,
+    required this.footerTopGap,
+  });
 
   final Widget? footer;
 
   final Widget? inputSurface;
 
+  final double footerTopGap;
+
   @override
   Widget build(BuildContext context) {
+    final footer = this.footer;
+    final paddedFooter = footer == null
+        ? null
+        : Padding(
+            padding: EdgeInsets.only(top: footerTopGap),
+            child: footer,
+          );
+
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [?footer, ?inputSurface],
+      children: [?paddedFooter, ?inputSurface],
     );
   }
 }
@@ -271,7 +288,6 @@ class _SheetChrome extends StatelessWidget {
     required this.presentation,
     required this.variant,
     required this.bottomInset,
-    required this.surfaceColor,
     required this.child,
   });
 
@@ -309,8 +325,6 @@ class _SheetChrome extends StatelessWidget {
 
   final double bottomInset;
 
-  final Color? surfaceColor;
-
   final Widget child;
 
   @override
@@ -319,8 +333,7 @@ class _SheetChrome extends StatelessWidget {
     final open = presentation == AppSheetPresentation.open;
     final desktop = presentation == AppSheetPresentation.desktop;
     final form = variant == AppSheetVariant.form;
-    final canvas = form && Theme.of(context).brightness == Brightness.light;
-    final topBorder = canvas
+    final topBorder = form
         ? BorderSide(color: colors.edge, width: _formTopBorderWidth)
         : BorderSide(color: colors.control, width: _topBorderWidth);
     final radius = desktop || open
@@ -331,9 +344,10 @@ class _SheetChrome extends StatelessWidget {
             left: BorderSide(color: colors.control, width: _openBorderWidth),
           )
         : Border(top: topBorder);
-    final shadow = canvas && !desktop && !open ? [_formShadow] : null;
+    final shadow = form && !desktop && !open ? [_formShadow] : null;
+    final fill = form ? colors.base : colors.raised;
     final decoration = BoxDecoration(
-      color: surfaceColor ?? (canvas ? colors.base : null),
+      color: fill,
       border: border,
       borderRadius: radius,
       boxShadow: shadow,
@@ -362,7 +376,7 @@ class _SheetChrome extends StatelessWidget {
           );
 
     final surface = Material(
-      color: surfaceColor ?? (canvas ? colors.base : colors.raised),
+      color: fill,
       borderRadius: radius,
       child: Container(decoration: decoration, padding: padding, child: child),
     );

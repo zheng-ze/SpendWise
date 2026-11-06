@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/budgets/budget_list/budget_scope_options.dart';
-import 'package:spendwise/ui/budgets/budget_sheet_presentation.dart';
+import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
@@ -25,8 +25,8 @@ Future<BudgetScopeChoice?> showBudgetCategoryPickerSheet({
 }) {
   return showAppSheet<BudgetScopeChoice>(
     context,
-    presentation: budgetSheetPresentation(context),
-    presentationResolver: budgetSheetPresentation,
+    presentation: shellSheetPresentation(context),
+    presentationResolver: shellSheetPresentation,
     builder: (_) => _BudgetCategoryPicker(options: options, selected: selected),
   );
 }

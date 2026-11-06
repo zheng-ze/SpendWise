@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: f9c2bb9f
+Last reconciled: e9e21fdb
 
 ## Feature overview
 
@@ -19,9 +19,17 @@ indirectly, via the spend math the app layer runs against analysis.
   `budget_category_picker.dart`, `budget_scope_options.dart`, card, and `budgets_flow.dart`.
 - `app/lib/ui/budgets/budget_detail/` - the detail screen, pane, view model,
   `budget_edit_actions_sheet.dart`, `budget_limit_edit_sheet.dart` with
-  `budget_limit_editor_view_model.dart`, and `budget_delete_confirmation.dart`.
-- `app/lib/ui/budgets/budget_amount_input.dart`, `budget_sheet_presentation.dart` - the amount input
-  shared by both amount sheets and the layout-mode to `AppSheetPresentation` mapping.
+  `budget_limit_editor_view_model.dart`, and `budget_limit_edit_sheet.dart` with the shared
+  `FormSheetLoadError`.
+- `app/lib/ui/budgets/budget_amount_input.dart` - the amount input shared by both amount sheets.
+- Shared helpers Budgets uses: `app/lib/ui/shell/shell_sheet_presentation.dart`
+  (`shellSheetPresentation`, the layout-mode to `AppSheetPresentation` mapping),
+  `app/lib/ui/common/base/id_selection.dart` (`IdSelectionNotifier`, behind `selectedBudgetProvider`),
+  `app/lib/ui/shell/selected_detail_controller.dart` (`SelectedDetailController`, phone page and owners),
+  `app/lib/ui/common/sheets/sheet_session.dart` (`SheetSession`),
+  `app/lib/ui/common/feedback/destructive_confirmation.dart` (`showDestructiveConfirmation`), and
+  `app/lib/ui/common/sheets/form_sheet_load_states.dart` (`FormSheetLoading`, `FormSheetLoadError`), and
+  `app/lib/ui/common/inputs/form_sheet_row.dart` (`FormSheetRow`, the labelled row in the Add form).
 - `app/lib/ledger/analysis/budgets/budget_spend.dart` - the app-layer spend math: `budgetItems`,
   `budgetSpend`, `monthExpenseSpend`, and the shared `budgetCountsItem` predicate.
 - `app/lib/ledger/analysis/budgets/budget_counted_entries.dart` - `BudgetCountedEntry`,
@@ -51,8 +59,9 @@ and computes the counted entries itself from the live ledger.
 
 `MoneyFlow` hosts `BudgetsFlow` in the Money Budgets segment (`app/lib/ui/money/money_flow.dart`).
 `selectedBudgetProvider` (`app/lib/ui/budgets/budget_list/budget_selection.dart`) is the single
-selected-budget state, a nullable budget ID. The list writes it on a tap, `MoneyFlow` reads it to
-supply the open/desktop pane, and `BudgetsFlow` reconciles one phone detail page against it.
+selected-budget state, a nullable budget ID held by the shared `IdSelectionNotifier`. The list writes
+it on a tap, `budgetPaneProvider` reads it to supply the open/desktop pane through `MoneyFlow`, and
+`BudgetsFlow` hands it to a `SelectedDetailController`, which reconciles one phone detail page against it.
 
 ## Budget model
 
@@ -163,28 +172,30 @@ of `todayProvider`, and the choice resets to the current month once Budgets is l
 
 **Selection and presentation.** A tray tap always sets `selectedBudgetProvider`. Open and desktop
 present the selected budget as a pane; only phone uses a managed root detail page. Selection survives
-fold and unfold. `BudgetsFlow` schedules post-frame reconciliation on selection, mode and installed
-AppSheet occupancy changes and on mount.
+fold and unfold. The shared `SelectedDetailController` owns that phone page. `BudgetsFlow` builds it
+with the selection provider, a page builder for `BudgetDetailScreen`, the owners hook and the retire
+hook. The controller schedules post-frame reconciliation on selection, mode and installed AppSheet
+occupancy changes and on mount.
 
-`_reconcilePage` reads the current selection and mode and compares the desired phone budget with the
+`reconcileNow` reads the current selection and mode and compares the desired phone budget with the
 tracked route. An existing matching phone page remains in place when a sheet opens. Otherwise it
 removes the old managed page as a presentation-only change, then pushes a new phone page only while
-its navigator context exists and no AppSheet remains installed or exiting.
-The shared controller's last-sheet completion notification schedules reconciliation, which re-reads
-selection and mode before pushing. Folding therefore cannot put a new phone page above a
-live sheet. Unfolding removes only the managed phone page and preserves selection.
-(`app/lib/ui/budgets/budget_list/budgets_flow.dart`: `_scheduleReconcile`, `_reconcilePage`)
+its navigator context exists and no AppSheet remains installed or exiting. The last-sheet completion
+notification schedules reconciliation, which re-reads selection and mode before pushing. Folding
+therefore cannot put a new phone page above a live sheet. Unfolding removes only the managed phone
+page and preserves selection. (`app/lib/ui/shell/selected_detail_controller.dart`: `reconcileNow`,
+`_scheduleReconcile`, `_pushPage`, `_removePage`)
 
-`_clearSelectionWhenPopped` waits for the managed route's completion. `_flowRemovedPages` exempts
-Flow-owned presentation removals; a user-popped page clears selection only when the selected budget
-still matches that page's budget ID. A completed old route cannot clear a different selection. Back
-or swipe-back on the phone page, empty-space pane dismissal, pane Back and replacement of the ledger
-instance clear selection. Flow disposal removes its tracked page after the frame, and the autoDispose selection
-provider resets with it. (`budgets_flow.dart`: `_removePage`, `_clearSelectionWhenPopped`,
-`_removePageAfterFrame`)
+The page's completion clears selection only when the selected budget still matches that page's
+budget ID; Flow-owned removals are exempt through `_flowRemovedPages`, and a completed old route cannot
+clear a different selection. Back or swipe-back on the phone page, empty-space pane dismissal, pane
+Back and replacement of the ledger instance clear selection. Replacing the ledger instance clears
+selection through the controller's ledger listener. Flow disposal removes its tracked page after the
+frame, and the autoDispose selection provider resets with it. (`selected_detail_controller.dart`:
+`_clearSelectionWhenPopped`, `_removePageAfterFrame`)
 
-**Owners.** While a selection exists, `BudgetsFlow` holds two subscriptions for that budget: the
-context and the detail view model (its Steps). They open when the
+**Owners.** While a selection exists, `BudgetsFlow._openOwners` supplies two subscriptions for that
+budget, which the controller opens: the context and the detail view model (its Steps). They open when the
 selection is set, are replaced when it changes to another budget, and close when it clears. Fold and
 unfold preserve them while the Flow stays mounted. Disposal closes them, and a later Flow mount
 starts with no selection. The detail view model is therefore alive for as long as a
@@ -201,9 +212,11 @@ clears selection through a `PopScope` in `MoneyFlow` that applies while Budgets 
 on open or desktop. Covering routes pop first. Phone retains page Back.
 
 The Edit flow is owned by one `_EditSession` (see "Edit flow and sheets"). Showing another budget or
-clearing selection, replacing the ledger instance and disposing the Flow all retire the session and
-remove its current sheet route.
-(`app/lib/ui/budgets/budget_list/budgets_flow.dart`: `_showBudget`, `_retireEditSession`,
+clearing selection, and disposing the Flow, retire the session and remove its current sheet route. The
+controller's shown-budget hook (`onShownChanged`) retires the session. Replacing the ledger instance
+clears selection, which then reaches the same hook.
+(`app/lib/ui/budgets/budget_list/budgets_flow.dart`: `_detail`, `_openOwners`, `dispose`;
+`app/lib/ui/shell/selected_detail_controller.dart`: `_show`, `_ledgerSubscription`;
 `app/lib/ui/money/money_flow.dart`, `app/test/ui/budgets/budget_list/budgets_pane_test.dart`)
 
 ## Step ownership
@@ -228,7 +241,7 @@ category-picker continuations belong to the open `_FormSession`.
 ## Add form and category picker
 
 The Add budget form (`showBudgetFormSheet`) and the category picker (`showBudgetCategoryPickerSheet`)
-are `AppSheet`s presented through `showAppSheet` with `budgetSheetPresentation`, which maps the shell
+are `AppSheet`s presented through `showAppSheet` with `shellSheetPresentation`, which maps the shell
 layout mode to `AppSheetPresentation.phone`, `open` or `desktop` and re-resolves it live. The form
 is `AppSheetVariant.form` with `dragToDismiss` and no Cancel button.
 
@@ -257,17 +270,16 @@ is true (any presentation except desktop) it renders a read-only display and the
 `BudgetAmountPad` (`NumberPad`) as the `inputSurface`; on desktop it renders an `AmountField` with
 autofocus and no pad. The limit editor uses the same input.
 
-`_FormSession` (in `budgets_flow.dart`) holds the `BudgetDraftKey`, the form's exact
-`AppSheetRoute` and the Step subscription. `_openBudgetForm` returns immediately when a session
-exists, so Add is single-flight. The session ends at `route.completed`, which closes the
-subscription and clears the field, so the Flow does not accept a second Add during the exit
-animation. `BudgetFormSaved` dismisses the exact form route: `pop` when the route is current,
-`removeRoute` when the picker covers it, so the picker is never closed in its place. After the
-picker returns, the choice applies only when the Flow is mounted, the session is still current and
-the form route is still active. Flow disposal closes the subscription and drops the session.
-(`budgets_flow.dart`: `_openBudgetForm`, `_handleFormStep`, `_pickScope`, `_dismissSheetRoute`,
-`_endFormSession`; `budget_form.dart`, `budget_form_view_model.dart`, `budget_scope_options.dart`,
-`budget_amount_input.dart`)
+`_FormSession` (in `budgets_flow.dart`) holds the `BudgetDraftKey` and a `SheetSession`, which carries
+the form's exact `AppSheetRoute`, the Step subscription and the retired flag. `_openBudgetForm` returns
+immediately when a session exists, so Add is single-flight. The session ends at `route.completed` through `_endFormSession`, which calls `SheetSession.end` to close
+the subscription and clear the field, so the Flow does not accept a second Add during the exit animation. `BudgetFormSaved` calls `SheetSession.dismiss` on the
+exact form route: `pop` when the route is current, `removeRoute` when the picker covers it, so the picker
+is never closed in its place. After the picker returns, the choice applies only when the Flow is mounted,
+the session is still current and the form route is still active. Flow disposal ends the session's
+subscription and drops it. (`budgets_flow.dart`: `_openBudgetForm`, `_handleFormStep`, `_pickScope`,
+`_endFormSession`; `app/lib/ui/common/sheets/sheet_session.dart`; `budget_form.dart`,
+`budget_form_view_model.dart`, `budget_scope_options.dart`, `budget_amount_input.dart`)
 
 ## Edit flow and sheets
 
@@ -275,8 +287,8 @@ The detail Edit action calls `requestEdit`, which opens the Edit actions sheet b
 `showBudgetEditActionsSheet` is an `AppPickerSheet` titled "Edit budget" with two rows, "Change
 limit" and "Delete budget", and returns a `BudgetEditAction`. Dismissing it returns null.
 
-`_EditSession` holds the budget ID, the ledger instance captured at start, the current sheet route,
-the editor subscription and a `retired` flag. `_handleDetailStep` creates it, so the session is
+`_EditSession` holds the budget ID, the ledger instance captured at start and a `SheetSession`, which
+carries the current sheet route, the editor subscription and a `retired` flag. `_handleDetailStep` creates it, so the session is
 single-flight, and ends it in a `finally`. `_editStillValid` runs at two points: after the action
 sheet returns an action, and after the delete dialog returns. It requires the Flow to be mounted, the
 session not retired, the same budget shown, the ledger instance unchanged
@@ -296,21 +308,20 @@ further await, so there is no gap in which the shell uncovers the pane.
 - **Delete.** Ownership of deletion is `BudgetDetailViewModel.deleteBudget`, which does nothing
   when the notifier is unmounted or the budget is missing and otherwise calls
   `ledger.deleteBudget`. `_confirmDelete` reads the retained title from the detail state and shows
-  `showBudgetDeleteConfirmation`, an `AlertDialog` titled "Delete the <title> budget?" with the
+  `showDestructiveConfirmation`, an `AlertDialog` titled "Delete the <title> budget?" with the
   body "Your entries stay as they are. Only the limit is removed." and Cancel and a destructive
   Delete button. It presents through `showShellConfirmation`, a plain modal route on the root
   Navigator that `ShellSheetOccupancy` does not track, so the pane does not shift for it. After
   confirmation and a final `_editStillValid` check, the Flow calls `deleteBudget`, clears
   `selectedBudgetProvider` and reconciles the page, so a local delete leaves the detail directly.
 
-`_retireEditSession` marks the session retired, closes the editor subscription and removes the
+`SheetSession.retire` marks the session retired, closes the editor subscription and removes the
 current sheet route after the frame ends, so removal never runs inside a provider notification or
-tree finalization. It runs on a ledger instance change, when the shown budget changes or clears,
-and on disposal.
+tree finalization. It runs when the controller reports a shown-budget change or clearing (a ledger
+instance change clears selection first), and on disposal.
 (`budgets_flow.dart`: `_handleDetailStep`, `_editStillValid`, `_openLimitEditor`, `_confirmDelete`,
-`_retireEditSession`; `budget_edit_actions_sheet.dart`, `budget_limit_edit_sheet.dart`,
-`budget_limit_editor_view_model.dart`, `budget_delete_confirmation.dart`,
-`budget_detail_view_model.dart`)
+`_endEditSession`; `app/lib/ui/common/sheets/sheet_session.dart`; `budget_edit_actions_sheet.dart`,
+`budget_limit_edit_sheet.dart`, `budget_limit_editor_view_model.dart`, `budget_detail_view_model.dart`)
 
 ## Shown budget disappears
 
@@ -318,9 +329,9 @@ When the shown budget disappears from the ledger (a purged category, a remote re
 screen or device), `BudgetDetailNotifier` returns `BudgetDetailPhase.deleted`, which renders
 nothing. The Flow listener on `budgetDetailViewModelProvider` sees that phase for the shown budget
 and clears the selection, so the phone page is removed and the open pane closes. No deleted page
-exists. A local delete ends the same way: `showBudgetDeleteConfirmation` returns only after the
+exists. A local delete ends the same way: `showDestructiveConfirmation` returns only after the
 dialog route has finished its exit animation (it awaits the route's `completed`), then
-`_confirmDelete` calls `deleteBudget()`, clears selection and removes the page in the same
+`_confirmDelete` calls `deleteBudget()`, clears selection and reconciles the page in the same
 synchronous turn.
 (`budgets_flow.dart`: `_clearSelectionWhenMissing`, `_confirmDelete`;
 `budget_detail_view_model.dart`: `BudgetDetailPhase`)
@@ -377,8 +388,8 @@ spend and the budget's limit along with its category. An unknown budget id yield
 
 ## Detail page and pane
 
-In open and desktop layouts the selected budget appears in the shell's right pane. `MoneyFlow`
-supplies a `ShellDetail` whose title is the budget's category name or Overall, whose subtitle is the selected
+In open and desktop layouts the selected budget appears in the shell's right pane. `budgetPaneProvider`
+supplies a `ShellPane` whose `ShellDetail` is titled with the budget's category name or Overall, whose subtitle is the selected
 month (both from `budgetPaneHeaderProvider`), whose only header action is Edit, and whose body is
 `BudgetPaneBody`, the shared `BudgetDetailContent` in one `ListView` without a second app bar. Empty list space closes the pane; the pane has no Close
 control. `ShellDetail.onClose` is optional, and callers that supply it retain their Close control.
@@ -387,7 +398,7 @@ with the tooltip "Edit". Failed detail reads show the actual reason from `Analys
 has no local fallback re-evaluation. Both Edit actions call
 `requestEdit`, which opens the Edit actions sheet (see "Edit flow and sheets"). A budget removed
 elsewhere closes the detail (see "Shown budget disappears"). (`budget_detail_content.dart`,
-`budget_detail_screen.dart`, `app/lib/ui/money/money_flow.dart`)
+`budget_detail_screen.dart`, `app/lib/ui/budgets/budget_detail/budget_pane.dart`)
 
 ## Sheet coverage
 
@@ -415,7 +426,7 @@ route and is not tracked. A sheet over a foreground root page leaves the shell u
 dismiss through their captured exact route, because the Flow's `navigatorContext` can
 target another Navigator. The Edit flow pushes the next surface from the action sheet's
 pop-result continuation, before that route's `completed` fires, so shell occupancy stays continuous.
-The shared controller adds no timer or pane ownership to hide an asynchronous gap. (`budgets_flow.dart`: `_handleDetailStep`, `_dismissSheetRoute`,
+The shared controller adds no timer or pane ownership to hide an asynchronous gap. (`budgets_flow.dart`: `_handleDetailStep`; `sheet_session.dart`: `dismiss`,
 `app/lib/ui/common/sheets/app_sheet_route.dart`: `showAppSheet`, `AppSheetRoute`)
 
 ## Gotchas and invariants
@@ -440,9 +451,9 @@ The shared controller adds no timer or pane ownership to hide an asynchronous ga
   (`ledger_state_invariants_budgets.dart`)
 - `BudgetEditRequested` is payload-free. `BudgetsFlow` runs one `_EditSession` at a time, rechecks
   `_editStillValid` after the action sheet and after the delete dialog return, and retires the
-  session on budget change, ledger replacement and disposal. (`budgets_flow.dart:_handleDetailStep`)
-- The Add form uses one `_FormSession` that ends at `route.completed` and dismisses its exact route.
+  session on budget change (through the controller's shown-budget hook), ledger replacement and disposal. (`budgets_flow.dart:_handleDetailStep`)
+- The Add form uses one `_FormSession` whose `SheetSession` ends at `route.completed` and dismisses its exact route.
   (`budgets_flow.dart:_openBudgetForm`)
 - Budget deletion is owned by `BudgetDetailViewModel.deleteBudget` behind the budget-specific
-  confirmation; the list view model has no delete.
-  (`budget_detail_view_model.dart`, `budget_delete_confirmation.dart`)
+  confirmation, which is the shared `showDestructiveConfirmation`; the list view model has no delete.
+  (`budget_detail_view_model.dart`, `app/lib/ui/common/feedback/destructive_confirmation.dart`)

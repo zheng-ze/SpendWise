@@ -5,7 +5,6 @@ import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
 import 'package:spendwise/ui/money/money_segment.dart';
-import 'package:spendwise/ui/settings/plan/plan_list_view_model.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 
@@ -86,21 +85,12 @@ class _MoneyAction extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (segment == MoneySegment.accounts) {
-      return IconButton(
-        tooltip: 'Add account',
-        icon: const Icon(Icons.add),
-        onPressed: () =>
-            ref.read(accountsViewModelProvider.notifier).requestNewAccount(),
-      );
-    }
-    if (segment != MoneySegment.plans) return const SizedBox.shrink();
-    final state = ref.watch(planListViewModelProvider).value;
-    if (state == null || state.plans.isEmpty) return const SizedBox.shrink();
-    return TextButton(
+    if (segment != MoneySegment.accounts) return const SizedBox.shrink();
+    return IconButton(
+      tooltip: 'Add account',
+      icon: const Icon(Icons.add),
       onPressed: () =>
-          ref.read(planListViewModelProvider.notifier).toggleEditing(),
-      child: Text(state.editing ? 'Done' : 'Edit'),
+          ref.read(accountsViewModelProvider.notifier).requestNewAccount(),
     );
   }
 }

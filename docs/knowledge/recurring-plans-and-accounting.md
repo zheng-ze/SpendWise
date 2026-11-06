@@ -1,6 +1,6 @@
 # Recurring Plans & Accounting
 
-Last reconciled: 2026-10-21
+Last reconciled: e9e21fdb
 
 The pure-domain plan and accounting logic in `packages/domain/lib/src/plans/` and
 `packages/domain/lib/src/accounting.dart`, plus the plan mutators on `LedgerState`. Plans expand
@@ -72,7 +72,7 @@ Changing a template note affects only subsequently generated occurrences. The no
 occurrence timing, deterministic ids, plan validation or accounting. Plan edits that rebuild the
 template preserve the latest persisted note. Source:
 `packages/domain/test/entries/entry_template_note_test.dart` - all groups;
-`app/test/ui/settings/plan/plan_form_view_model_test.dart` - template-note preservation.
+`app/test/ui/plans/plan_form/plan_form_view_model_test.dart` - template-note preservation.
 
 The resolve cursor stops at the first failure because a later cursor would skip the failed
 occurrence's retry; replaying a stale window yields the same result.
@@ -193,6 +193,31 @@ query's cut cutoff; its outstanding uses direct-card negative non-transfer entri
 (`accountSections`, `_row`, `statementCut`, `payable`, `outstanding`); see
 [accounts-ui.md](accounts-ui.md). Contract examples live in
 `packages/domain/test/analysis/card_statement_test.dart`.
+
+## Plan UI
+
+The Money Plans UI lives in `app/lib/ui/plans/` and its tests in `app/test/ui/plans/` (see
+`accounts-ui.md`, Plans segment). The domain has no change for it.
+
+- **Detail rows** (`plan_detail_view_model.dart`). Next is the next occurrence on or after today, or
+  "Ended" when none remains. Account is the source name. Category is the category name, falling back to
+  the uncategorized name; a transfer shows "To" with the destination account instead. Started is the
+  anchor. Ends is "Never" or the end date.
+- **Last added** (`app/lib/ui/plans/plan_projection.dart`, `lastAddedDate`). The app-side function returns the newest
+  scheduled occurrence that the resolve cursor has covered, with the anchor included, by calling
+  `plan.occurrences(after: anchor - 1 day, upTo: lastResolvedDate)` and taking its last value. Clamping
+  by `endDate` happens inside `occurrences`. It returns null when nothing is covered, and the detail
+  then shows "Not yet". It reads the schedule and cursor only, never History. Consequence (accepted
+  limitation, pinned by `app/test/ui/plans/plan_projection_test.dart`): after Edit moves the First date
+  earlier, Last added can show a date with no entry, and a later edit can show "Not yet" while History
+  holds an entry.
+- **Edit** opens an AppSheet form (`app/lib/ui/plans/plan_form/plan_form.dart`, header "Edit plan",
+  footer "Save plan", no Cancel). Its rows use the shared `FormSheetRow`
+  (`app/lib/ui/common/inputs/form_sheet_row.dart`). The template's sign is kept on save, and the source account is shown locked. Editing the
+  anchor or frequency does not retro-generate or delete existing entries.
+- **Delete** asks through `showDestructiveConfirmation` and then runs `deletePlan`, which hard-deletes
+  only the plan. Entries it already added stay in History. Plans have no recycle bin.
+- **Out of scope**: the needs-attention notice for plans (issue 593) is not part of this feature.
 
 ## Gotchas and invariants
 

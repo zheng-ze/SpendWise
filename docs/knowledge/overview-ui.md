@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: f9c2bb9f
+Last reconciled: ae736584
 
 ## Feature overview
 
@@ -99,7 +99,9 @@ Overview tab and does not change the shell selection.
 - `OverviewFlow` uses `ShellPaneHost` when a `ShellPaneScope` is present. Direct Overview fixtures
   keep the standalone screen behavior.
 - Every visual value in `overview_screen.dart` is a named constant. Coming up rows pass the date
-  column to `MedallionRow.leading`, which replaces the medallion.
+  column to `MedallionRow.leading`, which replaces the medallion. That column is the shared `DateBadge`
+  (`app/lib/ui/common/lists/date_badge.dart`), built in `UpcomingRowContent`
+  (`app/lib/ui/overview/overview_coming_up_section.dart`). Plans rows use the same badge.
 
 ## Requirements
 

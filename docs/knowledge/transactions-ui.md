@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: f9c2bb9f
+Last reconciled: ae736584
 
 ## Feature overview
 
@@ -29,11 +29,13 @@ and edits existing ones (Edit entry); Add is the only place recurring plans are 
   one owner per entry through claim tokens (`claim`, `owns`, `release`).
 - `app/lib/ui/transactions/entry/edit_entry_host.dart` - `EditEntryHost`: claims ownership,
   subscribes to the form view model, dispatches its Steps from its own context with
-  `sheetPresentation: accountSheetPresentation` and `onPickerRouteCreated`, removes still-active
+  `sheetPresentation: shellSheetPresentation` and `onPickerRouteCreated`, removes still-active
   picker routes on dispose, and shows the load alert with Retry. Hosted in a sheet or in the History
   detail pane (`EntryFormFrame.sheet` or `.pane`).
 - `app/lib/ui/transactions/history_entry_selection.dart` - `historyEntrySelectionProvider`
-  (autoDispose), the selected History entry id for the detail pane.
+  (autoDispose), the selected History entry id for the detail pane. It is a
+  `HistoryEntrySelectionNotifier`, which extends the shared `IdSelectionNotifier`
+  (`app/lib/ui/common/base/id_selection.dart`) and overrides `build` to keep its phone-mode reset.
 - `app/lib/ui/transactions/entry/new_entry_presenter.dart` - the shared Add presenter
   (`openNewEntry`): reads `shellLayoutModeProvider` from the caller-side ref, opens the null-key
   entry form in `AppSheet` on the root navigator, and delegates to the container-local
@@ -221,7 +223,7 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   that listens to `Ledger` notifications without rebuilding the draft; unresolvable selections
   show "Unavailable account" / "Unavailable category".
   Edit entry opens directly as an editable `AppSheet` with no read-only step. `openEditEntry` shows
-  `EditEntryHost` on the root navigator with the account sheet presentation resolver. Update entry
+  `EditEntryHost` on the root navigator with the shell sheet presentation resolver (`shellSheetPresentation`). Update entry
   saves and dismisses. Delete entry is the last body action, archives through `Ledger.archiveEntry`
   with no confirmation and dismisses. System entries lock Name, Category and Include in analysis and
   show no Delete; an edit save keeps the entry's `systemKind`. Drag-down, tapping outside or the
@@ -260,8 +262,8 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   unscoped History shows Edit entry in the shell detail pane instead: `_HistoryPaneHost`
   (`transactions_flow.dart`) supplies a `ShellDetail` with the date subtitle and Close, hosting
   `EditEntryHost` with `EntryFormFrame.pane` (`EntryPaneLayout`, which never builds an `AppSheet`).
-  `historyEntrySelectionProvider` owns the selection; it is scoped through `shellLayoutModeProvider`
-  and resets when the layout becomes phone. Re-tapping the selected row keeps the draft, selecting
+  `historyEntrySelectionProvider` owns the selection on the shared `IdSelectionNotifier`; it is scoped
+  through `shellLayoutModeProvider` and resets when the layout becomes phone. Re-tapping the selected row keeps the draft, selecting
   another row swaps the keyed pane, and `openEditEntry` clears a matching selection. Overview Recent
   entries also call `openEditEntry` (see `overview-ui.md`). Swipe-to-delete on list rows still
   hard-deletes through `Ledger.deleteEntry`.

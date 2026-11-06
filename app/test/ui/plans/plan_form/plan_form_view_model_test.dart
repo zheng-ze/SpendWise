@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/settings/plan/plan_form_view_model.dart';
+import 'package:spendwise/ui/plans/plan_form/plan_form_view_model.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
@@ -15,7 +15,13 @@ void main() {
     type: AccountType.cash,
   );
 
-  RecurringPlan buildPlan({required Decimal amount, String? note}) {
+  RecurringPlan buildPlan({
+    required Decimal amount,
+    String? note,
+    String? destinationID,
+    DateTime? endDate,
+    DateTime? lastResolvedDate,
+  }) {
     return RecurringPlan(
       id: 'p0000000-0000-0000-0000-000000000001',
       template: EntryTemplate(
@@ -23,12 +29,27 @@ void main() {
         name: 'Rent',
         sourceID: source.id,
         note: note,
+        destinationID: destinationID,
       ),
       frequency: RecurrenceFrequency.monthly,
       anchor: DateTime.utc(2026, 1, 1),
-      lastResolvedDate: DateTime.utc(2025, 12, 31),
+      endDate: endDate,
+      lastResolvedDate: lastResolvedDate ?? DateTime.utc(2025, 12, 31),
     );
   }
+
+  Future<PlanFormNotifier> openForm(
+    ProviderContainer container,
+    String planID,
+  ) async {
+    final provider = planFormViewModelProvider(planID);
+    container.listen(provider, (_, _) {});
+    await container.read(provider.future);
+    return container.read(provider.notifier);
+  }
+
+  PlanFormViewState readForm(ProviderContainer container, String planID) =>
+      container.read(planFormViewModelProvider(planID)).requireValue;
 
   ProviderContainer buildContainer(Ledger ledger) {
     final container = ProviderContainer(
@@ -74,21 +95,6 @@ void main() {
         originalAmount: dec('10'),
       );
       expect(result, dec('75'));
-    });
-  });
-
-  group('applyPickerResult', () {
-    test('an explicit one-time choice keeps the current frequency', () {
-      final result = applyPickerResult(RecurrenceFrequency.monthly, null);
-      expect(result, RecurrenceFrequency.monthly);
-    });
-
-    test('a genuinely picked frequency replaces the current one', () {
-      final result = applyPickerResult(
-        RecurrenceFrequency.monthly,
-        RecurrenceFrequency.yearly,
-      );
-      expect(result, RecurrenceFrequency.yearly);
     });
   });
 
@@ -280,30 +286,38 @@ void main() {
     expect(formState?.endDate, DateTime.utc(2026, 1, 1));
   });
 
-  test(
-    'disabling end date leaves the stored date but stops it applying on save',
-    () async {
-      final plan = buildPlan(amount: dec('-10'));
-      final ledger = buildLedger(plan);
-      final container = buildContainer(ledger);
-      await container.read(planFormViewModelProvider(plan.id).future);
-      final viewModel = container.read(
-        planFormViewModelProvider(plan.id).notifier,
-      );
+  test('Ends never clears the end date and nothing is saved with it', () async {
+    final plan = buildPlan(
+      amount: dec('-10'),
+      endDate: DateTime.utc(2026, 9, 1),
+    );
+    final ledger = buildLedger(plan);
+    final container = buildContainer(ledger);
+    final viewModel = await openForm(container, plan.id);
 
-      viewModel.setHasEndDate(true);
-      viewModel.setHasEndDate(false);
+    viewModel.setHasEndDate(false);
 
-      final formState = container
-          .read(planFormViewModelProvider(plan.id))
-          .value;
-      expect(formState?.hasEndDate, isFalse);
+    final formState = readForm(container, plan.id);
+    expect(formState.hasEndDate, isFalse);
+    expect(formState.endDate, isNull);
 
-      await viewModel.save();
+    await viewModel.save();
 
-      expect(ledger.state.plans[plan.id]!.endDate, isNull);
-    },
-  );
+    expect(ledger.state.plans[plan.id]!.endDate, isNull);
+  });
+
+  test('choosing a date keeps an end date already set', () async {
+    final plan = buildPlan(
+      amount: dec('-10'),
+      endDate: DateTime.utc(2026, 9, 1),
+    );
+    final container = buildContainer(buildLedger(plan));
+    final viewModel = await openForm(container, plan.id);
+
+    viewModel.setHasEndDate(true);
+
+    expect(readForm(container, plan.id).endDate, DateTime.utc(2026, 9, 1));
+  });
 
   test('requestPickEndDate emits PickEndDateRequested', () async {
     final plan = buildPlan(amount: dec('-10'));
@@ -460,6 +474,33 @@ void main() {
     expect(ledger.state.plans[plan.id]!.template.note, 'remote');
   });
 
+  test('saving a transfer plan keeps its destination', () async {
+    final target = Account(
+      id: 'a0000000-0000-0000-0000-000000000002',
+      name: 'Savings',
+      type: AccountType.savings,
+    );
+    final plan = buildPlan(amount: dec('-10'), destinationID: target.id);
+    final ledger = Ledger(
+      state: LedgerState(
+        moneySources: {
+          source.id: MoneySource.account(source),
+          target.id: MoneySource.account(target),
+        },
+        plans: {plan.id: plan},
+      ),
+    );
+    final container = buildContainer(ledger);
+    final viewModel = await openForm(container, plan.id);
+
+    viewModel.setAmount('15.00');
+    await viewModel.save();
+
+    final saved = ledger.state.plans[plan.id]!;
+    expect(saved.template.destinationID, target.id);
+    expect(saved.template.amount, dec('-15'));
+  });
+
   test('saving a note-free plan keeps it note-free', () async {
     final plan = buildPlan(amount: dec('-10'));
     final ledger = buildLedger(plan);
@@ -475,5 +516,88 @@ void main() {
     final saved = ledger.state.plans[plan.id]!;
     expect(saved.template.note, isNull);
     expect(saved.template.name, 'Updated');
+  });
+
+  test('reopening after disposal starts from the persisted plan', () async {
+    final plan = buildPlan(amount: dec('-10'));
+    final container = buildContainer(buildLedger(plan));
+    final provider = planFormViewModelProvider(plan.id);
+    final subscription = container.listen(provider, (_, _) {});
+    await container.read(provider.future);
+    container.read(provider.notifier).setName('Edited');
+    subscription.close();
+    await container.pump();
+
+    await openForm(container, plan.id);
+
+    expect(readForm(container, plan.id).name, 'Rent');
+  });
+
+  test('a missing plan is an error', () async {
+    final plan = buildPlan(amount: dec('-10'));
+    final ledger = Ledger(
+      state: LedgerState(
+        moneySources: {source.id: MoneySource.account(source)},
+      ),
+    );
+    final container = buildContainer(ledger);
+    final provider = planFormViewModelProvider(plan.id);
+    container.listen(provider, (_, _) {});
+    await container.read(provider.future).then((_) {}, onError: (_) {});
+
+    expect(container.read(provider), isA<AsyncError<PlanFormViewState>>());
+  });
+
+  test('an unavailable ledger is an error', () async {
+    final plan = buildPlan(amount: dec('-10'));
+    final container = ProviderContainer(
+      overrides: [ledgerProvider.overrideWithValue(null)],
+    );
+    addTearDown(container.dispose);
+    final provider = planFormViewModelProvider(plan.id);
+    container.listen(provider, (_, _) {});
+    await container.read(provider.future).then((_) {}, onError: (_) {});
+
+    expect(container.read(provider), isA<AsyncError<PlanFormViewState>>());
+  });
+
+  test(
+    'changing the schedule after resolution surfaces the stale cursor',
+    () async {
+      final plan = buildPlan(
+        amount: dec('-10'),
+        lastResolvedDate: DateTime.utc(2026, 2, 1),
+      );
+      final ledger = buildLedger(plan);
+      final container = buildContainer(ledger);
+      final viewModel = await openForm(container, plan.id);
+
+      viewModel.applyPickedRecurrence(RecurrenceFrequency.yearly);
+      await viewModel.save();
+
+      final formState = readForm(container, plan.id);
+      expect(formState.error, isA<StaleResolutionCursor>());
+      expect(formState.frequency, RecurrenceFrequency.yearly);
+      expect(formState.step, isNull);
+    },
+  );
+
+  test('an end date before the first date surfaces the exhausted plan and keeps the draft', () async {
+    final plan = buildPlan(amount: dec('-10'));
+    final container = buildContainer(buildLedger(plan));
+    final viewModel = await openForm(container, plan.id);
+
+    viewModel.setName('Edited');
+    viewModel.setAmount('77');
+    viewModel.setHasEndDate(true);
+    viewModel.applyPickedEndDate(DateTime.utc(2025, 1, 1));
+    await viewModel.save();
+
+    final formState = readForm(container, plan.id);
+    expect(formState.error, isA<ExhaustedPlan>());
+    expect(formState.endDate, DateTime.utc(2025, 1, 1));
+    expect(formState.name, 'Edited');
+    expect(formState.amountText, '77');
+    expect(formState.step, isNull);
   });
 }

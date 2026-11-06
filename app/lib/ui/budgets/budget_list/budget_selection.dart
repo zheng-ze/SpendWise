@@ -1,17 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// MARK: - SelectedBudgetNotifier
-class SelectedBudgetNotifier extends Notifier<String?> {
-  @override
-  String? build() => null;
-
-  void select(String budgetID) => state = budgetID;
-
-  void clear() => state = null;
-}
+import 'package:spendwise/ui/common/base/id_selection.dart';
 
 // MARK: - Constants
 final selectedBudgetProvider =
-    NotifierProvider.autoDispose<SelectedBudgetNotifier, String?>(
-      SelectedBudgetNotifier.new,
+    NotifierProvider.autoDispose<IdSelectionNotifier, String?>(
+      IdSelectionNotifier.new,
     );

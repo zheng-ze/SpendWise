@@ -75,6 +75,8 @@ class ShellDetail {
   final List<Widget> headerActions;
 }
 
+typedef ShellPane = ({ShellDetail detail, VoidCallback close});
+
 class ShellPaneHost extends StatelessWidget {
   const ShellPaneHost({
     super.key,

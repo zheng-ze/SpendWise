@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_amount_input.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
-import 'package:spendwise/ui/budgets/budget_sheet_presentation.dart';
+import 'package:spendwise/ui/common/inputs/form_section_card.dart';
+import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
+import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 
 // MARK: - Constants
@@ -15,14 +18,10 @@ const _sheetTitle = 'Add budget';
 const _categoryLabel = 'Category';
 const _saveLabel = 'Save budget';
 const _retryLabel = 'Try again';
-const _loadingLabel = 'Loading';
 const _loadErrorTitle = "Couldn't load the budget form";
 const _saveErrorTitle = 'Could not save budget';
 
-const _fieldContentPadding = EdgeInsets.zero;
 const _fieldGap = 16.0;
-const _loadingGap = 12.0;
-const _loadingPadding = EdgeInsets.symmetric(vertical: 32);
 const _footerWidth = double.infinity;
 
 // MARK: - Sheet Presenter
@@ -33,8 +32,8 @@ Future<void> showBudgetFormSheet({
 }) {
   return showAppSheet<void>(
     context,
-    presentation: budgetSheetPresentation(context),
-    presentationResolver: budgetSheetPresentation,
+    presentation: shellSheetPresentation(context),
+    presentationResolver: shellSheetPresentation,
     onRouteCreated: onRouteCreated,
     builder: (_) => BudgetForm(draftKey: draftKey),
   );
@@ -76,64 +75,17 @@ class _BudgetFormState extends ConsumerState<BudgetForm> {
     }
     final error = asyncState.error;
     if (asyncState.isLoading || error == null) {
-      return const _BudgetFormLoading();
+      return const FormSheetLoading(title: _sheetTitle);
     }
-    return _BudgetFormLoadError(error: error, onRetry: viewModel.retry);
-  }
-}
-
-// MARK: - BudgetFormLoading
-class _BudgetFormLoading extends StatelessWidget {
-  const _BudgetFormLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    const body = Padding(
-      padding: _loadingPadding,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: _loadingGap),
-          Text(_loadingLabel),
-        ],
-      ),
-    );
-
-    return const AppSheet(
-      header: AppPickerHeader(title: _sheetTitle),
-      body: Center(child: body),
-      dragToDismiss: true,
-      variant: AppSheetVariant.form,
-    );
-  }
-}
-
-// MARK: - BudgetFormLoadError
-class _BudgetFormLoadError extends StatelessWidget {
-  const _BudgetFormLoadError({required this.error, required this.onRetry});
-
-  final Object error;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
     final retry = SizedBox(
       width: _footerWidth,
-      child: PrimaryButton(label: _retryLabel, onPressed: onRetry),
+      child: PrimaryButton(label: _retryLabel, onPressed: viewModel.retry),
     );
-    final alert = SheetAlertData(
-      message: '$_loadErrorTitle\n$error',
-      severity: SheetAlertSeverity.error,
-    );
-
-    return AppSheet(
-      header: const AppPickerHeader(title: _sheetTitle),
-      body: const SizedBox.shrink(),
+    return FormSheetLoadError(
+      title: _sheetTitle,
+      message: _loadErrorTitle,
+      error: error,
       footer: retry,
-      alert: alert,
-      dragToDismiss: true,
-      variant: AppSheetVariant.form,
     );
   }
 }
@@ -156,22 +108,18 @@ class _BudgetFormBody extends StatelessWidget {
       amountController.text = formState.amountText;
     }
 
-    final categoryRow = Material(
-      type: MaterialType.transparency,
-      child: ListTile(
-        contentPadding: _fieldContentPadding,
-        title: const Text(_categoryLabel),
-        trailing: Text(formState.scopeLabel),
-        onTap: viewModel.requestPickCategory,
-      ),
+    final categoryRow = FormSheetRow(
+      label: _categoryLabel,
+      trailing: Text(formState.scopeLabel),
+      onTap: viewModel.requestPickCategory,
     );
     final amount = BudgetAmountInput(
       controller: amountController,
       amountText: formState.amountText,
       onChanged: viewModel.setAmount,
     );
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final body = FormSectionCard(
+      padding: FormSectionCard.fieldsPadding,
       children: [
         categoryRow,
         const SizedBox(height: _fieldGap),

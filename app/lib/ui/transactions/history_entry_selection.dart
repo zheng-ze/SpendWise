@@ -1,20 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/common/base/id_selection.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 // MARK: - HistoryEntrySelectionNotifier
-class HistoryEntrySelectionNotifier extends Notifier<String?> {
+class HistoryEntrySelectionNotifier extends IdSelectionNotifier {
   @override
   String? build() {
     ref.watch(
       shellLayoutModeProvider.select((mode) => mode == ShellLayoutMode.phone),
     );
-    return null;
+    return super.build();
   }
-
-  void select(String entryId) => state = entryId;
-
-  void clear() => state = null;
 }
 
 // MARK: - Provider

@@ -31,9 +31,7 @@ final budgetPaneHeaderProvider = Provider.autoDispose
     });
 
 // MARK: - BudgetPane
-typedef BudgetPane = ({ShellDetail detail, VoidCallback close});
-
-final budgetPaneProvider = Provider.autoDispose<BudgetPane?>((ref) {
+final budgetPaneProvider = Provider.autoDispose<ShellPane?>((ref) {
   final budgetID = ref.watch(selectedBudgetProvider);
   final phone = ref.watch(shellLayoutModeProvider) == ShellLayoutMode.phone;
   if (budgetID == null || phone) return null;
