@@ -14,6 +14,7 @@ export 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
 const _unboundedExtent = double.infinity;
 
 const _noSheetInset = 0.0;
+const _formFooterTopGap = 12.0;
 
 // MARK: - Presentation
 
@@ -151,7 +152,13 @@ class _AppSheetState extends State<AppSheet> {
     final hasBottom = widget.footer != null || widget.inputSurface != null;
     final top = _SheetTop(header: widget.header, showHandle: phone);
     final bottom = hasBottom
-        ? _SheetBottom(footer: widget.footer, inputSurface: widget.inputSurface)
+        ? _SheetBottom(
+            footer: widget.footer,
+            inputSurface: widget.inputSurface,
+            footerTopGap: widget.variant == AppSheetVariant.form
+                ? _formFooterTopGap
+                : _noSheetInset,
+          )
         : null;
     final scrollBody = _SheetScrollBody(
       top: top,
@@ -201,17 +208,31 @@ class _SheetTop extends StatelessWidget {
 }
 
 class _SheetBottom extends StatelessWidget {
-  const _SheetBottom({required this.footer, required this.inputSurface});
+  const _SheetBottom({
+    required this.footer,
+    required this.inputSurface,
+    required this.footerTopGap,
+  });
 
   final Widget? footer;
 
   final Widget? inputSurface;
 
+  final double footerTopGap;
+
   @override
   Widget build(BuildContext context) {
+    final footer = this.footer;
+    final paddedFooter = footer == null
+        ? null
+        : Padding(
+            padding: EdgeInsets.only(top: footerTopGap),
+            child: footer,
+          );
+
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [?footer, ?inputSurface],
+      children: [?paddedFooter, ?inputSurface],
     );
   }
 }
