@@ -48,7 +48,7 @@ void main() {
         final container = await _pumpPhone(tester, brightness);
         await tapPlan(tester, plansShellExpensePlan.id);
 
-        await tester.tap(find.byType(BackButton));
+        await tester.tap(find.text('Plans'));
         await tester.pumpAndSettle();
 
         expect(find.byType(PlanDetailScreen), findsNothing);

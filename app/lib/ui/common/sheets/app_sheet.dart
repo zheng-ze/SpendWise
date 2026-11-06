@@ -332,8 +332,9 @@ class _SheetChrome extends StatelessWidget {
           )
         : Border(top: topBorder);
     final shadow = canvas && !desktop && !open ? [_formShadow] : null;
+    final fill = surfaceColor ?? colors.raised;
     final decoration = BoxDecoration(
-      color: surfaceColor ?? (canvas ? colors.base : null),
+      color: fill,
       border: border,
       borderRadius: radius,
       boxShadow: shadow,
@@ -362,7 +363,7 @@ class _SheetChrome extends StatelessWidget {
           );
 
     final surface = Material(
-      color: surfaceColor ?? (canvas ? colors.base : colors.raised),
+      color: fill,
       borderRadius: radius,
       child: Container(decoration: decoration, padding: padding, child: child),
     );
