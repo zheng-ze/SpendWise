@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: ae736584
+Last reconciled: e9e21fdb
 
 ## Feature overview
 
@@ -28,7 +28,8 @@ indirectly, via the spend math the app layer runs against analysis.
   `app/lib/ui/shell/selected_detail_controller.dart` (`SelectedDetailController`, phone page and owners),
   `app/lib/ui/common/sheets/sheet_session.dart` (`SheetSession`),
   `app/lib/ui/common/feedback/destructive_confirmation.dart` (`showDestructiveConfirmation`), and
-  `app/lib/ui/common/sheets/form_sheet_load_states.dart` (`FormSheetLoading`, `FormSheetLoadError`).
+  `app/lib/ui/common/sheets/form_sheet_load_states.dart` (`FormSheetLoading`, `FormSheetLoadError`), and
+  `app/lib/ui/common/inputs/form_sheet_row.dart` (`FormSheetRow`, the labelled row in the Add form).
 - `app/lib/ledger/analysis/budgets/budget_spend.dart` - the app-layer spend math: `budgetItems`,
   `budgetSpend`, `monthExpenseSpend`, and the shared `budgetCountsItem` predicate.
 - `app/lib/ledger/analysis/budgets/budget_counted_entries.dart` - `BudgetCountedEntry`,
@@ -271,9 +272,8 @@ autofocus and no pad. The limit editor uses the same input.
 
 `_FormSession` (in `budgets_flow.dart`) holds the `BudgetDraftKey` and a `SheetSession`, which carries
 the form's exact `AppSheetRoute`, the Step subscription and the retired flag. `_openBudgetForm` returns
-immediately when a session exists, so Add is single-flight. The session ends at `route.completed` through
-`SheetSession.endWhenCompleted`, which closes the subscription and clears the field, so the Flow does not
-accept a second Add during the exit animation. `BudgetFormSaved` calls `SheetSession.dismiss` on the
+immediately when a session exists, so Add is single-flight. The session ends at `route.completed` through `_endFormSession`, which calls `SheetSession.end` to close
+the subscription and clear the field, so the Flow does not accept a second Add during the exit animation. `BudgetFormSaved` calls `SheetSession.dismiss` on the
 exact form route: `pop` when the route is current, `removeRoute` when the picker covers it, so the picker
 is never closed in its place. After the picker returns, the choice applies only when the Flow is mounted,
 the session is still current and the form route is still active. Flow disposal ends the session's

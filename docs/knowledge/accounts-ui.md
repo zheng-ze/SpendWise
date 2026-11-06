@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: ae736584
+Last reconciled: e9e21fdb
 
 ## Feature overview
 
@@ -51,7 +51,7 @@ shows the signed amount, frequency, and key-value rows for Next, Account, Catego
 transfer), Started, Last added and Ends, followed by Edit plan and Delete plan. The view model is
 `planDetailViewModelProvider`, an autoDispose family keyed by plan ID.
 
-Edit plan opens the AppSheet form in `plan_form.dart` (`showPlanFormSheet`, header "Edit plan", footer
+Edit plan opens the AppSheet form in `app/lib/ui/plans/plan_form/plan_form.dart` (`showPlanFormSheet`, header "Edit plan", footer
 "Save plan", no Cancel) through one `SheetSession` owned by `PlansFlow`. Delete plan asks through
 `showDestructiveConfirmation` with the title "Delete the <name> plan?" and the body "Entries it already
 added stay in History.", then deletes only the plan. On open and desktop, the list uses
@@ -146,7 +146,8 @@ Money, Budgets and Accounts Flow State mounted while a budget detail shifts unde
   transition is complete. `AppPickerSheet` supplies picker bodies with a transparent `Material`
   ancestor. Save: `addAccount` (statement day only for cards),
   then `setOpeningBalance` if the balance ≠ 0 (posts the synthetic excluded opening-balance entry);
-  Subpocket: `addPocket`.
+  Subpocket: `addPocket`. Its labelled rows are `FormSheetRow`
+  (`app/lib/ui/common/inputs/form_sheet_row.dart`), shared with the Plan and Budget forms.
 - **Source edit form** - reached from an account-header or pocket-row Edit action. Name; for
   accounts a balance section (allows negatives) whose edit posts a "Balance adjustment" entry for the
   delta with `includeInAnalysis: false` (no delta produces no entry); toggles "Transfers in count as

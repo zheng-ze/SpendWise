@@ -1,6 +1,6 @@
 # Recurring Plans & Accounting
 
-Last reconciled: ae736584
+Last reconciled: e9e21fdb
 
 The pure-domain plan and accounting logic in `packages/domain/lib/src/plans/` and
 `packages/domain/lib/src/accounting.dart`, plus the plan mutators on `LedgerState`. Plans expand
@@ -203,16 +203,17 @@ The Money Plans UI lives in `app/lib/ui/plans/` and its tests in `app/test/ui/pl
   "Ended" when none remains. Account is the source name. Category is the category name, falling back to
   the uncategorized name; a transfer shows "To" with the destination account instead. Started is the
   anchor. Ends is "Never" or the end date.
-- **Last added** (`plan_last_added.dart`, `lastAddedDate`). The app-side function returns the newest
+- **Last added** (`app/lib/ui/plans/plan_projection.dart`, `lastAddedDate`). The app-side function returns the newest
   scheduled occurrence that the resolve cursor has covered, with the anchor included, by calling
   `plan.occurrences(after: anchor - 1 day, upTo: lastResolvedDate)` and taking its last value. Clamping
   by `endDate` happens inside `occurrences`. It returns null when nothing is covered, and the detail
   then shows "Not yet". It reads the schedule and cursor only, never History. Consequence (accepted
-  limitation, pinned by `app/test/ui/plans/plan_detail/plan_last_added_test.dart`): after Edit moves the First date
+  limitation, pinned by `app/test/ui/plans/plan_projection_test.dart`): after Edit moves the First date
   earlier, Last added can show a date with no entry, and a later edit can show "Not yet" while History
   holds an entry.
-- **Edit** opens an AppSheet form (`plan_form.dart`, header "Edit plan", footer "Save plan", no
-  Cancel). The template's sign is kept on save, and the source account is shown locked. Editing the
+- **Edit** opens an AppSheet form (`app/lib/ui/plans/plan_form/plan_form.dart`, header "Edit plan",
+  footer "Save plan", no Cancel). Its rows use the shared `FormSheetRow`
+  (`app/lib/ui/common/inputs/form_sheet_row.dart`). The template's sign is kept on save, and the source account is shown locked. Editing the
   anchor or frequency does not retro-generate or delete existing entries.
 - **Delete** asks through `showDestructiveConfirmation` and then runs `deletePlan`, which hard-deletes
   only the plan. Entries it already added stay in History. Plans have no recycle bin.

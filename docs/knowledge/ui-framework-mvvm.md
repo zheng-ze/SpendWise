@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: ae736584
+Last reconciled: e9e21fdb
 
 ## Feature overview
 
@@ -402,13 +402,19 @@ under the confirmation helper.
   are the loading and load-error states of a form AppSheet. The caller supplies the title, message and
   footer. Budget form, budget limit editor and Plan edit use them.
 - **`SheetSession`** (`app/lib/ui/common/sheets/sheet_session.dart`) holds one sheet's route, Step
-  subscription and retired flag. It provides `retire` (idempotent, removes the route after the frame),
-  `dismiss` (pops when current, removes when covered), `end` and `endWhenCompleted`. Budgets' form and
-  edit sessions and Plans' edit session compose it.
+  subscription and retired flag. It provides `retire` (idempotent, closes the subscription and removes
+  the route after the frame), `dismiss` (delegates to the top-level `dismissSheetRoute`, which pops when
+  current and removes when covered) and `end` (closes the subscription and clears it). There is no
+  `endWhenCompleted`; callers end a session in `route.completed.then(...)`. Budgets' form and edit
+  sessions and Plans' edit session compose it.
 - **`SelectedDetailController`** (`app/lib/ui/shell/selected_detail_controller.dart`) keeps a feature's
-  phone detail page reconciled with its selection. It also opens, replaces and closes the feature's
+  phone detail page reconciled with its selection. It takes the selection as a
+  `NotifierProvider<IdSelectionNotifier, String?>` and clears that selection itself when the ledger
+  instance is replaced, so it takes no clear callback. It also opens, replaces and closes the feature's
   owner subscriptions for the shown ID, and reports shown-ID changes so the feature can retire its
   sheet session. Budgets and Plans use it. See [budgets.md](budgets.md).
+- **`FormSheetRow`** (`app/lib/ui/common/inputs/form_sheet_row.dart`) is the labelled row inside a form
+  AppSheet, with a trailing widget and an optional tap. Plan form, budget form and account form use it.
 - **`OpenSplitLayout`** (`app/lib/ui/common/layout/open_split_layout.dart`) lays out a primary and a
   secondary column at a 3:2 flex ratio with a named gap. Plans is the first caller.
 
