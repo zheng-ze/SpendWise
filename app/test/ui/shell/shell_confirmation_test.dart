@@ -423,6 +423,23 @@ void main() {
     expect(await confirmed, isTrue);
   }, timeout: uiTestTimeout);
 
+  testWidgets('move to bin actions stay tappable at a large text scale', (
+    tester,
+  ) async {
+    await _pumpBoundShell(tester, size: _phoneSize);
+    tester.platformDispatcher.textScaleFactorTestValue = 3;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final context = tester.element(find.text('overview probe'));
+
+    final future = confirmMoveCategoryToBin(context, 'Groceries');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Move'));
+    await tester.pumpAndSettle();
+
+    expect(await future, isTrue);
+    expect(tester.takeException(), isNull);
+  }, timeout: uiTestTimeout);
+
   testWidgets('focus traversal stays inside the dialog', (tester) async {
     await _pumpBoundShell(tester, size: _openSize);
     final context = tester.element(find.text('overview probe'));

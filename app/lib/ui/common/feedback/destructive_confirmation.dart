@@ -1,17 +1,27 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
+import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_confirmation.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
 const _cancelLabel = 'Cancel';
 const _defaultConfirmLabel = 'Delete';
-const _dialogMaxWidth = 308.0;
-const _dialogPadding = 20.0;
+const _compactPadding = 16.0;
+const _openPadding = 20.0;
+const _compactInset = 22.0;
+const _openInset = 0.0;
 const _dialogRadius = 16.0;
 const _dialogBorderWidth = 1.0;
 const _dialogElevation = 0.0;
-const _dialogInset = 22.0;
+const _openShadow = BoxShadow(
+  color: Color(0x26000000),
+  offset: Offset(0, 12),
+  blurRadius: 40,
+);
 const _titleSize = 18.0;
 const _titleWeight = FontWeight.w600;
 const _bodySize = 12.0;
@@ -21,6 +31,7 @@ const _actionWeight = FontWeight.w600;
 const _titleBodyGap = 6.0;
 const _bodyActionsGap = 14.0;
 const _actionsGap = 18.0;
+const _actionsOverflowGap = 8.0;
 const _confirmRadius = 8.0;
 const _confirmPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 7);
 
@@ -64,6 +75,11 @@ class _DestructiveDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final open = ShellLayoutModeScope.maybeOf(context) == ShellLayoutMode.open;
+    final isApple = switch (defaultTargetPlatform) {
+      TargetPlatform.iOS || TargetPlatform.macOS => true,
+      _ => false,
+    };
     final navigator = Navigator.of(context);
     const actionText = TextStyle(
       fontSize: _actionSize,
@@ -100,38 +116,69 @@ class _DestructiveDialog extends StatelessWidget {
       onPressed: () => navigator.pop(true),
       child: Text(confirmLabel),
     );
-    final actions = Row(
-      mainAxisAlignment: MainAxisAlignment.end,
+    final actions = OverflowBar(
+      alignment: MainAxisAlignment.end,
       spacing: _actionsGap,
+      overflowAlignment: OverflowBarAlignment.end,
+      overflowSpacing: _actionsOverflowGap,
       children: [cancel, confirm],
     );
-    final content = Column(
+    final titleText = Text(title, style: titleStyle);
+    final titleWidget = isApple
+        ? Semantics(namesRoute: true, child: titleText)
+        : titleText;
+    final text = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: titleStyle),
+        titleWidget,
         const SizedBox(height: _titleBodyGap),
         Text(body, style: bodyStyle),
+      ],
+    );
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Flexible(child: SingleChildScrollView(child: text)),
         const SizedBox(height: _bodyActionsGap),
         actions,
       ],
     );
-
-    return Dialog(
+    final padded = Padding(
+      padding: EdgeInsets.all(open ? _openPadding : _compactPadding),
+      child: IntrinsicWidth(child: content),
+    );
+    final label = isApple
+        ? null
+        : MaterialLocalizations.of(context).alertDialogLabel;
+    final semantic = Semantics(
+      scopesRoute: true,
+      explicitChildNodes: true,
+      namesRoute: !isApple,
+      label: label,
+      child: padded,
+    );
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_dialogRadius),
+      side: BorderSide(color: colors.control, width: _dialogBorderWidth),
+    );
+    final dialog = Dialog(
       backgroundColor: colors.raised,
       elevation: _dialogElevation,
-      insetPadding: const EdgeInsets.all(_dialogInset),
-      shape: RoundedRectangleBorder(
+      insetPadding: EdgeInsets.all(open ? _openInset : _compactInset),
+      shape: shape,
+      semanticsRole: SemanticsRole.alertDialog,
+      child: semantic,
+    );
+    if (!open) return dialog;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(_dialogRadius),
-        side: BorderSide(color: colors.control, width: _dialogBorderWidth),
+        boxShadow: const [_openShadow],
       ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _dialogMaxWidth),
-        child: Padding(
-          padding: const EdgeInsets.all(_dialogPadding),
-          child: content,
-        ),
-      ),
+      child: dialog,
     );
   }
 }
