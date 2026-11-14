@@ -284,6 +284,83 @@ void main() {
     });
   });
 
+  group('activeSubcategories', () {
+    Future<CategoryFormViewState?> stateFor(
+      Ledger ledger,
+      CategoryFormArgs args,
+    ) async {
+      final container = buildContainer(ledger);
+      await openAlive(container, args);
+      return container.read(categoryFormViewModelProvider(args)).value;
+    }
+
+    test('lists only active children of the edited root by name', () async {
+      final root = category(name: 'Food');
+      final zeta = category(name: 'Zeta', parentID: root.id);
+      final alpha = category(name: 'Alpha', parentID: root.id);
+      final binned = TransactionCategory(
+        name: 'Binned',
+        kind: CategoryKind.expense,
+        colorHex: '#FF0000',
+        includeInAnalysis: true,
+        parentID: root.id,
+        symbol: 'tag',
+        lifecycle: LifecycleState.archived,
+      );
+      final other = category(name: 'Other');
+      final stranger = category(name: 'Stranger', parentID: other.id);
+      final ledger = Ledger(
+        state: LedgerState(
+          categories: {
+            for (final c in [root, zeta, alpha, binned, other, stranger])
+              c.id: c,
+          },
+        ),
+      );
+
+      final formState = await stateFor(
+        ledger,
+        CategoryFormArgs(category: root),
+      );
+
+      expect(formState?.showsSubcategories, isTrue);
+      expect(formState?.activeSubcategories.map((c) => c.name), [
+        'Alpha',
+        'Zeta',
+      ]);
+    });
+
+    test('is empty on an add form', () async {
+      final root = category(name: 'Food');
+      final child = category(name: 'Snacks', parentID: root.id);
+      final ledger = Ledger(
+        state: LedgerState(categories: {root.id: root, child.id: child}),
+      );
+
+      final formState = await stateFor(ledger, const CategoryFormArgs());
+
+      expect(formState?.showsSubcategories, isFalse);
+      expect(formState?.activeSubcategories, isEmpty);
+    });
+
+    test('is empty on a subcategory edit and add form', () async {
+      final root = category(name: 'Food');
+      final child = category(name: 'Snacks', parentID: root.id);
+      final ledger = Ledger(
+        state: LedgerState(categories: {root.id: root, child.id: child}),
+      );
+
+      final edit = await stateFor(ledger, CategoryFormArgs(category: child));
+      final add = await stateFor(
+        ledger,
+        CategoryFormArgs(presetParentID: root.id),
+      );
+
+      expect(edit?.activeSubcategories, isEmpty);
+      expect(add?.activeSubcategories, isEmpty);
+    });
+  });
+
   group('parent picker', () {
     test('requestPickParent emits PickParentRequested', () async {
       final container = buildContainer(Ledger());

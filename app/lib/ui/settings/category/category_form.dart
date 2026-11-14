@@ -15,6 +15,7 @@ import 'package:spendwise/ui/common/sheets/sheet_session.dart';
 import 'package:spendwise/ui/settings/category/category_danger_button.dart';
 import 'package:spendwise/ui/settings/category/category_form_fields.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
+import 'package:spendwise/ui/settings/category/category_subcategories_section.dart';
 import 'package:spendwise/ui/settings/category/confirm_move_category_to_bin.dart';
 import 'package:spendwise/ui/settings/category/parent_picker.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
@@ -159,6 +160,10 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
     _viewModel.applyPickedParent(chosen.parentID);
   }
 
+  void _openSubcategory(TransactionCategory subcategory) {}
+
+  void _addSubcategory() {}
+
   Future<void> _confirmDelete() async {
     final category = widget.category;
     if (category == null) return;
@@ -177,6 +182,8 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
         formState: formState,
         viewModel: _viewModel,
         nameController: _nameController,
+        onSubcategoryTap: _openSubcategory,
+        onAddSubcategory: _addSubcategory,
       );
     }
     final error = asyncState.error;
@@ -204,11 +211,15 @@ class _CategoryFormBody extends StatelessWidget {
     required this.formState,
     required this.viewModel,
     required this.nameController,
+    required this.onSubcategoryTap,
+    required this.onAddSubcategory,
   });
 
   final CategoryFormViewState formState;
   final CategoryFormViewModel viewModel;
   final TextEditingController nameController;
+  final ValueChanged<TransactionCategory> onSubcategoryTap;
+  final VoidCallback onAddSubcategory;
 
   static const _fieldGap = 16.0;
   static const _editSectionGap = 12.0;
@@ -269,6 +280,11 @@ class _CategoryFormBody extends StatelessWidget {
         if (!formState.isEditing) collapsedMoreOptions,
       ],
     );
+    final subcategories = CategorySubcategoriesSection(
+      subcategories: formState.activeSubcategories,
+      onSubcategoryTap: onSubcategoryTap,
+      onAddSubcategory: onAddSubcategory,
+    );
     final moveToBin = CategoryDangerButton(
       label: _moveToBinLabel,
       onPressed: viewModel.requestDelete,
@@ -278,6 +294,10 @@ class _CategoryFormBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               fieldsCard,
+              if (formState.showsSubcategories) ...[
+                editSectionGap,
+                subcategories,
+              ],
               editSectionGap,
               openMoreOptions,
               editSectionGap,

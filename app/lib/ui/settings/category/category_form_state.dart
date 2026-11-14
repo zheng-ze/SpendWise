@@ -140,6 +140,20 @@ class CategoryFormViewState
 
   bool get isSubcategoryForm => hasPresetParent || editsStoredSubcategory;
 
+  bool get showsSubcategories => isEditing && !editsStoredSubcategory;
+
+  List<TransactionCategory> get activeSubcategories {
+    if (!showsSubcategories) return const [];
+    return allCategories
+        .where(
+          (category) =>
+              category.parentID == editedCategoryID &&
+              category.lifecycle == LifecycleState.active,
+        )
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+  }
+
   String get title {
     if (isEditing) {
       return editsStoredSubcategory ? 'Edit subcategory' : 'Edit category';

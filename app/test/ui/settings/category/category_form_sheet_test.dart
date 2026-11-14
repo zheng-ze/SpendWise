@@ -190,6 +190,7 @@ void main() {
       final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
       await openCategoryFormSheet(tester, ledger, category: root);
 
+      await tester.ensureVisible(find.text(_moveToBinLabel));
       await tester.tap(find.text(_moveToBinLabel));
       await tester.pumpAndSettle();
       await tester.tap(find.text(_moveConfirmLabel));
@@ -228,6 +229,7 @@ void main() {
     final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
     await openCategoryFormSheet(tester, ledger, category: root);
 
+    await tester.ensureVisible(find.text(_moveToBinLabel));
     await tester.tap(find.text(_moveToBinLabel));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cancel'));
