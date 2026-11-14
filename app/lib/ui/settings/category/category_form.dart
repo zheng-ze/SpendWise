@@ -211,6 +211,7 @@ class _CategoryFormBody extends StatelessWidget {
   final TextEditingController nameController;
 
   static const _fieldGap = 16.0;
+  static const _editSectionGap = 12.0;
 
   @override
   Widget build(BuildContext context) {
@@ -223,6 +224,7 @@ class _CategoryFormBody extends StatelessWidget {
       child: const Text(_saveLabel),
     );
     final gap = const SizedBox(height: _fieldGap);
+    final editSectionGap = const SizedBox(height: _editSectionGap);
     final kind = CategoryKindSelector(
       kind: formState.kind,
       onKindSelected: viewModel.setKind,
@@ -274,7 +276,13 @@ class _CategoryFormBody extends StatelessWidget {
     final body = formState.isEditing
         ? Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [fieldsCard, gap, openMoreOptions, gap, moveToBin],
+            children: [
+              fieldsCard,
+              editSectionGap,
+              openMoreOptions,
+              editSectionGap,
+              moveToBin,
+            ],
           )
         : fieldsCard;
     final addFooter = PrimaryButton(
