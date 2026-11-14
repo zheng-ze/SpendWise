@@ -13,21 +13,29 @@ const _sheetTitle = 'Icon and colour';
 
 const _doneLabel = 'Done';
 
-const _searchHint = 'Search';
-
 const _iconSectionLabel = 'Icon';
 
 const _colourSectionLabel = 'Colour';
 
 const _gridColumns = 6;
 
-const _searchPadding = EdgeInsets.fromLTRB(16, 0, 16, 8);
+const _gridSpacing = 8.0;
+
+const _previewPadding = EdgeInsets.fromLTRB(16, 0, 16, 0);
+
+const _previewSize = 44.0;
+
+const _previewGap = 12.0;
 
 const _sectionLabelPadding = EdgeInsets.fromLTRB(16, 16, 16, 8);
 
 const _gridPadding = EdgeInsets.symmetric(horizontal: 16);
 
-const _cellPadding = EdgeInsets.all(4);
+const _tileRadius = 14.0;
+
+const _tileBorderWidth = 2.0;
+
+const _tileGlyphSize = 24.0;
 
 const _swatchesPadding = EdgeInsets.fromLTRB(16, 0, 16, 16);
 
@@ -39,8 +47,6 @@ const _swatchRadius = 8.0;
 
 const _selectedSwatchBorderWidth = 2.0;
 
-const _searchIcon = Icon(Icons.search);
-
 // MARK: - Result
 class SymbolPickerResult {
   const SymbolPickerResult({required this.symbol, required this.color});
@@ -50,23 +56,6 @@ class SymbolPickerResult {
 }
 
 // MARK: - Helpers
-
-Map<String, List<String>> filterSymbolSections(
-  Map<String, List<String>> sections,
-  String query,
-) {
-  final term = query.trim().toLowerCase();
-  if (term.isEmpty) return sections;
-
-  final result = <String, List<String>>{};
-  for (final entry in sections.entries) {
-    final matches = entry.value
-        .where((name) => name.toLowerCase().contains(term))
-        .toList();
-    if (matches.isNotEmpty) result[entry.key] = matches;
-  }
-  return result;
-}
 
 String symbolDisplayName(String name) {
   final words = name.replaceAll('_', ' ');
@@ -111,22 +100,12 @@ class SymbolPicker extends StatefulWidget {
 
 // MARK: - SymbolPickerState
 class _SymbolPickerState extends State<SymbolPicker> {
-  final _searchController = TextEditingController();
   late String _symbol = widget.symbol;
   late Color _color = widget.color;
-  String _query = '';
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
 
   void _chooseSymbol(String name) => setState(() => _symbol = name);
 
   void _chooseColor(Color swatch) => setState(() => _color = swatch);
-
-  void _search(String value) => setState(() => _query = value);
 
   void _done() {
     final result = SymbolPickerResult(symbol: _symbol, color: _color);
@@ -135,7 +114,6 @@ class _SymbolPickerState extends State<SymbolPicker> {
 
   @override
   Widget build(BuildContext context) {
-    final sections = filterSymbolSections(categoryIconSections, _query);
     final displayColor = CategoryPalette.savedColor(
       toColorHex(_color),
       context.colors,
@@ -145,31 +123,12 @@ class _SymbolPickerState extends State<SymbolPicker> {
       onPressed: _done,
       child: const Text(_doneLabel),
     );
-    final search = Padding(
-      padding: _searchPadding,
-      child: TextField(
-        controller: _searchController,
-        decoration: const InputDecoration(
-          hintText: _searchHint,
-          prefixIcon: _searchIcon,
-          border: OutlineInputBorder(),
-        ),
-        onChanged: _search,
-      ),
-    );
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        search,
+        _Preview(symbol: _symbol, color: displayColor),
         const _SectionLabel(label: _iconSectionLabel),
-        for (final section in sections.entries)
-          _SymbolSection(
-            title: section.key,
-            names: section.value,
-            selected: _symbol,
-            color: displayColor,
-            onChosen: _chooseSymbol,
-          ),
+        _IconGrid(selected: _symbol, onChosen: _chooseSymbol),
         const _SectionLabel(label: _colourSectionLabel),
         _SwatchRow(
           swatches: widget.swatches,
@@ -183,6 +142,29 @@ class _SymbolPickerState extends State<SymbolPicker> {
   }
 }
 
+// MARK: - Preview
+class _Preview extends StatelessWidget {
+  const _Preview({required this.symbol, required this.color});
+
+  final String symbol;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final medallion = CategoryIcon(
+      symbolName: symbol,
+      color: color,
+      size: _previewSize,
+    );
+    final name = Text(symbolDisplayName(symbol));
+
+    return Padding(
+      padding: _previewPadding,
+      child: Row(spacing: _previewGap, children: [medallion, name]),
+    );
+  }
+}
+
 // MARK: - SectionLabel
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel({required this.label});
@@ -191,74 +173,79 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final style = context.text.small.copyWith(color: context.colors.subtext);
     return Padding(
       padding: _sectionLabelPadding,
-      child: Text(
-        label,
-        style: theme.textTheme.labelLarge?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
+      child: Text(label.toUpperCase(), style: style),
     );
   }
 }
 
-// MARK: - SymbolSection
-class _SymbolSection extends StatelessWidget {
-  const _SymbolSection({
-    required this.title,
-    required this.names,
-    required this.selected,
-    required this.color,
-    required this.onChosen,
-  });
+// MARK: - IconGrid
+class _IconGrid extends StatelessWidget {
+  const _IconGrid({required this.selected, required this.onChosen});
 
-  final String title;
-  final List<String> names;
   final String selected;
-  final Color color;
   final void Function(String name) onChosen;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final header = Padding(
-      padding: _sectionLabelPadding,
-      child: Text(
-        title,
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
+    final tiles = [
+      for (final name in categoryIconNames)
+        _IconTile(
+          symbolName: name,
+          selected: name == selected,
+          onTap: () => onChosen(name),
         ),
-      ),
-    );
-    final grid = GridView.builder(
+    ];
+
+    return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: _gridPadding,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: _gridColumns,
-      ),
-      itemCount: names.length,
-      itemBuilder: (context, index) {
-        final name = names[index];
-        return InkWell(
-          onTap: () => onChosen(name),
-          child: Padding(
-            padding: _cellPadding,
-            child: CategoryIcon(
-              symbolName: name,
-              color: color,
-              selected: name == selected,
-            ),
-          ),
-        );
-      },
+      crossAxisCount: _gridColumns,
+      mainAxisSpacing: _gridSpacing,
+      crossAxisSpacing: _gridSpacing,
+      children: tiles,
+    );
+  }
+}
+
+// MARK: - IconTile
+class _IconTile extends StatelessWidget {
+  const _IconTile({
+    required this.symbolName,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String symbolName;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final radius = BorderRadius.circular(_tileRadius);
+    final side = BorderSide(
+      color: selected ? colors.focus : Colors.transparent,
+      width: _tileBorderWidth,
+    );
+    final glyph = Icon(
+      symbolIcon(symbolName),
+      size: _tileGlyphSize,
+      color: selected ? colors.action : colors.text,
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [header, grid],
+    return Material(
+      color: colors.tint,
+      shape: RoundedRectangleBorder(borderRadius: radius, side: side),
+      child: InkWell(
+        key: ValueKey(symbolName),
+        borderRadius: radius,
+        onTap: onTap,
+        child: Center(child: glyph),
+      ),
     );
   }
 }

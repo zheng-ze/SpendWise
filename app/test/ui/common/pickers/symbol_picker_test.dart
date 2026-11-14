@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/symbol_picker.dart';
 
@@ -30,13 +29,12 @@ Future<PickerOpener<SymbolPickerResult>> _openPicker(WidgetTester tester) {
 }
 
 Future<void> _chooseSymbolAndColor(WidgetTester tester) async {
-  await tester.enterText(find.byType(TextField), _chosenSymbol);
-  await tester.pumpAndSettle();
-  final icon = find.byWidgetPredicate(
-    (widget) => widget is CategoryIcon && widget.symbolName == _chosenSymbol,
-  );
-  await tester.tap(icon.first);
-  await tester.tap(find.byKey(const ValueKey(_chosenColor)));
+  final tile = find.byKey(const ValueKey(_chosenSymbol));
+  await tester.ensureVisible(tile);
+  await tester.tap(tile);
+  final swatch = find.byKey(const ValueKey(_chosenColor));
+  await tester.ensureVisible(swatch);
+  await tester.tap(swatch);
   await tester.pumpAndSettle();
 }
 
@@ -77,41 +75,6 @@ void main() {
       expect(opener.completed, isTrue);
       expect(opener.result, isNull);
     }, timeout: uiTestTimeout);
-
-    testWidgets('searching narrows the icon grid', (tester) async {
-      await _openPicker(tester);
-
-      await tester.enterText(find.byType(TextField), _chosenSymbol);
-      await tester.pumpAndSettle();
-
-      final names = tester
-          .widgetList<CategoryIcon>(find.byType(CategoryIcon))
-          .map((icon) => icon.symbolName);
-      expect(names, everyElement(contains(_chosenSymbol)));
-      expect(names, isNotEmpty);
-    }, timeout: uiTestTimeout);
-  });
-
-  group('filterSymbolSections', () {
-    const sections = {
-      'Food & Drink': ['restaurant', 'local_cafe'],
-      'Transport': ['directions_car', 'flight'],
-      'Money': ['savings', 'attach_money'],
-    };
-
-    test('empty query returns every section unchanged', () {
-      expect(filterSymbolSections(sections, ''), sections);
-    });
-
-    test('a trimmed case-insensitive term returns only matching symbols', () {
-      final result = filterSymbolSections(sections, '  CAr  ');
-      expect(result.keys, ['Transport']);
-      expect(result['Transport'], ['directions_car']);
-    });
-
-    test('a query matching nothing returns no sections', () {
-      expect(filterSymbolSections(sections, 'zzz'), isEmpty);
-    });
   });
 
   group('symbolDisplayName', () {
