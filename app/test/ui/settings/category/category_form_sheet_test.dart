@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category/category_form.dart';
@@ -33,7 +32,7 @@ const _symbolRowLabel = 'Icon and colour';
 const _chosenSymbol = 'restaurant';
 const _chosenSymbolName = 'Restaurant';
 const _initialSymbolName = 'Tag';
-const _chosenColor = Color(0xFF5AC8FA);
+const _chosenColor = Color(0xFF34C759);
 const _barrierTap = Offset(160, 10);
 
 final _nameField = find.descendant(
@@ -101,13 +100,12 @@ Ledger _ledgerWithReferencedCategory(TransactionCategory category) {
 Future<void> _chooseSymbolAndColor(WidgetTester tester) async {
   await tester.tap(find.text(_symbolRowLabel));
   await tester.pumpAndSettle();
-  await tester.enterText(find.byType(TextField).last, _chosenSymbol);
-  await tester.pumpAndSettle();
-  final icon = find.byWidgetPredicate(
-    (widget) => widget is CategoryIcon && widget.symbolName == _chosenSymbol,
-  );
-  await tester.tap(icon.first);
-  await tester.tap(find.byKey(const ValueKey(_chosenColor)));
+  final symbolTile = find.byKey(const ValueKey(_chosenSymbol));
+  await tester.ensureVisible(symbolTile);
+  await tester.tap(symbolTile);
+  final swatch = find.byKey(const ValueKey(_chosenColor));
+  await tester.ensureVisible(swatch);
+  await tester.tap(swatch);
   await tester.pumpAndSettle();
 }
 
