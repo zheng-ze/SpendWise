@@ -12,6 +12,7 @@ const _initialColor = Color(0xFFFF9500);
 const _chosenSymbol = 'restaurant';
 const _chosenColor = Color(0xFF63E6BE);
 const _categoryName = 'Groceries';
+final _longCategoryName = 'Long category name ' * 20;
 const _swatches = [_initialColor, _chosenColor];
 const _barrierTap = Offset(160, 10);
 
@@ -54,6 +55,14 @@ void main() {
 
       expect(opener.result?.symbol, _chosenSymbol);
       expect(opener.result?.color, _chosenColor);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('a very long category name does not overflow the preview', (
+      tester,
+    ) async {
+      await _openPicker(tester, categoryName: _longCategoryName);
+
+      expect(tester.takeException(), isNull);
     }, timeout: uiTestTimeout);
 
     testWidgets('Done without changes returns the initial values', (

@@ -161,6 +161,8 @@ class _SymbolPickerState extends State<SymbolPicker> {
   }
 }
 
+const _previewNameMaxLines = 1;
+
 // MARK: - Preview
 class _Preview extends StatelessWidget {
   const _Preview({
@@ -182,7 +184,13 @@ class _Preview extends StatelessWidget {
     );
     final trimmedName = categoryName.trim();
     final label = trimmedName.isEmpty ? symbolDisplayName(symbol) : trimmedName;
-    final name = Text(label);
+    final name = Expanded(
+      child: Text(
+        label,
+        maxLines: _previewNameMaxLines,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
 
     return Padding(
       padding: _previewPadding,
