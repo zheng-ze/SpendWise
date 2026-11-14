@@ -138,6 +138,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
       symbol: formState.symbol,
       color: formState.color,
       swatches: categorySwatches,
+      categoryName: formState.name,
       onRouteCreated: _trackPicker,
     );
     if (!_formIsActive || chosen == null) return;

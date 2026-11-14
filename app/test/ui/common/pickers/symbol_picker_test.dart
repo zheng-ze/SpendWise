@@ -11,10 +11,14 @@ const _initialSymbol = 'shopping_cart';
 const _initialColor = Color(0xFFFF9500);
 const _chosenSymbol = 'restaurant';
 const _chosenColor = Color(0xFF63E6BE);
+const _categoryName = 'Groceries';
 const _swatches = [_initialColor, _chosenColor];
 const _barrierTap = Offset(160, 10);
 
-Future<PickerOpener<SymbolPickerResult>> _openPicker(WidgetTester tester) {
+Future<PickerOpener<SymbolPickerResult>> _openPicker(
+  WidgetTester tester, {
+  String categoryName = '',
+}) {
   return openPicker<SymbolPickerResult>(
     tester,
     size: phoneTallSize,
@@ -24,6 +28,7 @@ Future<PickerOpener<SymbolPickerResult>> _openPicker(WidgetTester tester) {
       symbol: _initialSymbol,
       color: _initialColor,
       swatches: _swatches,
+      categoryName: categoryName,
     ),
   );
 }
@@ -74,6 +79,23 @@ void main() {
 
       expect(opener.completed, isTrue);
       expect(opener.result, isNull);
+    }, timeout: uiTestTimeout);
+  });
+
+  group('SymbolPicker preview', () {
+    testWidgets('shows the entered category name', (tester) async {
+      await _openPicker(tester, categoryName: _categoryName);
+
+      expect(find.text(_categoryName), findsOneWidget);
+      expect(find.text(symbolDisplayName(_initialSymbol)), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('falls back to the icon name when the name is empty', (
+      tester,
+    ) async {
+      await _openPicker(tester);
+
+      expect(find.text(symbolDisplayName(_initialSymbol)), findsOneWidget);
     }, timeout: uiTestTimeout);
   });
 

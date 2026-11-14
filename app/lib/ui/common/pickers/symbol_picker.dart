@@ -78,14 +78,19 @@ Future<SymbolPickerResult?> showSymbolPickerSheet({
   required String symbol,
   required Color color,
   required List<Color> swatches,
+  String categoryName = '',
   PickerRouteCallback? onRouteCreated,
 }) {
   return showPickerAppSheet<SymbolPickerResult>(
     context,
     presentation: presentation,
     onRouteCreated: onRouteCreated,
-    builder: (_) =>
-        SymbolPicker(symbol: symbol, color: color, swatches: swatches),
+    builder: (_) => SymbolPicker(
+      symbol: symbol,
+      color: color,
+      swatches: swatches,
+      categoryName: categoryName,
+    ),
   );
 }
 
@@ -96,11 +101,13 @@ class SymbolPicker extends StatefulWidget {
     required this.symbol,
     required this.color,
     required this.swatches,
+    this.categoryName = '',
   });
 
   final String symbol;
   final Color color;
   final List<Color> swatches;
+  final String categoryName;
 
   @override
   State<SymbolPicker> createState() => _SymbolPickerState();
@@ -134,7 +141,11 @@ class _SymbolPickerState extends State<SymbolPicker> {
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Preview(symbol: _symbol, color: displayColor),
+        _Preview(
+          symbol: _symbol,
+          color: displayColor,
+          categoryName: widget.categoryName,
+        ),
         const _SectionLabel(label: _iconSectionLabel),
         _IconGrid(selected: _symbol, onChosen: _chooseSymbol),
         const _SectionLabel(label: _colourSectionLabel),
@@ -152,10 +163,15 @@ class _SymbolPickerState extends State<SymbolPicker> {
 
 // MARK: - Preview
 class _Preview extends StatelessWidget {
-  const _Preview({required this.symbol, required this.color});
+  const _Preview({
+    required this.symbol,
+    required this.color,
+    required this.categoryName,
+  });
 
   final String symbol;
   final Color color;
+  final String categoryName;
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +180,9 @@ class _Preview extends StatelessWidget {
       color: color,
       size: _previewSize,
     );
-    final name = Text(symbolDisplayName(symbol));
+    final trimmedName = categoryName.trim();
+    final label = trimmedName.isEmpty ? symbolDisplayName(symbol) : trimmedName;
+    final name = Text(label);
 
     return Padding(
       padding: _previewPadding,
