@@ -62,6 +62,9 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
 
   @override
   Future<CategoryFormViewState> build() async {
+    final currentLedger = ledger;
+    currentLedger.addListener(_onLedgerChanged);
+    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
     final category = _category;
     return CategoryFormViewState(
       editedCategoryID: category?.id,
@@ -76,6 +79,10 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
       allCategories: ledger.state.categories.values.toList(),
     );
   }
+
+  void _onLedgerChanged() => updateState(
+    (s) => s.copyWith(allCategories: ledger.state.categories.values.toList()),
+  );
 
   // MARK: - Field Setters
 
@@ -180,9 +187,8 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
 
 // MARK: - Provider
 
-final categoryFormViewModelProvider =
-    AsyncNotifierProvider.family<
-      CategoryFormNotifier,
-      CategoryFormViewState,
-      CategoryFormArgs
-    >(CategoryFormNotifier.new);
+final categoryFormViewModelProvider = AsyncNotifierProvider.autoDispose
+    .family<CategoryFormNotifier, CategoryFormViewState, CategoryFormArgs>(
+      CategoryFormNotifier.new,
+      retry: (_, _) => null,
+    );

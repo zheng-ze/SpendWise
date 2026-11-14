@@ -7,6 +7,22 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
 
+class ListenerCountingLedger extends Ledger {
+  int listenerCount = 0;
+
+  @override
+  void addListener(VoidCallback listener) {
+    listenerCount++;
+    super.addListener(listener);
+  }
+
+  @override
+  void removeListener(VoidCallback listener) {
+    listenerCount--;
+    super.removeListener(listener);
+  }
+}
+
 void main() {
   ProviderContainer buildContainer(Ledger ledger) {
     final container = ProviderContainer(
@@ -14,6 +30,18 @@ void main() {
     );
     addTearDown(container.dispose);
     return container;
+  }
+
+  Future<ProviderSubscription<AsyncValue<CategoryFormViewState>>> openAlive(
+    ProviderContainer container,
+    CategoryFormArgs args,
+  ) async {
+    final subscription = container.listen(
+      categoryFormViewModelProvider(args),
+      (_, _) {},
+    );
+    await container.read(categoryFormViewModelProvider(args).future);
+    return subscription;
   }
 
   TransactionCategory category({
@@ -160,7 +188,7 @@ void main() {
     test('cannot save with a blank name', () async {
       final container = buildContainer(Ledger());
       final args = const CategoryFormArgs();
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
       final viewModel = container.read(
         categoryFormViewModelProvider(args).notifier,
       );
@@ -177,7 +205,7 @@ void main() {
       final ledger = Ledger();
       final container = buildContainer(ledger);
       final args = const CategoryFormArgs();
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
       final viewModel = container.read(
         categoryFormViewModelProvider(args).notifier,
       );
@@ -200,7 +228,7 @@ void main() {
       );
       final container = buildContainer(ledger);
       final args = CategoryFormArgs(presetParentID: parent.id);
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
 
       final formState = container
           .read(categoryFormViewModelProvider(args))
@@ -216,7 +244,7 @@ void main() {
     test('requestPickParent emits PickParentRequested', () async {
       final container = buildContainer(Ledger());
       final args = const CategoryFormArgs();
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
       final viewModel = container.read(
         categoryFormViewModelProvider(args).notifier,
       );
@@ -236,7 +264,7 @@ void main() {
       );
       final container = buildContainer(ledger);
       final args = const CategoryFormArgs();
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
       final viewModel = container.read(
         categoryFormViewModelProvider(args).notifier,
       );
@@ -256,7 +284,7 @@ void main() {
       () async {
         final container = buildContainer(Ledger());
         final args = const CategoryFormArgs();
-        await container.read(categoryFormViewModelProvider(args).future);
+        await openAlive(container, args);
         final viewModel = container.read(
           categoryFormViewModelProvider(args).notifier,
         );
@@ -274,7 +302,7 @@ void main() {
       );
       final container = buildContainer(ledger);
       final args = const CategoryFormArgs();
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
       final viewModel = container.read(
         categoryFormViewModelProvider(args).notifier,
       );
@@ -293,7 +321,7 @@ void main() {
     test('requestPickSymbol emits PickSymbolRequested', () async {
       final container = buildContainer(Ledger());
       final args = const CategoryFormArgs();
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
       final viewModel = container.read(
         categoryFormViewModelProvider(args).notifier,
       );
@@ -309,7 +337,7 @@ void main() {
     test('applyPickedSymbolAndColor sets both and clears the step', () async {
       final container = buildContainer(Ledger());
       final args = const CategoryFormArgs();
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
       final viewModel = container.read(
         categoryFormViewModelProvider(args).notifier,
       );
@@ -329,7 +357,7 @@ void main() {
     test('applyPickedSymbolAndColor is a no-op once disposed', () async {
       final container = buildContainer(Ledger());
       final args = const CategoryFormArgs();
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
       final viewModel = container.read(
         categoryFormViewModelProvider(args).notifier,
       );
@@ -354,7 +382,7 @@ void main() {
       );
       final container = buildContainer(ledger);
       final args = CategoryFormArgs(category: existing);
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
       final viewModel = container.read(
         categoryFormViewModelProvider(args).notifier,
       );
@@ -375,7 +403,7 @@ void main() {
       );
       final container = buildContainer(ledger);
       final args = CategoryFormArgs(category: existing);
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
       final viewModel = container.read(
         categoryFormViewModelProvider(args).notifier,
       );
@@ -397,7 +425,7 @@ void main() {
         );
         final container = buildContainer(ledger);
         final args = CategoryFormArgs(category: existing);
-        await container.read(categoryFormViewModelProvider(args).future);
+        await openAlive(container, args);
         final viewModel = container.read(
           categoryFormViewModelProvider(args).notifier,
         );
@@ -425,7 +453,7 @@ void main() {
         );
         final container = buildContainer(ledger);
         final args = CategoryFormArgs(category: existing);
-        await container.read(categoryFormViewModelProvider(args).future);
+        await openAlive(container, args);
         final viewModel = container.read(
           categoryFormViewModelProvider(args).notifier,
         );
@@ -460,7 +488,7 @@ void main() {
       );
       final container = buildContainer(ledger);
       final args = CategoryFormArgs(category: existing);
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
 
       final formState = container
           .read(categoryFormViewModelProvider(args))
@@ -487,7 +515,7 @@ void main() {
       );
       final container = buildContainer(ledger);
       final args = CategoryFormArgs(category: existing);
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
 
       final formState = container
           .read(categoryFormViewModelProvider(args))
@@ -518,7 +546,7 @@ void main() {
         state: LedgerState(categories: {for (final c in categories) c.id: c}),
       );
       final container = buildContainer(ledger);
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
       return container.read(categoryFormViewModelProvider(args)).value;
     }
 
@@ -600,7 +628,7 @@ void main() {
       );
       final container = buildContainer(ledger);
       final args = CategoryFormArgs(category: existing);
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
 
       final formState = container
           .read(categoryFormViewModelProvider(args))
@@ -612,12 +640,148 @@ void main() {
     test('an add without a preset parent is unlocked', () async {
       final container = buildContainer(Ledger());
       final args = const CategoryFormArgs();
-      await container.read(categoryFormViewModelProvider(args).future);
+      await openAlive(container, args);
 
       final formState = container
           .read(categoryFormViewModelProvider(args))
           .value;
       expect(formState?.kindLocked, isFalse);
+    });
+  });
+
+  group('form lifetime', () {
+    const firstArgs = CategoryFormArgs();
+
+    test('reopening New Category after it closes starts blank', () async {
+      final container = buildContainer(Ledger());
+      final firstOpen = await openAlive(container, firstArgs);
+      container
+          .read(categoryFormViewModelProvider(firstArgs).notifier)
+          .setName('Stale draft');
+
+      firstOpen.close();
+      await container.pump();
+      await openAlive(container, firstArgs);
+
+      final formState = container
+          .read(categoryFormViewModelProvider(firstArgs))
+          .value;
+      expect(formState?.name, isEmpty);
+    });
+
+    test('a parent form and a child form keep independent drafts', () async {
+      final parent = category(name: 'Food');
+      final ledger = Ledger(
+        state: LedgerState(categories: {parent.id: parent}),
+      );
+      final container = buildContainer(ledger);
+      final parentArgs = CategoryFormArgs(category: parent);
+      final childArgs = CategoryFormArgs(presetParentID: parent.id);
+      await openAlive(container, parentArgs);
+      final childOpen = await openAlive(container, childArgs);
+      container
+          .read(categoryFormViewModelProvider(parentArgs).notifier)
+          .setName('Food and drink');
+      container
+          .read(categoryFormViewModelProvider(childArgs).notifier)
+          .setName('Snacks');
+
+      childOpen.close();
+      await container.pump();
+
+      final parentState = container
+          .read(categoryFormViewModelProvider(parentArgs))
+          .value;
+      expect(parentState?.name, 'Food and drink');
+    });
+
+    test('a child form closing leaves the child key blank on reopen', () async {
+      final parent = category(name: 'Food');
+      final ledger = Ledger(
+        state: LedgerState(categories: {parent.id: parent}),
+      );
+      final container = buildContainer(ledger);
+      final childArgs = CategoryFormArgs(presetParentID: parent.id);
+      final childOpen = await openAlive(container, childArgs);
+      container
+          .read(categoryFormViewModelProvider(childArgs).notifier)
+          .setName('Snacks');
+
+      childOpen.close();
+      await container.pump();
+      await openAlive(container, childArgs);
+
+      final childState = container
+          .read(categoryFormViewModelProvider(childArgs))
+          .value;
+      expect(childState?.name, isEmpty);
+    });
+  });
+
+  group('ledger changes', () {
+    test('refresh allCategories and keep the draft, step and error', () async {
+      final existing = category(name: 'Food');
+      final ledger = Ledger(
+        state: LedgerState(categories: {existing.id: existing}),
+      );
+      final container = buildContainer(ledger);
+      final args = CategoryFormArgs(category: existing);
+      await openAlive(container, args);
+      final viewModel = container.read(
+        categoryFormViewModelProvider(args).notifier,
+      );
+      viewModel.setName('Draft name');
+      viewModel.setParentID(existing.id);
+      await viewModel.save();
+      viewModel.requestPickSymbol();
+
+      ledger.addCategory(category(name: 'Transport'));
+
+      final formState = container
+          .read(categoryFormViewModelProvider(args))
+          .value;
+      expect(formState?.allCategories, hasLength(2));
+      expect(formState?.name, 'Draft name');
+      expect(formState?.error, isA<CategoryTooDeep>());
+      expect(formState?.step, isA<PickSymbolRequested>());
+    });
+
+    test(
+      'keep the save step when the form own save changes the ledger',
+      () async {
+        final ledger = Ledger();
+        final container = buildContainer(ledger);
+        const args = CategoryFormArgs();
+        await openAlive(container, args);
+        final viewModel = container.read(
+          categoryFormViewModelProvider(args).notifier,
+        );
+
+        viewModel.setName('Groceries');
+        await viewModel.save();
+
+        final formState = container
+            .read(categoryFormViewModelProvider(args))
+            .value;
+        expect(formState?.allCategories, hasLength(1));
+        expect(formState?.step, isA<CategoryFormSaved>());
+      },
+    );
+
+    test('stop updating once the form is disposed', () async {
+      final ledger = ListenerCountingLedger();
+      final container = buildContainer(ledger);
+      const args = CategoryFormArgs();
+      final open = await openAlive(container, args);
+
+      open.close();
+      await container.pump();
+
+      expect(
+        () => ledger.addCategory(category(name: 'Transport')),
+        returnsNormally,
+      );
+      expect(ledger.listenerCount, 0);
     });
   });
 }
