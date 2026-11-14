@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/feedback/async_value_view.dart';
+import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_purge_dialog.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_sections.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
@@ -10,6 +11,8 @@ import 'package:spendwise/ui/symbol_map.dart';
 // MARK: - Constants
 
 const _screenTitle = 'Recycle bin';
+
+const _backLabel = 'Settings';
 
 const _accountsTitle = 'Accounts';
 
@@ -162,9 +165,17 @@ class _RecycleBinScreenBody extends StatelessWidget {
         ? const BinEmptyState()
         : ListView(padding: _screenPadding, children: _spaced(sections));
 
-    return Scaffold(
-      appBar: AppBar(title: const Text(_screenTitle)),
-      body: SafeArea(child: content),
+    final header = PageHeader(
+      title: _screenTitle,
+      backLabel: _backLabel,
+      onBack: Navigator.of(context).maybePop,
     );
+    final page = Column(
+      children: [
+        header,
+        Expanded(child: content),
+      ],
+    );
+    return Scaffold(body: SafeArea(child: page));
   }
 }

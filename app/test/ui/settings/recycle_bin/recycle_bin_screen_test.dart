@@ -1,5 +1,5 @@
 import 'package:domain/domain.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
@@ -9,6 +9,24 @@ import '../../../support/pump_app.dart';
 import '../../../support/ui_test_timeout.dart';
 
 const _restoreLabel = 'Restore';
+const _launchLabel = 'Open bin';
+
+class _BinLauncher extends StatelessWidget {
+  const _BinLauncher();
+
+  @override
+  Widget build(BuildContext context) {
+    final route = MaterialPageRoute<void>(
+      builder: (_) => const RecycleBinScreen(),
+    );
+    return Scaffold(
+      body: TextButton(
+        onPressed: () => Navigator.of(context).push(route),
+        child: const Text(_launchLabel),
+      ),
+    );
+  }
+}
 
 Account _account(String name, {LifecycleState? lifecycle}) => Account(
   name: name,
@@ -163,4 +181,21 @@ void _registerFooterTests() {
     expect(find.text('Recycle bin is empty'), findsOneWidget);
     expect(find.text(hint), findsNothing);
   }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'the header shows the title and a Settings back control that pops',
+    (tester) async {
+      await pumpApp(tester, const _BinLauncher(), ledger: _ledgerOf());
+      await tester.tap(find.text(_launchLabel));
+      await tester.pumpAndSettle();
+      expect(find.byType(RecycleBinScreen), findsOneWidget);
+      expect(find.text('Recycle bin'), findsOneWidget);
+
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RecycleBinScreen), findsNothing);
+    },
+    timeout: uiTestTimeout,
+  );
 }

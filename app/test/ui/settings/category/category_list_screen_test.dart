@@ -15,6 +15,24 @@ import '../../../support/ui_test_timeout.dart';
 const _barrierTap = Offset(160, 10);
 const _addSubcategoryTooltip = 'Add subcategory';
 const _addSubcategoryTitle = 'Add subcategory';
+const _launchLabel = 'Open categories';
+
+class _ListLauncher extends StatelessWidget {
+  const _ListLauncher();
+
+  @override
+  Widget build(BuildContext context) {
+    final route = MaterialPageRoute<void>(
+      builder: (_) => const CategoryListScreen(),
+    );
+    return Scaffold(
+      body: TextButton(
+        onPressed: () => Navigator.of(context).push(route),
+        child: const Text(_launchLabel),
+      ),
+    );
+  }
+}
 
 final _addCategoryButton = find.byType(CompactLabelledFab);
 
@@ -175,4 +193,21 @@ void main() {
     expect(find.text('No categories yet'), findsNWidgets(2));
     expect(_addCategoryButton, findsOneWidget);
   }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'the header shows the title and a Settings back control that pops',
+    (tester) async {
+      await pumpApp(tester, const _ListLauncher(), ledger: Ledger());
+      await tester.tap(find.text(_launchLabel));
+      await tester.pumpAndSettle();
+      expect(find.byType(CategoryListScreen), findsOneWidget);
+      expect(find.text('Categories'), findsOneWidget);
+
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CategoryListScreen), findsNothing);
+    },
+    timeout: uiTestTimeout,
+  );
 }

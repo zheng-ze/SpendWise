@@ -9,7 +9,7 @@ import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/lists/medallion_row.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/common/navigation/compact_labelled_fab.dart';
-import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
+import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
 import 'package:spendwise/ui/common/sheets/sheet_session.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
@@ -128,9 +128,10 @@ class _CategoryListScreenBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backButton = LabelledBackButton(
-      onPressed: Navigator.of(context).maybePop,
-      label: _backLabel,
+    final header = PageHeader(
+      title: _screenTitle,
+      backLabel: _backLabel,
+      onBack: Navigator.of(context).maybePop,
     );
     final expense = _CategorySection(
       title: 'Expense',
@@ -165,10 +166,13 @@ class _CategoryListScreenBody extends StatelessWidget {
       child: Padding(padding: _fabPadding, child: addButton),
     );
 
-    return Scaffold(
-      appBar: AppBar(leading: backButton, title: const Text(_screenTitle)),
-      body: Stack(children: [sections, floatingAction]),
+    final page = Column(
+      children: [
+        header,
+        Expanded(child: Stack(children: [sections, floatingAction])),
+      ],
     );
+    return Scaffold(body: SafeArea(child: page));
   }
 }
 
