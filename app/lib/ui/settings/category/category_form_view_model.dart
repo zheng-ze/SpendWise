@@ -86,7 +86,9 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
     final refreshed = s.copyWith(
       allCategories: ledger.state.categories.values.toList(),
     );
-    return refreshed.hasStaleParent
+    final keepsStoredParent = refreshed.parentID == _category?.parentID;
+    final clearsDraftParent = refreshed.hasStaleParent && !keepsStoredParent;
+    return clearsDraftParent
         ? refreshed.copyWith(parentID: () => null)
         : refreshed;
   });

@@ -801,6 +801,51 @@ void main() {
       },
     );
 
+    test('binning the stored parent keeps an unchanged parent', () async {
+      final child = category(
+        id: 'c0000000-0000-0000-0000-000000000003',
+        name: 'Snacks',
+        parentID: parent.id,
+      );
+      final ledger = Ledger(
+        state: LedgerState(categories: {parent.id: parent, child.id: child}),
+      );
+      final container = buildContainer(ledger);
+      final args = CategoryFormArgs(category: child);
+      await openAlive(container, args);
+
+      ledger.deleteCategory(parent.id);
+
+      expect(read(container, args)?.parentID, parent.id);
+    });
+
+    test('binning a newly picked parent clears it on a subcategory', () async {
+      final other = category(
+        id: 'c0000000-0000-0000-0000-000000000004',
+        name: 'Travel',
+      );
+      final child = category(
+        id: 'c0000000-0000-0000-0000-000000000003',
+        name: 'Snacks',
+        parentID: parent.id,
+      );
+      final ledger = Ledger(
+        state: LedgerState(
+          categories: {parent.id: parent, other.id: other, child.id: child},
+        ),
+      );
+      final container = buildContainer(ledger);
+      final args = CategoryFormArgs(category: child);
+      await openAlive(container, args);
+      container
+          .read(categoryFormViewModelProvider(args).notifier)
+          .setParentID(other.id);
+
+      ledger.deleteCategory(other.id);
+
+      expect(read(container, args)?.parentID, isNull);
+    });
+
     test('an unrelated ledger change keeps the draft parent', () async {
       final ledger = Ledger(
         state: LedgerState(categories: {parent.id: parent}),
