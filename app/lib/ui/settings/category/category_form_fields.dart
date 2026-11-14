@@ -2,7 +2,10 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/lists/category_icon.dart';
+import 'package:spendwise/ui/common/pickers/symbol_picker.dart';
+import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category/category_form_state.dart';
+import 'package:spendwise/ui/theme/category_palette.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
@@ -114,7 +117,7 @@ class CategorySymbolTile extends StatelessWidget {
     required this.onTap,
   });
 
-  static const _title = 'Symbol';
+  static const _title = 'Icon and colour';
 
   final String symbol;
   final Color color;
@@ -122,67 +125,17 @@ class CategorySymbolTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayColor = CategoryPalette.savedColor(
+      toColorHex(color),
+      context.colors,
+    );
     return ListTile(
       contentPadding: _emptyContentPadding,
       title: const Text(_title),
-      leading: CategoryIcon(symbolName: symbol, color: color),
+      subtitle: Text(symbolDisplayName(symbol)),
+      leading: CategoryIcon(symbolName: symbol, color: displayColor),
       trailing: const Icon(Icons.chevron_right),
       onTap: onTap,
-    );
-  }
-}
-
-// MARK: - Color Picker
-
-class CategoryColorPicker extends StatelessWidget {
-  const CategoryColorPicker({
-    super.key,
-    required this.selected,
-    required this.onColorSelected,
-  });
-
-  static const _label = 'Color';
-  static const _labelGap = 8.0;
-  static const _swatchSpacing = 12.0;
-  static const _swatchSize = 32.0;
-  static const _selectedSwatchBorderWidth = 2.0;
-
-  final Color selected;
-  final ValueChanged<Color> onColorSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(_label, style: theme.textTheme.labelLarge),
-        const SizedBox(height: _labelGap),
-        Wrap(
-          spacing: _swatchSpacing,
-          children: [
-            for (final swatch in categorySwatches)
-              InkWell(
-                customBorder: const CircleBorder(),
-                onTap: () => onColorSelected(swatch),
-                child: Container(
-                  width: _swatchSize,
-                  height: _swatchSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: swatch,
-                    border: swatch == selected
-                        ? Border.all(
-                            color: context.colors.text,
-                            width: _selectedSwatchBorderWidth,
-                          )
-                        : null,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ],
     );
   }
 }

@@ -1,13 +1,16 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
 import 'package:spendwise/ui/common/pickers/symbol_picker.dart';
+import 'package:spendwise/ui/common/sheets/sheet_session.dart';
 import 'package:spendwise/ui/settings/category/category_form_fields.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
 import 'package:spendwise/ui/settings/category/confirm_move_category_to_bin.dart';
+import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 
 // MARK: - Show
 
@@ -44,6 +47,8 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
 
   ProviderSubscription<AsyncValue<CategoryFormViewState>>? _subscription;
 
+  final List<ModalRoute<dynamic>> _pickerRoutes = [];
+
   CategoryFormArgs get _args => CategoryFormArgs(
     category: widget.category,
     presetParentID: widget.presetParentID,
@@ -60,9 +65,21 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
 
   @override
   void dispose() {
+    _closePickers();
     _subscription?.close();
     _nameController.dispose();
     super.dispose();
+  }
+
+  void _trackPicker(ModalRoute<dynamic> route) => _pickerRoutes.add(route);
+
+  void _closePickers() {
+    final routes = List.of(_pickerRoutes);
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      for (final route in routes) {
+        dismissSheetRoute(route);
+      }
+    });
   }
 
   CategoryFormViewModel get _viewModel =>
@@ -88,12 +105,14 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
     if (formState == null) return;
     final chosen = await showSymbolPickerSheet(
       context: context,
-      selected: formState.symbol,
+      presentation: shellSheetPresentation,
+      symbol: formState.symbol,
       color: formState.color,
+      swatches: categorySwatches,
+      onRouteCreated: _trackPicker,
     );
-    if (!context.mounted) return;
-    if (chosen == null) return;
-    _viewModel.applyPickedSymbolAndColor(chosen, formState.color);
+    if (!context.mounted || chosen == null) return;
+    _viewModel.applyPickedSymbolAndColor(chosen.symbol, chosen.color);
   }
 
   Future<void> _pickParent() async {
@@ -191,12 +210,6 @@ class _CategoryFormBody extends StatelessWidget {
             symbol: formState.symbol,
             color: formState.color,
             onTap: viewModel.requestPickSymbol,
-          ),
-          const SizedBox(height: _fieldGap),
-          CategoryColorPicker(
-            selected: formState.color,
-            onColorSelected: (color) =>
-                viewModel.applyPickedSymbolAndColor(formState.symbol, color),
           ),
           const SizedBox(height: _fieldGap),
           CategoryAnalysisSwitch(
