@@ -25,7 +25,6 @@ const _parentPickerTitle = 'Inside which category?';
 const _insideLabel = 'Inside';
 const _moreOptionsLabel = 'More options';
 const _closedSubtitle = 'Count in Trends and budgets';
-const _closedEditSubtitle = 'Count in Trends and budgets, type';
 const _typeLabel = 'Type';
 const _typeCaption = 'The type is fixed once entries use this category.';
 const _symbolRowLabel = 'Icon and colour';
@@ -298,23 +297,17 @@ void main() {
     expect(find.text(_typeCaption), findsNothing);
   }, timeout: uiTestTimeout);
 
-  testWidgets(
-    'an edit form adds type to the closed subtitle and shows it open',
-    (tester) async {
-      final root = _root('Food');
-      final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
-      await openCategoryFormSheet(tester, ledger, category: root);
+  testWidgets('an edit form shows the switch and Type without any tap', (
+    tester,
+  ) async {
+    final root = _root('Food');
+    final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
+    await openCategoryFormSheet(tester, ledger, category: root);
 
-      expect(find.text(_closedEditSubtitle), findsOneWidget);
-      expect(find.text(_typeLabel), findsNothing);
-
-      await _openMoreOptions(tester);
-
-      expect(find.text(_typeLabel), findsOneWidget);
-      expect(find.text('Expense'), findsOneWidget);
-    },
-    timeout: uiTestTimeout,
-  );
+    expect(find.byType(Switch), findsOneWidget);
+    expect(find.text(_typeLabel), findsOneWidget);
+    expect(find.text('Expense'), findsOneWidget);
+  }, timeout: uiTestTimeout);
 
   testWidgets('the type caption shows only for a referenced category', (
     tester,
@@ -326,8 +319,6 @@ void main() {
       category: root,
     );
 
-    await _openMoreOptions(tester);
-
     expect(find.text(_typeCaption), findsOneWidget);
   }, timeout: uiTestTimeout);
 
@@ -335,8 +326,6 @@ void main() {
     final root = _root('Food');
     final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
     await openCategoryFormSheet(tester, ledger, category: root);
-
-    await _openMoreOptions(tester);
 
     expect(find.text(_typeLabel), findsOneWidget);
     expect(find.text(_typeCaption), findsNothing);

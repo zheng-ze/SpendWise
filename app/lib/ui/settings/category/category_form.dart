@@ -241,14 +241,17 @@ class _CategoryFormBody extends StatelessWidget {
     );
     final showsInside = formState.hasPresetParent || formState.showParentPicker;
     final insideBeforeSymbol = formState.isSubcategoryForm;
-    final moreOptions = CategoryMoreOptions(
+    final collapsedMoreOptions = CategoryMoreOptions(
       includeInAnalysis: formState.includeInAnalysis,
       onIncludeInAnalysisChanged: viewModel.setIncludeInAnalysis,
-      isEditing: formState.isEditing,
+    );
+    final openMoreOptions = CategoryMoreOptionsSection(
+      includeInAnalysis: formState.includeInAnalysis,
+      onIncludeInAnalysisChanged: viewModel.setIncludeInAnalysis,
       kind: formState.kind,
       isReferenced: formState.isReferenced,
     );
-    final body = FormSectionCard(
+    final fieldsCard = FormSectionCard(
       padding: FormSectionCard.fieldsPadding,
       children: [
         if (!formState.kindLocked) ...[kind, gap],
@@ -257,9 +260,15 @@ class _CategoryFormBody extends StatelessWidget {
         if (showsInside && insideBeforeSymbol) inside,
         symbol,
         if (showsInside && !insideBeforeSymbol) inside,
-        moreOptions,
+        if (!formState.isEditing) collapsedMoreOptions,
       ],
     );
+    final body = formState.isEditing
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [fieldsCard, gap, openMoreOptions],
+          )
+        : fieldsCard;
     final addFooter = PrimaryButton(
       label: _addFooterLabel,
       onPressed: formState.canSave ? viewModel.save : null,

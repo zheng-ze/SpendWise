@@ -1,6 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
@@ -160,19 +161,12 @@ class CategoryMoreOptions extends StatefulWidget {
     super.key,
     required this.includeInAnalysis,
     required this.onIncludeInAnalysisChanged,
-    required this.isEditing,
-    required this.kind,
-    required this.isReferenced,
   });
 
   static const _title = 'More options';
-  static const _typeSuffix = ', type';
 
   final bool includeInAnalysis;
   final ValueChanged<bool> onIncludeInAnalysisChanged;
-  final bool isEditing;
-  final CategoryKind kind;
-  final bool isReferenced;
 
   @override
   State<CategoryMoreOptions> createState() => _CategoryMoreOptionsState();
@@ -185,9 +179,6 @@ class _CategoryMoreOptionsState extends State<CategoryMoreOptions> {
 
   @override
   Widget build(BuildContext context) {
-    final closedSubtitle = widget.isEditing
-        ? '$_analysisTitle${CategoryMoreOptions._typeSuffix}'
-        : _analysisTitle;
     final chevron = Icon(
       _expanded ? _collapseIcon : _expandIcon,
       size: _trailingIconSize,
@@ -195,7 +186,7 @@ class _CategoryMoreOptionsState extends State<CategoryMoreOptions> {
     final header = ListTile(
       contentPadding: _emptyContentPadding,
       title: const Text(CategoryMoreOptions._title),
-      subtitle: _expanded ? null : Text(closedSubtitle),
+      subtitle: _expanded ? null : const Text(_analysisTitle),
       trailing: chevron,
       onTap: _toggle,
     );
@@ -203,17 +194,52 @@ class _CategoryMoreOptionsState extends State<CategoryMoreOptions> {
       value: widget.includeInAnalysis,
       onChanged: widget.onIncludeInAnalysisChanged,
     );
-    final type = CategoryTypeRow(
-      kind: widget.kind,
-      showsCaption: widget.isReferenced,
-    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        header,
-        if (_expanded) analysis,
-        if (_expanded && widget.isEditing) type,
-      ],
+      children: [header, if (_expanded) analysis],
+    );
+  }
+}
+
+// MARK: - More Options Section
+
+class CategoryMoreOptionsSection extends StatelessWidget {
+  const CategoryMoreOptionsSection({
+    super.key,
+    required this.includeInAnalysis,
+    required this.onIncludeInAnalysisChanged,
+    required this.kind,
+    required this.isReferenced,
+  });
+
+  static const _label = 'More options';
+  static const _labelWeight = FontWeight.w600;
+  static const _labelPadding = EdgeInsets.only(bottom: 8.0);
+
+  final bool includeInAnalysis;
+  final ValueChanged<bool> onIncludeInAnalysisChanged;
+  final CategoryKind kind;
+  final bool isReferenced;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = context.text.small.copyWith(
+      color: context.colors.subtext,
+      fontWeight: _labelWeight,
+    );
+    final label = Padding(
+      padding: _labelPadding,
+      child: Text(_label.toUpperCase(), style: labelStyle),
+    );
+    final analysis = CategoryAnalysisSwitch(
+      value: includeInAnalysis,
+      onChanged: onIncludeInAnalysisChanged,
+    );
+    final type = CategoryTypeRow(kind: kind, showsCaption: isReferenced);
+    final card = FormSectionCard(children: [analysis, type]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [label, card],
     );
   }
 }
