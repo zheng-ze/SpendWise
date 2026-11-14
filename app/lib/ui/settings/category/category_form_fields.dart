@@ -31,6 +31,8 @@ const categorySwatches = [
   Color(0xFF30D158),
   Color(0xFF63E6BE),
   defaultCategoryColor,
+  Color(0xFFAF52DE),
+  Color(0xFF8E8E93),
 ];
 
 // MARK: - Name Field

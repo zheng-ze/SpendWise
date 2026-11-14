@@ -34,6 +34,8 @@ abstract final class CategoryPalette {
     0xFF007AFF: _CategoryMark.salary,
     0xFF30D158: _CategoryMark.supermarket,
     0xFF63E6BE: _CategoryMark.freshMarket,
+    0xFFAF52DE: _CategoryMark.fitness,
+    0xFF8E8E93: _CategoryMark.housing,
   };
 
   static const _lightMinimumLightness = 72 / 255;

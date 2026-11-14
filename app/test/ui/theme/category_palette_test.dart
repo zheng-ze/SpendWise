@@ -18,5 +18,27 @@ void main() {
         SpendWiseColors.dark.groceries,
       );
     });
+
+    test('maps the saved fitness and housing hexes to their light tokens', () {
+      expect(
+        CategoryPalette.savedColor('#AF52DE', SpendWiseColors.light),
+        SpendWiseColors.light.fitness,
+      );
+      expect(
+        CategoryPalette.savedColor('#8E8E93', SpendWiseColors.light),
+        SpendWiseColors.light.housing,
+      );
+    });
+
+    test('maps the saved fitness and housing hexes to their dark tokens', () {
+      expect(
+        CategoryPalette.savedColor('#AF52DE', SpendWiseColors.dark),
+        SpendWiseColors.dark.fitness,
+      );
+      expect(
+        CategoryPalette.savedColor('#8E8E93', SpendWiseColors.dark),
+        SpendWiseColors.dark.housing,
+      );
+    });
   });
 }
