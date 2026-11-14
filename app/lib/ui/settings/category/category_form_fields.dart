@@ -16,6 +16,10 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 const _emptyContentPadding = EdgeInsets.zero;
 const _trailingGap = 8.0;
 const _trailingIconSize = 20.0;
+const _expandIcon = Icons.expand_more;
+const _collapseIcon = Icons.expand_less;
+const _lockIcon = Icons.lock_outline;
+const _chevronIcon = Icons.chevron_right;
 const _analysisTitle = 'Count in Trends and budgets';
 
 // MARK: - Swatches
@@ -185,7 +189,7 @@ class _CategoryMoreOptionsState extends State<CategoryMoreOptions> {
         ? '$_analysisTitle${CategoryMoreOptions._typeSuffix}'
         : _analysisTitle;
     final chevron = Icon(
-      _expanded ? Icons.expand_less : Icons.expand_more,
+      _expanded ? _collapseIcon : _expandIcon,
       size: _trailingIconSize,
     );
     final header = ListTile(
@@ -240,7 +244,7 @@ class CategoryTypeRow extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       spacing: _trailingGap,
       children: [
-        const Icon(Icons.lock_outline, size: _trailingIconSize),
+        const Icon(_lockIcon, size: _trailingIconSize),
         Text(label),
       ],
     );
@@ -292,6 +296,6 @@ class _TrailingChevron extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Icon(Icons.chevron_right, size: _trailingIconSize);
+    return const Icon(_chevronIcon, size: _trailingIconSize);
   }
 }

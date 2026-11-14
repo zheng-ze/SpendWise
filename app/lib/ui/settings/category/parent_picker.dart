@@ -9,6 +9,8 @@ const _titleLabel = 'Inside which category?';
 
 const topLevelLabel = 'Top level';
 
+const _selectedIcon = Icons.check;
+
 // MARK: - ParentChoice
 class ParentChoice {
   const ParentChoice(this.parentID);
@@ -67,7 +69,7 @@ class _ParentRow extends StatelessWidget {
     return ListTile(
       onTap: () => Navigator.of(context).pop(choice),
       title: Text(label),
-      trailing: selected ? const Icon(Icons.check) : null,
+      trailing: selected ? const Icon(_selectedIcon) : null,
     );
   }
 }
