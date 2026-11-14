@@ -93,7 +93,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
     );
     if (!context.mounted) return;
     if (chosen == null) return;
-    _viewModel.applyPickedSymbol(chosen);
+    _viewModel.applyPickedSymbolAndColor(chosen, formState.color);
   }
 
   Future<void> _pickParent() async {
@@ -195,7 +195,8 @@ class _CategoryFormBody extends StatelessWidget {
           const SizedBox(height: _fieldGap),
           CategoryColorPicker(
             selected: formState.color,
-            onColorSelected: viewModel.setColor,
+            onColorSelected: (color) =>
+                viewModel.applyPickedSymbolAndColor(formState.symbol, color),
           ),
           const SizedBox(height: _fieldGap),
           CategoryAnalysisSwitch(

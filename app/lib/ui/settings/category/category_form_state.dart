@@ -10,9 +10,10 @@ const defaultCategoryColor = Color(0xFF007AFF);
 // MARK: - Pure Helpers
 
 bool isKindLocked({
+  required bool isEditing,
   required bool hasPresetParent,
   required bool isReferenced,
-}) => hasPresetParent || isReferenced;
+}) => isEditing || hasPresetParent || isReferenced;
 
 bool canSaveCategoryForm(String name) => name.trim().isNotEmpty;
 
@@ -25,6 +26,7 @@ List<TransactionCategory> eligibleParents(
       .where(
         (category) =>
             category.parentID == null &&
+            category.lifecycle == LifecycleState.active &&
             category.kind == kind &&
             category.id != excludingID,
       )
@@ -103,6 +105,7 @@ class CategoryFormViewState
   bool get isEditing => editedCategoryID != null;
 
   bool get kindLocked => isKindLocked(
+    isEditing: isEditing,
     hasPresetParent: hasPresetParent,
     isReferenced: isReferenced,
   );
@@ -110,8 +113,14 @@ class CategoryFormViewState
   List<TransactionCategory> get eligibleParentsList =>
       eligibleParents(allCategories, kind, excludingID: editedCategoryID);
 
+  bool get storedHasChildren {
+    final id = editedCategoryID;
+    if (id == null) return false;
+    return allCategories.any((category) => category.parentID == id);
+  }
+
   bool get showParentPicker =>
-      !hasPresetParent && eligibleParentsList.isNotEmpty;
+      !hasPresetParent && !storedHasChildren && eligibleParentsList.isNotEmpty;
 
   bool get canSave => canSaveCategoryForm(name);
 
@@ -125,7 +134,10 @@ class CategoryFormViewState
     final id = parentID;
     if (id == null) return null;
     for (final category in allCategories) {
-      if (category.id == id) return category.name;
+      final isActiveRoot =
+          category.parentID == null &&
+          category.lifecycle == LifecycleState.active;
+      if (isActiveRoot && category.id == id) return category.name;
     }
     return null;
   }

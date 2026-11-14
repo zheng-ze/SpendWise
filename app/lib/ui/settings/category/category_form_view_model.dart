@@ -14,13 +14,12 @@ export 'package:spendwise/ui/settings/category/category_form_state.dart';
 abstract class CategoryFormViewModel {
   void setName(String name);
   void setKind(CategoryKind kind);
-  void setColor(Color color);
   void setIncludeInAnalysis(bool value);
   void setParentID(String? id);
   void requestPickParent();
   void applyPickedParent(String? id);
   void requestPickSymbol();
-  void applyPickedSymbol(String name);
+  void applyPickedSymbolAndColor(String symbol, Color color);
   void requestDelete();
   Future<void> applyDeleteConfirmed(bool confirmed);
   Future<void> save();
@@ -99,9 +98,6 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
   }
 
   @override
-  void setColor(Color color) => updateState((s) => s.copyWith(color: color));
-
-  @override
   void setIncludeInAnalysis(bool value) =>
       updateState((s) => s.copyWith(includeInAnalysis: value));
 
@@ -124,9 +120,11 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
   void requestPickSymbol() => emitStep(PickSymbolRequested());
 
   @override
-  void applyPickedSymbol(String name) {
+  void applyPickedSymbolAndColor(String symbol, Color color) {
     if (!ref.mounted) return;
-    updateState((s) => s.copyWith(symbol: name, step: () => null));
+    updateState(
+      (s) => s.copyWith(symbol: symbol, color: color, step: () => null),
+    );
   }
 
   // MARK: - Delete and Save

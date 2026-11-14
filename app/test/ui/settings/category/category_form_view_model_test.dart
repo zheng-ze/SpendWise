@@ -1,4 +1,5 @@
 import 'package:domain/domain.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -31,17 +32,46 @@ void main() {
   );
 
   group('isKindLocked', () {
+    test('locked when editing', () {
+      expect(
+        isKindLocked(
+          isEditing: true,
+          hasPresetParent: false,
+          isReferenced: false,
+        ),
+        isTrue,
+      );
+    });
+
     test('locked when a parent is preset', () {
-      expect(isKindLocked(hasPresetParent: true, isReferenced: false), isTrue);
+      expect(
+        isKindLocked(
+          isEditing: false,
+          hasPresetParent: true,
+          isReferenced: false,
+        ),
+        isTrue,
+      );
     });
 
     test('locked when referenced by entries', () {
-      expect(isKindLocked(hasPresetParent: false, isReferenced: true), isTrue);
+      expect(
+        isKindLocked(
+          isEditing: false,
+          hasPresetParent: false,
+          isReferenced: true,
+        ),
+        isTrue,
+      );
     });
 
-    test('unlocked with no preset parent and no references', () {
+    test('unlocked for an add with no preset parent and no references', () {
       expect(
-        isKindLocked(hasPresetParent: false, isReferenced: false),
+        isKindLocked(
+          isEditing: false,
+          hasPresetParent: false,
+          isReferenced: false,
+        ),
         isFalse,
       );
     });
@@ -95,6 +125,25 @@ void main() {
         excludingID: food.id,
       );
       expect(result, isEmpty);
+    });
+
+    test('excludes archived and referenceOnly roots', () {
+      final binned = category(
+        id: 'a0000000-0000-0000-0000-000000000004',
+        name: 'Binned',
+      ).settingLifecycle(LifecycleState.archived);
+      final reference = category(
+        id: 'a0000000-0000-0000-0000-000000000005',
+        name: 'Reference',
+      ).settingLifecycle(LifecycleState.referenceOnly);
+
+      final result = eligibleParents(
+        [food, binned, reference],
+        CategoryKind.expense,
+        excludingID: null,
+      );
+
+      expect(result, [food]);
     });
 
     test('a subcategory never appears, even unexcluded', () {
@@ -257,7 +306,27 @@ void main() {
       );
     });
 
-    test('applyPickedSymbol sets the symbol and clears the step', () async {
+    test('applyPickedSymbolAndColor sets both and clears the step', () async {
+      final container = buildContainer(Ledger());
+      final args = const CategoryFormArgs();
+      await container.read(categoryFormViewModelProvider(args).future);
+      final viewModel = container.read(
+        categoryFormViewModelProvider(args).notifier,
+      );
+      const picked = Color(0xFF34C759);
+
+      viewModel.requestPickSymbol();
+      viewModel.applyPickedSymbolAndColor('cart', picked);
+
+      final formState = container
+          .read(categoryFormViewModelProvider(args))
+          .value;
+      expect(formState?.symbol, 'cart');
+      expect(formState?.color, picked);
+      expect(formState?.step, isNull);
+    });
+
+    test('applyPickedSymbolAndColor is a no-op once disposed', () async {
       final container = buildContainer(Ledger());
       final args = const CategoryFormArgs();
       await container.read(categoryFormViewModelProvider(args).future);
@@ -265,14 +334,15 @@ void main() {
         categoryFormViewModelProvider(args).notifier,
       );
 
-      viewModel.requestPickSymbol();
-      viewModel.applyPickedSymbol('cart');
+      container.dispose();
 
-      final formState = container
-          .read(categoryFormViewModelProvider(args))
-          .value;
-      expect(formState?.symbol, 'cart');
-      expect(formState?.step, isNull);
+      expect(
+        () => viewModel.applyPickedSymbolAndColor(
+          'cart',
+          const Color(0xFF000000),
+        ),
+        returnsNormally,
+      );
     });
   });
 
@@ -423,6 +493,131 @@ void main() {
           .read(categoryFormViewModelProvider(args))
           .value;
       expect(formState?.kindLocked, isTrue);
+    });
+  });
+
+  group('parent eligibility in the form', () {
+    final root = category(
+      id: 'b0000000-0000-0000-0000-000000000001',
+      name: 'Food',
+    );
+    final binnedRoot = category(
+      id: 'b0000000-0000-0000-0000-000000000002',
+      name: 'Binned',
+    ).settingLifecycle(LifecycleState.archived);
+    final referenceRoot = category(
+      id: 'b0000000-0000-0000-0000-000000000003',
+      name: 'Reference',
+    ).settingLifecycle(LifecycleState.referenceOnly);
+
+    Future<CategoryFormViewState?> openForm(
+      List<TransactionCategory> categories,
+      CategoryFormArgs args,
+    ) async {
+      final ledger = Ledger(
+        state: LedgerState(categories: {for (final c in categories) c.id: c}),
+      );
+      final container = buildContainer(ledger);
+      await container.read(categoryFormViewModelProvider(args).future);
+      return container.read(categoryFormViewModelProvider(args)).value;
+    }
+
+    test('offers only the active root, not binned or referenceOnly', () async {
+      final formState = await openForm([
+        root,
+        binnedRoot,
+        referenceRoot,
+      ], const CategoryFormArgs());
+
+      expect(formState?.eligibleParentsList, [root]);
+    });
+
+    test('parentLabel ignores inactive roots', () async {
+      final stored = category(name: 'Orphan', parentID: binnedRoot.id);
+      final formState = await openForm([
+        binnedRoot,
+        stored,
+      ], CategoryFormArgs(category: stored));
+
+      expect(formState?.parentLabel, isNull);
+    });
+
+    test('parentLabel resolves the preset parent', () async {
+      final formState = await openForm([
+        root,
+      ], CategoryFormArgs(presetParentID: root.id));
+
+      expect(formState?.parentLabel, 'Food');
+    });
+
+    test('a root whose only child is archived hides the picker', () async {
+      final other = category(
+        id: 'b0000000-0000-0000-0000-000000000004',
+        name: 'Other',
+      );
+      final child = category(
+        name: 'Snacks',
+        parentID: root.id,
+      ).settingLifecycle(LifecycleState.archived);
+      final formState = await openForm([
+        root,
+        other,
+        child,
+      ], CategoryFormArgs(category: root));
+
+      expect(formState?.storedHasChildren, isTrue);
+      expect(formState?.showParentPicker, isFalse);
+    });
+
+    test('a root with no children shows the picker', () async {
+      final other = category(
+        id: 'b0000000-0000-0000-0000-000000000004',
+        name: 'Other',
+      );
+      final formState = await openForm([
+        root,
+        other,
+      ], CategoryFormArgs(category: root));
+
+      expect(formState?.storedHasChildren, isFalse);
+      expect(formState?.showParentPicker, isTrue);
+    });
+
+    test('a preset parent hides the picker', () async {
+      final formState = await openForm([
+        root,
+      ], CategoryFormArgs(presetParentID: root.id));
+
+      expect(formState?.showParentPicker, isFalse);
+    });
+  });
+
+  group('kind lock', () {
+    test('an unreferenced edit is locked', () async {
+      final existing = category(name: 'Food');
+      final ledger = Ledger(
+        state: LedgerState(categories: {existing.id: existing}),
+      );
+      final container = buildContainer(ledger);
+      final args = CategoryFormArgs(category: existing);
+      await container.read(categoryFormViewModelProvider(args).future);
+
+      final formState = container
+          .read(categoryFormViewModelProvider(args))
+          .value;
+      expect(formState?.isReferenced, isFalse);
+      expect(formState?.kindLocked, isTrue);
+    });
+
+    test('an add without a preset parent is unlocked', () async {
+      final container = buildContainer(Ledger());
+      final args = const CategoryFormArgs();
+      await container.read(categoryFormViewModelProvider(args).future);
+
+      final formState = container
+          .read(categoryFormViewModelProvider(args))
+          .value;
+      expect(formState?.kindLocked, isFalse);
     });
   });
 }
