@@ -1,27 +1,40 @@
 part of '../recycle_bin_sections.dart';
 
-// MARK: - Section Title
+// MARK: - Section Tray
 
-class BinSectionTitle extends StatelessWidget {
-  const BinSectionTitle(this.title, {super.key});
+class BinSectionTray extends StatelessWidget {
+  const BinSectionTray({super.key, required this.title, required this.rows});
 
   final String title;
-
-  static const _titlePadding = EdgeInsets.fromLTRB(16, 16, 16, 4);
+  final List<Widget> rows;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: _titlePadding,
-      child: Text(
-        title,
-        style: theme.textTheme.labelLarge?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
+    final dividerColor = context.colors.edge;
+    final spaced = <Widget>[];
+    for (final (index, row) in rows.indexed) {
+      if (index > 0) spaced.add(BinRowDivider(color: dividerColor));
+      spaced.add(row);
+    }
+    return Tray(
+      title: title,
+      child: Column(children: spaced),
     );
   }
+}
+
+// MARK: - Row Divider
+
+class BinRowDivider extends StatelessWidget {
+  const BinRowDivider({super.key, required this.color});
+
+  final Color color;
+
+  static const _height = 1.0;
+
+  @override
+  Widget build(BuildContext context) =>
+      Container(height: _height, color: color);
 }
 
 // MARK: - Entries Section
@@ -42,22 +55,16 @@ class BinEntriesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const BinSectionTitle(_title),
-        for (final row in rows)
-          SwipeableBinRow(
-            row: row,
-            onRestore: () => onRestore(row),
-            onRequestPurge: () => onRequestPurge(row),
-            child: BinEntryRowContent(
-              row: row,
-              onRestore: () => onRestore(row),
-            ),
-          ),
-      ],
-    );
+    final tiles = [
+      for (final row in rows)
+        SwipeableBinRow(
+          row: row,
+          onRestore: () => onRestore(row),
+          onRequestPurge: () => onRequestPurge(row),
+          child: BinEntryRowContent(row: row, onRestore: () => onRestore(row)),
+        ),
+    ];
+    return BinSectionTray(title: _title, rows: tiles);
   }
 }
 
@@ -81,18 +88,15 @@ class BinSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        BinSectionTitle(title),
-        for (final row in rows)
-          BinRowTile(
-            row: row,
-            sectionIcon: sectionIcon,
-            onRestore: () => onRestore(row),
-            onRequestPurge: () => onRequestPurge(row),
-          ),
-      ],
-    );
+    final tiles = [
+      for (final row in rows)
+        BinRowTile(
+          row: row,
+          sectionIcon: sectionIcon,
+          onRestore: () => onRestore(row),
+          onRequestPurge: () => onRequestPurge(row),
+        ),
+    ];
+    return BinSectionTray(title: title, rows: tiles);
   }
 }

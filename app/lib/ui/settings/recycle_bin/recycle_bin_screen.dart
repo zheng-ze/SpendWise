@@ -13,7 +13,11 @@ const _screenTitle = 'Recycle bin';
 
 const _accountsTitle = 'Accounts';
 
-const _pocketsTitle = 'Subpockets';
+const _pocketsTitle = 'Pockets';
+
+const _screenPadding = EdgeInsets.all(12);
+
+const _sectionGap = 10.0;
 
 const _categoriesTitle = 'Categories';
 
@@ -81,6 +85,15 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
   }
 }
 
+List<Widget> _spaced(List<Widget> sections) {
+  final spaced = <Widget>[];
+  for (final (index, section) in sections.indexed) {
+    if (index > 0) spaced.add(const SizedBox(height: _sectionGap));
+    spaced.add(section);
+  }
+  return spaced;
+}
+
 // MARK: - Body
 
 class _RecycleBinScreenBody extends StatelessWidget {
@@ -142,7 +155,7 @@ class _RecycleBinScreenBody extends StatelessWidget {
     ];
     final content = isEmpty
         ? const BinEmptyState()
-        : ListView(children: sections);
+        : ListView(padding: _screenPadding, children: _spaced(sections));
 
     return Scaffold(
       appBar: AppBar(title: const Text(_screenTitle)),
