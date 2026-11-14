@@ -1,4 +1,5 @@
 import 'package:domain/domain.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
@@ -63,6 +64,19 @@ void main() {
 
       expect(find.text(topLevelLabel), findsOneWidget);
       expect(find.text(food.name), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('the current parent row shows the selected check', (
+      tester,
+    ) async {
+      await _openForm(tester, ledger);
+      await _openPicker(tester);
+      expect(find.byIcon(Icons.check), findsOneWidget);
+      await _pickParentRow(tester, food.name);
+
+      await _openPicker(tester);
+
+      expect(find.byIcon(Icons.check), findsOneWidget);
     }, timeout: uiTestTimeout);
 
     testWidgets('dismissing the picker keeps the chosen parent', (
