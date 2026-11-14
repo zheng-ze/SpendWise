@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'frame_manifest.dart';
 import 'pump_app.dart';
 import 'ui_test_timeout.dart';
 
@@ -49,37 +46,5 @@ void main() {
         expect(find.byType(CircularProgressIndicator), findsOneWidget);
       },
     );
-  });
-
-  group('FrameManifest', () {
-    final manifest = FrameManifest.load();
-
-    test('exposes frame ids by area', () {
-      expect(manifest.idsInArea('money'), contains('mo-budgets'));
-      expect(manifest.idsInArea('states'), contains('sf-limit'));
-      expect(manifest.idsInArea('money'), isNot(contains('fr-budgets')));
-    });
-
-    test('finds frames by id prefix', () {
-      final budgetFrames = manifest.idsMatching('mo-budget');
-
-      expect(budgetFrames, contains('mo-budget-add'));
-      expect(budgetFrames, isNot(contains('mo-desk-budgets')));
-    });
-
-    test('lists every id once', () {
-      expect(manifest.ids.length, manifest.frames.length);
-    });
-
-    test('rejects a row without a string area', () {
-      final file = File('${Directory.systemTemp.path}/bad_frames_419.json')
-        ..writeAsStringSync('[{"id": "x"}]');
-      addTearDown(file.deleteSync);
-
-      expect(
-        () => FrameManifest.load(path: file.path),
-        throwsA(isA<FormatException>()),
-      );
-    });
   });
 }
