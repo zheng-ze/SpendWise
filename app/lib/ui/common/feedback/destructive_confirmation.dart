@@ -10,21 +10,15 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 // MARK: - Constants
 const _cancelLabel = 'Cancel';
 const _defaultConfirmLabel = 'Delete';
-const _phonePadding = 16.0;
-const _widePadding = 20.0;
+const _dialogPadding = 16.0;
 const _phoneInset = 22.0;
 const _wideInset = 0.0;
-const _wideWidth = 308.0;
+const _wideWidth = 360.0;
 const _phoneWidth = double.infinity;
-const _dialogRadius = 16.0;
+const _dialogRadius = 14.0;
 const _dialogBorderWidth = 1.0;
 const _dialogElevation = 0.0;
 const _transparent = Color(0x00000000);
-const _wideShadow = BoxShadow(
-  color: Color(0x26000000),
-  offset: Offset(0, 12),
-  blurRadius: 40,
-);
 const _titleSize = 18.0;
 const _titleWeight = FontWeight.w600;
 const _bodySize = 12.0;
@@ -33,10 +27,11 @@ const _actionSize = 12.0;
 const _actionWeight = FontWeight.w600;
 const _titleBodyGap = 6.0;
 const _bodyActionsGap = 14.0;
-const _actionsGap = 18.0;
+const _actionsGap = 12.0;
 const _actionsOverflowGap = 8.0;
-const _confirmRadius = 8.0;
-const _confirmPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 7);
+const _actionRadius = 8.0;
+const _actionMinSize = Size(48, 48);
+const _actionPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
 
 // MARK: - Dialog
 Future<bool> showDestructiveConfirmation(
@@ -99,10 +94,16 @@ class _DestructiveDialog extends StatelessWidget {
       fontSize: _bodySize,
       height: _bodyHeight,
     );
+    final actionShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_actionRadius),
+    );
     final cancel = TextButton(
       style: TextButton.styleFrom(
         foregroundColor: colors.action,
         textStyle: actionText,
+        minimumSize: _actionMinSize,
+        padding: _actionPadding,
+        shape: actionShape,
       ),
       onPressed: () => navigator.pop(false),
       child: const Text(_cancelLabel),
@@ -112,10 +113,9 @@ class _DestructiveDialog extends StatelessWidget {
         backgroundColor: colors.error,
         foregroundColor: colors.onAction,
         textStyle: actionText,
-        padding: _confirmPadding,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(_confirmRadius),
-        ),
+        minimumSize: _actionMinSize,
+        padding: _actionPadding,
+        shape: actionShape,
       ),
       onPressed: () => navigator.pop(true),
       child: Text(confirmLabel),
@@ -150,7 +150,7 @@ class _DestructiveDialog extends StatelessWidget {
       ],
     );
     final padded = Padding(
-      padding: EdgeInsets.all(phone ? _phonePadding : _widePadding),
+      padding: const EdgeInsets.all(_dialogPadding),
       child: content,
     );
     final label = isApple
@@ -169,7 +169,6 @@ class _DestructiveDialog extends StatelessWidget {
         color: colors.raised,
         borderRadius: radius,
         border: Border.all(color: colors.control, width: _dialogBorderWidth),
-        boxShadow: phone ? null : const [_wideShadow],
       ),
       child: semantic,
     );
