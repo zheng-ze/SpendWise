@@ -122,7 +122,7 @@ class _CategoryListScreenBody extends StatelessWidget {
   static const _screenTitle = 'Categories';
   static const _backLabel = 'Settings';
   static const _contentPadding = EdgeInsets.all(12);
-  static const _sectionGap = 12.0;
+  static const _sectionGap = 10.0;
   static const _addLabel = 'Add category';
   static const _fabPadding = EdgeInsets.only(right: 12, bottom: 12);
 
@@ -280,6 +280,7 @@ class _CategoryRow extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onAddSubcategory;
 
+  static const _rootIndent = 0.0;
   static const _childIndent = 36.0;
   static const _rowVerticalPadding = 7.0;
   static const _medallionSize = 30.0;
@@ -291,7 +292,7 @@ class _CategoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final indent = category.parentID == null ? 0.0 : _childIndent;
+    final indent = category.parentID == null ? _rootIndent : _childIndent;
     final medallion = CategoryIcon(
       symbolName: category.symbol,
       color: CategoryPalette.savedColor(category.colorHex, colors),
