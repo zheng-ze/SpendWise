@@ -2,12 +2,12 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/feedback/delete_confirmation.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
 import 'package:spendwise/ui/common/pickers/symbol_picker.dart';
 import 'package:spendwise/ui/settings/category/category_form_fields.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
+import 'package:spendwise/ui/settings/category/confirm_move_category_to_bin.dart';
 
 // MARK: - Show
 
@@ -125,10 +125,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   Future<void> _confirmDelete() async {
     final category = widget.category;
     if (category == null) return;
-    final confirmed = await showDeleteConfirmation(
-      context,
-      itemName: category.name,
-    );
+    final confirmed = await confirmMoveCategoryToBin(context, category.name);
     if (!context.mounted) return;
     await _viewModel.applyDeleteConfirmed(confirmed);
   }

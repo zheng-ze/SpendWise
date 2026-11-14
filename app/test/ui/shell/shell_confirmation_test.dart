@@ -8,6 +8,7 @@ import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/common/feedback/delete_confirmation.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/settings/category/confirm_move_category_to_bin.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_purge_dialog.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
 import 'package:spendwise/ui/shell/shell_confirmation.dart';
@@ -390,6 +391,34 @@ void main() {
     final confirmed = confirmBinPurge(context, row);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(await confirmed, isTrue);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('move to bin shows its wording and maps Cancel and Move', (
+    tester,
+  ) async {
+    await _pumpBoundShell(tester, size: _openSize);
+    final context = tester.element(find.text('overview probe'));
+
+    final future = confirmMoveCategoryToBin(context, 'Groceries');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Move Groceries to the recycle bin?'), findsOneWidget);
+    expect(
+      find.text(
+        'Entries keep their category. You can restore it from the recycle bin.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(await future, isFalse);
+
+    final confirmed = confirmMoveCategoryToBin(context, 'Groceries');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Move'));
     await tester.pumpAndSettle();
     expect(await confirmed, isTrue);
   }, timeout: uiTestTimeout);

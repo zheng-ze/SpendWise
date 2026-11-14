@@ -243,7 +243,7 @@ class CategoryParentTile extends StatelessWidget {
 class CategoryDeleteButton extends StatelessWidget {
   const CategoryDeleteButton({super.key, required this.onPressed});
 
-  static const _label = 'Delete Category';
+  static const _label = 'Move to recycle bin';
   static const _fullWidth = double.infinity;
 
   final VoidCallback onPressed;
