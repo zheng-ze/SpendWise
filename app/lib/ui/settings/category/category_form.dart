@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -70,6 +72,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
 
   ModalRoute<Object?>? _route;
   final List<ModalRoute<dynamic>> _pickerRoutes = [];
+  bool _subcategorySheetOpen = false;
 
   CategoryFormArgs get _args => CategoryFormArgs(
     category: widget.category,
@@ -160,9 +163,32 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
     _viewModel.applyPickedParent(chosen.parentID);
   }
 
-  void _openSubcategory(TransactionCategory subcategory) {}
+  void _openSubcategoryForm({
+    TransactionCategory? subcategory,
+    String? presetParentID,
+  }) {
+    if (_subcategorySheetOpen) return;
+    _subcategorySheetOpen = true;
+    Future<void> release(AppSheetRoute<void> route) async {
+      await route.completed;
+      _subcategorySheetOpen = false;
+    }
 
-  void _addSubcategory() {}
+    unawaited(
+      showCategoryFormSheet(
+        context: context,
+        category: subcategory,
+        presetParentID: presetParentID,
+        onRouteCreated: (route) => unawaited(release(route)),
+      ),
+    );
+  }
+
+  void _openSubcategory(TransactionCategory subcategory) =>
+      _openSubcategoryForm(subcategory: subcategory);
+
+  void _addSubcategory() =>
+      _openSubcategoryForm(presetParentID: widget.category?.id);
 
   Future<void> _confirmDelete() async {
     final category = widget.category;
