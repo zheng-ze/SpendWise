@@ -22,6 +22,8 @@ const _collapseIcon = Icons.expand_less;
 const _lockIcon = Icons.lock_outline;
 const _chevronIcon = Icons.chevron_right;
 const _analysisTitle = 'Count in Trends and budgets';
+const _categoryTypeHint = 'The type is fixed once entries use this category.';
+const _subcategoryCountHint = 'Include this subcategory in totals';
 
 // MARK: - Swatches
 
@@ -133,21 +135,20 @@ class CategoryAnalysisSwitch extends StatelessWidget {
     super.key,
     required this.value,
     required this.onChanged,
+    this.hint,
   });
 
   static const _title = _analysisTitle;
-  static const _hint =
-      'Turn off for money you get back, such as work expenses you claim.';
-
   final bool value;
   final ValueChanged<bool> onChanged;
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
     return SwitchListTile(
       contentPadding: _emptyContentPadding,
       title: const Text(_title),
-      subtitle: const Text(_hint),
+      subtitle: hint == null ? null : Text(hint!),
       value: value,
       onChanged: onChanged,
     );
@@ -161,12 +162,14 @@ class CategoryMoreOptions extends StatefulWidget {
     super.key,
     required this.includeInAnalysis,
     required this.onIncludeInAnalysisChanged,
+    required this.isSubcategory,
   });
 
   static const _title = 'More options';
 
   final bool includeInAnalysis;
   final ValueChanged<bool> onIncludeInAnalysisChanged;
+  final bool isSubcategory;
 
   @override
   State<CategoryMoreOptions> createState() => _CategoryMoreOptionsState();
@@ -193,6 +196,7 @@ class _CategoryMoreOptionsState extends State<CategoryMoreOptions> {
     final analysis = CategoryAnalysisSwitch(
       value: widget.includeInAnalysis,
       onChanged: widget.onIncludeInAnalysisChanged,
+      hint: widget.isSubcategory ? _subcategoryCountHint : null,
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -209,7 +213,8 @@ class CategoryMoreOptionsSection extends StatelessWidget {
     required this.includeInAnalysis,
     required this.onIncludeInAnalysisChanged,
     required this.kind,
-    required this.isReferenced,
+    required this.isSubcategory,
+    required this.parentLabel,
   });
 
   static const _label = 'More options';
@@ -219,7 +224,8 @@ class CategoryMoreOptionsSection extends StatelessWidget {
   final bool includeInAnalysis;
   final ValueChanged<bool> onIncludeInAnalysisChanged;
   final CategoryKind kind;
-  final bool isReferenced;
+  final bool isSubcategory;
+  final String? parentLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -231,11 +237,15 @@ class CategoryMoreOptionsSection extends StatelessWidget {
       padding: _labelPadding,
       child: Text(_label.toUpperCase(), style: labelStyle),
     );
+    final typeHint = isSubcategory
+        ? (parentLabel == null ? null : 'Set by $parentLabel')
+        : _categoryTypeHint;
     final analysis = CategoryAnalysisSwitch(
       value: includeInAnalysis,
       onChanged: onIncludeInAnalysisChanged,
+      hint: isSubcategory ? _subcategoryCountHint : null,
     );
-    final type = CategoryTypeRow(kind: kind, showsCaption: isReferenced);
+    final type = CategoryTypeRow(kind: kind, hint: typeHint);
     final card = FormSectionCard(children: [analysis, type]);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -247,18 +257,13 @@ class CategoryMoreOptionsSection extends StatelessWidget {
 // MARK: - Type Row
 
 class CategoryTypeRow extends StatelessWidget {
-  const CategoryTypeRow({
-    super.key,
-    required this.kind,
-    required this.showsCaption,
-  });
+  const CategoryTypeRow({super.key, required this.kind, required this.hint});
 
   static const _title = 'Type';
-  static const _caption = 'The type is fixed once entries use this category.';
   static const _captionGap = 4.0;
 
   final CategoryKind kind;
-  final bool showsCaption;
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
@@ -275,10 +280,11 @@ class CategoryTypeRow extends StatelessWidget {
       ],
     );
     final row = FormSheetRow(label: _title, trailing: value);
-    if (!showsCaption) return row;
+    final hintText = hint;
+    if (hintText == null) return row;
     final caption = Padding(
       padding: const EdgeInsets.only(bottom: _captionGap),
-      child: Text(_caption, style: Theme.of(context).textTheme.bodySmall),
+      child: Text(hintText, style: Theme.of(context).textTheme.bodySmall),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

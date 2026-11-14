@@ -27,6 +27,7 @@ const _moreOptionsLabel = 'More options';
 const _closedSubtitle = 'Count in Trends and budgets';
 const _typeLabel = 'Type';
 const _typeCaption = 'The type is fixed once entries use this category.';
+const _subcategoryCountHint = 'Include this subcategory in totals';
 const _symbolRowLabel = 'Icon and colour';
 const _chosenSymbol = 'restaurant';
 const _chosenSymbolName = 'Restaurant';
@@ -76,24 +77,6 @@ bool _saveEnabled(WidgetTester tester) =>
 Future<void> _type(WidgetTester tester, String text) async {
   await tester.enterText(_nameField, text);
   await tester.pumpAndSettle();
-}
-
-Ledger _ledgerWithReferencedCategory(TransactionCategory category) {
-  final account = Account(name: 'Wallet', type: AccountType.cash);
-  final entry = Entry(
-    name: 'Lunch',
-    amount: Decimal.parse('-10'),
-    date: DateTime.utc(2024, 1, 1),
-    sourceID: account.id,
-    categoryID: category.id,
-  );
-  return Ledger(
-    state: LedgerState(
-      categories: {category.id: category},
-      moneySources: {account.id: MoneySource.account(account)},
-      entries: {entry.id: entry},
-    ),
-  );
 }
 
 Future<void> _chooseSymbolAndColor(WidgetTester tester) async {
@@ -309,26 +292,51 @@ void main() {
     expect(find.text('Expense'), findsOneWidget);
   }, timeout: uiTestTimeout);
 
-  testWidgets('the type caption shows only for a referenced category', (
+  testWidgets('an edit category always shows the fixed type hint', (
     tester,
   ) async {
-    final root = _root('Food');
-    await openCategoryFormSheet(
-      tester,
-      _ledgerWithReferencedCategory(root),
-      category: root,
-    );
-
-    expect(find.text(_typeCaption), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('an unreferenced category shows no type caption', (tester) async {
     final root = _root('Food');
     final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
     await openCategoryFormSheet(tester, ledger, category: root);
 
-    expect(find.text(_typeLabel), findsOneWidget);
+    expect(find.text(_typeCaption), findsOneWidget);
+    expect(find.text(_subcategoryCountHint), findsNothing);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('an edit subcategory shows Set by parent and the count hint', (
+    tester,
+  ) async {
+    final root = _root('Dining');
+    final child = _child('Cafes', root.id);
+    final ledger = Ledger(
+      state: LedgerState(categories: {root.id: root, child.id: child}),
+    );
+    await openCategoryFormSheet(tester, ledger, category: child);
+
+    expect(find.text('Set by Dining'), findsOneWidget);
     expect(find.text(_typeCaption), findsNothing);
+    expect(find.text(_subcategoryCountHint), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('an add subcategory shows the count hint and no Type row', (
+    tester,
+  ) async {
+    final root = _root('Food');
+    final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
+    await openCategoryFormSheet(tester, ledger, presetParentID: root.id);
+
+    await _openMoreOptions(tester);
+
+    expect(find.text(_subcategoryCountHint), findsOneWidget);
+    expect(find.text(_typeLabel), findsNothing);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('an add category shows no count hint', (tester) async {
+    await openCategoryFormSheet(tester, Ledger());
+
+    await _openMoreOptions(tester);
+
+    expect(find.text(_subcategoryCountHint), findsNothing);
   }, timeout: uiTestTimeout);
 
   testWidgets(

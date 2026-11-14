@@ -244,12 +244,14 @@ class _CategoryFormBody extends StatelessWidget {
     final collapsedMoreOptions = CategoryMoreOptions(
       includeInAnalysis: formState.includeInAnalysis,
       onIncludeInAnalysisChanged: viewModel.setIncludeInAnalysis,
+      isSubcategory: formState.isSubcategoryForm,
     );
     final openMoreOptions = CategoryMoreOptionsSection(
       includeInAnalysis: formState.includeInAnalysis,
       onIncludeInAnalysisChanged: viewModel.setIncludeInAnalysis,
       kind: formState.kind,
-      isReferenced: formState.isReferenced,
+      isSubcategory: formState.isSubcategoryForm,
+      parentLabel: formState.parentLabel,
     );
     final fieldsCard = FormSectionCard(
       padding: FormSectionCard.fieldsPadding,
