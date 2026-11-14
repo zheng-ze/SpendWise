@@ -39,6 +39,8 @@ const _swatchRadius = 8.0;
 
 const _selectedSwatchBorderWidth = 2.0;
 
+const _searchIcon = Icon(Icons.search);
+
 // MARK: - Result
 class SymbolPickerResult {
   const SymbolPickerResult({required this.symbol, required this.color});
@@ -120,6 +122,12 @@ class _SymbolPickerState extends State<SymbolPicker> {
     super.dispose();
   }
 
+  void _chooseSymbol(String name) => setState(() => _symbol = name);
+
+  void _chooseColor(Color swatch) => setState(() => _color = swatch);
+
+  void _search(String value) => setState(() => _query = value);
+
   void _done() {
     final result = SymbolPickerResult(symbol: _symbol, color: _color);
     Navigator.of(context).pop(result);
@@ -143,10 +151,10 @@ class _SymbolPickerState extends State<SymbolPicker> {
         controller: _searchController,
         decoration: const InputDecoration(
           hintText: _searchHint,
-          prefixIcon: Icon(Icons.search),
+          prefixIcon: _searchIcon,
           border: OutlineInputBorder(),
         ),
-        onChanged: (value) => setState(() => _query = value),
+        onChanged: _search,
       ),
     );
     final body = Column(
@@ -160,13 +168,13 @@ class _SymbolPickerState extends State<SymbolPicker> {
             names: section.value,
             selected: _symbol,
             color: displayColor,
-            onChosen: (name) => setState(() => _symbol = name),
+            onChosen: _chooseSymbol,
           ),
         const _SectionLabel(label: _colourSectionLabel),
         _SwatchRow(
           swatches: widget.swatches,
           selected: _color,
-          onChosen: (swatch) => setState(() => _color = swatch),
+          onChosen: _chooseColor,
         ),
       ],
     );
@@ -269,29 +277,13 @@ class _SwatchRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final borderColor = colors.text;
-    final radius = BorderRadius.circular(_swatchRadius);
     final chips = [
       for (final swatch in swatches)
-        InkWell(
+        _Swatch(
           key: ValueKey(swatch),
-          borderRadius: radius,
+          swatch: swatch,
+          selected: swatch == selected,
           onTap: () => onChosen(swatch),
-          child: Container(
-            width: _swatchSize,
-            height: _swatchSize,
-            decoration: BoxDecoration(
-              borderRadius: radius,
-              color: CategoryPalette.savedColor(toColorHex(swatch), colors),
-              border: swatch == selected
-                  ? Border.all(
-                      color: borderColor,
-                      width: _selectedSwatchBorderWidth,
-                    )
-                  : null,
-            ),
-          ),
         ),
     ];
 
@@ -303,5 +295,40 @@ class _SwatchRow extends StatelessWidget {
         children: chips,
       ),
     );
+  }
+}
+
+// MARK: - Swatch
+class _Swatch extends StatelessWidget {
+  const _Swatch({
+    super.key,
+    required this.swatch,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Color swatch;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final radius = BorderRadius.circular(_swatchRadius);
+    final border = selected
+        ? Border.all(color: colors.text, width: _selectedSwatchBorderWidth)
+        : null;
+    final decoration = BoxDecoration(
+      borderRadius: radius,
+      color: CategoryPalette.savedColor(toColorHex(swatch), colors),
+      border: border,
+    );
+    final chip = Container(
+      width: _swatchSize,
+      height: _swatchSize,
+      decoration: decoration,
+    );
+
+    return InkWell(borderRadius: radius, onTap: onTap, child: chip);
   }
 }
