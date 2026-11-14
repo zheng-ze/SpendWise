@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/common/lists/category_icon.dart';
+import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category/category_form.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
 
@@ -26,6 +29,12 @@ const _closedSubtitle = 'Count in Trends and budgets';
 const _closedEditSubtitle = 'Count in Trends and budgets, type';
 const _typeLabel = 'Type';
 const _typeCaption = 'The type is fixed once entries use this category.';
+const _symbolRowLabel = 'Icon and colour';
+const _chosenSymbol = 'restaurant';
+const _chosenSymbolName = 'Restaurant';
+const _initialSymbolName = 'Tag';
+const _chosenColor = Color(0xFF5AC8FA);
+const _barrierTap = Offset(160, 10);
 
 final _nameField = find.descendant(
   of: find.byType(CategoryForm),
@@ -87,6 +96,19 @@ Ledger _ledgerWithReferencedCategory(TransactionCategory category) {
       entries: {entry.id: entry},
     ),
   );
+}
+
+Future<void> _chooseSymbolAndColor(WidgetTester tester) async {
+  await tester.tap(find.text(_symbolRowLabel));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byType(TextField).last, _chosenSymbol);
+  await tester.pumpAndSettle();
+  final icon = find.byWidgetPredicate(
+    (widget) => widget is CategoryIcon && widget.symbolName == _chosenSymbol,
+  );
+  await tester.tap(icon.first);
+  await tester.tap(find.byKey(const ValueKey(_chosenColor)));
+  await tester.pumpAndSettle();
 }
 
 Future<void> _openMoreOptions(WidgetTester tester) async {
@@ -320,5 +342,46 @@ void main() {
 
     expect(find.text(_typeLabel), findsOneWidget);
     expect(find.text(_typeCaption), findsNothing);
+  }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'Done in the Icon and colour picker updates the row and is saved',
+    (tester) async {
+      final root = _root('Food');
+      final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
+      await openCategoryFormSheet(tester, ledger, category: root);
+
+      await _chooseSymbolAndColor(tester);
+      await tester.tap(find.byKey(pickerDoneKey));
+      await tester.pumpAndSettle();
+
+      expect(find.text(_chosenSymbolName), findsOneWidget);
+      await tester.tap(_saveButton);
+      await tester.pumpAndSettle();
+      final saved = ledger.state.categories[root.id];
+      expect(saved?.symbol, _chosenSymbol);
+      expect(saved?.colorHex, toColorHex(_chosenColor));
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets('dismissing the Icon and colour picker discards the change', (
+    tester,
+  ) async {
+    final root = _root('Food');
+    final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
+    await openCategoryFormSheet(tester, ledger, category: root);
+
+    await _chooseSymbolAndColor(tester);
+    await tester.tapAt(_barrierTap);
+    await tester.pumpAndSettle();
+
+    expect(find.text(_initialSymbolName), findsOneWidget);
+    expect(find.text(_chosenSymbolName), findsNothing);
+    await tester.tap(_saveButton);
+    await tester.pumpAndSettle();
+    final saved = ledger.state.categories[root.id];
+    expect(saved?.symbol, 'tag');
+    expect(saved?.colorHex, root.colorHex);
   }, timeout: uiTestTimeout);
 }

@@ -10,6 +10,8 @@ import 'package:spendwise/ui/settings/category/category_list_view_model.dart';
 import '../../../support/pump_app.dart';
 import '../../../support/ui_test_timeout.dart';
 
+const _barrierTap = Offset(160, 10);
+
 void main() {
   testWidgets(
     'a second open request while the form is open does not stack a second form',
@@ -29,4 +31,20 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
+
+  testWidgets('the form opens again after it was dismissed', (tester) async {
+    await pumpApp(tester, const CategoryListScreen(), ledger: Ledger());
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+    expect(find.byType(CategoryForm), findsOneWidget);
+
+    await tester.tapAt(_barrierTap);
+    await tester.pumpAndSettle();
+    expect(find.byType(CategoryForm), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CategoryForm), findsOneWidget);
+  }, timeout: uiTestTimeout);
 }
