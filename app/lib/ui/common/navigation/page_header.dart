@@ -10,6 +10,7 @@ const _backIconSize = 18.0;
 const _backIconGap = 2.0;
 const _backRadius = BorderRadius.all(Radius.circular(8));
 const _backPadding = EdgeInsets.only(bottom: 4);
+const _backWidthFactor = 1.0;
 
 // MARK: - PageHeader
 class PageHeader extends StatelessWidget {
@@ -90,7 +91,7 @@ class _PageHeaderBack extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: _backHitHeight),
           child: Align(
             alignment: Alignment.centerLeft,
-            widthFactor: 1,
+            widthFactor: _backWidthFactor,
             child: content,
           ),
         ),
