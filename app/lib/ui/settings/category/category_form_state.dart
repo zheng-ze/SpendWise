@@ -122,6 +122,13 @@ class CategoryFormViewState
   bool get showParentPicker =>
       !hasPresetParent && !storedHasChildren && eligibleParentsList.isNotEmpty;
 
+  bool get hasStaleParent {
+    final id = parentID;
+    if (hasPresetParent || id == null) return false;
+    if (storedHasChildren) return true;
+    return !eligibleParentsList.any((category) => category.id == id);
+  }
+
   bool get canSave => canSaveCategoryForm(name);
 
   bool get editsStoredSubcategory {

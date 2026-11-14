@@ -80,9 +80,14 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
     );
   }
 
-  void _onLedgerChanged() => updateState(
-    (s) => s.copyWith(allCategories: ledger.state.categories.values.toList()),
-  );
+  void _onLedgerChanged() => updateState((s) {
+    final refreshed = s.copyWith(
+      allCategories: ledger.state.categories.values.toList(),
+    );
+    return refreshed.hasStaleParent
+        ? refreshed.copyWith(parentID: () => null)
+        : refreshed;
+  });
 
   // MARK: - Field Setters
 

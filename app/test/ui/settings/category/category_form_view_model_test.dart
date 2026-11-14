@@ -664,6 +664,95 @@ void main() {
     });
   });
 
+  group('draft parent after a ledger change', () {
+    final parent = category(
+      id: 'c0000000-0000-0000-0000-000000000001',
+      name: 'Food',
+    );
+    final edited = category(
+      id: 'c0000000-0000-0000-0000-000000000002',
+      name: 'Home',
+    );
+
+    CategoryFormViewState? read(
+      ProviderContainer container,
+      CategoryFormArgs args,
+    ) => container.read(categoryFormViewModelProvider(args)).value;
+
+    test('binning the picked parent clears the draft parent', () async {
+      final ledger = Ledger(
+        state: LedgerState(categories: {parent.id: parent}),
+      );
+      final container = buildContainer(ledger);
+      const args = CategoryFormArgs();
+      await openAlive(container, args);
+      final viewModel = container.read(
+        categoryFormViewModelProvider(args).notifier,
+      );
+      viewModel.setName('Snacks');
+      viewModel.setParentID(parent.id);
+
+      ledger.deleteCategory(parent.id);
+
+      final formState = read(container, args);
+      expect(formState?.parentID, isNull);
+      expect(formState?.parentLabel, isNull);
+      expect(formState?.name, 'Snacks');
+    });
+
+    test(
+      'a synced child for the edited root clears the draft parent',
+      () async {
+        final ledger = Ledger(
+          state: LedgerState(
+            categories: {parent.id: parent, edited.id: edited},
+          ),
+        );
+        final container = buildContainer(ledger);
+        final args = CategoryFormArgs(category: edited);
+        await openAlive(container, args);
+        container
+            .read(categoryFormViewModelProvider(args).notifier)
+            .setParentID(parent.id);
+
+        ledger.addCategory(category(name: 'Rent', parentID: edited.id));
+
+        final formState = read(container, args);
+        expect(formState?.storedHasChildren, isTrue);
+        expect(formState?.parentID, isNull);
+      },
+    );
+
+    test('an unrelated ledger change keeps the draft parent', () async {
+      final ledger = Ledger(
+        state: LedgerState(categories: {parent.id: parent}),
+      );
+      final container = buildContainer(ledger);
+      const args = CategoryFormArgs();
+      await openAlive(container, args);
+      container
+          .read(categoryFormViewModelProvider(args).notifier)
+          .setParentID(parent.id);
+
+      ledger.addCategory(category(name: 'Transport'));
+
+      expect(read(container, args)?.parentID, parent.id);
+    });
+
+    test('a preset parent stays when it is binned', () async {
+      final ledger = Ledger(
+        state: LedgerState(categories: {parent.id: parent}),
+      );
+      final container = buildContainer(ledger);
+      final args = CategoryFormArgs(presetParentID: parent.id);
+      await openAlive(container, args);
+
+      ledger.deleteCategory(parent.id);
+
+      expect(read(container, args)?.parentID, parent.id);
+    });
+  });
+
   group('kind lock', () {
     test('an unreferenced edit is locked', () async {
       final existing = category(name: 'Food');
