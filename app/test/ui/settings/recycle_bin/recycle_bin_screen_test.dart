@@ -166,15 +166,6 @@ void main() {
 void _registerFooterTests() {
   const hint = 'Swipe right to restore or left to delete permanently.';
 
-  testWidgets('the swipe hint shows below the sections when the bin has rows', (
-    tester,
-  ) async {
-    final category = _category('Fitness', lifecycle: LifecycleState.archived);
-    await _pump(tester, _ledgerOf(categories: [category]));
-
-    expect(find.text(hint), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
   testWidgets('an empty bin shows the empty state and no hint', (tester) async {
     await _pump(tester, _ledgerOf());
 

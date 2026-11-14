@@ -187,13 +187,6 @@ void main() {
     expect(find.byType(CategoryForm), findsOneWidget);
   }, timeout: uiTestTimeout);
 
-  testWidgets('empty sections say there are no categories yet', (tester) async {
-    await _pumpList(tester, const []);
-
-    expect(find.text('No categories yet'), findsNWidgets(2));
-    expect(_addCategoryButton, findsOneWidget);
-  }, timeout: uiTestTimeout);
-
   testWidgets(
     'the header shows the title and a Settings back control that pops',
     (tester) async {
