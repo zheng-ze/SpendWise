@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
-import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
+import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/symbol_picker.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
+import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/common/sheets/sheet_session.dart';
 import 'package:spendwise/ui/settings/category/category_form_fields.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
@@ -13,17 +17,29 @@ import 'package:spendwise/ui/settings/category/confirm_move_category_to_bin.dart
 import 'package:spendwise/ui/settings/category/parent_picker.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 
+// MARK: - Constants
+
+const _loadingTitle = 'Category';
+const _saveLabel = 'Save';
+const _retryLabel = 'Try again';
+const _loadErrorTitle = "Couldn't load this category";
+const _saveErrorTitle = 'Could not save category';
+const _footerWidth = double.infinity;
+const _bodyPadding = EdgeInsets.fromLTRB(16, 8, 16, 16);
+
 // MARK: - Show
 
 Future<void> showCategoryFormSheet({
   required BuildContext context,
   TransactionCategory? category,
   String? presetParentID,
+  void Function(AppSheetRoute<void>)? onRouteCreated,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
+  return showAppSheet<void>(
+    context,
+    presentation: shellSheetPresentation(context),
+    presentationResolver: shellSheetPresentation,
+    onRouteCreated: onRouteCreated,
     builder: (_) =>
         CategoryForm(category: category, presetParentID: presetParentID),
   );
@@ -48,6 +64,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
 
   ProviderSubscription<AsyncValue<CategoryFormViewState>>? _subscription;
 
+  ModalRoute<Object?>? _route;
   final List<ModalRoute<dynamic>> _pickerRoutes = [];
 
   CategoryFormArgs get _args => CategoryFormArgs(
@@ -65,12 +82,20 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _route = ModalRoute.of(context);
+  }
+
+  @override
   void dispose() {
     _closePickers();
     _subscription?.close();
     _nameController.dispose();
     super.dispose();
   }
+
+  bool get _formIsActive => mounted && (_route?.isActive ?? false);
 
   void _trackPicker(ModalRoute<dynamic> route) => _pickerRoutes.add(route);
 
@@ -96,7 +121,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
       case DeleteConfirmationRequested():
         _confirmDelete();
       case CategoryFormSaved():
-        if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+        dismissSheetRoute(_route);
     }
     _viewModel.clearStep();
   }
@@ -112,7 +137,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
       swatches: categorySwatches,
       onRouteCreated: _trackPicker,
     );
-    if (!context.mounted || chosen == null) return;
+    if (!_formIsActive || chosen == null) return;
     _viewModel.applyPickedSymbolAndColor(chosen.symbol, chosen.color);
   }
 
@@ -126,7 +151,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
       currentParentID: formState.parentID,
       onRouteCreated: _trackPicker,
     );
-    if (!context.mounted || chosen == null) return;
+    if (!_formIsActive || chosen == null) return;
     _viewModel.applyPickedParent(chosen.parentID);
   }
 
@@ -134,7 +159,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
     final category = widget.category;
     if (category == null) return;
     final confirmed = await confirmMoveCategoryToBin(context, category.name);
-    if (!context.mounted) return;
+    if (!_formIsActive) return;
     await _viewModel.applyDeleteConfirmed(confirmed);
   }
 
@@ -142,14 +167,28 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   Widget build(BuildContext context) {
     final asyncState = ref.watch(categoryFormViewModelProvider(_args));
 
-    return asyncState.when(
-      data: (formState) => _CategoryFormBody(
+    final formState = asyncState.value;
+    if (formState != null) {
+      return _CategoryFormBody(
         formState: formState,
         viewModel: _viewModel,
         nameController: _nameController,
+      );
+    }
+    final error = asyncState.error;
+    if (error == null) return const FormSheetLoading(title: _loadingTitle);
+    final retry = SizedBox(
+      width: _footerWidth,
+      child: PrimaryButton(
+        label: _retryLabel,
+        onPressed: () => ref.invalidate(categoryFormViewModelProvider(_args)),
       ),
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) => Center(child: Text('$error')),
+    );
+    return FormSheetLoadError(
+      title: _loadingTitle,
+      message: _loadErrorTitle,
+      error: error,
+      footer: retry,
     );
   }
 }
@@ -176,46 +215,64 @@ class _CategoryFormBody extends StatelessWidget {
       nameController.text = formState.name;
     }
 
-    return FormScaffold(
-      title: formState.title,
-      canSave: formState.canSave,
-      onSave: viewModel.save,
-      error: ErrorSection(subject: 'category', error: formState.error),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CategoryFormNameField(
-            controller: nameController,
-            onChanged: viewModel.setName,
+    final save = TextButton(
+      onPressed: formState.canSave ? viewModel.save : null,
+      child: const Text(_saveLabel),
+    );
+    final fields = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CategoryFormNameField(
+          controller: nameController,
+          onChanged: viewModel.setName,
+        ),
+        const SizedBox(height: _fieldGap),
+        CategoryKindSelector(
+          kind: formState.kind,
+          locked: formState.kindLocked,
+          onKindSelected: viewModel.setKind,
+        ),
+        const SizedBox(height: _fieldGap),
+        CategorySymbolTile(
+          symbol: formState.symbol,
+          color: formState.color,
+          onTap: viewModel.requestPickSymbol,
+        ),
+        const SizedBox(height: _fieldGap),
+        CategoryAnalysisSwitch(
+          value: formState.includeInAnalysis,
+          onChanged: viewModel.setIncludeInAnalysis,
+        ),
+        if (formState.showParentPicker)
+          CategoryParentTile(
+            parentLabel: formState.parentLabel,
+            onTap: viewModel.requestPickParent,
           ),
-          const SizedBox(height: _fieldGap),
-          CategoryKindSelector(
-            kind: formState.kind,
-            locked: formState.kindLocked,
-            onKindSelected: viewModel.setKind,
-          ),
-          const SizedBox(height: _fieldGap),
-          CategorySymbolTile(
-            symbol: formState.symbol,
-            color: formState.color,
-            onTap: viewModel.requestPickSymbol,
-          ),
-          const SizedBox(height: _fieldGap),
-          CategoryAnalysisSwitch(
-            value: formState.includeInAnalysis,
-            onChanged: viewModel.setIncludeInAnalysis,
-          ),
-          if (formState.showParentPicker)
-            CategoryParentTile(
-              parentLabel: formState.parentLabel,
-              onTap: viewModel.requestPickParent,
-            ),
-          if (formState.isEditing) ...[
-            const SizedBox(height: _deleteSectionGap),
-            CategoryDeleteButton(onPressed: viewModel.requestDelete),
-          ],
+        if (formState.isEditing) ...[
+          const SizedBox(height: _deleteSectionGap),
+          CategoryDeleteButton(onPressed: viewModel.requestDelete),
         ],
-      ),
+      ],
+    );
+    final body = Material(
+      type: MaterialType.transparency,
+      child: Padding(padding: _bodyPadding, child: fields),
+    );
+    final saveError = formState.error;
+    final alert = saveError == null
+        ? null
+        : SheetAlertData(
+            message:
+                '$_saveErrorTitle\n${friendlyLedgerErrorMessage(saveError)}',
+            severity: SheetAlertSeverity.error,
+          );
+
+    return AppSheet(
+      header: AppPickerHeader(title: formState.title, trailing: save),
+      body: body,
+      alert: alert,
+      dragToDismiss: true,
+      variant: AppSheetVariant.form,
     );
   }
 }

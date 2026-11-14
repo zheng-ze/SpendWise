@@ -1,12 +1,10 @@
 import 'package:domain/domain.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/settings/category/category_form.dart';
 import 'package:spendwise/ui/settings/category/parent_picker.dart';
 
-import '../../../support/pump_app.dart';
+import '../../../support/category_form_launcher.dart';
 import '../../../support/ui_test_timeout.dart';
 
 const _insideLabel = 'Inside';
@@ -23,7 +21,7 @@ TransactionCategory _root(String name) => TransactionCategory(
 );
 
 Future<void> _openForm(WidgetTester tester, Ledger ledger) async {
-  await pumpApp(tester, const Scaffold(body: CategoryForm()), ledger: ledger);
+  await openCategoryFormSheet(tester, ledger);
 }
 
 Future<void> _pickParentRow(WidgetTester tester, String label) async {
