@@ -21,6 +21,11 @@ const _moveToBinLabel = 'Move to recycle bin';
 const _moveConfirmLabel = 'Move';
 const _parentPickerTitle = 'Inside which category?';
 const _insideLabel = 'Inside';
+const _moreOptionsLabel = 'More options';
+const _closedSubtitle = 'Count in Trends and budgets';
+const _closedEditSubtitle = 'Count in Trends and budgets, type';
+const _typeLabel = 'Type';
+const _typeCaption = 'The type is fixed once entries use this category.';
 
 final _nameField = find.descendant(
   of: find.byType(CategoryForm),
@@ -63,6 +68,29 @@ bool _saveEnabled(WidgetTester tester) =>
 
 Future<void> _type(WidgetTester tester, String text) async {
   await tester.enterText(_nameField, text);
+  await tester.pumpAndSettle();
+}
+
+Ledger _ledgerWithReferencedCategory(TransactionCategory category) {
+  final account = Account(name: 'Wallet', type: AccountType.cash);
+  final entry = Entry(
+    name: 'Lunch',
+    amount: Decimal.parse('-10'),
+    date: DateTime.utc(2024, 1, 1),
+    sourceID: account.id,
+    categoryID: category.id,
+  );
+  return Ledger(
+    state: LedgerState(
+      categories: {category.id: category},
+      moneySources: {account.id: MoneySource.account(account)},
+      entries: {entry.id: entry},
+    ),
+  );
+}
+
+Future<void> _openMoreOptions(WidgetTester tester) async {
+  await tester.tap(find.text(_moreOptionsLabel));
   await tester.pumpAndSettle();
 }
 
@@ -200,5 +228,97 @@ void main() {
 
     expect(find.text(_parentPickerTitle), findsNothing);
     expect(find.text('Food'), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('More options starts closed and hides the analysis switch', (
+    tester,
+  ) async {
+    await openCategoryFormSheet(tester, Ledger());
+
+    expect(find.text(_moreOptionsLabel), findsOneWidget);
+    expect(find.text(_closedSubtitle), findsOneWidget);
+    expect(find.byType(Switch), findsNothing);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('tapping More options toggles the analysis switch', (
+    tester,
+  ) async {
+    await openCategoryFormSheet(tester, Ledger());
+
+    await _openMoreOptions(tester);
+    expect(find.byType(Switch), findsOneWidget);
+
+    await _openMoreOptions(tester);
+    expect(find.byType(Switch), findsNothing);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('turning the analysis switch off is saved', (tester) async {
+    final ledger = Ledger();
+    await openCategoryFormSheet(tester, ledger);
+    await _type(tester, _typedName);
+    await _openMoreOptions(tester);
+
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    await tester.tap(_saveButton);
+    await tester.pumpAndSettle();
+
+    final saved = ledger.state.categories.values.single;
+    expect(saved.includeInAnalysis, isFalse);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('an add form shows no Type row under More options', (
+    tester,
+  ) async {
+    await openCategoryFormSheet(tester, Ledger());
+
+    await _openMoreOptions(tester);
+
+    expect(find.text(_typeLabel), findsNothing);
+    expect(find.text(_typeCaption), findsNothing);
+  }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'an edit form adds type to the closed subtitle and shows it open',
+    (tester) async {
+      final root = _root('Food');
+      final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
+      await openCategoryFormSheet(tester, ledger, category: root);
+
+      expect(find.text(_closedEditSubtitle), findsOneWidget);
+      expect(find.text(_typeLabel), findsNothing);
+
+      await _openMoreOptions(tester);
+
+      expect(find.text(_typeLabel), findsOneWidget);
+      expect(find.text('Expense'), findsOneWidget);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets('the type caption shows only for a referenced category', (
+    tester,
+  ) async {
+    final root = _root('Food');
+    await openCategoryFormSheet(
+      tester,
+      _ledgerWithReferencedCategory(root),
+      category: root,
+    );
+
+    await _openMoreOptions(tester);
+
+    expect(find.text(_typeCaption), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('an unreferenced category shows no type caption', (tester) async {
+    final root = _root('Food');
+    final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
+    await openCategoryFormSheet(tester, ledger, category: root);
+
+    await _openMoreOptions(tester);
+
+    expect(find.text(_typeLabel), findsOneWidget);
+    expect(find.text(_typeCaption), findsNothing);
   }, timeout: uiTestTimeout);
 }

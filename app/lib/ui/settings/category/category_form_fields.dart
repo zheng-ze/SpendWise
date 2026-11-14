@@ -16,6 +16,7 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 const _emptyContentPadding = EdgeInsets.zero;
 const _trailingGap = 8.0;
 const _trailingIconSize = 20.0;
+const _analysisTitle = 'Count in Trends and budgets';
 
 // MARK: - Swatches
 
@@ -129,7 +130,9 @@ class CategoryAnalysisSwitch extends StatelessWidget {
     required this.onChanged,
   });
 
-  static const _title = 'Include in analysis';
+  static const _title = _analysisTitle;
+  static const _hint =
+      'Turn off for money you get back, such as work expenses you claim.';
 
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -139,8 +142,117 @@ class CategoryAnalysisSwitch extends StatelessWidget {
     return SwitchListTile(
       contentPadding: _emptyContentPadding,
       title: const Text(_title),
+      subtitle: const Text(_hint),
       value: value,
       onChanged: onChanged,
+    );
+  }
+}
+
+// MARK: - More Options
+
+class CategoryMoreOptions extends StatefulWidget {
+  const CategoryMoreOptions({
+    super.key,
+    required this.includeInAnalysis,
+    required this.onIncludeInAnalysisChanged,
+    required this.isEditing,
+    required this.kind,
+    required this.isReferenced,
+  });
+
+  static const _title = 'More options';
+  static const _typeSuffix = ', type';
+
+  final bool includeInAnalysis;
+  final ValueChanged<bool> onIncludeInAnalysisChanged;
+  final bool isEditing;
+  final CategoryKind kind;
+  final bool isReferenced;
+
+  @override
+  State<CategoryMoreOptions> createState() => _CategoryMoreOptionsState();
+}
+
+class _CategoryMoreOptionsState extends State<CategoryMoreOptions> {
+  bool _expanded = false;
+
+  void _toggle() => setState(() => _expanded = !_expanded);
+
+  @override
+  Widget build(BuildContext context) {
+    final closedSubtitle = widget.isEditing
+        ? '$_analysisTitle${CategoryMoreOptions._typeSuffix}'
+        : _analysisTitle;
+    final chevron = Icon(
+      _expanded ? Icons.expand_less : Icons.expand_more,
+      size: _trailingIconSize,
+    );
+    final header = ListTile(
+      contentPadding: _emptyContentPadding,
+      title: const Text(CategoryMoreOptions._title),
+      subtitle: _expanded ? null : Text(closedSubtitle),
+      trailing: chevron,
+      onTap: _toggle,
+    );
+    final analysis = CategoryAnalysisSwitch(
+      value: widget.includeInAnalysis,
+      onChanged: widget.onIncludeInAnalysisChanged,
+    );
+    final type = CategoryTypeRow(
+      kind: widget.kind,
+      showsCaption: widget.isReferenced,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        header,
+        if (_expanded) analysis,
+        if (_expanded && widget.isEditing) type,
+      ],
+    );
+  }
+}
+
+// MARK: - Type Row
+
+class CategoryTypeRow extends StatelessWidget {
+  const CategoryTypeRow({
+    super.key,
+    required this.kind,
+    required this.showsCaption,
+  });
+
+  static const _title = 'Type';
+  static const _caption = 'The type is fixed once entries use this category.';
+  static const _captionGap = 4.0;
+
+  final CategoryKind kind;
+  final bool showsCaption;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (kind) {
+      CategoryKind.expense => 'Expense',
+      CategoryKind.income => 'Income',
+    };
+    final value = Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: _trailingGap,
+      children: [
+        const Icon(Icons.lock_outline, size: _trailingIconSize),
+        Text(label),
+      ],
+    );
+    final row = FormSheetRow(label: _title, trailing: value);
+    if (!showsCaption) return row;
+    final caption = Padding(
+      padding: const EdgeInsets.only(bottom: _captionGap),
+      child: Text(_caption, style: Theme.of(context).textTheme.bodySmall),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [row, caption],
     );
   }
 }
