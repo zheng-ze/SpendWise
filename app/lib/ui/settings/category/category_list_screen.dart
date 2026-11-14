@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
+import 'package:spendwise/ui/common/sheets/sheet_session.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category/category_form.dart';
 import 'package:spendwise/ui/settings/category/category_list_view_model.dart';
@@ -20,6 +24,7 @@ class CategoryListScreen extends ConsumerStatefulWidget {
 // MARK: - CategoryListScreenState
 class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
   ProviderSubscription<AsyncValue<CategoryListViewState>>? _stepSubscription;
+  SheetSession? _formSheet;
 
   @override
   void initState() {
@@ -33,6 +38,8 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
   @override
   void dispose() {
     _stepSubscription?.close();
+    _formSheet?.retire();
+    _formSheet = null;
     super.dispose();
   }
 
@@ -47,16 +54,32 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
     }
   }
 
-  Future<void> _openForm({
-    TransactionCategory? category,
-    String? presetParentID,
-  }) async {
+  void _openForm({TransactionCategory? category, String? presetParentID}) {
     _viewModel.clearStep();
-    await showCategoryFormSheet(
-      context: context,
-      category: category,
-      presetParentID: presetParentID,
+    if (_formSheet != null) return;
+    final sheet = SheetSession();
+    _formSheet = sheet;
+    void trackRoute(AppSheetRoute<void> route) {
+      sheet.route = route;
+      unawaited(_releaseFormSheetWhenClosed(route, sheet));
+    }
+
+    unawaited(
+      showCategoryFormSheet(
+        context: context,
+        category: category,
+        presetParentID: presetParentID,
+        onRouteCreated: trackRoute,
+      ),
     );
+  }
+
+  Future<void> _releaseFormSheetWhenClosed(
+    AppSheetRoute<void> route,
+    SheetSession sheet,
+  ) async {
+    await route.completed;
+    if (identical(_formSheet, sheet)) _formSheet = null;
   }
 
   @override
