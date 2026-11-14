@@ -235,8 +235,52 @@ void main() {
           .value;
       expect(formState?.kind, CategoryKind.expense);
       expect(formState?.parentID, parent.id);
-      expect(formState?.title, 'New Subcategory');
+      expect(formState?.title, 'Add subcategory');
       expect(formState?.kindLocked, isTrue);
+    });
+  });
+
+  group('title', () {
+    Future<String?> titleFor(
+      ProviderContainer container,
+      CategoryFormArgs args,
+    ) async {
+      await openAlive(container, args);
+      return container.read(categoryFormViewModelProvider(args)).value?.title;
+    }
+
+    test('a new category without a parent reads Add category', () async {
+      final container = buildContainer(Ledger());
+
+      final title = await titleFor(container, const CategoryFormArgs());
+
+      expect(title, 'Add category');
+    });
+
+    test('editing a stored root reads Edit category', () async {
+      final root = category(name: 'Food');
+      final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
+      final container = buildContainer(ledger);
+
+      final title = await titleFor(container, CategoryFormArgs(category: root));
+
+      expect(title, 'Edit category');
+    });
+
+    test('editing a stored child reads Edit subcategory', () async {
+      final root = category(name: 'Food');
+      final child = category(name: 'Snacks', parentID: root.id);
+      final ledger = Ledger(
+        state: LedgerState(categories: {root.id: root, child.id: child}),
+      );
+      final container = buildContainer(ledger);
+
+      final title = await titleFor(
+        container,
+        CategoryFormArgs(category: child),
+      );
+
+      expect(title, 'Edit subcategory');
     });
   });
 

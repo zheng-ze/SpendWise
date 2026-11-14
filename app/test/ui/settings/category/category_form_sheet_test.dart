@@ -16,6 +16,11 @@ const _retryLabel = 'Try again';
 const _loadErrorMessage =
     "Couldn't load this category\nBad state: Data unavailable";
 const _saveErrorTitle = 'Could not save category';
+const _addFooterLabel = 'Save category';
+const _moveToBinLabel = 'Move to recycle bin';
+const _moveConfirmLabel = 'Move';
+const _parentPickerTitle = 'Inside which category?';
+const _insideLabel = 'Inside';
 
 final _nameField = find.descendant(
   of: find.byType(CategoryForm),
@@ -129,5 +134,71 @@ void main() {
 
     expect(find.text(_loadErrorMessage), findsNothing);
     expect(find.text(_saveLabel), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('the Add category footer saves the typed category', (
+    tester,
+  ) async {
+    final ledger = Ledger();
+    await openCategoryFormSheet(tester, ledger);
+    await _type(tester, _typedName);
+
+    await tester.tap(find.text(_addFooterLabel));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CategoryForm), findsNothing);
+    expect(
+      ledger.state.categories.values.map((c) => c.name),
+      contains(_typedName),
+    );
+  }, timeout: uiTestTimeout);
+
+  testWidgets('the edit footer confirms and moves the category to the bin', (
+    tester,
+  ) async {
+    final root = _root('Food');
+    final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
+    await openCategoryFormSheet(tester, ledger, category: root);
+
+    await tester.tap(find.text(_moveToBinLabel));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(_moveConfirmLabel));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CategoryForm), findsNothing);
+    expect(
+      ledger.state.categories[root.id]?.lifecycle,
+      isNot(LifecycleState.active),
+    );
+  }, timeout: uiTestTimeout);
+
+  testWidgets('cancelling the Move confirmation keeps the sheet open', (
+    tester,
+  ) async {
+    final root = _root('Food');
+    final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
+    await openCategoryFormSheet(tester, ledger, category: root);
+
+    await tester.tap(find.text(_moveToBinLabel));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CategoryForm), findsOneWidget);
+    expect(ledger.state.categories[root.id]?.lifecycle, LifecycleState.active);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('the preset parent Inside row does not open the picker', (
+    tester,
+  ) async {
+    final root = _root('Food');
+    final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
+    await openCategoryFormSheet(tester, ledger, presetParentID: root.id);
+
+    await tester.tap(find.text(_insideLabel));
+    await tester.pumpAndSettle();
+
+    expect(find.text(_parentPickerTitle), findsNothing);
+    expect(find.text('Food'), findsOneWidget);
   }, timeout: uiTestTimeout);
 }

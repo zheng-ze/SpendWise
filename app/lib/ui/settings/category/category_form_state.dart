@@ -124,10 +124,20 @@ class CategoryFormViewState
 
   bool get canSave => canSaveCategoryForm(name);
 
+  bool get editsStoredSubcategory {
+    final id = editedCategoryID;
+    return allCategories.any(
+      (category) => category.id == id && category.parentID != null,
+    );
+  }
+
+  bool get isSubcategoryForm => hasPresetParent || editsStoredSubcategory;
+
   String get title {
-    if (isEditing) return 'Edit Category';
-    if (hasPresetParent) return 'New Subcategory';
-    return 'New Category';
+    if (isEditing) {
+      return editsStoredSubcategory ? 'Edit subcategory' : 'Edit category';
+    }
+    return hasPresetParent ? 'Add subcategory' : 'Add category';
   }
 
   String? get parentLabel {

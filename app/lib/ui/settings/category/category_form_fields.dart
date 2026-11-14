@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
+import 'package:spendwise/ui/common/inputs/segmented_control.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/pickers/symbol_picker.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
@@ -12,6 +14,8 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 // MARK: - Constants
 
 const _emptyContentPadding = EdgeInsets.zero;
+const _trailingGap = 8.0;
+const _trailingIconSize = 20.0;
 
 // MARK: - Swatches
 
@@ -33,17 +37,20 @@ class CategoryFormNameField extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onChanged,
+    required this.autofocus,
   });
 
   static const _hint = 'Name';
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      autofocus: autofocus,
       decoration: const InputDecoration(hintText: _hint),
       onChanged: onChanged,
     );
@@ -56,54 +63,23 @@ class CategoryKindSelector extends StatelessWidget {
   const CategoryKindSelector({
     super.key,
     required this.kind,
-    required this.locked,
     required this.onKindSelected,
   });
 
-  static const _disabledOpacity = 0.5;
-  static const _enabledOpacity = 1.0;
-  static const _lockedNote =
-      'Type is locked while transactions use this category.';
-  static const _lockedNoteTopPadding = 4.0;
+  static const _options = [
+    SegmentedOption(value: CategoryKind.expense, label: 'Expense'),
+    SegmentedOption(value: CategoryKind.income, label: 'Income'),
+  ];
 
   final CategoryKind kind;
-  final bool locked;
   final ValueChanged<CategoryKind> onKindSelected;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final selector = IgnorePointer(
-      ignoring: locked,
-      child: Opacity(
-        opacity: locked ? _disabledOpacity : _enabledOpacity,
-        child: SegmentedButton<CategoryKind>(
-          segments: const [
-            ButtonSegment(value: CategoryKind.income, label: Text('Income')),
-            ButtonSegment(value: CategoryKind.expense, label: Text('Expense')),
-          ],
-          selected: {kind},
-          onSelectionChanged: locked
-              ? null
-              : (selection) => onKindSelected(selection.first),
-        ),
-      ),
-    );
-    if (!locked) return selector;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        selector,
-        Padding(
-          padding: const EdgeInsets.only(top: _lockedNoteTopPadding),
-          child: Text(
-            _lockedNote,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ],
+    return SegmentedControl<CategoryKind>(
+      options: _options,
+      value: kind,
+      onChanged: onKindSelected,
     );
   }
 }
@@ -119,6 +95,7 @@ class CategorySymbolTile extends StatelessWidget {
   });
 
   static const _title = 'Icon and colour';
+  static const _iconSize = 24.0;
 
   final String symbol;
   final Color color;
@@ -130,14 +107,16 @@ class CategorySymbolTile extends StatelessWidget {
       toColorHex(color),
       context.colors,
     );
-    return ListTile(
-      contentPadding: _emptyContentPadding,
-      title: const Text(_title),
-      subtitle: Text(symbolDisplayName(symbol)),
-      leading: CategoryIcon(symbolName: symbol, color: displayColor),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
+    final value = Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: _trailingGap,
+      children: [
+        CategoryIcon(symbolName: symbol, color: displayColor, size: _iconSize),
+        Text(symbolDisplayName(symbol)),
+        const _TrailingChevron(),
+      ],
     );
+    return FormSheetRow(label: _title, trailing: value, onTap: onTap);
   }
 }
 
@@ -178,39 +157,29 @@ class CategoryParentTile extends StatelessWidget {
   static const _title = 'Inside';
 
   final String? parentLabel;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: _emptyContentPadding,
-      title: const Text(_title),
-      trailing: Text(parentLabel ?? topLevelLabel),
-      onTap: onTap,
-    );
+    final label = Text(parentLabel ?? topLevelLabel);
+    final value = onTap == null
+        ? label
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: _trailingGap,
+            children: [label, const _TrailingChevron()],
+          );
+    return FormSheetRow(label: _title, trailing: value, onTap: onTap);
   }
 }
 
-// MARK: - Delete Button
+// MARK: - Trailing Chevron
 
-class CategoryDeleteButton extends StatelessWidget {
-  const CategoryDeleteButton({super.key, required this.onPressed});
-
-  static const _label = 'Move to recycle bin';
-  static const _fullWidth = double.infinity;
-
-  final VoidCallback onPressed;
+class _TrailingChevron extends StatelessWidget {
+  const _TrailingChevron();
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SizedBox(
-      width: _fullWidth,
-      child: FilledButton(
-        style: FilledButton.styleFrom(backgroundColor: theme.colorScheme.error),
-        onPressed: onPressed,
-        child: const Text(_label),
-      ),
-    );
+    return const Icon(Icons.chevron_right, size: _trailingIconSize);
   }
 }

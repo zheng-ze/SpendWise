@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/symbol_picker.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
@@ -24,8 +25,9 @@ const _saveLabel = 'Save';
 const _retryLabel = 'Try again';
 const _loadErrorTitle = "Couldn't load this category";
 const _saveErrorTitle = 'Could not save category';
+const _addFooterLabel = 'Save category';
+const _moveToBinLabel = 'Move to recycle bin';
 const _footerWidth = double.infinity;
-const _bodyPadding = EdgeInsets.fromLTRB(16, 8, 16, 16);
 
 // MARK: - Show
 
@@ -207,7 +209,6 @@ class _CategoryFormBody extends StatelessWidget {
   final TextEditingController nameController;
 
   static const _fieldGap = 16.0;
-  static const _deleteSectionGap = 24.0;
 
   @override
   Widget build(BuildContext context) {
@@ -219,45 +220,57 @@ class _CategoryFormBody extends StatelessWidget {
       onPressed: formState.canSave ? viewModel.save : null,
       child: const Text(_saveLabel),
     );
-    final fields = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final gap = const SizedBox(height: _fieldGap);
+    final kind = CategoryKindSelector(
+      kind: formState.kind,
+      onKindSelected: viewModel.setKind,
+    );
+    final name = CategoryFormNameField(
+      controller: nameController,
+      onChanged: viewModel.setName,
+      autofocus: !formState.isEditing,
+    );
+    final symbol = CategorySymbolTile(
+      symbol: formState.symbol,
+      color: formState.color,
+      onTap: viewModel.requestPickSymbol,
+    );
+    final inside = CategoryParentTile(
+      parentLabel: formState.parentLabel,
+      onTap: formState.hasPresetParent ? null : viewModel.requestPickParent,
+    );
+    final showsInside = formState.hasPresetParent || formState.showParentPicker;
+    final insideBeforeSymbol = formState.isSubcategoryForm;
+    final body = FormSectionCard(
+      padding: FormSectionCard.fieldsPadding,
       children: [
-        CategoryFormNameField(
-          controller: nameController,
-          onChanged: viewModel.setName,
-        ),
-        const SizedBox(height: _fieldGap),
-        CategoryKindSelector(
-          kind: formState.kind,
-          locked: formState.kindLocked,
-          onKindSelected: viewModel.setKind,
-        ),
-        const SizedBox(height: _fieldGap),
-        CategorySymbolTile(
-          symbol: formState.symbol,
-          color: formState.color,
-          onTap: viewModel.requestPickSymbol,
-        ),
-        const SizedBox(height: _fieldGap),
+        if (!formState.kindLocked) ...[kind, gap],
+        name,
+        gap,
+        if (showsInside && insideBeforeSymbol) inside,
+        symbol,
+        if (showsInside && !insideBeforeSymbol) inside,
         CategoryAnalysisSwitch(
           value: formState.includeInAnalysis,
           onChanged: viewModel.setIncludeInAnalysis,
         ),
-        if (formState.showParentPicker)
-          CategoryParentTile(
-            parentLabel: formState.parentLabel,
-            onTap: viewModel.requestPickParent,
-          ),
-        if (formState.isEditing) ...[
-          const SizedBox(height: _deleteSectionGap),
-          CategoryDeleteButton(onPressed: viewModel.requestDelete),
-        ],
       ],
     );
-    final body = Material(
-      type: MaterialType.transparency,
-      child: Padding(padding: _bodyPadding, child: fields),
+    final addFooter = PrimaryButton(
+      label: _addFooterLabel,
+      onPressed: formState.canSave ? viewModel.save : null,
     );
+    final binFooter = PrimaryButton(
+      label: _moveToBinLabel,
+      onPressed: viewModel.requestDelete,
+      destructive: true,
+    );
+    final footerButton = formState.isEditing
+        ? binFooter
+        : (formState.hasPresetParent ? null : addFooter);
+    final footer = footerButton == null
+        ? null
+        : SizedBox(width: _footerWidth, child: footerButton);
     final saveError = formState.error;
     final alert = saveError == null
         ? null
@@ -270,6 +283,7 @@ class _CategoryFormBody extends StatelessWidget {
     return AppSheet(
       header: AppPickerHeader(title: formState.title, trailing: save),
       body: body,
+      footer: footer,
       alert: alert,
       dragToDismiss: true,
       variant: AppSheetVariant.form,
