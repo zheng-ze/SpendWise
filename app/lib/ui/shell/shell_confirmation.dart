@@ -3,22 +3,27 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
-const shellConfirmationOpenMaxWidth = 308.0;
+const shellConfirmationOpenMaxWidth = 360.0;
 
 const shellConfirmationHorizontalMargin = 24.0;
 
 const shellConfirmationVerticalMargin = 24.0;
 
-const shellConfirmationOpenDim = Color(0x33000000);
+const shellConfirmationOpenDimOpacity = 0.2;
 
-const shellConfirmationStandardDimFallback = Colors.black54;
+const shellConfirmationPhoneDimOpacity = 0.32;
 
 const shellConfirmationNoInset = 0.0;
 
 const shellConfirmationBarrier = Color(0x00000000);
 
-const shellConfirmationTransitionMillis = 150;
+const shellConfirmationTransitionMillis = 260;
+
+const shellConfirmationSlideOffsetY = 32.0;
+
+const shellConfirmationSlideOffsetFraction = 0.0;
 
 const shellConfirmationTransitionCurve = Curves.easeOut;
 
@@ -84,13 +89,22 @@ class _ShellConfirmationRoute<T> extends ModalRoute<T> {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    return FadeTransition(
-      opacity: CurvedAnimation(
-        parent: animation,
-        curve: shellConfirmationTransitionCurve,
-      ),
-      child: child,
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: shellConfirmationTransitionCurve,
     );
+    final slide = AnimatedBuilder(
+      animation: curved,
+      child: child,
+      builder: (context, child) => Transform.translate(
+        offset: Offset(
+          shellConfirmationSlideOffsetFraction,
+          (1 - curved.value) * shellConfirmationSlideOffsetY,
+        ),
+        child: child,
+      ),
+    );
+    return FadeTransition(opacity: curved, child: slide);
   }
 }
 
@@ -105,10 +119,10 @@ class _ShellConfirmationPage<T> extends StatelessWidget {
     final railInset = open
         ? openRailGutter + MediaQuery.paddingOf(context).right
         : shellConfirmationNoInset;
-    final dimColor = open
-        ? shellConfirmationOpenDim
-        : DialogTheme.of(context).barrierColor ??
-              shellConfirmationStandardDimFallback;
+    final dimOpacity = open
+        ? shellConfirmationOpenDimOpacity
+        : shellConfirmationPhoneDimOpacity;
+    final dimColor = context.colors.text.withValues(alpha: dimOpacity);
     final dim = Positioned.fill(
       right: railInset,
       child: IgnorePointer(child: ColoredBox(color: dimColor)),
