@@ -13,8 +13,7 @@ const _defaultConfirmLabel = 'Delete';
 const _dialogPadding = 16.0;
 const _phoneInset = 22.0;
 const _wideInset = 0.0;
-const _wideWidth = 360.0;
-const _phoneWidth = double.infinity;
+const _dialogMaxWidth = 360.0;
 const _dialogRadius = 14.0;
 const _dialogBorderWidth = 1.0;
 const _dialogElevation = 0.0;
@@ -172,10 +171,7 @@ class _DestructiveDialog extends StatelessWidget {
       ),
       child: semantic,
     );
-    final sized = SizedBox(
-      width: phone ? _phoneWidth : _wideWidth,
-      child: card,
-    );
+    final sized = SizedBox(width: _dialogMaxWidth, child: card);
 
     return Dialog(
       backgroundColor: _transparent,
