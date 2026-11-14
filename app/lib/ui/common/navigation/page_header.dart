@@ -47,12 +47,14 @@ class PageHeader extends StatelessWidget {
       child: Text(title, style: titleStyle),
     );
 
+    final column = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [?back, heading],
+    );
+
     return Padding(
       padding: _pagePadding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [?back, heading],
-      ),
+      child: SizedBox(width: double.infinity, child: column),
     );
   }
 }
