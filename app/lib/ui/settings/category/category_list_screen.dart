@@ -8,6 +8,7 @@ import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/lists/medallion_row.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
+import 'package:spendwise/ui/common/navigation/compact_labelled_fab.dart';
 import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
 import 'package:spendwise/ui/common/sheets/sheet_session.dart';
@@ -122,6 +123,8 @@ class _CategoryListScreenBody extends StatelessWidget {
   static const _backLabel = 'Settings';
   static const _contentPadding = EdgeInsets.all(12);
   static const _sectionGap = 12.0;
+  static const _addLabel = 'Add category';
+  static const _fabPadding = EdgeInsets.only(right: 12, bottom: 12);
 
   @override
   Widget build(BuildContext context) {
@@ -149,21 +152,22 @@ class _CategoryListScreenBody extends StatelessWidget {
         expense,
         const SizedBox(height: _sectionGap),
         income,
+        const FabReserveSpace(),
       ],
+    );
+    final addButton = CompactLabelledFab(
+      label: _addLabel,
+      icon: Icons.add,
+      onPressed: viewModel.requestNewCategory,
+    );
+    final floatingAction = Align(
+      alignment: Alignment.bottomRight,
+      child: Padding(padding: _fabPadding, child: addButton),
     );
 
     return Scaffold(
-      appBar: AppBar(
-        leading: backButton,
-        title: const Text(_screenTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: viewModel.requestNewCategory,
-          ),
-        ],
-      ),
-      body: sections,
+      appBar: AppBar(leading: backButton, title: const Text(_screenTitle)),
+      body: Stack(children: [sections, floatingAction]),
     );
   }
 }

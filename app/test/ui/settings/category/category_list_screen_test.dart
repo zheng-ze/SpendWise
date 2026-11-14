@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/common/navigation/compact_labelled_fab.dart';
 import 'package:spendwise/ui/settings/category/category_form.dart';
 import 'package:spendwise/ui/settings/category/category_list_screen.dart';
 import 'package:spendwise/ui/settings/category/category_list_view_model.dart';
@@ -14,6 +15,8 @@ import '../../../support/ui_test_timeout.dart';
 const _barrierTap = Offset(160, 10);
 const _addSubcategoryTooltip = 'Add subcategory';
 const _addSubcategoryTitle = 'Add subcategory';
+
+final _addCategoryButton = find.byType(CompactLabelledFab);
 
 TransactionCategory _category(
   String name, {
@@ -41,7 +44,7 @@ void main() {
     'a second open request while the form is open does not stack a second form',
     (tester) async {
       await pumpApp(tester, const CategoryListScreen(), ledger: Ledger());
-      await tester.tap(find.byIcon(Icons.add));
+      await tester.tap(_addCategoryButton);
       await tester.pumpAndSettle();
       expect(find.byType(CategoryForm), findsOneWidget);
 
@@ -58,7 +61,7 @@ void main() {
 
   testWidgets('the form opens again after it was dismissed', (tester) async {
     await pumpApp(tester, const CategoryListScreen(), ledger: Ledger());
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(_addCategoryButton);
     await tester.pumpAndSettle();
     expect(find.byType(CategoryForm), findsOneWidget);
 
@@ -66,7 +69,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(CategoryForm), findsNothing);
 
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(_addCategoryButton);
     await tester.pumpAndSettle();
 
     expect(find.byType(CategoryForm), findsOneWidget);
@@ -150,5 +153,23 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Edit category'), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('the floating Add category button opens the add form', (
+    tester,
+  ) async {
+    await _pumpList(tester, [_category('Dining')]);
+
+    await tester.tap(_addCategoryButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CategoryForm), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('empty sections say there are no categories yet', (tester) async {
+    await _pumpList(tester, const []);
+
+    expect(find.text('No categories yet'), findsNWidgets(2));
+    expect(_addCategoryButton, findsOneWidget);
   }, timeout: uiTestTimeout);
 }
