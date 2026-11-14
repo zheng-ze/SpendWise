@@ -20,11 +20,16 @@ class CategorySubcategoriesSection extends StatelessWidget {
   static const _label = 'Subcategories';
   static const _addLabel = 'Add subcategory';
   static const _labelWeight = FontWeight.w600;
-  static const _labelPadding = EdgeInsets.only(bottom: 8.0);
-  static const _rowPadding = EdgeInsets.symmetric(vertical: 8.0);
+  static const _labelPadding = EdgeInsets.only(bottom: 10.0);
+  static const _rowPadding = EdgeInsets.symmetric(vertical: 7.0);
   static const _addPadding = EdgeInsets.symmetric(vertical: 4.0);
   static const _iconSize = 30.0;
-  static const _chevronSize = 20.0;
+  static const _chevronSize = 13.0;
+  static const _dividerHeight = 1.0;
+  static const _addVerticalPadding = 6.0;
+  static const _addHorizontalPadding = 0.0;
+  static const _addFontSize = 12.0;
+  static const _addFontWeight = FontWeight.w600;
   static const _addIconSize = 18.0;
   static const _chevronIcon = Icons.chevron_right;
   static const _addIcon = Icons.add;
@@ -44,8 +49,9 @@ class CategorySubcategoriesSection extends StatelessWidget {
       padding: _labelPadding,
       child: Text(_label.toUpperCase(), style: labelStyle),
     );
+    final divider = Container(height: _dividerHeight, color: colors.edge);
     final rows = [
-      for (final subcategory in subcategories)
+      for (final subcategory in subcategories) ...[
         _SubcategoryRow(
           key: ValueKey(subcategory.id),
           subcategory: subcategory,
@@ -55,8 +61,21 @@ class CategorySubcategoriesSection extends StatelessWidget {
           chevronIcon: _chevronIcon,
           padding: _rowPadding,
         ),
+        divider,
+      ],
     ];
+    final addStyle = TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(
+        horizontal: _addHorizontalPadding,
+        vertical: _addVerticalPadding,
+      ),
+      textStyle: const TextStyle(
+        fontSize: _addFontSize,
+        fontWeight: _addFontWeight,
+      ),
+    );
     final addButton = TextButton.icon(
+      style: addStyle,
       onPressed: onAddSubcategory,
       icon: const Icon(_addIcon, size: _addIconSize),
       label: const Text(_addLabel),
@@ -101,7 +120,7 @@ class _SubcategoryRow extends StatelessWidget {
       color: CategoryPalette.savedColor(subcategory.colorHex, colors),
       size: iconSize,
     );
-    final chevron = Icon(chevronIcon, size: chevronSize);
+    final chevron = Icon(chevronIcon, size: chevronSize, color: colors.subtext);
     final row = MedallionRow(
       leading: icon,
       title: subcategory.name,
