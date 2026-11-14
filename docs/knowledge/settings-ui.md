@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: 40c727c4
+Last reconciled: 2f06d769
 
 ## Feature overview
 
@@ -145,8 +145,11 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
   "Count in Trends and budgets" switch. On Edit, "More options" is always open and also shows a
   read-only Type row with a lock. The Type hint reads "The type is fixed once entries use this
   category." for a root and "Set by \<parent>" for a subcategory; the Count hint "Include this
-  subcategory in totals" shows on subcategories. Defaults: symbol `tag`, blue, include on; the colour
-  is saved as `#RRGGBB`. Edit forms end with a body "Move to recycle bin" danger button that confirms
+  subcategory in totals" shows on subcategories. On an edit form both hints follow the stored parent,
+  not the draft pick, so re-parenting a subcategory in the Inside row leaves the hint reading "Set by
+  \<stored parent>" until the save. Defaults: symbol `tag`, blue, include on; the colour is saved as
+  `#RRGGBB`. A malformed stored colour is treated as unsaved, so the form seeds the same blue default
+  as a new category (or the preset parent's colour) instead of the housing grey. Edit forms end with a body "Move to recycle bin" danger button that confirms
   through the shared destructive dialog, then archives and dismisses.
   (`app/lib/ui/settings/category/category_form.dart`, `category_form_fields.dart`,
   `category_form_state.dart`)
@@ -162,7 +165,9 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 - **Edit category Subcategories section** - an edit form for a root lists its active subcategories A-Z
   with an "Add subcategory" action. Tapping a row or the action opens the subcategory form as a second
   sheet stacked over the edit form, so unsaved parent edits remain. Only one stacked form opens at a
-  time. (`category_subcategories_section.dart`, `category_form.dart`: `_openSubcategoryForm`)
+  time. The whole section, including "Add subcategory", hides while a draft parent is set and returns
+  when the Inside row is set back to Top level. Closing the parent form also dismisses the stacked
+  subcategory sheet. (`category_subcategories_section.dart`, `category_form.dart`: `_openSubcategoryForm`)
 - **Icon and colour picker** - one sheet titled "Icon and colour" with a header Done action. A preview
   row shows the medallion and the category name (the icon name when the name is empty), then one flat
   6-column icon grid with no search and no sections, then 32px colour swatches with a check ring. The
