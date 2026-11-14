@@ -5,6 +5,7 @@ import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/pickers/symbol_picker.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category/category_form_state.dart';
+import 'package:spendwise/ui/settings/category/parent_picker.dart';
 import 'package:spendwise/ui/theme/category_palette.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -174,8 +175,7 @@ class CategoryParentTile extends StatelessWidget {
     required this.onTap,
   });
 
-  static const _title = 'Parent';
-  static const _noneLabel = 'None';
+  static const _title = 'Inside';
 
   final String? parentLabel;
   final VoidCallback onTap;
@@ -185,7 +185,7 @@ class CategoryParentTile extends StatelessWidget {
     return ListTile(
       contentPadding: _emptyContentPadding,
       title: const Text(_title),
-      trailing: Text(parentLabel ?? _noneLabel),
+      trailing: Text(parentLabel ?? topLevelLabel),
       onTap: onTap,
     );
   }

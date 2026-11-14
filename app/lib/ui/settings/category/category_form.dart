@@ -10,6 +10,7 @@ import 'package:spendwise/ui/common/sheets/sheet_session.dart';
 import 'package:spendwise/ui/settings/category/category_form_fields.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
 import 'package:spendwise/ui/settings/category/confirm_move_category_to_bin.dart';
+import 'package:spendwise/ui/settings/category/parent_picker.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 
 // MARK: - Show
@@ -118,27 +119,15 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   Future<void> _pickParent() async {
     final formState = ref.read(categoryFormViewModelProvider(_args)).value;
     if (formState == null) return;
-    final chosen = await showModalBottomSheet<String?>(
+    final chosen = await showParentPickerSheet(
       context: context,
-      builder: (_) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            ListTile(
-              title: const Text('None'),
-              onTap: () => Navigator.of(context).pop(),
-            ),
-            for (final option in formState.eligibleParentsList)
-              ListTile(
-                title: Text(option.name),
-                onTap: () => Navigator.of(context).pop(option.id),
-              ),
-          ],
-        ),
-      ),
+      presentation: shellSheetPresentation,
+      parents: formState.eligibleParentsList,
+      currentParentID: formState.parentID,
+      onRouteCreated: _trackPicker,
     );
-    if (!context.mounted) return;
-    _viewModel.applyPickedParent(chosen);
+    if (!context.mounted || chosen == null) return;
+    _viewModel.applyPickedParent(chosen.parentID);
   }
 
   Future<void> _confirmDelete() async {
