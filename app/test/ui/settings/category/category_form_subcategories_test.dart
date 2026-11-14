@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/category/category_form.dart';
+import 'package:spendwise/ui/settings/category/category_subcategories_section.dart';
 
 import '../../../support/category_form_launcher.dart';
 import '../../../support/ui_test_timeout.dart';
@@ -202,4 +203,34 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
+
+  testWidgets('a double tap opens one subcategory sheet and it can reopen', (
+    tester,
+  ) async {
+    final root = _category('Food');
+    final cafes = _category('Cafes', parentID: root.id);
+    await openCategoryFormSheet(
+      tester,
+      _ledgerOf([root, cafes]),
+      category: root,
+    );
+
+    final section = tester.widget<CategorySubcategoriesSection>(
+      find.byType(CategorySubcategoriesSection),
+    );
+    section.onSubcategoryTap(cafes);
+    section.onAddSubcategory();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CategoryForm), findsNWidgets(2));
+
+    await tester.tapAt(_barrierTap);
+    await tester.pumpAndSettle();
+    expect(find.byType(CategoryForm), findsOneWidget);
+
+    await tester.tap(find.text('Cafes'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CategoryForm), findsNWidgets(2));
+  }, timeout: uiTestTimeout);
 }
