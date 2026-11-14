@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: 2f06d769
+Last reconciled: bcd9f0f7
 
 ## Feature overview
 
@@ -14,6 +14,8 @@ screens are mostly stateless facades over `Ledger`, with per-sheet form view mod
 
 - `app/lib/ui/settings/settings_root_view_model.dart`, `settings_root_screen.dart`,
   `settings_flow.dart` - the root list of navigation links.
+- `app/lib/ui/common/navigation/page_header.dart` - the shared large-title page header used by the
+  Settings root, the Categories list and the Recycle bin.
 - `app/lib/ui/settings/category/` - category list, form sheet, subcategories section and parent picker.
 - `app/lib/ui/common/pickers/symbol_picker.dart`, `app/lib/ui/theme/category_palette.dart` - the icon and
   colour picker and the saved-colour mapping.
@@ -53,8 +55,9 @@ counts. These counts include active and binned entries through `entriesReferenci
 ## Navigation
 
 The Settings Flow owns Settings' nested navigator; `AppShell` mounts it only while the
-`settings` destination is selected (see `ui-framework-mvvm.md`). The root screen shows no
-back control. Back pops child routes and preserves the destination selection at the root. Phone/open
+`settings` destination is selected (see `ui-framework-mvvm.md`). The root screen shows the large "Settings" title with no
+back control. The Categories list and the Recycle bin use the same `PageHeader` (no AppBar) with a
+visible "Settings" back label that pops the route; the label is also the back control's semantics label. Back pops child routes and preserves the destination selection at the root. Phone/open
 resize keeps the mounted flow and its open enrollment route in place, without re-hosting the
 enrollment flow. Selecting another destination disposes the flow and its child routes, and
 selecting Settings again builds it fresh at the root. The Categories row opens category management, whose forms open as AppSheets over it. Settings has no Recurring Plans row, request Step or Plans route.
