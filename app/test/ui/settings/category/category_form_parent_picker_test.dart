@@ -21,6 +21,11 @@ TransactionCategory _root(String name) => TransactionCategory(
   symbol: 'tag',
 );
 
+Finder _checkOnRow(String label) => find.descendant(
+  of: find.widgetWithText(InkWell, label).last,
+  matching: find.byIcon(Icons.check),
+);
+
 Future<void> _openForm(WidgetTester tester, Ledger ledger) async {
   await openCategoryFormSheet(tester, ledger);
 }
@@ -71,12 +76,13 @@ void main() {
     ) async {
       await _openForm(tester, ledger);
       await _openPicker(tester);
-      expect(find.byIcon(Icons.check), findsOneWidget);
+      expect(_checkOnRow(topLevelLabel), findsOneWidget);
       await _pickParentRow(tester, food.name);
 
       await _openPicker(tester);
 
-      expect(find.byIcon(Icons.check), findsOneWidget);
+      expect(_checkOnRow(food.name), findsOneWidget);
+      expect(_checkOnRow(topLevelLabel), findsNothing);
     }, timeout: uiTestTimeout);
 
     testWidgets('dismissing the picker keeps the chosen parent', (
