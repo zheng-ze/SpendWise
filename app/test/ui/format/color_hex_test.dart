@@ -33,6 +33,19 @@ void main() {
     });
   });
 
+  group('tryParseColorHex', () {
+    test('parses a valid six-digit string', () {
+      expect(tryParseColorHex('#FF8800'), const Color(0xFFFF8800));
+      expect(tryParseColorHex(' ff8800 '), const Color(0xFFFF8800));
+    });
+
+    test('returns null for a wrong length or non-hex digits', () {
+      for (final bad in ['', '#FFF', '#FF88000', 'GGGGGG', 'not a color']) {
+        expect(tryParseColorHex(bad), isNull, reason: bad);
+      }
+    });
+  });
+
   group('toColorHex', () {
     test('writes uppercase with a leading hash', () {
       expect(toColorHex(const Color(0xFFff8800)), '#FF8800');

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
 
 class ListenerCountingLedger extends Ledger {
@@ -993,5 +994,65 @@ void main() {
       );
       expect(ledger.listenerCount, 0);
     });
+  });
+
+  group('initial colour', () {
+    Future<Color?> colorFor(Ledger ledger, CategoryFormArgs args) async {
+      final container = buildContainer(ledger);
+      await openAlive(container, args);
+      return container.read(categoryFormViewModelProvider(args)).value?.color;
+    }
+
+    TransactionCategory withHex(String hex, {String? parentID}) =>
+        TransactionCategory(
+          name: 'Food',
+          kind: CategoryKind.expense,
+          colorHex: hex,
+          includeInAnalysis: true,
+          parentID: parentID,
+          symbol: 'tag',
+        );
+
+    Ledger ledgerOf(List<TransactionCategory> categories) => Ledger(
+      state: LedgerState(categories: {for (final c in categories) c.id: c}),
+    );
+
+    test('a malformed stored colour matches a new category', () async {
+      final malformed = withHex('not a color');
+
+      final editedColor = await colorFor(
+        ledgerOf([malformed]),
+        CategoryFormArgs(category: malformed),
+      );
+      final newColor = await colorFor(Ledger(), const CategoryFormArgs());
+
+      expect(editedColor, newColor);
+      expect(editedColor, isNot(colorHexFallback));
+    });
+
+    test('a valid stored colour is kept', () async {
+      final saved = withHex('#34C759');
+
+      final color = await colorFor(
+        ledgerOf([saved]),
+        CategoryFormArgs(category: saved),
+      );
+
+      expect(color, const Color(0xFF34C759));
+    });
+
+    test(
+      'a malformed preset parent colour falls back to the default',
+      () async {
+        final parent = withHex('#FFF');
+
+        final color = await colorFor(
+          ledgerOf([parent]),
+          CategoryFormArgs(presetParentID: parent.id),
+        );
+
+        expect(color, defaultCategoryColor);
+      },
+    );
   });
 }

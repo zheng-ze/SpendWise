@@ -55,9 +55,11 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
 
   Color _initialColor() {
     final ownHex = _category?.colorHex;
-    if (ownHex != null) return parseColorHex(ownHex);
+    final ownColor = ownHex == null ? null : tryParseColorHex(ownHex);
+    if (ownColor != null) return ownColor;
     final parentHex = _presetParent?.colorHex;
-    return parentHex != null ? parseColorHex(parentHex) : defaultCategoryColor;
+    final parentColor = parentHex == null ? null : tryParseColorHex(parentHex);
+    return parentColor ?? defaultCategoryColor;
   }
 
   @override
