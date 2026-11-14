@@ -1,4 +1,5 @@
 import 'package:domain/domain.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
@@ -135,9 +136,12 @@ void main() {
     expect(find.text('Categories'), findsOneWidget);
     expect(find.text('Entries'), findsNothing);
     expect(find.text('Pockets'), findsNothing);
-    final accountsY = tester.getTopLeft(find.text('Accounts')).dy;
-    final categoriesY = tester.getTopLeft(find.text('Categories')).dy;
-    expect(accountsY, lessThan(categoriesY));
+    final texts = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((text) => text.data)
+        .toList();
+    expect(texts.indexOf('Accounts'), isNonNegative);
+    expect(texts.indexOf('Accounts'), lessThan(texts.indexOf('Categories')));
   }, timeout: uiTestTimeout);
 }
 

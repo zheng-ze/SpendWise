@@ -83,9 +83,12 @@ void main() {
 
     await _pumpList(tester, all);
 
-    final expenseTop = tester.getTopLeft(find.text('EXPENSE')).dy;
-    final incomeTop = tester.getTopLeft(find.text('INCOME')).dy;
-    expect(expenseTop, lessThan(incomeTop));
+    final texts = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((text) => text.data)
+        .toList();
+    expect(texts.indexOf('EXPENSE'), isNonNegative);
+    expect(texts.indexOf('EXPENSE'), lessThan(texts.indexOf('INCOME')));
   }, timeout: uiTestTimeout);
 
   testWidgets('a root shows its subcategory count as meta', (tester) async {
