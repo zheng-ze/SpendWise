@@ -140,7 +140,8 @@ class CategoryFormViewState
 
   bool get isSubcategoryForm => hasPresetParent || editsStoredSubcategory;
 
-  bool get showsSubcategories => isEditing && !editsStoredSubcategory;
+  bool get showsSubcategories =>
+      isEditing && !editsStoredSubcategory && parentID == null;
 
   List<TransactionCategory> get activeSubcategories {
     if (!showsSubcategories) return const [];

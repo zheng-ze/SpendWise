@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/category/category_form.dart';
 import 'package:spendwise/ui/settings/category/category_subcategories_section.dart';
+import 'package:spendwise/ui/settings/category/parent_picker.dart';
 
 import '../../../support/category_form_launcher.dart';
 import '../../../support/ui_test_timeout.dart';
@@ -16,6 +17,7 @@ const _editTitle = 'Edit category';
 const _draftName = 'Food and drink';
 const _newSubName = 'Bakery';
 const _saveLabel = 'Save';
+const _insideLabel = 'Inside';
 const _barrierTap = Offset(160, 10);
 
 final _parentNameField = find.byType(TextField).first;
@@ -67,6 +69,34 @@ void main() {
     final root = _category('Food');
 
     await openCategoryFormSheet(tester, _ledgerOf([root]), category: root);
+
+    expect(find.text(_sectionLabel), findsOneWidget);
+    expect(find.text(_addLabel), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('a draft parent hides the section and Top level restores it', (
+    tester,
+  ) async {
+    final food = _category('Food');
+    final travel = _category('Travel');
+    await openCategoryFormSheet(
+      tester,
+      _ledgerOf([food, travel]),
+      category: food,
+    );
+
+    await tester.tap(find.text(_insideLabel));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(travel.name).last);
+    await tester.pumpAndSettle();
+
+    expect(find.text(_sectionLabel), findsNothing);
+    expect(find.text(_addLabel), findsNothing);
+
+    await tester.tap(find.text(_insideLabel));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(topLevelLabel).last);
+    await tester.pumpAndSettle();
 
     expect(find.text(_sectionLabel), findsOneWidget);
     expect(find.text(_addLabel), findsOneWidget);
