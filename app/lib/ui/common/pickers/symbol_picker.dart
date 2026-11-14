@@ -1,50 +1,113 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/lists/category_icon.dart';
+import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/symbol_map.dart';
+import 'package:spendwise/ui/theme/category_palette.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
+const _sheetTitle = 'Icon and colour';
+
+const _doneLabel = 'Done';
+
+const _iconSectionLabel = 'Icon';
+
+const _colourSectionLabel = 'Colour';
+
 const _gridColumns = 6;
+
+const _gridSpacing = 8.0;
+
+const _previewPadding = EdgeInsets.fromLTRB(16, 0, 16, 0);
+
+const _previewSize = 44.0;
+
+const _previewGap = 12.0;
+
+const _sectionLabelPadding = EdgeInsets.fromLTRB(16, 16, 16, 8);
+
+const _gridPadding = EdgeInsets.symmetric(horizontal: 16);
+
+const _transparent = Color(0x00000000);
+
+const _tileRadius = 14.0;
+
+const _tileBorderWidth = 2.0;
+
+const _tileGlyphSize = 24.0;
+
+const _checkSymbol = 'check';
+
+const _swatchesPadding = EdgeInsets.fromLTRB(16, 0, 16, 16);
+
+const _swatchSpacing = 12.0;
+
+const _swatchSize = 32.0;
+
+const _swatchEdgeWidth = 2.0;
+
+const _swatchRingWidth = 3.0;
+
+const _swatchRingInset = _swatchRingWidth - _swatchEdgeWidth;
+
+const _swatchCheckSize = 20.0;
+
+// MARK: - Result
+class SymbolPickerResult {
+  const SymbolPickerResult({required this.symbol, required this.color});
+
+  final String symbol;
+  final Color color;
+}
 
 // MARK: - Helpers
 
-Map<String, List<String>> filterSymbolSections(
-  Map<String, List<String>> sections,
-  String query,
-) {
-  final term = query.trim().toLowerCase();
-  if (term.isEmpty) return sections;
-
-  final result = <String, List<String>>{};
-  for (final entry in sections.entries) {
-    final matches = entry.value
-        .where((name) => name.toLowerCase().contains(term))
-        .toList();
-    if (matches.isNotEmpty) result[entry.key] = matches;
-  }
-  return result;
+String symbolDisplayName(String name) {
+  final words = name.replaceAll('_', ' ');
+  if (words.isEmpty) return '';
+  return '${words[0].toUpperCase()}${words.substring(1)}';
 }
 
 // MARK: - Show
-
-Future<String?> showSymbolPickerSheet({
+Future<SymbolPickerResult?> showSymbolPickerSheet({
   required BuildContext context,
-  required String selected,
+  required AppSheetPresentation Function(BuildContext) presentation,
+  required String symbol,
   required Color color,
+  required List<Color> swatches,
+  String categoryName = '',
+  PickerRouteCallback? onRouteCreated,
 }) {
-  return Navigator.of(context).push<String>(
-    MaterialPageRoute(
-      builder: (_) => SymbolPicker(selected: selected, color: color),
+  return showPickerAppSheet<SymbolPickerResult>(
+    context,
+    presentation: presentation,
+    onRouteCreated: onRouteCreated,
+    builder: (_) => SymbolPicker(
+      symbol: symbol,
+      color: color,
+      swatches: swatches,
+      categoryName: categoryName,
     ),
   );
 }
 
 // MARK: - SymbolPicker
 class SymbolPicker extends StatefulWidget {
-  const SymbolPicker({super.key, required this.selected, required this.color});
+  const SymbolPicker({
+    super.key,
+    required this.symbol,
+    required this.color,
+    required this.swatches,
+    this.categoryName = '',
+  });
 
-  final String selected;
+  final String symbol;
   final Color color;
+  final List<Color> swatches;
+  final String categoryName;
 
   @override
   State<SymbolPicker> createState() => _SymbolPickerState();
@@ -52,117 +115,258 @@ class SymbolPicker extends StatefulWidget {
 
 // MARK: - SymbolPickerState
 class _SymbolPickerState extends State<SymbolPicker> {
-  final _searchController = TextEditingController();
-  String _query = '';
+  late String _symbol = widget.symbol;
+  late Color _color = widget.color;
 
-  static const _searchPadding = EdgeInsets.all(16);
+  void _chooseSymbol(String name) => setState(() => _symbol = name);
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  void _chooseColor(Color swatch) => setState(() => _color = swatch);
+
+  void _done() {
+    final result = SymbolPickerResult(symbol: _symbol, color: _color);
+    Navigator.of(context).pop(result);
   }
 
   @override
   Widget build(BuildContext context) {
-    final sections = filterSymbolSections(categoryIconSections, _query);
+    final displayColor = CategoryPalette.savedColor(
+      toColorHex(_color),
+      context.colors,
+    );
+    final done = TextButton(
+      key: pickerDoneKey,
+      onPressed: _done,
+      child: const Text(_doneLabel),
+    );
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Preview(
+          symbol: _symbol,
+          color: displayColor,
+          categoryName: widget.categoryName,
+        ),
+        const _SectionLabel(label: _iconSectionLabel),
+        _IconGrid(selected: _symbol, onChosen: _chooseSymbol),
+        const _SectionLabel(label: _colourSectionLabel),
+        _SwatchRow(
+          swatches: widget.swatches,
+          selected: _color,
+          onChosen: _chooseColor,
+        ),
+      ],
+    );
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Choose Icon')),
-      body: Column(
-        children: [
-          Padding(
-            padding: _searchPadding,
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: 'Search',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) => setState(() => _query = value),
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              children: [
-                for (final section in sections.entries)
-                  _SymbolSection(
-                    title: section.key,
-                    names: section.value,
-                    selected: widget.selected,
-                    color: widget.color,
-                    onChosen: (name) => Navigator.of(context).pop(name),
-                  ),
-              ],
-            ),
-          ),
-        ],
+    return AppPickerSheet(title: _sheetTitle, trailing: done, body: body);
+  }
+}
+
+const _previewNameMaxLines = 1;
+
+// MARK: - Preview
+class _Preview extends StatelessWidget {
+  const _Preview({
+    required this.symbol,
+    required this.color,
+    required this.categoryName,
+  });
+
+  final String symbol;
+  final Color color;
+  final String categoryName;
+
+  @override
+  Widget build(BuildContext context) {
+    final medallion = CategoryIcon(
+      symbolName: symbol,
+      color: color,
+      size: _previewSize,
+    );
+    final trimmedName = categoryName.trim();
+    final label = trimmedName.isEmpty ? symbolDisplayName(symbol) : trimmedName;
+    final name = Expanded(
+      child: Text(
+        label,
+        maxLines: _previewNameMaxLines,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+
+    return Padding(
+      padding: _previewPadding,
+      child: Row(spacing: _previewGap, children: [medallion, name]),
+    );
+  }
+}
+
+// MARK: - SectionLabel
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = context.text.small.copyWith(color: context.colors.subtext);
+    return Padding(
+      padding: _sectionLabelPadding,
+      child: Text(label.toUpperCase(), style: style),
+    );
+  }
+}
+
+// MARK: - IconGrid
+class _IconGrid extends StatelessWidget {
+  const _IconGrid({required this.selected, required this.onChosen});
+
+  final String selected;
+  final void Function(String name) onChosen;
+
+  @override
+  Widget build(BuildContext context) {
+    final tiles = [
+      for (final name in categoryIconNames)
+        _IconTile(
+          symbolName: name,
+          selected: name == selected,
+          onTap: () => onChosen(name),
+        ),
+    ];
+
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: _gridPadding,
+      crossAxisCount: _gridColumns,
+      mainAxisSpacing: _gridSpacing,
+      crossAxisSpacing: _gridSpacing,
+      children: tiles,
+    );
+  }
+}
+
+// MARK: - IconTile
+class _IconTile extends StatelessWidget {
+  const _IconTile({
+    required this.symbolName,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String symbolName;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final radius = BorderRadius.circular(_tileRadius);
+    final side = BorderSide(
+      color: selected ? colors.focus : _transparent,
+      width: _tileBorderWidth,
+    );
+    final glyph = Icon(
+      symbolIcon(symbolName),
+      size: _tileGlyphSize,
+      color: selected ? colors.action : colors.text,
+    );
+
+    return Material(
+      color: colors.tint,
+      shape: RoundedRectangleBorder(borderRadius: radius, side: side),
+      child: InkWell(
+        key: ValueKey(symbolName),
+        borderRadius: radius,
+        onTap: onTap,
+        child: Center(child: glyph),
       ),
     );
   }
 }
 
-// MARK: - SymbolSection
-class _SymbolSection extends StatelessWidget {
-  const _SymbolSection({
-    required this.title,
-    required this.names,
+// MARK: - SwatchRow
+class _SwatchRow extends StatelessWidget {
+  const _SwatchRow({
+    required this.swatches,
     required this.selected,
-    required this.color,
     required this.onChosen,
   });
 
-  final String title;
-  final List<String> names;
-  final String selected;
-  final Color color;
-  final void Function(String name) onChosen;
-
-  static const _headerPadding = EdgeInsets.fromLTRB(16, 16, 16, 8);
-
-  static const _gridPadding = EdgeInsets.symmetric(horizontal: 16);
-
-  static const _cellPadding = EdgeInsets.all(4);
+  final List<Color> swatches;
+  final Color selected;
+  final ValueChanged<Color> onChosen;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: _headerPadding,
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
+    final chips = [
+      for (final swatch in swatches)
+        _Swatch(
+          key: ValueKey(swatch),
+          swatch: swatch,
+          selected: swatch == selected,
+          onTap: () => onChosen(swatch),
         ),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: _gridPadding,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: _gridColumns,
-          ),
-          itemCount: names.length,
-          itemBuilder: (context, index) {
-            final name = names[index];
-            return InkWell(
-              onTap: () => onChosen(name),
-              child: Padding(
-                padding: _cellPadding,
-                child: CategoryIcon(
-                  symbolName: name,
-                  color: color,
-                  selected: name == selected,
-                ),
-              ),
-            );
-          },
+    ];
+
+    return Padding(
+      padding: _swatchesPadding,
+      child: Wrap(
+        spacing: _swatchSpacing,
+        runSpacing: _swatchSpacing,
+        children: chips,
+      ),
+    );
+  }
+}
+
+// MARK: - Swatch
+class _Swatch extends StatelessWidget {
+  const _Swatch({
+    super.key,
+    required this.swatch,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Color swatch;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final edge = Border.all(
+      color: selected ? colors.focus : _transparent,
+      width: _swatchEdgeWidth,
+    );
+    final fill = BoxDecoration(
+      shape: BoxShape.circle,
+      color: CategoryPalette.savedColor(toColorHex(swatch), colors),
+      border: edge,
+    );
+    final ring = DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: colors.base, width: _swatchRingWidth),
+      ),
+      child: Center(
+        child: Icon(
+          symbolIcon(_checkSymbol),
+          size: _swatchCheckSize,
+          color: colors.onCategory,
         ),
-      ],
+      ),
+    );
+    final mark = Padding(
+      padding: const EdgeInsets.all(_swatchRingInset),
+      child: ring,
+    );
+    final chip = DecoratedBox(decoration: fill, child: selected ? mark : null);
+
+    return InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: SizedBox(width: _swatchSize, height: _swatchSize, child: chip),
     );
   }
 }

@@ -44,8 +44,8 @@ Finder _inPane(Finder finder) =>
     find.descendant(of: find.byKey(shellDetailPaneKey), matching: finder);
 
 bool _hasDetailOwners(ProviderContainer container, String budgetID) =>
-    container.exists(budgetDetailViewModelProvider(budgetID)) ||
-    container.exists(budgetDetailContextProvider(budgetID));
+    container.read(budgetDetailViewModelProvider(budgetID).exists) ||
+    container.read(budgetDetailContextProvider(budgetID).exists);
 
 NavigatorState _rootNavigator(WidgetTester tester) =>
     tester.state<NavigatorState>(find.byType(Navigator).first);
@@ -153,7 +153,10 @@ void main() {
       expect(container.read(selectedBudgetProvider), 'b1');
       expect(find.byKey(shellDetailPaneKey), findsOneWidget);
       expect(_hasDetailOwners(container, 'b2'), isFalse);
-      expect(container.exists(budgetDetailViewModelProvider('b1')), isTrue);
+      expect(
+        container.read(budgetDetailViewModelProvider('b1').exists),
+        isTrue,
+      );
     },
     timeout: uiTestTimeout,
   );
@@ -242,8 +245,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(BudgetDetailScreen), findsOneWidget);
-      expect(container.exists(budgetDetailViewModelProvider('b2')), isFalse);
-      expect(container.exists(budgetDetailViewModelProvider('b1')), isTrue);
+      expect(
+        container.read(budgetDetailViewModelProvider('b2').exists),
+        isFalse,
+      );
+      expect(
+        container.read(budgetDetailViewModelProvider('b1').exists),
+        isTrue,
+      );
     },
     timeout: uiTestTimeout,
   );
@@ -328,8 +337,11 @@ void main() {
       expect(find.byKey(shellDetailPaneKey), findsOneWidget);
       expect(find.byType(BudgetsRoot), findsNothing);
       expect(container.read(selectedBudgetProvider), 'b2');
-      expect(container.exists(budgetDetailViewModelProvider('b2')), isTrue);
-      expect(container.exists(budgetDetailContextProvider('b2')), isTrue);
+      expect(
+        container.read(budgetDetailViewModelProvider('b2').exists),
+        isTrue,
+      );
+      expect(container.read(budgetDetailContextProvider('b2').exists), isTrue);
 
       sheet.navigator!.pop();
       await tester.pumpAndSettle();
@@ -374,7 +386,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(container.read(selectedBudgetProvider), 'b2');
       expect(_inPane(find.text(_groceriesName)), findsOneWidget);
-      expect(container.exists(budgetDetailContextProvider('b2')), isTrue);
+      expect(container.read(budgetDetailContextProvider('b2').exists), isTrue);
     },
     timeout: uiTestTimeout,
   );
@@ -458,7 +470,7 @@ void main() {
       expect(find.byType(BudgetDetailScreen), findsNothing);
       expect(find.text(_newerLabel), findsOneWidget);
       expect(_hasDetailOwners(container, 'b2'), isFalse);
-      expect(container.exists(selectedBudgetProvider), isFalse);
+      expect(container.read(selectedBudgetProvider.exists), isFalse);
     },
     timeout: uiTestTimeout,
   );
@@ -495,7 +507,10 @@ void main() {
 
       expect(container.read(selectedBudgetProvider), 'b1');
       expect(find.byType(BudgetDetailScreen), findsOneWidget);
-      expect(container.exists(budgetDetailViewModelProvider('b1')), isTrue);
+      expect(
+        container.read(budgetDetailViewModelProvider('b1').exists),
+        isTrue,
+      );
       final incoming = ModalRoute.of(
         tester.element(find.byType(BudgetDetailScreen)),
       );
@@ -745,7 +760,10 @@ void main() {
       expect(find.byType(BudgetDetailScreen), findsNothing);
       expect(find.byKey(shellDetailPaneKey), findsOneWidget);
       expect(container.read(selectedBudgetProvider), 'b2');
-      expect(container.exists(budgetDetailViewModelProvider('b2')), isTrue);
+      expect(
+        container.read(budgetDetailViewModelProvider('b2').exists),
+        isTrue,
+      );
     },
     timeout: uiTestTimeout,
   );
@@ -929,5 +947,5 @@ Future<void> _verifyInactiveDeferredPhonePage(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await closeShellSheet(tester, sheet);
   expect(find.byType(BudgetDetailScreen), findsNothing);
-  expect(container.exists(selectedBudgetProvider), isFalse);
+  expect(container.read(selectedBudgetProvider.exists), isFalse);
 }

@@ -143,7 +143,7 @@ void main() {
       await _leaveAndReturnToMoney(tester, container);
 
       expect(container.read(moneySegmentProvider), MoneySegment.accounts);
-      expect(container.exists(selectedBudgetProvider), isFalse);
+      expect(container.read(selectedBudgetProvider.exists), isFalse);
       await tester.tap(find.text('Budgets'));
       await tester.pumpAndSettle();
       expect(container.read(selectedBudgetProvider), isNull);

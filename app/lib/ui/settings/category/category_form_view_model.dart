@@ -14,13 +14,12 @@ export 'package:spendwise/ui/settings/category/category_form_state.dart';
 abstract class CategoryFormViewModel {
   void setName(String name);
   void setKind(CategoryKind kind);
-  void setColor(Color color);
   void setIncludeInAnalysis(bool value);
   void setParentID(String? id);
   void requestPickParent();
   void applyPickedParent(String? id);
   void requestPickSymbol();
-  void applyPickedSymbol(String name);
+  void applyPickedSymbolAndColor(String symbol, Color color);
   void requestDelete();
   Future<void> applyDeleteConfirmed(bool confirmed);
   Future<void> save();
@@ -56,13 +55,18 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
 
   Color _initialColor() {
     final ownHex = _category?.colorHex;
-    if (ownHex != null) return parseColorHex(ownHex);
+    final ownColor = ownHex == null ? null : tryParseColorHex(ownHex);
+    if (ownColor != null) return ownColor;
     final parentHex = _presetParent?.colorHex;
-    return parentHex != null ? parseColorHex(parentHex) : defaultCategoryColor;
+    final parentColor = parentHex == null ? null : tryParseColorHex(parentHex);
+    return parentColor ?? defaultCategoryColor;
   }
 
   @override
   Future<CategoryFormViewState> build() async {
+    final currentLedger = ledger;
+    currentLedger.addListener(_onLedgerChanged);
+    ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
     final category = _category;
     return CategoryFormViewState(
       editedCategoryID: category?.id,
@@ -77,6 +81,17 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
       allCategories: ledger.state.categories.values.toList(),
     );
   }
+
+  void _onLedgerChanged() => updateState((s) {
+    final refreshed = s.copyWith(
+      allCategories: ledger.state.categories.values.toList(),
+    );
+    final keepsStoredParent = refreshed.parentID == _category?.parentID;
+    final clearsDraftParent = refreshed.hasStaleParent && !keepsStoredParent;
+    return clearsDraftParent
+        ? refreshed.copyWith(parentID: () => null)
+        : refreshed;
+  });
 
   // MARK: - Field Setters
 
@@ -99,9 +114,6 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
   }
 
   @override
-  void setColor(Color color) => updateState((s) => s.copyWith(color: color));
-
-  @override
   void setIncludeInAnalysis(bool value) =>
       updateState((s) => s.copyWith(includeInAnalysis: value));
 
@@ -117,16 +129,26 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
   @override
   void applyPickedParent(String? id) {
     if (!ref.mounted) return;
-    updateState((s) => s.copyWith(parentID: () => id, step: () => null));
+    updateState((s) {
+      final stillEligible =
+          id == null ||
+          s.eligibleParentsList.any((category) => category.id == id);
+      return s.copyWith(
+        parentID: stillEligible ? () => id : null,
+        step: () => null,
+      );
+    });
   }
 
   @override
   void requestPickSymbol() => emitStep(PickSymbolRequested());
 
   @override
-  void applyPickedSymbol(String name) {
+  void applyPickedSymbolAndColor(String symbol, Color color) {
     if (!ref.mounted) return;
-    updateState((s) => s.copyWith(symbol: name, step: () => null));
+    updateState(
+      (s) => s.copyWith(symbol: symbol, color: color, step: () => null),
+    );
   }
 
   // MARK: - Delete and Save
@@ -182,9 +204,8 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
 
 // MARK: - Provider
 
-final categoryFormViewModelProvider =
-    AsyncNotifierProvider.family<
-      CategoryFormNotifier,
-      CategoryFormViewState,
-      CategoryFormArgs
-    >(CategoryFormNotifier.new);
+final categoryFormViewModelProvider = AsyncNotifierProvider.autoDispose
+    .family<CategoryFormNotifier, CategoryFormViewState, CategoryFormArgs>(
+      CategoryFormNotifier.new,
+      retry: (_, _) => null,
+    );

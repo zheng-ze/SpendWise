@@ -19,7 +19,7 @@ void main() {
       listener.close();
       await container.pump();
 
-      expect(container.exists(moneySegmentProvider), isFalse);
+      expect(container.read(moneySegmentProvider.exists), isFalse);
       expect(container.read(moneySegmentProvider), MoneySegment.accounts);
     },
   );

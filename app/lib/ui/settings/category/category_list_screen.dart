@@ -1,13 +1,23 @@
+import 'dart:async';
+
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
+import 'package:spendwise/ui/common/lists/medallion_row.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
-import 'package:spendwise/ui/format/color_hex.dart';
+import 'package:spendwise/ui/common/navigation/compact_labelled_fab.dart';
+import 'package:spendwise/ui/common/navigation/page_header.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
+import 'package:spendwise/ui/common/sheets/sheet_session.dart';
+import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/settings/category/category_form.dart';
 import 'package:spendwise/ui/settings/category/category_list_view_model.dart';
+import 'package:spendwise/ui/theme/category_palette.dart';
+import 'package:spendwise/ui/theme/spendwise_colors.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - CategoryListScreen
 class CategoryListScreen extends ConsumerStatefulWidget {
@@ -20,6 +30,7 @@ class CategoryListScreen extends ConsumerStatefulWidget {
 // MARK: - CategoryListScreenState
 class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
   ProviderSubscription<AsyncValue<CategoryListViewState>>? _stepSubscription;
+  SheetSession? _formSheet;
 
   @override
   void initState() {
@@ -33,6 +44,8 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
   @override
   void dispose() {
     _stepSubscription?.close();
+    _formSheet?.retire();
+    _formSheet = null;
     super.dispose();
   }
 
@@ -47,16 +60,32 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
     }
   }
 
-  Future<void> _openForm({
-    TransactionCategory? category,
-    String? presetParentID,
-  }) async {
+  void _openForm({TransactionCategory? category, String? presetParentID}) {
     _viewModel.clearStep();
-    await showCategoryFormSheet(
-      context: context,
-      category: category,
-      presetParentID: presetParentID,
+    if (_formSheet != null) return;
+    final sheet = SheetSession();
+    _formSheet = sheet;
+    void trackRoute(AppSheetRoute<void> route) {
+      sheet.route = route;
+      unawaited(_releaseFormSheetWhenClosed(route, sheet));
+    }
+
+    unawaited(
+      showCategoryFormSheet(
+        context: context,
+        category: category,
+        presetParentID: presetParentID,
+        onRouteCreated: trackRoute,
+      ),
     );
+  }
+
+  Future<void> _releaseFormSheetWhenClosed(
+    AppSheetRoute<void> route,
+    SheetSession sheet,
+  ) async {
+    await route.completed;
+    if (identical(_formSheet, sheet)) _formSheet = null;
   }
 
   @override
@@ -73,6 +102,13 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
   }
 }
 
+// MARK: - Subcategory meta
+String? categorySubcategoriesMeta(int count) {
+  if (count == 0) return null;
+  if (count == 1) return '1 subcategory';
+  return '$count subcategories';
+}
+
 // MARK: - CategoryListScreenBody
 class _CategoryListScreenBody extends StatelessWidget {
   const _CategoryListScreenBody({
@@ -83,37 +119,60 @@ class _CategoryListScreenBody extends StatelessWidget {
   final CategoryListViewState viewState;
   final CategoryListViewModel viewModel;
 
+  static const _screenTitle = 'Categories';
+  static const _backLabel = 'Settings';
+  static const _contentPadding = EdgeInsets.all(12);
+  static const _sectionGap = 10.0;
+  static const _addLabel = 'Add category';
+  static const _fabPadding = EdgeInsets.only(right: 12, bottom: 12);
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Categories'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: viewModel.requestNewCategory,
-          ),
-        ],
-      ),
-      body: ListView(
-        children: [
-          _CategorySection(
-            title: 'Income',
-            categories: viewState.income,
-            onTap: viewModel.requestEditCategory,
-            onDeleted: (category) => viewModel.deleteCategory(category.id),
-            onAddSubcategory: viewModel.requestNewSubcategory,
-          ),
-          _CategorySection(
-            title: 'Expense',
-            categories: viewState.expense,
-            onTap: viewModel.requestEditCategory,
-            onDeleted: (category) => viewModel.deleteCategory(category.id),
-            onAddSubcategory: viewModel.requestNewSubcategory,
-          ),
-        ],
-      ),
+    final header = PageHeader(
+      title: _screenTitle,
+      backLabel: _backLabel,
+      onBack: Navigator.of(context).maybePop,
     );
+    final expense = _CategorySection(
+      title: 'Expense',
+      categories: viewState.expense,
+      onTap: viewModel.requestEditCategory,
+      onDeleted: (category) => viewModel.deleteCategory(category.id),
+      onAddSubcategory: viewModel.requestNewSubcategory,
+    );
+    final income = _CategorySection(
+      title: 'Income',
+      categories: viewState.income,
+      onTap: viewModel.requestEditCategory,
+      onDeleted: (category) => viewModel.deleteCategory(category.id),
+      onAddSubcategory: viewModel.requestNewSubcategory,
+    );
+    final sections = ListView(
+      padding: _contentPadding,
+      children: [
+        expense,
+        const SizedBox(height: _sectionGap),
+        income,
+        const FabReserveSpace(),
+      ],
+    );
+    final addButton = CompactLabelledFab(
+      label: _addLabel,
+      icon: Icons.add,
+      onPressed: viewModel.requestNewCategory,
+    );
+    final floatingAction = Align(
+      alignment: Alignment.bottomRight,
+      child: Padding(padding: _fabPadding, child: addButton),
+    );
+
+    final page = Column(
+      children: [
+        header,
+        Expanded(child: Stack(children: [sections, floatingAction])),
+      ],
+    );
+    return Scaffold(body: SafeArea(child: page));
   }
 }
 
@@ -133,118 +192,150 @@ class _CategorySection extends StatelessWidget {
   final void Function(TransactionCategory category) onDeleted;
   final void Function(TransactionCategory parent) onAddSubcategory;
 
-  static const _titlePadding = EdgeInsets.fromLTRB(16, 16, 16, 4);
-  static const _emptyPadding = EdgeInsets.symmetric(
-    horizontal: 16,
-    vertical: 8,
-  );
-
-  Widget _title(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: _titlePadding,
-      child: Text(
-        title,
-        style: theme.textTheme.labelLarge?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-  }
-
-  Widget _emptyState(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: _emptyPadding,
-      child: Text(
-        'No categories yet',
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-  }
-
-  Iterable<Widget> _categoryList() {
-    return categories.map(
-      (category) => SwipeRow(
-        itemKey: ValueKey('category-${category.id}'),
-        itemName: category.name,
-        onDeleted: () => onDeleted(category),
-        child: _CategoryRow(
-          category: category,
-          onTap: () => onTap(category),
-          onAddSubcategory: category.parentID == null
-              ? () => onAddSubcategory(category)
-              : null,
-        ),
-      ),
-    );
-  }
+  static const _emptyText = 'No categories yet';
+  static const _labelWeight = FontWeight.w600;
+  static const _labelGap = 10.0;
+  static const _emptyPadding = EdgeInsets.symmetric(vertical: 8);
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    final label = Text(
+      title.toUpperCase(),
+      style: context.text.small.copyWith(
+        color: colors.subtext,
+        fontWeight: _labelWeight,
+      ),
+    );
+    final rows = categories.isEmpty
+        ? [
+            Padding(
+              padding: _emptyPadding,
+              child: Text(_emptyText, style: TextStyle(color: colors.subtext)),
+            ),
+          ]
+        : _rows(colors);
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _title(context),
-        if (categories.isEmpty) _emptyState(context) else ..._categoryList(),
+        label,
+        const SizedBox(height: _labelGap),
+        Tray(child: Column(children: rows)),
       ],
     );
   }
+
+  List<Widget> _rows(SpendWiseColors colors) {
+    final childCounts = <String, int>{};
+    for (final category in categories) {
+      final parentID = category.parentID;
+      if (parentID != null) {
+        childCounts[parentID] = (childCounts[parentID] ?? 0) + 1;
+      }
+    }
+    final rows = <Widget>[];
+    for (final (index, category) in categories.indexed) {
+      if (index > 0) rows.add(_RowDivider(color: colors.edge));
+      rows.add(
+        SwipeRow(
+          itemKey: ValueKey('category-${category.id}'),
+          itemName: category.name,
+          onDeleted: () => onDeleted(category),
+          child: _CategoryRow(
+            category: category,
+            subcategoryCount: childCounts[category.id] ?? 0,
+            onTap: () => onTap(category),
+            onAddSubcategory: category.parentID == null
+                ? () => onAddSubcategory(category)
+                : null,
+          ),
+        ),
+      );
+    }
+    return rows;
+  }
+}
+
+// MARK: - RowDivider
+class _RowDivider extends StatelessWidget {
+  const _RowDivider({required this.color});
+
+  final Color color;
+
+  static const _height = 1.0;
+
+  @override
+  Widget build(BuildContext context) =>
+      Container(height: _height, color: color);
 }
 
 // MARK: - CategoryRow
 class _CategoryRow extends StatelessWidget {
   const _CategoryRow({
     required this.category,
+    required this.subcategoryCount,
     required this.onTap,
     required this.onAddSubcategory,
   });
 
   final TransactionCategory category;
+  final int subcategoryCount;
   final VoidCallback onTap;
   final VoidCallback? onAddSubcategory;
 
-  static const _childIndent = 24.0;
   static const _rootIndent = 0.0;
-  static const _rowLeftPadding = 16.0;
-  static const _rowRightPadding = 8.0;
-  static const _iconSize = 30.0;
-  static const _badgeRightPadding = 8.0;
+  static const _childIndent = 36.0;
+  static const _rowVerticalPadding = 7.0;
+  static const _medallionSize = 30.0;
+  static const _chevronSize = 13.0;
+  static const _badgeSize = 16.0;
+  static const _trailingGap = 4.0;
+  static const _addTooltip = 'Add subcategory';
 
   @override
   Widget build(BuildContext context) {
-    final indent = category.parentID != null ? _childIndent : _rootIndent;
-    final color = parseColorHex(category.colorHex);
+    final colors = context.colors;
+    final indent = category.parentID == null ? _rootIndent : _childIndent;
+    final medallion = CategoryIcon(
+      symbolName: category.symbol,
+      color: CategoryPalette.savedColor(category.colorHex, colors),
+      size: _medallionSize,
+    );
+    final addSubcategory = onAddSubcategory;
+    final trailing = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!category.includeInAnalysis)
+          Icon(Icons.bar_chart, size: _badgeSize, color: colors.subtext),
+        if (addSubcategory != null)
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: _addTooltip,
+            onPressed: addSubcategory,
+          ),
+        const SizedBox(width: _trailingGap),
+        Icon(Icons.chevron_right, size: _chevronSize, color: colors.subtext),
+      ],
+    );
+    final row = MedallionRow(
+      leading: medallion,
+      title: category.name,
+      subtitle: categorySubcategoriesMeta(subcategoryCount),
+      trailing: trailing,
+    );
+    final padded = Padding(
+      padding: EdgeInsets.only(
+        left: indent,
+        top: _rowVerticalPadding,
+        bottom: _rowVerticalPadding,
+      ),
+      child: row,
+    );
 
-    return ListTile(
-      onTap: onTap,
-      contentPadding: EdgeInsets.only(
-        left: _rowLeftPadding + indent,
-        right: _rowRightPadding,
-      ),
-      leading: CategoryIcon(
-        symbolName: category.symbol,
-        color: color,
-        size: _iconSize,
-      ),
-      title: Text(category.name),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!category.includeInAnalysis)
-            const Padding(
-              padding: EdgeInsets.only(right: _badgeRightPadding),
-              child: Icon(Icons.bar_chart),
-            ),
-          if (onAddSubcategory != null)
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline),
-              onPressed: onAddSubcategory,
-            ),
-        ],
-      ),
+    return Material(
+      color: colors.surface,
+      child: InkWell(onTap: onTap, child: padded),
     );
   }
 }

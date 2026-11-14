@@ -67,18 +67,21 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
       expect(
-        container.exists(budgetDetailViewModelProvider(_budget.id)),
+        container.read(budgetDetailViewModelProvider(_budget.id).exists),
         isTrue,
       );
-      expect(container.exists(budgetDetailContextProvider(_budget.id)), isTrue);
+      expect(
+        container.read(budgetDetailContextProvider(_budget.id).exists),
+        isTrue,
+      );
 
       await tester.pumpAndSettle();
       expect(
-        container.exists(budgetDetailViewModelProvider(_budget.id)),
+        container.read(budgetDetailViewModelProvider(_budget.id).exists),
         isFalse,
       );
       expect(
-        container.exists(budgetDetailContextProvider(_budget.id)),
+        container.read(budgetDetailContextProvider(_budget.id).exists),
         isFalse,
       );
     },

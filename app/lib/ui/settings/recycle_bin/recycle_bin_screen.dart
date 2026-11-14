@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/feedback/async_value_view.dart';
+import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_purge_dialog.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_sections.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
@@ -11,9 +12,17 @@ import 'package:spendwise/ui/symbol_map.dart';
 
 const _screenTitle = 'Recycle bin';
 
+const _backLabel = 'Settings';
+
 const _accountsTitle = 'Accounts';
 
-const _pocketsTitle = 'Subpockets';
+const _pocketsTitle = 'Pockets';
+
+const _screenPadding = EdgeInsets.all(12);
+
+const _sectionGap = 10.0;
+
+const _footerClearance = 32.0;
 
 const _categoriesTitle = 'Categories';
 
@@ -81,6 +90,18 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
   }
 }
 
+List<Widget> _spaced(List<Widget> sections) {
+  final spaced = <Widget>[];
+  for (final (index, section) in sections.indexed) {
+    if (index > 0) spaced.add(const SizedBox(height: _sectionGap));
+    spaced.add(section);
+  }
+  spaced.add(const SizedBox(height: _sectionGap));
+  spaced.add(const BinFooterHint());
+  spaced.add(const SizedBox(height: _footerClearance));
+  return spaced;
+}
+
 // MARK: - Body
 
 class _RecycleBinScreenBody extends StatelessWidget {
@@ -142,11 +163,19 @@ class _RecycleBinScreenBody extends StatelessWidget {
     ];
     final content = isEmpty
         ? const BinEmptyState()
-        : ListView(children: sections);
+        : ListView(padding: _screenPadding, children: _spaced(sections));
 
-    return Scaffold(
-      appBar: AppBar(title: const Text(_screenTitle)),
-      body: SafeArea(child: content),
+    final header = PageHeader(
+      title: _screenTitle,
+      backLabel: _backLabel,
+      onBack: Navigator.of(context).maybePop,
     );
+    final page = Column(
+      children: [
+        header,
+        Expanded(child: content),
+      ],
+    );
+    return Scaffold(body: SafeArea(child: page));
   }
 }

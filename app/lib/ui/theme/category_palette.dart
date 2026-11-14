@@ -34,6 +34,8 @@ abstract final class CategoryPalette {
     0xFF007AFF: _CategoryMark.salary,
     0xFF30D158: _CategoryMark.supermarket,
     0xFF63E6BE: _CategoryMark.freshMarket,
+    0xFFAF52DE: _CategoryMark.fitness,
+    0xFF8E8E93: _CategoryMark.housing,
   };
 
   static const _lightMinimumLightness = 72 / 255;
@@ -48,7 +50,7 @@ abstract final class CategoryPalette {
     required SpendWiseColors colors,
   }) {
     return switch (mode) {
-      ChartColours.categoryColours => _savedColor(savedHex, colors),
+      ChartColours.categoryColours => savedColor(savedHex, colors),
       ChartColours.themeShades => _shade(rank, colors),
       ChartColours.contrasting =>
         _contrastingMarks[rank % _contrastingMarks.length].resolve(colors),
@@ -64,10 +66,12 @@ abstract final class CategoryPalette {
         colors.action;
   }
 
-  static Color _savedColor(String? savedHex, SpendWiseColors colors) {
-    final saved = savedHex == null ? colorHexFallback : parseColorHex(savedHex);
-    final mark = _savedMarks[saved.toARGB32()];
+  static Color savedColor(String? savedHex, SpendWiseColors colors) {
+    final parsed = savedHex == null ? null : tryParseColorHex(savedHex);
+    final mark = parsed == null ? null : _savedMarks[parsed.toARGB32()];
     if (mark != null) return mark.resolve(colors);
+
+    final saved = parsed ?? colorHexFallback;
 
     final isDark =
         ThemeData.estimateBrightnessForColor(colors.surface) == Brightness.dark;

@@ -1,0 +1,103 @@
+import 'package:domain/domain.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/settings/category/parent_picker.dart';
+
+import '../../../support/category_form_launcher.dart';
+import '../../../support/ui_test_timeout.dart';
+
+const _insideLabel = 'Inside';
+const _pickerTitle = 'Inside which category?';
+const _barrierTap = Offset(160, 10);
+
+TransactionCategory _root(String name) => TransactionCategory(
+  name: name,
+  kind: CategoryKind.expense,
+  colorHex: '#FF0000',
+  includeInAnalysis: true,
+  parentID: null,
+  symbol: 'tag',
+);
+
+Finder _checkOnRow(String label) => find.descendant(
+  of: find.widgetWithText(InkWell, label).last,
+  matching: find.byIcon(Icons.check),
+);
+
+Future<void> _openForm(WidgetTester tester, Ledger ledger) async {
+  await openCategoryFormSheet(tester, ledger);
+}
+
+Future<void> _pickParentRow(WidgetTester tester, String label) async {
+  await tester.tap(find.text(label).last);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _openPicker(WidgetTester tester) async {
+  await tester.tap(find.text(_insideLabel));
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  final food = _root('Food');
+  final travel = _root('Travel');
+  final ledger = Ledger(
+    state: LedgerState(categories: {food.id: food, travel.id: travel}),
+  );
+
+  group('CategoryForm parent picker', () {
+    testWidgets('choosing a parent row applies it', (tester) async {
+      await _openForm(tester, ledger);
+
+      await _openPicker(tester);
+      expect(find.text(_pickerTitle), findsOneWidget);
+      await _pickParentRow(tester, food.name);
+
+      expect(find.text(food.name), findsOneWidget);
+      expect(find.text(_pickerTitle), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('Top level clears the chosen parent', (tester) async {
+      await _openForm(tester, ledger);
+      await _openPicker(tester);
+      await _pickParentRow(tester, food.name);
+
+      await _openPicker(tester);
+      await _pickParentRow(tester, topLevelLabel);
+
+      expect(find.text(topLevelLabel), findsOneWidget);
+      expect(find.text(food.name), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('the current parent row shows the selected check', (
+      tester,
+    ) async {
+      await _openForm(tester, ledger);
+      await _openPicker(tester);
+      expect(_checkOnRow(topLevelLabel), findsOneWidget);
+      await _pickParentRow(tester, food.name);
+
+      await _openPicker(tester);
+
+      expect(_checkOnRow(food.name), findsOneWidget);
+      expect(_checkOnRow(topLevelLabel), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('dismissing the picker keeps the chosen parent', (
+      tester,
+    ) async {
+      await _openForm(tester, ledger);
+      await _openPicker(tester);
+      await _pickParentRow(tester, food.name);
+
+      await _openPicker(tester);
+      await tester.tapAt(_barrierTap);
+      await tester.pumpAndSettle();
+
+      expect(find.text(_pickerTitle), findsNothing);
+      expect(find.text(food.name), findsOneWidget);
+    }, timeout: uiTestTimeout);
+  });
+}

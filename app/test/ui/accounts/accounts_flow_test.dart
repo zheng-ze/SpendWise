@@ -534,6 +534,6 @@ Future<void> _verifyMoneySegmentLifetime(
   container.read(moneySegmentProvider.notifier).state = MoneySegment.accounts;
   await tester.pumpAndSettle();
   expect(find.byType(BudgetsFlow, skipOffstage: false), findsNothing);
-  expect(container.exists(selectedBudgetProvider), isFalse);
+  expect(container.read(selectedBudgetProvider.exists), isFalse);
   expect(find.byType(AccountsFlow), findsOneWidget);
 }

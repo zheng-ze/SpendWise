@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
@@ -11,54 +12,59 @@ class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   static const _dividerHeight = 1.0;
+  static const _screenTitle = 'Settings';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final viewModel = ref.watch(settingsRootViewModelProvider.notifier);
     final scanStripEnabled = ref.watch(scanStripEnabledProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings'), centerTitle: false),
-      body: ListView(
-        children: [
-          const _SectionHeader('Manage'),
-          _SettingsLink(
-            icon: Icons.sell_outlined,
-            label: 'Categories',
-            onTap: viewModel.requestCategories,
-          ),
-          const Divider(height: _dividerHeight),
-          const _SectionHeader('Hosted Sync'),
-          const _HostedSyncSection(),
-          const Divider(height: _dividerHeight),
-          const _SectionHeader('Receipt Scanning'),
-          SwitchListTile(
-            secondary: const Icon(Icons.document_scanner_outlined),
-            title: const Text('Show scan/upload on new entry'),
-            value: scanStripEnabled.value ?? true,
-            onChanged: (value) async {
-              await ref.read(appSettingsProvider).setScanStripEnabled(value);
-              ref.invalidate(scanStripEnabledProvider);
-            },
-          ),
-          const Divider(height: _dividerHeight),
-          const _SectionHeader('Currency'),
-          const ListTile(
-            leading: Icon(Icons.attach_money),
-            title: Text('Currency'),
-            subtitle: Text('Amounts display in Singapore dollars'),
-            trailing: Text('SGD'),
-          ),
-          const Divider(height: _dividerHeight),
-          const _SectionHeader('Data'),
-          _SettingsLink(
-            icon: Icons.delete_outline,
-            label: 'Recycle Bin',
-            onTap: viewModel.requestRecycleBin,
-          ),
-        ],
-      ),
+    final list = ListView(
+      children: [
+        const _SectionHeader('Manage'),
+        _SettingsLink(
+          icon: Icons.sell_outlined,
+          label: 'Categories',
+          onTap: viewModel.requestCategories,
+        ),
+        const Divider(height: _dividerHeight),
+        const _SectionHeader('Hosted Sync'),
+        const _HostedSyncSection(),
+        const Divider(height: _dividerHeight),
+        const _SectionHeader('Receipt Scanning'),
+        SwitchListTile(
+          secondary: const Icon(Icons.document_scanner_outlined),
+          title: const Text('Show scan/upload on new entry'),
+          value: scanStripEnabled.value ?? true,
+          onChanged: (value) async {
+            await ref.read(appSettingsProvider).setScanStripEnabled(value);
+            ref.invalidate(scanStripEnabledProvider);
+          },
+        ),
+        const Divider(height: _dividerHeight),
+        const _SectionHeader('Currency'),
+        const ListTile(
+          leading: Icon(Icons.attach_money),
+          title: Text('Currency'),
+          subtitle: Text('Amounts display in Singapore dollars'),
+          trailing: Text('SGD'),
+        ),
+        const Divider(height: _dividerHeight),
+        const _SectionHeader('Data'),
+        _SettingsLink(
+          icon: Icons.delete_outline,
+          label: 'Recycle Bin',
+          onTap: viewModel.requestRecycleBin,
+        ),
+      ],
     );
+    final page = Column(
+      children: [
+        const PageHeader(title: _screenTitle),
+        Expanded(child: list),
+      ],
+    );
+    return Scaffold(body: SafeArea(child: page));
   }
 }
 

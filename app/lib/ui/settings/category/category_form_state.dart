@@ -10,9 +10,10 @@ const defaultCategoryColor = Color(0xFF007AFF);
 // MARK: - Pure Helpers
 
 bool isKindLocked({
+  required bool isEditing,
   required bool hasPresetParent,
   required bool isReferenced,
-}) => hasPresetParent || isReferenced;
+}) => isEditing || hasPresetParent || isReferenced;
 
 bool canSaveCategoryForm(String name) => name.trim().isNotEmpty;
 
@@ -25,6 +26,7 @@ List<TransactionCategory> eligibleParents(
       .where(
         (category) =>
             category.parentID == null &&
+            category.lifecycle == LifecycleState.active &&
             category.kind == kind &&
             category.id != excludingID,
       )
@@ -103,6 +105,7 @@ class CategoryFormViewState
   bool get isEditing => editedCategoryID != null;
 
   bool get kindLocked => isKindLocked(
+    isEditing: isEditing,
     hasPresetParent: hasPresetParent,
     isReferenced: isReferenced,
   );
@@ -110,19 +113,77 @@ class CategoryFormViewState
   List<TransactionCategory> get eligibleParentsList =>
       eligibleParents(allCategories, kind, excludingID: editedCategoryID);
 
+  bool get storedHasChildren {
+    final id = editedCategoryID;
+    if (id == null) return false;
+    return allCategories.any((category) => category.parentID == id);
+  }
+
   bool get showParentPicker =>
-      !hasPresetParent && eligibleParentsList.isNotEmpty;
+      !hasPresetParent && !storedHasChildren && eligibleParentsList.isNotEmpty;
+
+  bool get hasStaleParent {
+    final id = parentID;
+    if (hasPresetParent || id == null) return false;
+    if (storedHasChildren) return true;
+    return !eligibleParentsList.any((category) => category.id == id);
+  }
 
   bool get canSave => canSaveCategoryForm(name);
 
+  bool get editsStoredSubcategory {
+    final id = editedCategoryID;
+    return allCategories.any(
+      (category) => category.id == id && category.parentID != null,
+    );
+  }
+
+  bool get isSubcategoryForm => hasPresetParent || editsStoredSubcategory;
+
+  bool get showsSubcategories =>
+      isEditing && !editsStoredSubcategory && parentID == null;
+
+  List<TransactionCategory> get activeSubcategories {
+    if (!showsSubcategories) return const [];
+    return allCategories
+        .where(
+          (category) =>
+              category.parentID == editedCategoryID &&
+              category.lifecycle == LifecycleState.active,
+        )
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+  }
+
   String get title {
-    if (isEditing) return 'Edit Category';
-    if (hasPresetParent) return 'New Subcategory';
-    return 'New Category';
+    if (isEditing) {
+      return editsStoredSubcategory ? 'Edit subcategory' : 'Edit category';
+    }
+    return hasPresetParent ? 'Add subcategory' : 'Add category';
   }
 
   String? get parentLabel {
     final id = parentID;
+    if (id == null) return null;
+    for (final category in allCategories) {
+      final isActiveRoot =
+          category.parentID == null &&
+          category.lifecycle == LifecycleState.active;
+      if (isActiveRoot && category.id == id) return category.name;
+    }
+    return null;
+  }
+
+  String? get storedParentLabel {
+    final id = editedCategoryID;
+    if (id == null) return parentLabel;
+    for (final category in allCategories) {
+      if (category.id == id) return _nameOf(category.parentID);
+    }
+    return null;
+  }
+
+  String? _nameOf(String? id) {
     if (id == null) return null;
     for (final category in allCategories) {
       if (category.id == id) return category.name;

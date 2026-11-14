@@ -92,7 +92,7 @@ class _Harness {
 
   List<String> get events => _events;
 
-  bool ownerOpen(String id) => container.exists(_ownerProvider(id));
+  bool ownerOpen(String id) => container.read(_ownerProvider(id).exists);
 
   void replaceLedger() =>
       container.read(_ledgerSourceProvider.notifier).replace();

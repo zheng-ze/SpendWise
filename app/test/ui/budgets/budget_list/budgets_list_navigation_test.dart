@@ -73,7 +73,7 @@ void main() {
       await tester.tap(amount);
       await tester.pumpAndSettle();
       expect(
-        container.exists(budgetDetailViewModelProvider(budget.id)),
+        container.read(budgetDetailViewModelProvider(budget.id).exists),
         isTrue,
       );
     }, timeout: uiTestTimeout);

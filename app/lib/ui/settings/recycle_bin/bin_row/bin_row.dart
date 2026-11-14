@@ -1,5 +1,43 @@
 part of '../recycle_bin_sections.dart';
 
+// MARK: - Restore Action
+
+class BinRestoreAction extends StatelessWidget {
+  const BinRestoreAction({super.key, required this.onRestore});
+
+  final VoidCallback onRestore;
+
+  static const _minHeight = 30.0;
+  static const _minWidth = 48.0;
+  static const _fontSize = 12.0;
+  static const _weight = FontWeight.w600;
+  static const _label = 'Restore';
+
+  @override
+  Widget build(BuildContext context) {
+    final label = Text(
+      _label,
+      style: TextStyle(
+        fontSize: _fontSize,
+        fontWeight: _weight,
+        color: context.colors.action,
+      ),
+    );
+    return ExcludeSemantics(
+      child: InkWell(
+        onTap: onRestore,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minWidth: _minWidth,
+            minHeight: _minHeight,
+          ),
+          child: Center(child: label),
+        ),
+      ),
+    );
+  }
+}
+
 // MARK: - Entry Row
 
 class BinEntryRowContent extends StatelessWidget {
@@ -12,16 +50,8 @@ class BinEntryRowContent extends StatelessWidget {
   final BinEntryRow row;
   final VoidCallback onRestore;
 
-  static const _contentPadding = EdgeInsets.symmetric(
-    horizontal: 16,
-    vertical: 7,
-  );
-  static const _restoreMinHeight = 30.0;
-  static const _restoreMinWidth = 48.0;
+  static const _contentPadding = EdgeInsets.symmetric(vertical: 7);
   static const _restoreGap = 6.0;
-  static const _restoreFontSize = 12.0;
-  static const _restoreWeight = FontWeight.w600;
-  static const _restoreLabel = 'Restore';
   static const _amountFontSize = 12.0;
   static const _amountWeight = FontWeight.w600;
 
@@ -42,27 +72,7 @@ class BinEntryRowContent extends StatelessWidget {
       children: [
         Text(amountText, style: amountStyle),
         const SizedBox(width: _restoreGap),
-        ExcludeSemantics(
-          child: InkWell(
-            onTap: onRestore,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                minWidth: _restoreMinWidth,
-                minHeight: _restoreMinHeight,
-              ),
-              child: Center(
-                child: Text(
-                  _restoreLabel,
-                  style: TextStyle(
-                    fontSize: _restoreFontSize,
-                    fontWeight: _restoreWeight,
-                    color: context.colors.action,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
+        BinRestoreAction(onRestore: onRestore),
       ],
     );
 
@@ -95,47 +105,31 @@ class BinRowTile extends StatelessWidget {
   final VoidCallback onRestore;
   final VoidCallback onRequestPurge;
 
-  static const _iconSize = 28.0;
-  static const _contentPadding = EdgeInsets.symmetric(
-    horizontal: 16,
-    vertical: 10,
-  );
-  static const _leadingGap = 12.0;
-
-  static const _singleReferenceLabel = '1 reference';
+  static const _medallionSize = 30.0;
+  static const _contentPadding = EdgeInsets.symmetric(vertical: 7);
+  static const _singleEntryLabel = 'Used by 1 entry';
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final referenceLabel = row.referenceCount == 1
-        ? _singleReferenceLabel
-        : '${row.referenceCount} references';
-
-    final leading = row.symbolName != null
-        ? CategoryIcon(
-            symbolName: row.symbolName!,
+    final usageLabel = row.referenceCount == 1
+        ? _singleEntryLabel
+        : 'Used by ${row.referenceCount} entries';
+    final symbolName = row.symbolName;
+    final medallion = symbolName == null
+        ? null
+        : CategoryIcon(
+            symbolName: symbolName,
             color: row.color ?? colorHexFallback,
-            size: _iconSize,
-          )
-        : Icon(sectionIcon, color: theme.colorScheme.onSurfaceVariant);
-    final title = Expanded(
-      child: Text(row.name, style: theme.textTheme.bodyLarge),
-    );
-    final references = Text(
-      referenceLabel,
-      style: theme.textTheme.bodySmall?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-      ),
-    );
+            size: _medallionSize,
+          );
     final content = Padding(
       padding: _contentPadding,
-      child: Row(
-        children: [
-          leading,
-          const SizedBox(width: _leadingGap),
-          title,
-          references,
-        ],
+      child: MedallionRow(
+        icon: medallion == null ? sectionIcon : null,
+        leading: medallion,
+        title: row.name,
+        subtitle: usageLabel,
+        trailing: BinRestoreAction(onRestore: onRestore),
       ),
     );
     return SwipeableBinRow(
