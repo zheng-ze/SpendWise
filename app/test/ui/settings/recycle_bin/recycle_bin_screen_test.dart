@@ -52,6 +52,7 @@ Future<void> _pump(WidgetTester tester, Ledger ledger) =>
     pumpApp(tester, const RecycleBinScreen(), ledger: ledger);
 
 void main() {
+  _registerFooterTests();
   testWidgets('a row Restore action restores the binned account', (
     tester,
   ) async {
@@ -137,5 +138,25 @@ void main() {
     final accountsY = tester.getTopLeft(find.text('Accounts')).dy;
     final categoriesY = tester.getTopLeft(find.text('Categories')).dy;
     expect(accountsY, lessThan(categoriesY));
+  }, timeout: uiTestTimeout);
+}
+
+void _registerFooterTests() {
+  const hint = 'Swipe right to restore or left to delete permanently.';
+
+  testWidgets('the swipe hint shows below the sections when the bin has rows', (
+    tester,
+  ) async {
+    final category = _category('Fitness', lifecycle: LifecycleState.archived);
+    await _pump(tester, _ledgerOf(categories: [category]));
+
+    expect(find.text(hint), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('an empty bin shows the empty state and no hint', (tester) async {
+    await _pump(tester, _ledgerOf());
+
+    expect(find.text('Recycle bin is empty'), findsOneWidget);
+    expect(find.text(hint), findsNothing);
   }, timeout: uiTestTimeout);
 }

@@ -19,6 +19,8 @@ const _screenPadding = EdgeInsets.all(12);
 
 const _sectionGap = 10.0;
 
+const _footerClearance = 32.0;
+
 const _categoriesTitle = 'Categories';
 
 const _accountsSymbol = 'wallet';
@@ -91,6 +93,9 @@ List<Widget> _spaced(List<Widget> sections) {
     if (index > 0) spaced.add(const SizedBox(height: _sectionGap));
     spaced.add(section);
   }
+  spaced.add(const SizedBox(height: _sectionGap));
+  spaced.add(const BinFooterHint());
+  spaced.add(const SizedBox(height: _footerClearance));
   return spaced;
 }
 
