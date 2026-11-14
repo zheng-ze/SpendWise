@@ -178,4 +178,28 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
+
+  testWidgets(
+    'removing the parent form also closes its open subcategory sheet',
+    (tester) async {
+      final root = _category('Food');
+      final cafes = _category('Cafes', parentID: root.id);
+      await openCategoryFormSheet(
+        tester,
+        _ledgerOf([root, cafes]),
+        category: root,
+      );
+      await tester.tap(find.text('Cafes'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CategoryForm), findsNWidgets(2));
+
+      final parentContext = tester.element(find.byType(CategoryForm).first);
+      final parentRoute = ModalRoute.of(parentContext)!;
+      parentRoute.navigator!.removeRoute(parentRoute);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CategoryForm), findsNothing);
+    },
+    timeout: uiTestTimeout,
+  );
 }

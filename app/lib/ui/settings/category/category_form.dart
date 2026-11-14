@@ -174,12 +174,17 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
       _subcategorySheetOpen = false;
     }
 
+    void track(AppSheetRoute<void> route) {
+      _trackPicker(route);
+      unawaited(release(route));
+    }
+
     unawaited(
       showCategoryFormSheet(
         context: context,
         category: subcategory,
         presetParentID: presetParentID,
-        onRouteCreated: (route) => unawaited(release(route)),
+        onRouteCreated: track,
       ),
     );
   }
