@@ -31,6 +31,8 @@ const _sectionLabelPadding = EdgeInsets.fromLTRB(16, 16, 16, 8);
 
 const _gridPadding = EdgeInsets.symmetric(horizontal: 16);
 
+const _transparent = Color(0x00000000);
+
 const _tileRadius = 14.0;
 
 const _tileBorderWidth = 2.0;
@@ -234,7 +236,7 @@ class _IconTile extends StatelessWidget {
     final colors = context.colors;
     final radius = BorderRadius.circular(_tileRadius);
     final side = BorderSide(
-      color: selected ? colors.focus : Colors.transparent,
+      color: selected ? colors.focus : _transparent,
       width: _tileBorderWidth,
     );
     final glyph = Icon(
@@ -308,7 +310,7 @@ class _Swatch extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final edge = Border.all(
-      color: selected ? colors.focus : Colors.transparent,
+      color: selected ? colors.focus : _transparent,
       width: _swatchEdgeWidth,
     );
     final fill = BoxDecoration(
