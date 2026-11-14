@@ -183,23 +183,42 @@ void main() {
     );
   }, timeout: uiTestTimeout);
 
-  testWidgets('the edit footer confirms and moves the category to the bin', (
+  testWidgets(
+    'the edit Move to recycle bin button confirms and moves the category to the bin',
+    (tester) async {
+      final root = _root('Food');
+      final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
+      await openCategoryFormSheet(tester, ledger, category: root);
+
+      await tester.tap(find.text(_moveToBinLabel));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(_moveConfirmLabel));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CategoryForm), findsNothing);
+      expect(
+        ledger.state.categories[root.id]?.lifecycle,
+        isNot(LifecycleState.active),
+      );
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets('the Add category form has no Move to recycle bin button', (
     tester,
   ) async {
+    await openCategoryFormSheet(tester, Ledger());
+
+    expect(find.text(_moveToBinLabel), findsNothing);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('the edit form has no Save category footer', (tester) async {
     final root = _root('Food');
     final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
     await openCategoryFormSheet(tester, ledger, category: root);
 
-    await tester.tap(find.text(_moveToBinLabel));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(_moveConfirmLabel));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(CategoryForm), findsNothing);
-    expect(
-      ledger.state.categories[root.id]?.lifecycle,
-      isNot(LifecycleState.active),
-    );
+    expect(find.text(_moveToBinLabel), findsOneWidget);
+    expect(find.text(_addFooterLabel), findsNothing);
   }, timeout: uiTestTimeout);
 
   testWidgets('cancelling the Move confirmation keeps the sheet open', (

@@ -12,6 +12,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/common/sheets/sheet_session.dart';
+import 'package:spendwise/ui/settings/category/category_danger_button.dart';
 import 'package:spendwise/ui/settings/category/category_form_fields.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
 import 'package:spendwise/ui/settings/category/confirm_move_category_to_bin.dart';
@@ -265,27 +266,24 @@ class _CategoryFormBody extends StatelessWidget {
         if (!formState.isEditing) collapsedMoreOptions,
       ],
     );
+    final moveToBin = CategoryDangerButton(
+      label: _moveToBinLabel,
+      onPressed: viewModel.requestDelete,
+    );
     final body = formState.isEditing
         ? Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [fieldsCard, gap, openMoreOptions],
+            children: [fieldsCard, gap, openMoreOptions, gap, moveToBin],
           )
         : fieldsCard;
     final addFooter = PrimaryButton(
       label: _addFooterLabel,
       onPressed: formState.canSave ? viewModel.save : null,
     );
-    final binFooter = PrimaryButton(
-      label: _moveToBinLabel,
-      onPressed: viewModel.requestDelete,
-      destructive: true,
-    );
-    final footerButton = formState.isEditing
-        ? binFooter
-        : (formState.hasPresetParent ? null : addFooter);
-    final footer = footerButton == null
+    final addFooterButton = formState.hasPresetParent ? null : addFooter;
+    final footer = formState.isEditing || addFooterButton == null
         ? null
-        : SizedBox(width: _footerWidth, child: footerButton);
+        : SizedBox(width: _footerWidth, child: addFooterButton);
     final saveError = formState.error;
     final alert = saveError == null
         ? null
