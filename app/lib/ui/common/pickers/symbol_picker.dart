@@ -37,15 +37,21 @@ const _tileBorderWidth = 2.0;
 
 const _tileGlyphSize = 24.0;
 
+const _checkSymbol = 'check';
+
 const _swatchesPadding = EdgeInsets.fromLTRB(16, 0, 16, 16);
 
 const _swatchSpacing = 12.0;
 
-const _swatchSize = 26.0;
+const _swatchSize = 32.0;
 
-const _swatchRadius = 8.0;
+const _swatchEdgeWidth = 2.0;
 
-const _selectedSwatchBorderWidth = 2.0;
+const _swatchRingWidth = 3.0;
+
+const _swatchRingInset = _swatchRingWidth - _swatchEdgeWidth;
+
+const _swatchCheckSize = 20.0;
 
 // MARK: - Result
 class SymbolPickerResult {
@@ -301,21 +307,38 @@ class _Swatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final radius = BorderRadius.circular(_swatchRadius);
-    final border = selected
-        ? Border.all(color: colors.text, width: _selectedSwatchBorderWidth)
-        : null;
-    final decoration = BoxDecoration(
-      borderRadius: radius,
+    final edge = Border.all(
+      color: selected ? colors.focus : Colors.transparent,
+      width: _swatchEdgeWidth,
+    );
+    final fill = BoxDecoration(
+      shape: BoxShape.circle,
       color: CategoryPalette.savedColor(toColorHex(swatch), colors),
-      border: border,
+      border: edge,
     );
-    final chip = Container(
-      width: _swatchSize,
-      height: _swatchSize,
-      decoration: decoration,
+    final ring = DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: colors.base, width: _swatchRingWidth),
+      ),
+      child: Center(
+        child: Icon(
+          symbolIcon(_checkSymbol),
+          size: _swatchCheckSize,
+          color: colors.onCategory,
+        ),
+      ),
     );
+    final mark = Padding(
+      padding: const EdgeInsets.all(_swatchRingInset),
+      child: ring,
+    );
+    final chip = DecoratedBox(decoration: fill, child: selected ? mark : null);
 
-    return InkWell(borderRadius: radius, onTap: onTap, child: chip);
+    return InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: SizedBox(width: _swatchSize, height: _swatchSize, child: chip),
+    );
   }
 }

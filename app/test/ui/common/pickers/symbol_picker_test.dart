@@ -8,9 +8,9 @@ import '../../../support/picker_sheet_harness.dart';
 import '../../../support/ui_test_timeout.dart';
 
 const _initialSymbol = 'shopping_cart';
-const _initialColor = Color(0xFFFF3B30);
+const _initialColor = Color(0xFFFF9500);
 const _chosenSymbol = 'restaurant';
-const _chosenColor = Color(0xFF5AC8FA);
+const _chosenColor = Color(0xFF63E6BE);
 const _swatches = [_initialColor, _chosenColor];
 const _barrierTap = Offset(160, 10);
 

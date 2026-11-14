@@ -25,14 +25,12 @@ const _analysisTitle = 'Count in Trends and budgets';
 // MARK: - Swatches
 
 const categorySwatches = [
-  defaultCategoryColor,
-  Color(0xFFFF3B30),
   Color(0xFFFF9500),
-  Color(0xFFFFCC00),
   Color(0xFF34C759),
-  Color(0xFF5AC8FA),
-  Color(0xFFAF52DE),
-  Color(0xFF8E8E93),
+  Color(0xFF5856D6),
+  Color(0xFF30D158),
+  Color(0xFF63E6BE),
+  defaultCategoryColor,
 ];
 
 // MARK: - Name Field
