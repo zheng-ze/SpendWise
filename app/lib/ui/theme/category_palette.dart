@@ -48,7 +48,7 @@ abstract final class CategoryPalette {
     required SpendWiseColors colors,
   }) {
     return switch (mode) {
-      ChartColours.categoryColours => _savedColor(savedHex, colors),
+      ChartColours.categoryColours => savedColor(savedHex, colors),
       ChartColours.themeShades => _shade(rank, colors),
       ChartColours.contrasting =>
         _contrastingMarks[rank % _contrastingMarks.length].resolve(colors),
@@ -64,7 +64,7 @@ abstract final class CategoryPalette {
         colors.action;
   }
 
-  static Color _savedColor(String? savedHex, SpendWiseColors colors) {
+  static Color savedColor(String? savedHex, SpendWiseColors colors) {
     final saved = savedHex == null ? colorHexFallback : parseColorHex(savedHex);
     final mark = _savedMarks[saved.toARGB32()];
     if (mark != null) return mark.resolve(colors);

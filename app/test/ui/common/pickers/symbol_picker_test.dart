@@ -24,4 +24,18 @@ void main() {
       expect(filterSymbolSections(sections, 'zzz'), isEmpty);
     });
   });
+
+  group('symbolDisplayName', () {
+    test('converts snake_case to sentence case', () {
+      expect(symbolDisplayName('shopping_cart'), 'Shopping cart');
+    });
+
+    test('capitalises a single word', () {
+      expect(symbolDisplayName('cart'), 'Cart');
+    });
+
+    test('returns an empty string for an empty name', () {
+      expect(symbolDisplayName(''), '');
+    });
+  });
 }

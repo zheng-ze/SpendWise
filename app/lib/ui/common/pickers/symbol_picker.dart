@@ -25,6 +25,12 @@ Map<String, List<String>> filterSymbolSections(
   return result;
 }
 
+String symbolDisplayName(String name) {
+  final words = name.replaceAll('_', ' ');
+  if (words.isEmpty) return '';
+  return '${words[0].toUpperCase()}${words.substring(1)}';
+}
+
 // MARK: - Show
 
 Future<String?> showSymbolPickerSheet({
