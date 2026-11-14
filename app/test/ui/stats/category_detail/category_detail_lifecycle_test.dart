@@ -81,7 +81,10 @@ void main() {
 
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
-      expect(container.exists(categoryDetailViewModelProvider(args)), isTrue);
+      expect(
+        container.read(categoryDetailViewModelProvider(args).exists),
+        isTrue,
+      );
       final viewModel = container.read(
         categoryDetailViewModelProvider(args).notifier,
       );
@@ -94,8 +97,14 @@ void main() {
 
       Navigator.of(tester.element(find.byType(CategoryDetailScreen))).pop();
       await tester.pumpAndSettle();
-      expect(container.exists(categoryDetailViewModelProvider(args)), isFalse);
-      expect(container.exists(categoryDetailIntentProvider(args)), isFalse);
+      expect(
+        container.read(categoryDetailViewModelProvider(args).exists),
+        isFalse,
+      );
+      expect(
+        container.read(categoryDetailIntentProvider(args).exists),
+        isFalse,
+      );
       expect(container.read(analysisQueriesProvider), same(queries));
       expect(env.ledger.listeners, baselineLedger);
       expect(env.cache.listeners, baselineCache);

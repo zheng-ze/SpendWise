@@ -23,8 +23,8 @@ void main() {
       listener.close();
       await container.pump();
 
-      expect(container.exists(budgetsMonthChoiceProvider), isFalse);
-      expect(container.exists(budgetsMonthProvider), isFalse);
+      expect(container.read(budgetsMonthChoiceProvider.exists), isFalse);
+      expect(container.read(budgetsMonthProvider.exists), isFalse);
       expect(container.read(budgetsMonthProvider), DateTime.utc(2026, 11));
     },
   );
