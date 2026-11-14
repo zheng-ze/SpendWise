@@ -129,7 +129,15 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
   @override
   void applyPickedParent(String? id) {
     if (!ref.mounted) return;
-    updateState((s) => s.copyWith(parentID: () => id, step: () => null));
+    updateState((s) {
+      final stillEligible =
+          id == null ||
+          s.eligibleParentsList.any((category) => category.id == id);
+      return s.copyWith(
+        parentID: stillEligible ? () => id : null,
+        step: () => null,
+      );
+    });
   }
 
   @override

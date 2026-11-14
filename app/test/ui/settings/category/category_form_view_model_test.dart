@@ -401,6 +401,29 @@ void main() {
       expect(formState?.step, isNull);
     });
 
+    test('applyPickedParent ignores a parent binned while picking', () async {
+      final parent = category(name: 'Food');
+      final ledger = Ledger(
+        state: LedgerState(categories: {parent.id: parent}),
+      );
+      final container = buildContainer(ledger);
+      final args = const CategoryFormArgs();
+      await openAlive(container, args);
+      final viewModel = container.read(
+        categoryFormViewModelProvider(args).notifier,
+      );
+
+      viewModel.requestPickParent();
+      ledger.deleteCategory(parent.id);
+      viewModel.applyPickedParent(parent.id);
+
+      final formState = container
+          .read(categoryFormViewModelProvider(args))
+          .value;
+      expect(formState?.parentID, isNull);
+      expect(formState?.step, isNull);
+    });
+
     test(
       'applyPickedParent is a no-op once the provider is disposed',
       () async {
