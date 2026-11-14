@@ -174,6 +174,23 @@ class CategoryFormViewState
     return null;
   }
 
+  String? get storedParentLabel {
+    final id = editedCategoryID;
+    if (id == null) return parentLabel;
+    for (final category in allCategories) {
+      if (category.id == id) return _nameOf(category.parentID);
+    }
+    return null;
+  }
+
+  String? _nameOf(String? id) {
+    if (id == null) return null;
+    for (final category in allCategories) {
+      if (category.id == id) return category.name;
+    }
+    return null;
+  }
+
   // MARK: - Copy
 
   CategoryFormViewState copyWith({

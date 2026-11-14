@@ -8,6 +8,7 @@ import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category/category_form.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
+import 'package:spendwise/ui/settings/category/parent_picker.dart';
 
 import '../../../support/category_form_launcher.dart';
 import '../../../support/ui_test_timeout.dart';
@@ -337,6 +338,45 @@ void main() {
     expect(find.text('Set by Dining'), findsOneWidget);
     expect(find.text(_typeCaption), findsNothing);
     expect(find.text(_subcategoryCountHint), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('choosing Top level on a subcategory keeps its stored hints', (
+    tester,
+  ) async {
+    final root = _root('Dining');
+    final child = _child('Cafes', root.id);
+    final ledger = Ledger(
+      state: LedgerState(categories: {root.id: root, child.id: child}),
+    );
+    await openCategoryFormSheet(tester, ledger, category: child);
+
+    await tester.tap(find.text(_insideLabel));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(topLevelLabel).last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Set by Dining'), findsOneWidget);
+    expect(find.text(_subcategoryCountHint), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('choosing a parent on a root keeps its stored hints', (
+    tester,
+  ) async {
+    final food = _root('Food');
+    final travel = _root('Travel');
+    final ledger = Ledger(
+      state: LedgerState(categories: {food.id: food, travel.id: travel}),
+    );
+    await openCategoryFormSheet(tester, ledger, category: food);
+
+    await tester.tap(find.text(_insideLabel));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(travel.name).last);
+    await tester.pumpAndSettle();
+
+    expect(find.text(_typeCaption), findsOneWidget);
+    expect(find.text('Set by Travel'), findsNothing);
+    expect(find.text(_subcategoryCountHint), findsNothing);
   }, timeout: uiTestTimeout);
 
   testWidgets('an add subcategory shows the count hint and no Type row', (

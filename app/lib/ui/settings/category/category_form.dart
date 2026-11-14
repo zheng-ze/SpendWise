@@ -297,7 +297,7 @@ class _CategoryFormBody extends StatelessWidget {
       onIncludeInAnalysisChanged: viewModel.setIncludeInAnalysis,
       kind: formState.kind,
       isSubcategory: formState.isSubcategoryForm,
-      parentLabel: formState.parentLabel,
+      parentLabel: formState.storedParentLabel,
     );
     final fieldsCard = FormSectionCard(
       padding: FormSectionCard.fieldsPadding,
