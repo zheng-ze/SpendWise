@@ -1,6 +1,6 @@
 # Categories & Classification
 
-Last reconciled: 2026-09-02
+Last reconciled: ff3d4dfe
 
 ## Feature overview
 
@@ -33,6 +33,14 @@ lifecycle. See `ledger-and-money-model.md` for the lifecycle machine.
 
 Analysis inclusion is parent-gated: a category is `Excluded` from analysis when its own
 `includeInAnalysis` is false, or when its present parent's is false.
+
+The app layer is stricter than the domain when it edits categories. The category form locks the kind on
+every edit and lists only active roots of the same kind as parents, so the form never offers an
+archived parent although the domain permits one. Its ledger listener clears a draft parent that has
+been binned, or that the edited root's new child makes invalid. A category with no saved colour is
+drawn with `colorHexFallback` (#8E8E93), which `CategoryPalette.savedColor` resolves to the housing
+colour. Form, list and picker behavior is in `settings-ui.md`
+(`app/lib/ui/settings/category/category_form_state.dart`, `app/lib/ui/theme/category_palette.dart`).
 
 ## Category mutators — `ledger_state_categories.dart`
 
