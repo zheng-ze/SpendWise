@@ -10,14 +10,17 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 // MARK: - Constants
 const _cancelLabel = 'Cancel';
 const _defaultConfirmLabel = 'Delete';
-const _compactPadding = 16.0;
-const _openPadding = 20.0;
-const _compactInset = 22.0;
-const _openInset = 0.0;
+const _phonePadding = 16.0;
+const _widePadding = 20.0;
+const _phoneInset = 22.0;
+const _wideInset = 0.0;
+const _wideWidth = 308.0;
+const _phoneWidth = double.infinity;
 const _dialogRadius = 16.0;
 const _dialogBorderWidth = 1.0;
 const _dialogElevation = 0.0;
-const _openShadow = BoxShadow(
+const _transparent = Color(0x00000000);
+const _wideShadow = BoxShadow(
   color: Color(0x26000000),
   offset: Offset(0, 12),
   blurRadius: 40,
@@ -75,7 +78,8 @@ class _DestructiveDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final open = ShellLayoutModeScope.maybeOf(context) == ShellLayoutMode.open;
+    final phone =
+        ShellLayoutModeScope.maybeOf(context) == ShellLayoutMode.phone;
     final isApple = switch (defaultTargetPlatform) {
       TargetPlatform.iOS || TargetPlatform.macOS => true,
       _ => false,
@@ -146,8 +150,8 @@ class _DestructiveDialog extends StatelessWidget {
       ],
     );
     final padded = Padding(
-      padding: EdgeInsets.all(open ? _openPadding : _compactPadding),
-      child: IntrinsicWidth(child: content),
+      padding: EdgeInsets.all(phone ? _phonePadding : _widePadding),
+      child: content,
     );
     final label = isApple
         ? null
@@ -159,26 +163,28 @@ class _DestructiveDialog extends StatelessWidget {
       label: label,
       child: padded,
     );
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(_dialogRadius),
-      side: BorderSide(color: colors.control, width: _dialogBorderWidth),
-    );
-    final dialog = Dialog(
-      backgroundColor: colors.raised,
-      elevation: _dialogElevation,
-      insetPadding: EdgeInsets.all(open ? _openInset : _compactInset),
-      shape: shape,
-      semanticsRole: SemanticsRole.alertDialog,
+    final radius = BorderRadius.circular(_dialogRadius);
+    final card = DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.raised,
+        borderRadius: radius,
+        border: Border.all(color: colors.control, width: _dialogBorderWidth),
+        boxShadow: phone ? null : const [_wideShadow],
+      ),
       child: semantic,
     );
-    if (!open) return dialog;
+    final sized = SizedBox(
+      width: phone ? _phoneWidth : _wideWidth,
+      child: card,
+    );
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(_dialogRadius),
-        boxShadow: const [_openShadow],
-      ),
-      child: dialog,
+    return Dialog(
+      backgroundColor: _transparent,
+      elevation: _dialogElevation,
+      insetPadding: EdgeInsets.all(phone ? _phoneInset : _wideInset),
+      shape: RoundedRectangleBorder(borderRadius: radius),
+      semanticsRole: SemanticsRole.alertDialog,
+      child: sized,
     );
   }
 }
