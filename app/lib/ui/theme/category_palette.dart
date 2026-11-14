@@ -67,9 +67,11 @@ abstract final class CategoryPalette {
   }
 
   static Color savedColor(String? savedHex, SpendWiseColors colors) {
-    final saved = savedHex == null ? colorHexFallback : parseColorHex(savedHex);
-    final mark = _savedMarks[saved.toARGB32()];
+    final parsed = savedHex == null ? null : tryParseColorHex(savedHex);
+    final mark = parsed == null ? null : _savedMarks[parsed.toARGB32()];
     if (mark != null) return mark.resolve(colors);
+
+    final saved = parsed ?? colorHexFallback;
 
     final isDark =
         ThemeData.estimateBrightnessForColor(colors.surface) == Brightness.dark;

@@ -18,9 +18,11 @@ const _hexRadix = 16;
 const _hexDigitCount = 6;
 
 // MARK: - Helpers
-Color parseColorHex(String hex) {
+Color parseColorHex(String hex) => tryParseColorHex(hex) ?? colorHexFallback;
+
+Color? tryParseColorHex(String hex) {
   final match = _sixDigitHex.firstMatch(hex.trim());
-  if (match == null) return colorHexFallback;
+  if (match == null) return null;
 
   return Color(_opaqueAlphaBits | int.parse(match.group(1)!, radix: _hexRadix));
 }

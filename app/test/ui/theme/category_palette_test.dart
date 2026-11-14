@@ -40,5 +40,14 @@ void main() {
         SpendWiseColors.dark.housing,
       );
     });
+
+    test('keeps a neutral grey of its own when no colour is saved', () {
+      for (final colors in [SpendWiseColors.light, SpendWiseColors.dark]) {
+        final neutral = CategoryPalette.savedColor(null, colors);
+        expect(neutral, isNot(colors.housing));
+        expect(CategoryPalette.savedColor('not a colour', colors), neutral);
+        expect(CategoryPalette.savedColor('#12345', colors), neutral);
+      }
+    });
   });
 }
