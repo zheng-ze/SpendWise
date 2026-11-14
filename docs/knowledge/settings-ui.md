@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: ff3d4dfe
+Last reconciled: 40c727c4
 
 ## Feature overview
 
@@ -167,9 +167,9 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
   row shows the medallion and the category name (the icon name when the name is empty), then one flat
   6-column icon grid with no search and no sections, then 32px colour swatches with a check ring. The
   choice is a draft that the form applies on Done. `CategoryPalette.savedColor` maps the purple
-  swatch (#AF52DE) to the fitness colour and the grey swatch (#8E8E93) to the housing colour.
-  `colorHexFallback` (#8E8E93) equals the grey swatch hex, so a category with no saved colour shows
-  the housing slate in charts and rows.
+  swatch (#AF52DE) to the fitness colour and an explicitly saved grey swatch (#8E8E93) to the housing
+  colour. A null or malformed saved colour keeps the neutral fallback grey (`colorHexFallback`,
+  clamped for the theme) in charts and rows, so those rows do not show the housing slate.
   (`app/lib/ui/common/pickers/symbol_picker.dart`, `app/lib/ui/theme/category_palette.dart`,
   `app/lib/ui/format/color_hex.dart`)
 - **Plans** - the Money Plans list, detail, edit form and delete are no longer part of Settings. They
