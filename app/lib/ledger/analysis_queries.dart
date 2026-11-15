@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/breakdowns/analysis_category_scope.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_detail.dart';
+import 'package:spendwise/ledger/analysis/budgets/budget_forecast.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_overview.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/summaries/calendar.dart';
@@ -289,6 +290,9 @@ class AnalysisQueries extends ChangeNotifier {
 
   AnalysisQueryResult<BudgetsOverview> readBudgets({required DateTime month}) =>
       _readBudgets(month: month);
+
+  AnalysisQueryResult<BudgetForecasts> readBudgetForecasts() =>
+      _readBudgetForecasts();
 
   AnalysisQueryResult<BudgetDetail> readBudgetDetail({
     required String budgetID,

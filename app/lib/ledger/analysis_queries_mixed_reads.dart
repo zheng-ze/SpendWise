@@ -284,6 +284,18 @@ extension _AnalysisMixedReads on AnalysisQueries {
     );
   }
 
+  AnalysisQueryResult<BudgetForecasts> _readBudgetForecasts() {
+    return _readMixed<BudgetForecasts>(
+      'budget-forecasts',
+      () => budgetForecasts(
+        state: _ledger.state,
+        items: _cache.items,
+        firstRecordMonth: firstRecordMonth(_ledger.state),
+        today: _today,
+      ),
+    );
+  }
+
   AnalysisQueryResult<BudgetDetail> _readBudgetDetail({
     required String budgetID,
     required DateTime displayedYear,
