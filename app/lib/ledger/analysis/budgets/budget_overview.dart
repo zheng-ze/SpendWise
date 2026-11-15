@@ -133,7 +133,9 @@ BudgetsOverview budgetsOverview({
   final rows = [
     for (final b in scoped) _row(b, b.categoryID ?? '', month, items, state),
   ]..sort(_compareUtilization);
-  final cap = unscoped == null ? _aggregateCap(scoped, state) : unscoped.limit;
+  final cap = unscoped == null
+      ? derivedAllSpendingCap(scoped, state)
+      : unscoped.limit;
   final spent = monthExpenseSpend(month, items);
   final allSpending = AllSpending(
     cap: cap,
@@ -179,15 +181,6 @@ int _compareUtilization(CategoryBudgetRow a, CategoryBudgetRow b) {
   );
   if (byName != 0) return byName;
   return normalizedID(a.budgetID).compareTo(normalizedID(b.budgetID));
-}
-
-Decimal? _aggregateCap(List<Budget> scoped, LedgerState state) {
-  if (scoped.isEmpty) return null;
-  final budgeted = {for (final b in scoped) b.categoryID};
-  final topLevel = scoped.where(
-    (b) => !budgeted.contains(state.categories[b.categoryID]?.parentID),
-  );
-  return topLevel.fold<Decimal>(Decimal.zero, (sum, b) => sum + b.limit);
 }
 
 Decimal? _dailyAllowance(

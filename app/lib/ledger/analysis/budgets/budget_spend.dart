@@ -54,3 +54,15 @@ Decimal monthExpenseSpend(YearMonth month, List<AnalysisItem> items) {
       .where((item) => _isMonthExpense(item, window))
       .fold(Decimal.zero, (sum, item) => sum + item.amount);
 }
+
+Decimal? derivedAllSpendingCap(
+  Iterable<Budget> categoryBudgets,
+  LedgerState state,
+) {
+  if (categoryBudgets.isEmpty) return null;
+  final budgeted = {for (final b in categoryBudgets) b.categoryID};
+  final topLevel = categoryBudgets.where(
+    (b) => !budgeted.contains(state.categories[b.categoryID]?.parentID),
+  );
+  return topLevel.fold<Decimal>(Decimal.zero, (sum, b) => sum + b.limit);
+}
