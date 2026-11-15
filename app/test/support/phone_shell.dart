@@ -3,10 +3,19 @@ import 'package:flutter/widgets.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
-Widget phoneShell(Widget child) => ShellPaneScope(
-  mode: ShellLayoutMode.phone,
-  splitOffset: 0,
-  sheetPresented: false,
-  sheetCovered: false,
+const _unsplitOffset = 0.0;
+
+Widget phoneShell(Widget child) => paneShell(child);
+
+Widget paneShell(
+  Widget child, {
+  ShellLayoutMode mode = ShellLayoutMode.phone,
+  double splitOffset = _unsplitOffset,
+  bool sheetCovered = false,
+}) => ShellPaneScope(
+  mode: mode,
+  splitOffset: splitOffset,
+  sheetPresented: sheetCovered,
+  sheetCovered: sheetCovered,
   child: child,
 );
