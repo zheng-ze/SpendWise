@@ -14,6 +14,7 @@ import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 import 'package:spendwise/ledger/analysis/entry_record.dart';
 import 'package:spendwise/ledger/analysis/insights/insight_rules.dart';
 import 'package:spendwise/ledger/analysis/insights/matched_day_insights.dart';
+import 'package:spendwise/ledger/analysis/summaries/month_pace.dart';
 import 'package:spendwise/ledger/analysis/summaries/month_spread.dart';
 import 'package:spendwise/ledger/analysis/summaries/period_summary.dart';
 import 'package:spendwise/ledger/analysis/summaries/register.dart';
@@ -283,6 +284,8 @@ class AnalysisQueries extends ChangeNotifier {
       _readMatchedDayInsights();
 
   AnalysisQueryResult<WeekSoFar> readWeekSoFar() => _readWeekSoFar();
+
+  AnalysisQueryResult<MonthPace> readMonthPace() => _readMonthPace();
 
   AnalysisQueryResult<BudgetsOverview> readBudgets({required DateTime month}) =>
       _readBudgets(month: month);

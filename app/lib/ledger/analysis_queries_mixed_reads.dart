@@ -258,6 +258,17 @@ extension _AnalysisMixedReads on AnalysisQueries {
     );
   }
 
+  AnalysisQueryResult<MonthPace> _readMonthPace() {
+    return _readMixed<MonthPace>(
+      'month-pace',
+      () => monthPace(
+        items: _cache.items,
+        firstRecordMonth: firstRecordMonth(_ledger.state),
+        today: _today,
+      ),
+    );
+  }
+
   // MARK: - Budgets
 
   AnalysisQueryResult<BudgetsOverview> _readBudgets({required DateTime month}) {
