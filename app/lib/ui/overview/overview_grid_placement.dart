@@ -5,12 +5,7 @@ import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
-typedef OverviewGridCell = ({
-  OverviewWidgetKind kind,
-  int row,
-  int column,
-  int span,
-});
+const _placementTolerance = 1e-10;
 
 int overviewColumnCount({
   required ShellLayoutMode mode,
@@ -51,26 +46,29 @@ int overviewColumnSpan(OverviewWidgetKind kind) => switch (kind) {
   OverviewWidgetKind.weekSoFar => overviewNarrowSpan,
 };
 
-List<OverviewGridCell> placeOverviewWidgets(
-  List<OverviewWidgetKind> kinds, {
-  required int columnCount,
+({int column, double top}) placeOverviewCard({
+  required List<double> columnBottoms,
+  required int span,
 }) {
-  assert(columnCount >= 1);
-  final filled = <int>[];
-  final cells = <OverviewGridCell>[];
-  for (final kind in kinds) {
-    final span = math.min(overviewColumnSpan(kind), columnCount);
-    var row = filled.indexWhere((used) => columnCount - used >= span);
-    if (row == -1) {
-      filled.add(0);
-      row = filled.length - 1;
+  assert(columnBottoms.isNotEmpty);
+  assert(span >= 1);
+  final clampedSpan = math.min(span, columnBottoms.length);
+  var bestColumn = 0;
+  var bestTop = double.infinity;
+  var bestWaste = double.infinity;
+  for (var column = 0; column <= columnBottoms.length - clampedSpan; column++) {
+    final covered = columnBottoms.sublist(column, column + clampedSpan);
+    final top = covered.reduce(math.max);
+    final waste = covered.fold(0.0, (sum, bottom) => sum + top - bottom);
+    final isLessWaste = waste < bestWaste - _placementTolerance;
+    final isTieWithLowerTop =
+        (waste - bestWaste).abs() <= _placementTolerance &&
+        top < bestTop - _placementTolerance;
+    if (isLessWaste || isTieWithLowerTop) {
+      bestColumn = column;
+      bestTop = top;
+      bestWaste = waste;
     }
-    cells.add((kind: kind, row: row, column: filled[row], span: span));
-    filled[row] += span;
   }
-  cells.sort((a, b) {
-    final byRow = a.row.compareTo(b.row);
-    return byRow != 0 ? byRow : a.column.compareTo(b.column);
-  });
-  return cells;
+  return (column: bestColumn, top: bestTop);
 }

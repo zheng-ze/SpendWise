@@ -12,6 +12,7 @@ const _openThreeColumnMinimumGrid = 680.0;
 const _openJustBelowMinimumGrid = 679.0;
 const _desktopTwoColumnMinimumGrid = 450.0;
 const _desktopJustBelowMinimumGrid = 449.0;
+const _gap = 10.0;
 const _expectedSpanTwoKinds = {
   OverviewWidgetKind.today,
   OverviewWidgetKind.recentEntries,
@@ -30,8 +31,24 @@ int _columns({
   gridWidth: gridWidth,
 );
 
-List<OverviewWidgetKind> _order(List<OverviewGridCell> cells) =>
-    cells.map((cell) => cell.kind).toList();
+({int column, double top}) _place(List<double> bottoms, int span) =>
+    placeOverviewCard(columnBottoms: bottoms, span: span);
+
+List<int> _simulateColumns(List<(int span, double height)> cards, int columns) {
+  final bottoms = List<double>.filled(columns, 0);
+  final chosen = <int>[];
+  for (final (span, height) in cards) {
+    final placement = _place(bottoms, span);
+    final covered = span < columns ? span : columns;
+    bottoms.fillRange(
+      placement.column,
+      placement.column + covered,
+      placement.top + height + _gap,
+    );
+    chosen.add(placement.column);
+  }
+  return chosen;
+}
 
 void main() {
   group('overviewColumnCount', () {
@@ -107,91 +124,73 @@ void main() {
     });
   });
 
-  group('placeOverviewWidgets', () {
-    test('backfills a one-column widget ahead of a spanning widget', () {
-      final cells = placeOverviewWidgets([
-        OverviewWidgetKind.today,
-        OverviewWidgetKind.recentEntries,
-        OverviewWidgetKind.comingUp,
-      ], columnCount: 3);
-
-      expect(cells, [
-        (kind: OverviewWidgetKind.today, row: 0, column: 0, span: 2),
-        (kind: OverviewWidgetKind.comingUp, row: 0, column: 2, span: 1),
-        (kind: OverviewWidgetKind.recentEntries, row: 1, column: 0, span: 2),
-      ]);
+  group('placeOverviewCard', () {
+    test('empty columns put a one-column card at column 0 top 0', () {
+      expect(_place([0, 0, 0], 1), (column: 0, top: 0.0));
     });
 
-    test('two columns give a spanning widget the whole row', () {
-      final cells = placeOverviewWidgets([
-        OverviewWidgetKind.today,
-        OverviewWidgetKind.recentEntries,
-      ], columnCount: 2);
-
-      expect(cells, [
-        (kind: OverviewWidgetKind.today, row: 0, column: 0, span: 2),
-        (kind: OverviewWidgetKind.recentEntries, row: 1, column: 0, span: 2),
-      ]);
+    test('a one-column card goes to the shortest column', () {
+      expect(_place([300, 100, 200], 1), (column: 1, top: 100.0));
     });
 
-    test('two columns fill a hole ahead of the spanning widget', () {
-      final cells = placeOverviewWidgets([
-        OverviewWidgetKind.comingUp,
-        OverviewWidgetKind.today,
-        OverviewWidgetKind.thisMonth,
-      ], columnCount: 2);
-
-      expect(cells, [
-        (kind: OverviewWidgetKind.comingUp, row: 0, column: 0, span: 1),
-        (kind: OverviewWidgetKind.thisMonth, row: 0, column: 1, span: 1),
-        (kind: OverviewWidgetKind.today, row: 1, column: 0, span: 2),
-      ]);
+    test('a one-column card takes the leftmost of equal columns', () {
+      expect(_place([200, 100, 100], 1), (column: 1, top: 100.0));
     });
 
-    test('hole-filling widgets keep their stored relative order', () {
-      final cells = placeOverviewWidgets([
-        OverviewWidgetKind.comingUp,
-        OverviewWidgetKind.today,
-        OverviewWidgetKind.thisMonth,
-        OverviewWidgetKind.insights,
-      ], columnCount: 2);
-
-      expect(_order(cells), [
-        OverviewWidgetKind.comingUp,
-        OverviewWidgetKind.thisMonth,
-        OverviewWidgetKind.today,
-        OverviewWidgetKind.insights,
-      ]);
+    test('a two-column card takes the pair with the least waste', () {
+      expect(_place([210, 210, 510], 2), (column: 0, top: 210.0));
     });
 
-    test('a lone spanning widget leaves the trailing cell empty', () {
-      final cells = placeOverviewWidgets([
-        OverviewWidgetKind.today,
-      ], columnCount: 3);
-
-      expect(cells, [
-        (kind: OverviewWidgetKind.today, row: 0, column: 0, span: 2),
-      ]);
+    test('a two-column card prefers the lower top on equal waste', () {
+      expect(_place([300, 100, 200], 2), (column: 1, top: 200.0));
     });
 
-    test('one column keeps stored order with span one', () {
-      final kinds = [
-        OverviewWidgetKind.today,
-        OverviewWidgetKind.comingUp,
-        OverviewWidgetKind.recentEntries,
-      ];
-
-      final cells = placeOverviewWidgets(kinds, columnCount: 1);
-
-      expect(cells, [
-        (kind: OverviewWidgetKind.today, row: 0, column: 0, span: 1),
-        (kind: OverviewWidgetKind.comingUp, row: 1, column: 0, span: 1),
-        (kind: OverviewWidgetKind.recentEntries, row: 2, column: 0, span: 1),
-      ]);
+    test('a two-column card takes the leftmost pair on a full tie', () {
+      expect(_place([100, 100, 100], 2), (column: 0, top: 100.0));
     });
 
-    test('no kinds gives no cells', () {
-      expect(placeOverviewWidgets(const [], columnCount: 3), isEmpty);
+    test('a span wider than the grid is clamped to the column count', () {
+      expect(_place([120], 2), (column: 0, top: 120.0));
+    });
+
+    test('a two-column card leaves an unavoidable gap beside tall columns', () {
+      expect(_place([100, 400, 100], 2), (column: 0, top: 400.0));
+    });
+  });
+
+  group('waterfall sequencing', () {
+    test('equal-height cards fill the columns left to right in order', () {
+      final columns = _simulateColumns([
+        (1, 100),
+        (1, 100),
+        (1, 100),
+        (1, 100),
+      ], 3);
+
+      expect(columns, [0, 1, 2, 0]);
+    });
+
+    test('the next card in stored order goes under the shortest column', () {
+      final columns = _simulateColumns([
+        (1, 300),
+        (1, 100),
+        (1, 200),
+        (1, 50),
+        (1, 50),
+      ], 3);
+
+      expect(columns, [0, 1, 2, 1, 1]);
+    });
+
+    test('a spanning card sits where it wastes the least space', () {
+      final columns = _simulateColumns([
+        (1, 200),
+        (1, 200),
+        (1, 500),
+        (2, 100),
+      ], 3);
+
+      expect(columns, [0, 1, 2, 0]);
     });
   });
 }

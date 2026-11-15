@@ -6,6 +6,7 @@ import 'package:spendwise/settings/display_preferences_providers.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/overview/overview_grid_placement.dart';
 import 'package:spendwise/ui/overview/overview_slots.dart';
+import 'package:spendwise/ui/overview/overview_waterfall_layout.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -40,7 +41,7 @@ class OverviewSlotGrid extends ConsumerWidget {
     }
     final windowWidth = MediaQuery.sizeOf(context).width;
     return LayoutBuilder(
-      builder: (context, constraints) => _OverviewSlotWrap(
+      builder: (context, constraints) => _OverviewSlotWaterfall(
         layoutMode: layoutMode,
         presentation: presentation,
         windowWidth: windowWidth,
@@ -51,8 +52,8 @@ class OverviewSlotGrid extends ConsumerWidget {
   }
 }
 
-class _OverviewSlotWrap extends StatelessWidget {
-  const _OverviewSlotWrap({
+class _OverviewSlotWaterfall extends StatelessWidget {
+  const _OverviewSlotWaterfall({
     required this.layoutMode,
     required this.presentation,
     required this.windowWidth,
@@ -74,26 +75,17 @@ class _OverviewSlotWrap extends StatelessWidget {
       windowWidth: windowWidth,
       gridWidth: gridWidth,
     );
-    final cells = placeOverviewWidgets(
-      slots.keys.toList(),
-      columnCount: columnCount,
-    );
-    final columnWidth =
-        (gridWidth - overviewTrayGap * (columnCount - 1)) / columnCount;
     final children = [
-      for (final cell in cells)
-        KeyedSubtree(
-          key: ValueKey(cell.kind),
-          child: SizedBox(
-            width: columnWidth * cell.span + overviewTrayGap * (cell.span - 1),
-            child: slots[cell.kind],
-          ),
+      for (final MapEntry(:key, :value) in slots.entries)
+        OverviewWaterfallSlot(
+          key: ValueKey(key),
+          span: overviewColumnSpan(key),
+          child: value,
         ),
     ];
-    return Wrap(
-      spacing: overviewTrayGap,
-      runSpacing: overviewTrayGap,
-      crossAxisAlignment: WrapCrossAlignment.start,
+    return OverviewWaterfall(
+      columnCount: columnCount,
+      gap: overviewTrayGap,
       children: children,
     );
   }
