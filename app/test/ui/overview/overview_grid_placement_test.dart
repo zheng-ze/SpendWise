@@ -34,21 +34,8 @@ int _columns({
 ({int column, double top}) _place(List<double> bottoms, int span) =>
     placeOverviewCard(columnBottoms: bottoms, span: span);
 
-List<int> _simulateColumns(List<(int span, double height)> cards, int columns) {
-  final bottoms = List<double>.filled(columns, 0);
-  final chosen = <int>[];
-  for (final (span, height) in cards) {
-    final placement = _place(bottoms, span);
-    final covered = span < columns ? span : columns;
-    bottoms.fillRange(
-      placement.column,
-      placement.column + covered,
-      placement.top + height + _gap,
-    );
-    chosen.add(placement.column);
-  }
-  return chosen;
-}
+OverviewWaterfallColumns _columns3() =>
+    OverviewWaterfallColumns(columnCount: 3, gap: _gap);
 
 void main() {
   group('overviewColumnCount', () {
@@ -158,39 +145,63 @@ void main() {
     });
   });
 
-  group('waterfall sequencing', () {
+  group('OverviewWaterfallColumns', () {
     test('equal-height cards fill the columns left to right in order', () {
-      final columns = _simulateColumns([
-        (1, 100),
-        (1, 100),
-        (1, 100),
-        (1, 100),
-      ], 3);
+      final columns = _columns3();
+      final placed = [
+        for (var i = 0; i < 4; i++) columns.place(span: 1, height: 100).column,
+      ];
 
-      expect(columns, [0, 1, 2, 0]);
+      expect(placed, [0, 1, 2, 0]);
     });
 
-    test('the next card in stored order goes under the shortest column', () {
-      final columns = _simulateColumns([
-        (1, 300),
-        (1, 100),
-        (1, 200),
-        (1, 50),
-        (1, 50),
-      ], 3);
+    test('the next card goes under the shortest column', () {
+      final columns = _columns3();
+      final heights = [300.0, 100.0, 200.0, 50.0, 50.0];
+      final placed = [
+        for (final height in heights)
+          columns.place(span: 1, height: height).column,
+      ];
 
-      expect(columns, [0, 1, 2, 1, 1]);
+      expect(placed, [0, 1, 2, 1, 1]);
     });
 
     test('a spanning card sits where it wastes the least space', () {
-      final columns = _simulateColumns([
-        (1, 200),
-        (1, 200),
-        (1, 500),
-        (2, 100),
-      ], 3);
+      final columns = _columns3()
+        ..place(span: 1, height: 200)
+        ..place(span: 1, height: 200)
+        ..place(span: 1, height: 500);
 
-      expect(columns, [0, 1, 2, 0]);
+      expect(columns.place(span: 2, height: 100).column, 0);
+    });
+
+    test('a spanning card occupies both columns for the next card', () {
+      final columns = _columns3();
+      columns.place(span: 2, height: 100);
+
+      expect(columns.place(span: 1, height: 50), (column: 2, top: 0.0));
+      expect(columns.place(span: 1, height: 50), (column: 2, top: 60.0));
+    });
+
+    test('the gap is included in top offsets and the total height', () {
+      final columns = _columns3();
+      columns.place(span: 1, height: 100);
+      final second = columns.place(span: 1, height: 100);
+      columns.place(span: 1, height: 100);
+      final below = columns.place(span: 1, height: 40);
+
+      expect([second.top, below.top, columns.height], [0.0, 110.0, 150.0]);
+    });
+
+    test('a span wider than the grid occupies every column', () {
+      final columns = OverviewWaterfallColumns(columnCount: 2, gap: _gap)
+        ..place(span: 3, height: 100);
+
+      expect(columns.place(span: 1, height: 10).top, 110.0);
+    });
+
+    test('no cards give zero height', () {
+      expect(_columns3().height, 0.0);
     });
   });
 }

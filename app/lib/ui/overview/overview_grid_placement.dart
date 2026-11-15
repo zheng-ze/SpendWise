@@ -72,3 +72,33 @@ int overviewColumnSpan(OverviewWidgetKind kind) => switch (kind) {
   }
   return (column: bestColumn, top: bestTop);
 }
+
+class OverviewWaterfallColumns {
+  OverviewWaterfallColumns({required int columnCount, required this.gap})
+    : _bottoms = List<double>.filled(columnCount, 0);
+
+  final double gap;
+  final List<double> _bottoms;
+  var _isEmpty = true;
+
+  ({int column, double top}) place({
+    required int span,
+    required double height,
+  }) {
+    final clampedSpan = math.min(span, _bottoms.length);
+    final placement = placeOverviewCard(
+      columnBottoms: _bottoms,
+      span: clampedSpan,
+    );
+    final bottom = placement.top + height + gap;
+    _bottoms.fillRange(
+      placement.column,
+      placement.column + clampedSpan,
+      bottom,
+    );
+    _isEmpty = false;
+    return placement;
+  }
+
+  double get height => _isEmpty ? 0 : _bottoms.reduce(math.max) - gap;
+}

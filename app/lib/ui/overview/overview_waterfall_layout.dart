@@ -5,8 +5,6 @@ import 'package:flutter/widgets.dart';
 
 import 'package:spendwise/ui/overview/overview_grid_placement.dart';
 
-const _noHeight = 0.0;
-
 class OverviewWaterfallParentData extends ContainerBoxParentData<RenderBox> {
   int span = 1;
 }
@@ -113,23 +111,23 @@ class RenderOverviewWaterfall extends RenderBox
   }) {
     final maxWidth = constraints.maxWidth;
     final columnWidth = _columnWidth(maxWidth);
-    final bottoms = List<double>.filled(_columnCount, _noHeight);
+    final columns = OverviewWaterfallColumns(
+      columnCount: _columnCount,
+      gap: _gap,
+    );
     var child = firstChild;
     while (child != null) {
       final parentData = child.parentData! as OverviewWaterfallParentData;
       final span = math.min(parentData.span, _columnCount);
       final size = measure(child, _childConstraints(columnWidth, span));
-      final placement = placeOverviewCard(columnBottoms: bottoms, span: span);
+      final placement = columns.place(span: span, height: size.height);
       position?.call(
         child,
         Offset(placement.column * (columnWidth + _gap), placement.top),
       );
-      final bottom = placement.top + size.height + _gap;
-      bottoms.fillRange(placement.column, placement.column + span, bottom);
       child = parentData.nextSibling;
     }
-    final tallest = bottoms.reduce(math.max);
-    final height = firstChild == null ? _noHeight : tallest - _gap;
+    final height = columns.height;
     return constraints.constrain(Size(maxWidth, height));
   }
 

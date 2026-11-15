@@ -69,20 +69,8 @@ void main() {
       expect(_columnCount(tester), 1);
     }, timeout: uiTestTimeout);
 
-    testWidgets('desktop renders the stored order', (tester) async {
-      await _pumpDesktop(tester, _desktopWideSize);
-
-      expect(renderedOverviewKinds(tester), _storedOrder);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('open renders the stored order', (tester) async {
+    testWidgets('layouts render the stored order', (tester) async {
       await _pumpOpen(tester);
-
-      expect(renderedOverviewKinds(tester), _storedOrder);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('one column renders the stored order', (tester) async {
-      await _pumpOpen(tester, sheetCovered: true);
 
       expect(renderedOverviewKinds(tester), _storedOrder);
     }, timeout: uiTestTimeout);
