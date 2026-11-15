@@ -1,9 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
-import 'package:spendwise/ledger/analysis_cache.dart';
-import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
 import 'analysis_pace_fixture.dart';
@@ -19,22 +16,7 @@ Future<void> _loadFixture(Ledger ledger, ManualRunner runner) async {
 void main() {
   group('readMonthPace', () {
     test('the seed at its pinned day has spend and no usual yet', () async {
-      final state = LedgerState();
-      buildSeed(state, today: paceToday);
-      final ledger = Ledger(state: state);
-      final cache = AnalysisCache(
-        runner: (s) async => Accounting.analysisItems(s),
-      )..start(ledger.bus, sourceRevision: () => ledger.revision);
-      final queries = AnalysisQueries(
-        ledger: ledger,
-        cache: cache,
-        today: paceToday,
-      );
-      addTearDown(() async {
-        queries.dispose();
-        await cache.dispose();
-      });
-      await pumpEventQueue();
+      final queries = await setupSeededAnalysis(today: paceToday);
 
       final result = queries.readMonthPace();
 

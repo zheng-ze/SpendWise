@@ -166,16 +166,13 @@ BudgetForecasts budgetForecasts({
   );
   final categoryForecasts = [
     for (final budget in scoped)
-      _forecast(
-        budgetID: budget.id,
-        categoryID: budget.categoryID,
-        limit: budget.limit,
-        spentSoFar: budgetSpend(budget, thisMonth, elapsedItems, state),
-        baselineTotal: _baselineTotal(
-          baselineMonths,
-          baselineItems,
-          (m, list) => budgetSpend(budget, m, list, state),
-        ),
+      _categoryForecast(
+        budget: budget,
+        state: state,
+        month: thisMonth,
+        baselineMonths: baselineMonths,
+        elapsedItems: elapsedItems,
+        baselineItems: baselineItems,
         timing: timing,
       ),
   ];
@@ -214,6 +211,31 @@ Decimal _baselineTotal(
     total += spendOf(YearMonth.fromUtc(month), items);
   }
   return total;
+}
+
+BudgetForecast _categoryForecast({
+  required Budget budget,
+  required LedgerState state,
+  required YearMonth month,
+  required List<DateTime> baselineMonths,
+  required List<AnalysisItem> elapsedItems,
+  required List<AnalysisItem> baselineItems,
+  required _Timing timing,
+}) {
+  final spentSoFar = budgetSpend(budget, month, elapsedItems, state);
+  final baselineTotal = _baselineTotal(
+    baselineMonths,
+    baselineItems,
+    (m, list) => budgetSpend(budget, m, list, state),
+  );
+  return _forecast(
+    budgetID: budget.id,
+    categoryID: budget.categoryID,
+    limit: budget.limit,
+    spentSoFar: spentSoFar,
+    baselineTotal: baselineTotal,
+    timing: timing,
+  );
 }
 
 BudgetForecast? _allSpendingForecast({

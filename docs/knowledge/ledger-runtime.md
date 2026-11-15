@@ -29,7 +29,7 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
   the sealed `TrendsPeriod` variants and their category-average result types.
   The pure-domain card query lives in `packages/domain/lib/src/analysis/card_statement.dart`.
 - `app/lib/ledger/analysis/insights/usual_baseline.dart` - the usual baseline shared by month pace
-  and insights: the complete months before the current month, the three-month minimum, and cents
+  and budget forecasts: the complete months before the current month, the three-month minimum, and cents
   rounding.
 - `app/lib/ledger/analysis/summaries/month_pace.dart` - `monthPace`, the current month's cumulative
   spend through today and the usual pace comparison.
