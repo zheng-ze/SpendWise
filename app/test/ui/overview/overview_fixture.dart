@@ -1,9 +1,12 @@
 import 'package:domain/domain.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/settings/display_preferences.dart';
+import 'package:spendwise/settings/display_preferences_providers.dart';
 
 const checkingID = '11111111-1111-4111-8111-111111111111';
 const savingsID = '22222222-2222-4222-8222-222222222222';
@@ -165,14 +168,27 @@ Future<void> settleAnalysis(ProviderContainer container, Ledger ledger) async {
 ProviderContainer overviewContainer(
   Ledger ledger, {
   ComputeRunner runner = syncComputeRunner,
+  DisplayPreferences? preferences,
 }) {
   final container = ProviderContainer(
     overrides: [
       ledgerProvider.overrideWithValue(ledger),
       analysisComputeRunnerProvider.overrideWithValue(runner),
       clockProvider.overrideWithValue(() => fixtureToday),
+      if (preferences != null)
+        initialDisplayPreferencesProvider.overrideWithValue(preferences),
     ],
   );
   addTearDown(container.dispose);
   return container;
+}
+
+List<OverviewWidgetKind> renderedOverviewKinds(WidgetTester tester) {
+  final keyedWidgets = find.byWidgetPredicate(
+    (widget) => widget.key is ValueKey<OverviewWidgetKind>,
+  );
+  return [
+    for (final widget in tester.widgetList(keyedWidgets))
+      if (widget.key case ValueKey<OverviewWidgetKind>(:final value)) value,
+  ];
 }

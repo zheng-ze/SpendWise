@@ -1,20 +1,20 @@
 # Overview UI
 
-Last reconciled: ae736584
+Last reconciled: 8ca1a166
 
 ## Feature overview
 
-The Overview screen renders three sections in fixed default order: Today, Recent entries
-and Coming up. A full-page open layout places Today across row one columns one and two, leaves the
-third column empty, then places Recent entries across row two columns one and two and Coming up in
-column three. Three equal columns use the named 10 dp tray gap. The row-two cards stretch to the
-larger card's content-driven height. Add presentation, a detail pane, or a column narrower than
-220 dp uses one column in the same section order. The 220 dp minimum is not text-scaled, so the grid
-needs a page width of 708 dp (a window of about 780 dp beside the 72 dp rail) at any text size.
-Phone and desktop retain their single-column presentation. The screen has no edit mode or widget
-catalogue. No section is ever blank. Each section renders its own copy for an empty ledger, and a
-section whose read has not settled renders a `LoadingSkeleton`. The screen reads only through
-`AnalysisQueries`; widgets compute no totals.
+The Overview screen renders `DisplayPreferences.overviewWidgets` in stored order, one slot per
+`OverviewWidgetKind`, below the header. `OverviewSlotColumn` reads the list through
+`displayPreferencesProvider` and lays the slots out as a single column on every layout (phone, open
+and desktop) separated by the named 10 dp tray gap. The default list is Today, Recent entries and
+Coming up. `overviewSlotFor` (`overview_slots.dart`) is the single kind-to-widget mapping, an
+exhaustive switch with no default. Only `today`, `recentEntries` and `comingUp` map to a card; the
+other nine kinds map to null and render nothing, with no placeholder. A card ticket adds a kind by
+replacing its null arm. The screen has no edit mode or widget catalogue. With the default list no
+section is ever blank: each section renders its own copy for an empty ledger, and a section whose
+read has not settled renders a `LoadingSkeleton`. The screen reads only through `AnalysisQueries`;
+widgets compute no totals.
 
 ## Key files
 
@@ -24,20 +24,24 @@ section whose read has not settled renders a `LoadingSkeleton`. The screen reads
   `OverviewStep` (`HasStep`/`StepEmitting`); `requestHistory` emits `OverviewHistoryRequested`,
   `openEntry` emits `OverviewEntryRequested` and `clearStep` clears it. `OverviewEntryRow.entryId`
   identifies the entry a Recent row opens. Rebuilds preserve a pending step.
-- `app/lib/ui/overview/overview_screen.dart` - `OverviewScreen`, its open-layout grid and its
-  standalone section widgets. The Recent entries tray ends in a `TextButton` action labelled 'View
-  History' with a chevron, shown for nonempty, empty and section-loading rows.
+- `app/lib/ui/overview/overview_screen.dart` - `OverviewScreen` and its header; the body places
+  `OverviewSlotColumn` under the header. The Recent entries tray (`overview_recent_section.dart`)
+  ends in a `TextButton` action labelled 'View History' with a chevron, shown for nonempty, empty
+  and section-loading rows.
+- `app/lib/ui/overview/overview_slot_column.dart` - `OverviewSlotColumn` watches
+  `overviewWidgets`, wraps each present slot in `KeyedSubtree(key: ValueKey(kind))` and stacks them
+  in a `Column` with the tray gap.
+- `app/lib/ui/overview/overview_slots.dart` - `overviewSlotFor`, the kind-to-widget switch.
 - `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) subscribing to
   `OverviewStep` once, calling its required `onHistorySelected` callback for history requests and
-  `openEditEntry` for entry requests. When hosted in the shell it supplies its
-  page through `ShellPaneHost`, which provides bounded width and full-page or single-column
-  presentation.
+  `openEditEntry` for entry requests. It supplies its page through `ShellPaneHost`, which only
+  provides bounded width.
 - `app/lib/ledger/analysis/summaries/today_summary.dart` - `TodaySummary` carries `spent`, `dailyGuide` and
   `monthlyCap`.
 - `app/lib/ui/transactions/daily_list/transaction_row.dart` - `transactionRow` supplies titles,
   account lines, symbols and amount kinds for entries and projected plan occurrences.
 - `app/test/ui/overview/` - view model tests, the `ov-default` frame-parity widget tests (light and
-  dark, 320x760) and the shared fixture.
+  dark, 320x760), `overview_widget_order_test.dart` and the shared fixture.
 
 ## Module interactions
 
@@ -83,6 +87,11 @@ Overview tab and does not change the shell selection.
 
 ## Gotchas and invariants
 
+- Slot keys are `ValueKey(kind)`, so a reorder keeps slot state. Keys must be unique: a list with a
+  duplicate kind would throw, which is why the preferences store de-duplicates and drops unknown
+  codes.
+- `OverviewNotifier` and `OverviewViewState` do not depend on the widget list; the notifier stays
+  synchronous and ledger-derived.
 - The 'Set a monthly cap' link renders as styled text without a tap target. The shell wiring
   that makes it navigate does not exist yet.
 - 'View History' is a real action; it stays reachable for empty and section-loading Recent
@@ -105,7 +114,10 @@ Overview tab and does not change the shell selection.
 
 ## Requirements
 
-- Section order is Today, Recent entries, Coming up (`app/test/ui/overview/overview_screen_test.dart`).
+- Section order is the stored `overviewWidgets` order, and replacing the list re-renders it
+  (`app/test/ui/overview/overview_widget_order_test.dart`).
+- An empty list, or a list holding only kinds without a card, shows the header only
+  (`app/test/ui/overview/overview_widget_order_test.dart`).
 - Recent entries never exceeds 4 and sorts newest first
   (`app/test/ui/overview/overview_view_model_test.dart`).
 - 'View History' is shown for nonempty, empty and section-loading Recent entries, carries
@@ -113,5 +125,5 @@ Overview tab and does not change the shell selection.
   (`app/test/ui/overview/overview_screen_test.dart`).
 - Coming up excludes dates at or beyond 42 days
   (`app/test/ui/overview/overview_view_model_test.dart`).
-- An empty ledger renders all three sections with their own copy
+- With the default list, an empty ledger renders all three sections with their own copy
   (`app/test/ui/overview/overview_screen_test.dart`).
