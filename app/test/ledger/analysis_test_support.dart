@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
@@ -40,6 +41,21 @@ setupAnalysis({DateTime? today}) {
     await cache.dispose();
   });
   return (ledger: ledger, cache: cache, queries: queries, runner: runner);
+}
+
+Future<AnalysisQueries> setupSeededAnalysis({required DateTime today}) async {
+  final state = LedgerState();
+  buildSeed(state, today: today);
+  final ledger = Ledger(state: state);
+  final cache = AnalysisCache(runner: (s) async => Accounting.analysisItems(s))
+    ..start(ledger.bus, sourceRevision: () => ledger.revision);
+  final queries = AnalysisQueries(ledger: ledger, cache: cache, today: today);
+  addTearDown(() async {
+    queries.dispose();
+    await cache.dispose();
+  });
+  await pumpEventQueue();
+  return queries;
 }
 
 Future<void> settle(

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/breakdowns/analysis_category_scope.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_detail.dart';
+import 'package:spendwise/ledger/analysis/budgets/budget_forecast.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_overview.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/summaries/calendar.dart';
@@ -14,6 +15,7 @@ import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 import 'package:spendwise/ledger/analysis/entry_record.dart';
 import 'package:spendwise/ledger/analysis/insights/insight_rules.dart';
 import 'package:spendwise/ledger/analysis/insights/matched_day_insights.dart';
+import 'package:spendwise/ledger/analysis/summaries/month_pace.dart';
 import 'package:spendwise/ledger/analysis/summaries/month_spread.dart';
 import 'package:spendwise/ledger/analysis/summaries/period_summary.dart';
 import 'package:spendwise/ledger/analysis/summaries/register.dart';
@@ -284,8 +286,13 @@ class AnalysisQueries extends ChangeNotifier {
 
   AnalysisQueryResult<WeekSoFar> readWeekSoFar() => _readWeekSoFar();
 
+  AnalysisQueryResult<MonthPace> readMonthPace() => _readMonthPace();
+
   AnalysisQueryResult<BudgetsOverview> readBudgets({required DateTime month}) =>
       _readBudgets(month: month);
+
+  AnalysisQueryResult<BudgetForecasts> readBudgetForecasts() =>
+      _readBudgetForecasts();
 
   AnalysisQueryResult<BudgetDetail> readBudgetDetail({
     required String budgetID,

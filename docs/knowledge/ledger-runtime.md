@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 7cc26306
+Last reconciled: 2ca37997
 
 ## Feature overview
 
@@ -28,6 +28,13 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
   monthly and yearly Trends periods, and compared with usual. `summaries/trends_period.dart` owns
   the sealed `TrendsPeriod` variants and their category-average result types.
   The pure-domain card query lives in `packages/domain/lib/src/analysis/card_statement.dart`.
+- `app/lib/ledger/analysis/insights/usual_baseline.dart` - the usual baseline shared by month pace
+  and budget forecasts: the complete months before the current month, the three-month minimum, and cents
+  rounding.
+- `app/lib/ledger/analysis/summaries/month_pace.dart` - `monthPace`, the current month's cumulative
+  spend through today and the usual pace comparison.
+- `app/lib/ledger/analysis/budgets/budget_forecast.dart` - `budgetForecasts`, the month-end projection
+  per budget and the over-pace count, using the same usual baseline.
 - `app/lib/ui/common/base/ledger_backed_notifier.dart` - watches the ready session and exposes its
   Ledger and cache to ViewModels.
 - `app/lib/persistence/store/persistence_processor.dart` - subscribes to the bus and forwards each
@@ -380,6 +387,27 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   thirds at scale 12 and `relativeChangePercent` is null for a zero baseline
   (`app/lib/ledger/analysis/insights/insight_rules.dart`, `matched_day_insights.dart`, `week_so_far.dart`;
   `analysis_insights_test.dart`, `analysis_insights_queries_test.dart`).
+- `readMonthPace()` is a parameterless mixed read at today that returns a `MonthPace`. Its
+  `cumulativeSpend` holds one entry per day from the first of the month through today, with zero
+  days included, and its last entry equals `spentSoFar`. `spentSoFar` covers `[first of the month,
+  today + 1 day)` and excludes committed entries dated after today. The usual pace uses the complete
+  months among the 11 months before the current month, since the current month is never complete,
+  counted from `firstRecordMonth`. When at least 3 are complete, `usual` holds `usualMonth` (the
+  mean expense total of those months), `usualByToday` (the baseline total scaled to today's day of
+  the month), `usualByMonthEnd` (equal to `usualMonth`) and `gap` (`spentSoFar` minus
+  `usualByToday`, where a positive gap means spending is ahead of usual). Otherwise `usual` is null,
+  and `completeMonthCount` reports how many months were complete. Each money figure is rounded once
+  to cents, half away from zero, from exact decimal totals
+  (`app/lib/ledger/analysis/summaries/month_pace.dart:monthPace`,
+  `app/lib/ledger/analysis/insights/usual_baseline.dart`,
+  `app/lib/ledger/analysis_queries_mixed_reads.dart:_readMonthPace`).
+- `readBudgetForecasts()` is a parameterless mixed read at today that returns a `BudgetForecasts`: the
+  month-end projection per budget, with the All spending cap (unscoped budget or derived cap), and the
+  over-pace count. Its identity is `budget-forecasts`. It reads `firstRecordMonth` inside the gated
+  evaluation, so the baseline and totals share one revision. Below the three-month minimum it returns
+  no forecasts, with `completeMonthCount` reporting how many months were complete. The formula is in
+  [budgets.md](budgets.md) (`app/lib/ledger/analysis/budgets/budget_forecast.dart:budgetForecasts`,
+  `app/lib/ledger/analysis_queries_mixed_reads.dart:_readBudgetForecasts`).
 - `readCardStatement(accountID:)` wraps the domain query at today. An ineligible account returns
   a ready result with null value and the current Ledger revision (`analysis_queries.dart`;
   `analysis_service_test.dart`: `ineligibleCardIsReadyNullWithRevision`).
