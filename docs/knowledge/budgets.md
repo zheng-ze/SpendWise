@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: e9e21fdb
+Last reconciled: 2ca37997
 
 ## Feature overview
 
@@ -31,7 +31,8 @@ indirectly, via the spend math the app layer runs against analysis.
   `app/lib/ui/common/sheets/form_sheet_load_states.dart` (`FormSheetLoading`, `FormSheetLoadError`), and
   `app/lib/ui/common/inputs/form_sheet_row.dart` (`FormSheetRow`, the labelled row in the Add form).
 - `app/lib/ledger/analysis/budgets/budget_spend.dart` - the app-layer spend math: `budgetItems`,
-  `budgetSpend`, `monthExpenseSpend`, and the shared `budgetCountsItem` predicate.
+  `budgetSpend`, `monthExpenseSpend`, the shared `budgetCountsItem` predicate, and
+  `derivedAllSpendingCap`, the derived All spending cap used by both the overview and the forecast.
 - `app/lib/ledger/analysis/budgets/budget_counted_entries.dart` - `BudgetCountedEntry`,
   `budgetCountedEntries`, and `budgetCountedTotal` associate counted expense contributions with
   their original entries.
@@ -39,6 +40,8 @@ indirectly, via the spend math the app layer runs against analysis.
   counted entries and its expense day totals.
 - `app/lib/ledger/analysis/budgets/budget_overview.dart` - pure `budgetsOverview` projection (All
   spending cap, daily pace, ranked category budgets).
+- `app/lib/ledger/analysis/budgets/budget_forecast.dart` - pure `budgetForecasts` projection (month-end
+  forecast per budget, the All spending representation and the over-pace count).
 - `app/lib/ledger/analysis/budgets/budget_detail.dart` - pure `budgetDetail` projection with twelve
   month slots.
 - `app/lib/ledger/analysis_queries.dart`, `analysis_queries_mixed_reads.dart` - `readBudgets` and
@@ -53,7 +56,8 @@ and `AnalysisItem`s.
 
 `AnalysisQueries.readBudgets(month:)` supplies the Budgets overview, and
 `readBudgetDetail(budgetID:, displayedYear:, selectedMonth:)` supplies the detail projection. Both are
-memoised mixed reads (see [ledger-runtime.md](ledger-runtime.md)). The list view model consumes
+memoised mixed reads (see [ledger-runtime.md](ledger-runtime.md)). `readBudgetForecasts()` supplies the
+forecast at today, also as a memoised mixed read (see Forecast below). The list view model consumes
 `readBudgets`. `BudgetDetailNotifier` (`budget_detail_view_model.dart`) consumes `readBudgetDetail`
 and computes the counted entries itself from the live ledger.
 
@@ -353,6 +357,40 @@ synchronous turn.
 - **Failure.** A budget with a missing category makes the read fail rather than returning a partial
   overview. A nonpositive limit cannot occur because invariant clause 17 rejects it at load and
   sync apply.
+
+## Forecast
+
+`budgetForecasts` (`budget_forecast.dart`) projects each budget's month-end spend for the current month.
+`readBudgetForecasts()` evaluates it at today and reads `firstRecordMonth` inside the gated evaluation.
+
+- **Formula.** Projected month-end spend is spent through today plus the budget's monthly average times
+  the days after today over the days in the month. The monthly average is the budget's total over the
+  baseline months divided by their count. The code computes one exact numerator, spent through today
+  times n times D plus B times r, divides it by n times D, and rounds once. Here n is the baseline
+  month count, D the days in the month, r the days after today and B the budget's baseline total.
+- **Baseline.** The baseline is the complete months among the 11 months before the current month,
+  counted from `firstRecordMonth`. The current month is never complete, so it never enters the baseline.
+  A complete month with no expense counts as zero. A forecast is produced only when at least 3 months
+  are complete (`usualMinimumCompleteMonths`). Below that threshold `allSpending` is null,
+  `categoryBudgets` is empty and the over-pace count is 0, while `completeMonthCount` and `hasBaseline`
+  report how many months were complete.
+- **Spent through today.** Spent through today counts expense items dated from the first of the month
+  through today. Entries dated after today are excluded, because the projection adds the average for
+  the remaining days. The Budgets screen's spend (`budgetsOverview`) counts the whole month, so the two
+  figures differ when the current month holds entries dated after today. Consumers must not show one
+  beside a projection built from the other.
+- **Cents.** Each money figure is rounded once, half away from zero, to cents. A projection equal to the
+  limit at cents is On pace. A projection that exceeds the limit by less than half a cent is therefore
+  On pace, even though its exact value is above the limit. Over by is `projected` minus the limit when
+  `projected` is greater than the limit, and null otherwise.
+- **All spending.** An unscoped budget supplies the All spending forecast with its own ID and limit.
+  Without one, the cap is `derivedAllSpendingCap` in `budget_spend.dart`, the same function the overview
+  uses, and the forecast carries a null budget ID. Only one of the two appears, and the unscoped budget
+  never appears in `categoryBudgets`. The All spending forecast uses all expense spend for spent through
+  today and the all-expense baseline. A derived cap counts toward the over-pace count when it is over.
+- **Over-pace count.** `overCount` counts the All spending forecast when it is over, plus each category
+  budget that is over.
+- **Ordering.** `categoryBudgets` is sorted by normalized budget ID and carries IDs, not names.
 
 ## Budgets list
 

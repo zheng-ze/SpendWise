@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: c4c4c601
+Last reconciled: 2ca37997
 
 ## Feature overview
 
@@ -33,6 +33,8 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
   rounding.
 - `app/lib/ledger/analysis/summaries/month_pace.dart` - `monthPace`, the current month's cumulative
   spend through today and the usual pace comparison.
+- `app/lib/ledger/analysis/budgets/budget_forecast.dart` - `budgetForecasts`, the month-end projection
+  per budget and the over-pace count, using the same usual baseline.
 - `app/lib/ui/common/base/ledger_backed_notifier.dart` - watches the ready session and exposes its
   Ledger and cache to ViewModels.
 - `app/lib/persistence/store/persistence_processor.dart` - subscribes to the bus and forwards each
@@ -399,6 +401,13 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   (`app/lib/ledger/analysis/summaries/month_pace.dart:monthPace`,
   `app/lib/ledger/analysis/insights/usual_baseline.dart`,
   `app/lib/ledger/analysis_queries_mixed_reads.dart:_readMonthPace`).
+- `readBudgetForecasts()` is a parameterless mixed read at today that returns a `BudgetForecasts`: the
+  month-end projection per budget, with the All spending cap (unscoped budget or derived cap), and the
+  over-pace count. Its identity is `budget-forecasts`. It reads `firstRecordMonth` inside the gated
+  evaluation, so the baseline and totals share one revision. Below the three-month minimum it returns
+  no forecasts, with `completeMonthCount` reporting how many months were complete. The formula is in
+  [budgets.md](budgets.md) (`app/lib/ledger/analysis/budgets/budget_forecast.dart:budgetForecasts`,
+  `app/lib/ledger/analysis_queries_mixed_reads.dart:_readBudgetForecasts`).
 - `readCardStatement(accountID:)` wraps the domain query at today. An ineligible account returns
   a ready result with null value and the current Ledger revision (`analysis_queries.dart`;
   `analysis_service_test.dart`: `ineligibleCardIsReadyNullWithRevision`).
