@@ -1,14 +1,14 @@
 # Overview UI
 
-Last reconciled: 3603103b
+Last reconciled: bf6e6247
 
 ## Feature overview
 
 The Overview screen renders `DisplayPreferences.overviewWidgets` in stored order, one slot per
 `OverviewWidgetKind`, below the header. `OverviewSlotGrid` reads the list through
 `displayPreferencesProvider` and lays the slots that map to a card out as a waterfall (masonry) in a
-column grid. Columns and
-rows are separated by the named 10 dp tray gap (`overviewTrayGap`). The grid has one column on phone
+column grid. Columns, and cards stacked within a column, are separated by the named 10 dp tray gap
+(`overviewTrayGap`). The grid has one column on phone
 and three columns on open. On desktop it has three columns when the window is 1250 dp wide or more
 and two columns below that. Open and desktop drop to one column while the shell presents Overview as
 `ShellPagePresentation.singleColumn`, which happens whenever an AppSheet covers the shell: Add entry,
@@ -25,8 +25,8 @@ taken in stored order. `placeOverviewCard` puts each card at the top of the shor
 two-column card takes the adjacent column pair that wastes the least space under the shorter column,
 then the lower top, then the leftmost pair. With one column every card stacks in stored order. With
 two columns each spanning card takes both columns. Only kinds that map to a card take part in
-placement. The default list is Today, Recent entries and Coming up. `overviewSlotFor` (`overview_slots.dart`) is the single kind-to-widget mapping, an
-exhaustive switch with no default. Only `today`, `recentEntries` and `comingUp` map to a card; the
+placement. The default list is Today, Recent entries and Coming up. `overviewSlotFor`
+(`overview_slots.dart`) is the single kind-to-widget mapping, an exhaustive switch with no default. Only `today`, `recentEntries` and `comingUp` map to a card; the
 other nine kinds map to null and render nothing, with no placeholder. A card ticket adds a kind by
 replacing its null arm. The screen has no edit mode or widget catalogue. With the default list no
 section is ever blank: each section renders its own copy for an empty ledger, and a section whose
@@ -116,9 +116,9 @@ Overview tab and does not change the shell selection.
 
 ## Gotchas and invariants
 
-- Slot keys are `ValueKey(kind)`, so a reorder keeps slot state. Keys must be unique: a list with a
-  duplicate kind would throw, which is why the preferences store de-duplicates and drops unknown
-  codes.
+- Slot keys are `ValueKey(kind)`, so a reorder keeps slot state. Kinds must be unique: the grid collects
+  slots into a map by kind, so a duplicate would render once without an error. The preferences store
+  de-duplicates and drops unknown codes.
 - All layouts render the slots through one `OverviewWaterfall`, so every slot stays a keyed sibling
   of the same parent. A reorder, a window resize across 1250 dp and opening or closing a sheet all
   keep each slot's state. Per-column widgets would remount a card that changes column, and
@@ -135,8 +135,9 @@ Overview tab and does not change the shell selection.
   until its card ships.
 - Any AppSheet that covers the shell collapses Overview to one column on open and desktop, not only
   Add entry and Edit entry.
-- On open, a portrait window about 768 dp wide or narrower renders one column, because three columns
-  would be narrower than 220 dp.
+- On open, a window about 780 dp wide or narrower (680 dp of grid for three columns, plus 28 dp of
+  page padding and the 72 dp rail gutter) renders one column, because three columns would be narrower
+  than 220 dp.
 - `OverviewNotifier` and `OverviewViewState` do not depend on the widget list; the notifier stays
   synchronous and ledger-derived.
 - The 'Set a monthly cap' link renders as styled text without a tap target. The shell wiring
