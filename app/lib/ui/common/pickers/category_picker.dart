@@ -19,7 +19,6 @@ Future<PickerOutcome?> showCategoryPickerSheet({
   required LedgerState state,
   required CategoryKind kind,
   String? selectedId,
-  bool useRootNavigator = false,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
   PickerRouteCallback? onRouteCreated,
 }) {
@@ -69,7 +68,6 @@ Future<PickerOutcome?> showCategoryPickerSheet({
     title: 'Category',
     groups: groups,
     selectedId: selectedId,
-    useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
     onRouteCreated: onRouteCreated,
   );

@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: c7c4805c
+Last reconciled: 2026-11-16
 
 ## Feature overview
 
@@ -25,10 +25,10 @@ taken in stored order. `placeOverviewCard` puts each card at the top of the shor
 two-column card takes the adjacent column pair that wastes the least space under the shorter column,
 then the lower top, then the leftmost pair. With one column every card stacks in stored order. With
 two columns each spanning card takes both columns. Only kinds that map to a card take part in
-placement. The default list is Today, Recent entries and Coming up. `overviewSlotFor`
+placement. The default list is Today, This month, Recent entries and Coming up. `overviewSlotFor`
 (`overview_slots.dart`) is the single kind-to-widget mapping, an exhaustive switch with no default.
-Only `today`, `recentEntries` and `comingUp` map to a card; the other nine kinds map to null and render nothing, with no placeholder. A card ticket adds a kind by
-replacing its null arm. The screen has no edit mode or widget catalogue. With the default list no
+Only `today`, `thisMonth`, `recentEntries` and `comingUp` map to a card; the other eight kinds map to
+null and render nothing, with no placeholder. A card ticket adds a kind by replacing its null arm. The screen has no edit mode or widget catalogue. With the default list no
 section is ever blank: each section renders its own copy for an empty ledger, and a section whose
 read has not settled renders a `LoadingSkeleton`. The screen reads only through `AnalysisQueries`;
 widgets compute no totals.
@@ -37,7 +37,9 @@ widgets compute no totals.
 
 - `app/lib/ui/overview/overview_view_model.dart` - `OverviewViewModel` (abstract), `OverviewNotifier`
   (`AsyncNotifier` with `LedgerBackedNotifier`, `overviewViewModelProvider`), `OverviewViewState`,
-  and the row types `OverviewEntryRow` and `OverviewUpcomingRow`. The view state carries an
+  and the row types `OverviewEntryRow` and `OverviewUpcomingRow`, and the This month types
+  `OverviewThisMonth` (caption and optional figures) and `OverviewMonthFigures` (signed value strings
+  and `netKind`). The view state carries an
   `OverviewStep` (`HasStep`/`StepEmitting`); `requestHistory` emits `OverviewHistoryRequested`,
   `requestBudgets` emits `OverviewBudgetsRequested`, `openEntry` emits `OverviewEntryRequested` and
   `clearStep` clears it. `OverviewEntryRow.entryId`
@@ -61,7 +63,13 @@ widgets compute no totals.
   bookkeeping. Their named constants
   (column counts, spans, the 1250 dp desktop threshold and the 220 dp column floor) are in the Layout
   section of `overview_constants.dart`.
-- `app/lib/ui/overview/overview_slots.dart` - `overviewSlotFor`, the kind-to-widget switch.
+- `app/lib/ui/overview/overview_slots.dart` - `overviewSlotFor`, the kind-to-widget switch. `thisMonth`
+  maps to `ThisMonthTray`.
+- `app/lib/ui/overview/overview_this_month_section.dart` - `ThisMonthTray` (the card, with the failed,
+  skeleton, empty and figures states), `ThisMonthFigures` (the Spent, Income and Net rows and the
+  caption), `ThisMonthCaption` and `ThisMonthFigureRow`.
+- `app/lib/ui/overview/overview_rows.dart` - `OverviewLoadError`, the failed-read message and filled
+  Retry button shared by the Today and This month trays.
 - `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) subscribing to
   `OverviewStep` once, calling its required `onHistorySelected` callback for history requests, its
   required `onBudgetsSelected` callback for budget requests and `openEditEntry` for entry requests.
@@ -83,14 +91,21 @@ synchronous, so the screen has no whole-screen loading state; only the per-secti
 appear. `build` watches `todayProvider`, `analysisQueriesProvider` and `ledgerSessionProvider`
 (through `LedgerBackedNotifier`), so it rebuilds on every `AnalysisQueries` notification and on day
 change. A failed build ends in `AsyncError` and shows an error state, never a spinner.
-It calls `readToday()`, `readRecent()` and `readUpcoming()` and maps the results. `readToday()` is a
-mixed read, so the view state carries `today` only while the read is current for the Ledger revision
-and otherwise null, which renders the Today skeleton instead of a stale summary; `readRecent()`
+It calls `readToday()`, `readRecent()` and `readUpcoming()` and maps the results. It also calls
+`readPeriod(window: monthWindow(today))` and `readRegisterDays(window:)` for that same month.
+`readToday()` is a mixed read, so the view state carries `today` only while the read is current for
+the Ledger revision and otherwise null, which renders the Today skeleton instead of a stale summary; `readRecent()`
 and `readUpcoming()` depend on the Ledger only and are available at once. A null section value
 renders a skeleton for that section alone. A failed `readToday()` renders 'Couldn't load today's
-spending' and a filled Retry in the Today tray; Retry calls `AnalysisQueries.retry()` through
-`OverviewNotifier.retryToday`. Recent entries and Coming up keep rendering. `recordedToday` is
+spending' and a filled Retry in the Today tray. A failed `readPeriod()` renders 'Couldn't load this
+month's totals' and a filled Retry in the This month tray. Both Retry buttons call
+`OverviewNotifier.retryReads`, which calls `AnalysisQueries.retry()` to clear the failed evaluations and
+request a cache refresh.
+Recent entries and Coming up keep rendering. `recordedToday` is
 read only beside a current Today summary, so the empty headline never appears over stale data.
+`thisMonth` is carried only while the `readPeriod()` result for the current month is current for the
+Ledger revision, the same gate as `today`; otherwise the This month tray shows a skeleton. The month
+comes from `todayProvider`, so a day rollover into a new month reads the new month at once.
 Tapping 'View History' calls `OverviewViewModel.requestHistory`; `OverviewFlow` consumes the
 resulting `OverviewHistoryRequested` exactly once and clears it, including requests made before its
 Navigator mounts. On every layout `BootChrome` supplies a callback that selects the
@@ -117,6 +132,16 @@ Overview tab and does not change the shell selection.
   shows 'Set a monthly cap to see a daily guide.' with a 'Set a monthly cap' link.
 - Today shows 'Nothing recorded today' instead of an amount when no active entry is dated today
   (`OverviewViewState.recordedToday`), so an unknown day is never drawn as zero spending.
+- This month: committed spent, income and net over `[monthStart, nextMonthStart)` for the month of
+  today, from `readPeriod`. Entries dated after today count. A transfer counts only when its treatment
+  makes it an expense or income item, as in `readPeriod`. Spent is the period's expense total negated.
+  Each figure is a value-signed string without a currency symbol (`formatSignedMoney`). The net colour
+  comes from `netKind` through `AmountStyle`: income when positive, expense when negative, and the text
+  colour when zero. The caption is the month name only. The month is empty when `readRegisterDays` for
+  it holds no active entry of any kind, so an empty month is judged by entries and not by zero totals;
+  an empty month shows 'No entries this month' with the month name below it. When the register read has
+  no value, the figures show. The month name sits under the figures, and the bottom divider of the Net
+  row separates them.
 - Recent entries: at most 4 active entries dated before tomorrow, newest first; same-day entries
   order by id descending. A row caption is
   '<Today or d MMM> / <category> / <account line>' and the title is the entry name, falling back to
@@ -142,7 +167,7 @@ Overview tab and does not change the shell selection.
 - Placement never reorders cards, so some space cannot be removed. With column bottoms of 100, 400
   and 100, a two-column card goes at the top of 400 and leaves a 300 gap above it. The bottom edges
   of the last cards are also ragged.
-- Placement runs only over kinds with a card, so the nine unmapped kinds never take a cell.
+- Placement runs only over kinds with a card, so the eight unmapped kinds never take a cell.
   `spendingOverTime` has a span of two but no card yet, so its span is covered only by the pure tests
   until its card ships.
 - Any AppSheet that covers the shell collapses Overview to one column on open and desktop, not only
@@ -157,6 +182,11 @@ Overview tab and does not change the shell selection.
   Module interactions.
 - 'View History' is a real action; it stays reachable for empty and section-loading Recent
   entries, not only for nonempty rows.
+- The This month card is deliberately untappable. It sends no History request and emits no step, so a
+  tap does nothing.
+- The This month card is in the default list. A stored `overviewWidgets` list without `thisMonth` hides it.
+- Very large figures (7-8 digits) can overflow at the narrowest 220 dp column with 2x text. Recent
+  entries rows can overflow the same way.
 - The screen has no header actions. The gear and 'Edit Overview' of the reference frame are not
   rendered.
 - Notices above the sections (sync, save retry, plan attention) are not part of this screen. The
@@ -186,8 +216,6 @@ Overview tab and does not change the shell selection.
   (`app/test/ui/overview/overview_screen_test.dart`).
 - Coming up excludes dates at or beyond 42 days
   (`app/test/ui/overview/overview_view_model_test.dart`).
-- With the default list, an empty ledger renders all three sections with their own copy
-  (`app/test/ui/overview/overview_screen_test.dart`).
 - The column count follows the layout mode, the shell presentation, the window width and the 220 dp
   column floor. Waterfall placement picks the shortest column or the least wasteful column pair
   for each card (`app/test/ui/overview/overview_grid_placement_test.dart`).
@@ -207,3 +235,24 @@ Overview tab and does not change the shell selection.
 - With an Edit entry sheet over Overview without a cap, a tap on the link only dismisses the sheet:
   no budgets step is emitted and the destination does not change
   (`app/test/ui/overview/overview_recent_edit_test.dart`).
+- This month sums committed spent, income and net for the current calendar month, dated-ahead entries
+  included, captions the month name and carries the net kind for its colour
+  (`app/test/ui/overview/overview_content_test.dart`, group 'This month': 'sums the seed month into
+  caption and signed figures', 'counts only the current month, dated ahead included').
+- A transfer-only month shows zero figures with the transfer net kind
+  (`app/test/ui/overview/overview_content_test.dart`: 'a transfer-only month still shows zero figures').
+- An empty month carries its caption and no figures. The 'No entries this month' copy has no widget test
+  (`app/test/ui/overview/overview_content_test.dart`: 'an empty month has a caption and no figures').
+- This month stays pending until the period read is current for the Ledger revision, and Today and This
+  month both wait during a pending refresh
+  (`app/test/ui/overview/overview_content_test.dart`: 'stays pending while analysis computes and rows still
+  show', 'shows Today as loading until it catches up with the ledger').
+- A failed period read sets the failed flag, and Retry recomputes. The failure copy and the Retry button
+  have no widget test (`app/test/ui/overview/overview_view_model_test.dart`: 'failed Today and This month
+  reads are flagged and Retry recomputes').
+- A day rollover reads the new month with the day
+  (`app/test/ui/overview/overview_view_model_test.dart`: 'This month rolls over to the new month with the day').
+- A stored `thisMonth` renders once in stored order, and a replaced list without it removes the card
+  (`app/test/ui/overview/overview_widget_order_test.dart`: 'stored order is rendered and a replaced list
+  re-renders').
+- AC6, the This month card is untappable, has no test. The owner skipped it.

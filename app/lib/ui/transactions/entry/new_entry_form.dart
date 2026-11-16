@@ -216,7 +216,6 @@ class _NewEntryFormState extends State<NewEntryForm> {
         body: body,
         footer: footer,
         inputSurface: surface,
-        dragToDismiss: true,
         variant: AppSheetVariant.form,
         alert: widget.alert,
         onAlertAction: widget.onAlertAction,

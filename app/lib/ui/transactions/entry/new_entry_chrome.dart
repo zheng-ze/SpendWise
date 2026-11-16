@@ -224,7 +224,6 @@ class NewEntryLoadingForm extends StatelessWidget {
       header: header,
       body: body,
       footer: footer,
-      dragToDismiss: true,
       variant: AppSheetVariant.form,
       alert: alert,
       onAlertAction: onAlertAction,

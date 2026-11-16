@@ -47,7 +47,6 @@ void dispatchEntryFormStep(
         ref,
         formKey,
         form,
-        useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
         onRouteCreated: onPickerRouteCreated,
@@ -58,7 +57,6 @@ void dispatchEntryFormStep(
         ref,
         formKey,
         form,
-        useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
         onRouteCreated: onPickerRouteCreated,
@@ -69,7 +67,6 @@ void dispatchEntryFormStep(
         ref,
         formKey,
         form,
-        useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
         onRouteCreated: onPickerRouteCreated,
@@ -146,7 +143,6 @@ Future<void> _pickSource(
   WidgetRef ref,
   String? formKey,
   EntryFormNotifier form, {
-  bool useRootNavigator = false,
   bool Function()? isCurrent,
   required AppSheetPresentation Function(BuildContext) sheetPresentation,
   PickerRouteCallback? onRouteCreated,
@@ -156,7 +152,6 @@ Future<void> _pickSource(
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final outcome = await showSourcePickerSheet(
     context: context,
-    useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
     title: formState?.kind == EntryFormKind.transfer ? 'From' : 'Account',
     state: ledger.state,
@@ -173,7 +168,6 @@ Future<void> _pickDestination(
   WidgetRef ref,
   String? formKey,
   EntryFormNotifier form, {
-  bool useRootNavigator = false,
   bool Function()? isCurrent,
   required AppSheetPresentation Function(BuildContext) sheetPresentation,
   PickerRouteCallback? onRouteCreated,
@@ -183,7 +177,6 @@ Future<void> _pickDestination(
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final outcome = await showSourcePickerSheet(
     context: context,
-    useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
     title: 'To',
     state: ledger.state,
@@ -201,7 +194,6 @@ Future<void> _pickCategory(
   WidgetRef ref,
   String? formKey,
   EntryFormNotifier form, {
-  bool useRootNavigator = false,
   bool Function()? isCurrent,
   required AppSheetPresentation Function(BuildContext) sheetPresentation,
   PickerRouteCallback? onRouteCreated,
@@ -214,7 +206,6 @@ Future<void> _pickCategory(
       : CategoryKind.expense;
   final outcome = await showCategoryPickerSheet(
     context: context,
-    useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
     state: ledger.state,
     kind: categoryKind,

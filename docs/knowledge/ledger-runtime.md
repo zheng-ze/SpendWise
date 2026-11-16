@@ -204,8 +204,9 @@ It is null without an applicable budget; multiple applicable unscoped budgets fa
 `PeriodSummary` contains the normalized requested `[start, end)` window, an effective window equal
 to it, expense/income totals, `net = income - spent`, and absolute transfer volume `moved`. Totals
 are committed amounts: every entry dated in the window counts, including entries dated after today,
-so the current month's figure includes bills already logged for later days. An empty window has
-zero totals; reversed endpoints fail evaluation.
+so the current month's figure includes bills already logged for later days. Overview's This month
+card consumes it for the current month. An empty window has zero totals; reversed endpoints fail
+evaluation.
 Without a source scope, totals use cached analysis items. A scope selects active entries touching
 any selected source and classifies them against the complete Ledger source set; an empty scope
 selects nothing. `moved` counts each qualifying active transfer once, regardless of analysis gates;

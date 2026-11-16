@@ -135,7 +135,6 @@ class _BudgetLimitBody extends StatelessWidget {
       footer: save,
       inputSurface: pad,
       alert: alert,
-      dragToDismiss: true,
       variant: AppSheetVariant.form,
     );
   }

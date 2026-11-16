@@ -33,8 +33,6 @@ class PickerChose extends PickerOutcome {
 }
 
 // MARK: - Constants
-const _sheetHeightFactor = 0.7;
-
 const _compactRowHorizontalPadding = 12.0;
 
 const _compactTitleGap = 8.0;
@@ -67,121 +65,18 @@ Future<PickerOutcome?> showTwoColumnPickerSheet({
   required String title,
   required List<PickerOption> groups,
   String? selectedId,
-  bool useRootNavigator = false,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
   PickerRouteCallback? onRouteCreated,
 }) {
-  if (sheetPresentation != null) {
-    return showPickerAppSheet<PickerOutcome>(
-      context,
-      presentation: sheetPresentation,
-      onRouteCreated: onRouteCreated,
-      builder: (_) => AppPickerSheet(
-        title: title,
-        body: PickerGroupBody(groups: groups, selectedId: selectedId),
-      ),
-    );
-  }
-  return showModalBottomSheet<PickerOutcome>(
-    context: context,
-    isScrollControlled: true,
-    useRootNavigator: useRootNavigator,
-    builder: (_) => FractionallySizedBox(
-      heightFactor: _sheetHeightFactor,
-      child: TwoColumnPickerSheet(
-        title: title,
-        groups: groups,
-        selectedId: selectedId,
-      ),
+  return showPickerAppSheet<PickerOutcome>(
+    context,
+    presentation: sheetPresentation,
+    onRouteCreated: onRouteCreated,
+    builder: (_) => AppPickerSheet(
+      title: title,
+      body: PickerGroupBody(groups: groups, selectedId: selectedId),
     ),
   );
-}
-
-// MARK: - TwoColumnPickerSheet
-class TwoColumnPickerSheet extends StatefulWidget {
-  const TwoColumnPickerSheet({
-    super.key,
-    required this.title,
-    required this.groups,
-    this.selectedId,
-  });
-
-  final String title;
-  final List<PickerOption> groups;
-  final String? selectedId;
-
-  @override
-  State<TwoColumnPickerSheet> createState() => _TwoColumnPickerSheetState();
-}
-
-// MARK: - TwoColumnPickerSheetState
-class _TwoColumnPickerSheetState extends State<TwoColumnPickerSheet> {
-  String? _expandedId;
-
-  void _tapParent(PickerOption parent) {
-    if (parent.children.isEmpty || _expandedId == parent.id) {
-      Navigator.of(context).pop(PickerChose(parent.id));
-      return;
-    }
-    setState(() => _expandedId = parent.id);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final expanded = widget.groups
-        .where((group) => group.id == _expandedId)
-        .firstOrNull;
-
-    return Column(
-      children: [
-        AppBar(
-          automaticallyImplyLeading: false,
-          title: Text(widget.title),
-          centerTitle: true,
-        ),
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: ListView(
-                  children: [
-                    for (final group in widget.groups)
-                      _PickerRow(
-                        option: group,
-                        selected: group.id == widget.selectedId,
-                        active: group.id == _expandedId,
-                        onTap: () => _tapParent(group),
-                      ),
-                  ],
-                ),
-              ),
-              VerticalDivider(
-                width: _columnDividerWidth,
-                color: theme.dividerColor,
-              ),
-              Expanded(
-                child: ListView(
-                  children: [
-                    for (final child
-                        in expanded?.children ?? const <PickerOption>[])
-                      _PickerRow(
-                        option: child,
-                        selected: child.id == widget.selectedId,
-                        active: false,
-                        onTap: () =>
-                            Navigator.of(context).pop(PickerChose(child.id)),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 // MARK: - PickerRow

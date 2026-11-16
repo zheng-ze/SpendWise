@@ -339,7 +339,6 @@ class _PlanFormBody extends StatelessWidget {
       body: body,
       footer: save,
       alert: alert,
-      dragToDismiss: true,
       variant: AppSheetVariant.form,
     );
   }

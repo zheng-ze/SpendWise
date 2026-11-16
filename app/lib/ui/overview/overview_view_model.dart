@@ -4,12 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
+import 'package:spendwise/ledger/analysis/summaries/period_summary.dart';
 import 'package:spendwise/ledger/analysis/summaries/today_summary.dart';
 import 'package:spendwise/ledger/analysis/summaries/upcoming.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/stats/helpers/windows.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
 // MARK: - Constants
@@ -61,6 +63,28 @@ class OverviewUpcomingRow {
   final AmountKind? amountKind;
 }
 
+// MARK: - OverviewThisMonth
+class OverviewMonthFigures {
+  const OverviewMonthFigures({
+    required this.spent,
+    required this.income,
+    required this.net,
+    required this.netKind,
+  });
+
+  final String spent;
+  final String income;
+  final String net;
+  final AmountKind netKind;
+}
+
+class OverviewThisMonth {
+  const OverviewThisMonth({required this.caption, required this.figures});
+
+  final String caption;
+  final OverviewMonthFigures? figures;
+}
+
 // MARK: - OverviewViewState
 class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
   const OverviewViewState({
@@ -68,7 +92,9 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
     required this.today,
     required this.recent,
     required this.upcoming,
+    required this.thisMonth,
     this.todayFailed = false,
+    this.thisMonthFailed = false,
     this.recordedToday = false,
     this.step,
   });
@@ -77,8 +103,10 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
   final TodaySummary? today;
   final List<OverviewEntryRow>? recent;
   final List<OverviewUpcomingRow>? upcoming;
+  final OverviewThisMonth? thisMonth;
 
   final bool todayFailed;
+  final bool thisMonthFailed;
   final bool recordedToday;
   @override
   final OverviewStep? step;
@@ -90,7 +118,9 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
         today: today,
         recent: recent,
         upcoming: upcoming,
+        thisMonth: thisMonth,
         todayFailed: todayFailed,
+        thisMonthFailed: thisMonthFailed,
         recordedToday: recordedToday,
         step: step(),
       );
@@ -111,7 +141,7 @@ class OverviewEntryRequested extends OverviewStep {
 
 // MARK: - OverviewViewModel
 abstract class OverviewViewModel {
-  void retryToday();
+  void retryReads();
   void requestHistory();
   void requestBudgets();
   void openEntry(String id);
@@ -135,10 +165,24 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
     final today = queries.readToday();
     final todayIsCurrent = today.sourceRevision == currentLedger.revision;
     final newest = recent?.firstOrNull;
+    final month = monthWindow(day);
+    final period = queries.readPeriod(window: month);
+    final monthEntries = queries.readRegisterDays(window: month).value;
+    final periodSummary = period.value;
+    final periodIsCurrent = period.sourceRevision == currentLedger.revision;
+    final thisMonth = periodIsCurrent && periodSummary != null
+        ? _thisMonth(
+            periodSummary,
+            monthEntries?.isNotEmpty ?? true,
+            month.start,
+          )
+        : null;
     return OverviewViewState(
       day: day,
       today: todayIsCurrent ? today.value : null,
       todayFailed: today.state == AnalysisQueryState.failed,
+      thisMonth: thisMonth,
+      thisMonthFailed: period.state == AnalysisQueryState.failed,
       recordedToday: newest?.entry.date == day,
       recent: recent == null
           ? null
@@ -154,7 +198,7 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
   }
 
   @override
-  void retryToday() => ref.read(analysisQueriesProvider)?.retry();
+  void retryReads() => ref.read(analysisQueriesProvider)?.retry();
 
   @override
   void requestHistory() => emitStep(OverviewHistoryRequested());
@@ -185,6 +229,29 @@ OverviewEntryRow _entryRow(Entry entry, LedgerState ledger, DateTime today) {
     color: row.color,
     amount: row.amount,
     amountKind: row.amountKind,
+  );
+}
+
+AmountKind _netKind(Decimal net) {
+  if (net > Decimal.zero) return AmountKind.income;
+  if (net < Decimal.zero) return AmountKind.expense;
+  return AmountKind.transfer;
+}
+
+OverviewThisMonth _thisMonth(
+  PeriodSummary summary,
+  bool hasEntries,
+  DateTime monthStart,
+) {
+  final figures = OverviewMonthFigures(
+    spent: formatSignedMoney(-summary.spent, symbol: false),
+    income: formatSignedMoney(summary.income, symbol: false),
+    net: formatSignedMoney(summary.net, symbol: false),
+    netKind: _netKind(summary.net),
+  );
+  return OverviewThisMonth(
+    caption: formatMonthName(monthStart),
+    figures: hasEntries ? figures : null,
   );
 }
 

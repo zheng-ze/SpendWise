@@ -4,6 +4,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/format/money_format.dart';
@@ -53,6 +54,7 @@ void main() {
       final viewState = container.read(overviewViewModelProvider).requireValue;
 
       expect(viewState.today, isNull);
+      expect(viewState.thisMonth, isNull);
       expect(viewState.recent, isNotEmpty);
       expect(viewState.upcoming, isNotEmpty);
     });
@@ -83,8 +85,78 @@ void main() {
             .requireValue;
         expect(viewState.recent, hasLength(1));
         expect(viewState.today, isNull);
+        expect(viewState.thisMonth, isNull);
       },
     );
+  });
+
+  group('This month', () {
+    test('sums the seed month into caption and signed figures', () async {
+      final state = LedgerState();
+      buildSeed(state, today: fixtureToday);
+
+      final month = (await _settled(Ledger(state: state))).thisMonth!;
+
+      expect(month.caption, 'October');
+      expect(month.figures!.spent, '-167.40');
+      expect(month.figures!.income, '+3,200.00');
+      expect(month.figures!.net, '+3,032.60');
+      expect(month.figures!.netKind, AmountKind.income);
+    });
+
+    test('counts only the current month, dated ahead included', () async {
+      final state = emptyState();
+      state.addEntry(entry(1, '-10.00', DateTime.utc(2026, 9, 30)));
+      state.addEntry(entry(2, '-25.00', DateTime.utc(2026, 10, 20)));
+      state.addEntry(entry(3, '-7.00', DateTime.utc(2026, 11, 1)));
+      state.addEntry(
+        entry(
+          4,
+          '500.00',
+          DateTime.utc(2026, 10, 12),
+          destinationID: savingsID,
+        ),
+      );
+      state.addEntry(
+        entry(5, '-1200.00', DateTime.utc(2026, 11, 3), name: 'Rent'),
+      );
+
+      final figures = (await _settled(Ledger(state: state)))
+          .thisMonth!
+          .figures!;
+
+      expect(figures.spent, '-25.00');
+      expect(figures.income, '0.00');
+      expect(figures.net, '-25.00');
+    });
+
+    test('an empty month has a caption and no figures', () async {
+      final month = (await _settled(Ledger(state: emptyState()))).thisMonth!;
+
+      expect(month.caption, 'October');
+      expect(month.figures, isNull);
+    });
+
+    test('a transfer-only month still shows zero figures', () async {
+      final state = emptyState();
+      state.addEntry(
+        entry(
+          1,
+          '500.00',
+          DateTime.utc(2026, 10, 12),
+          destinationID: savingsID,
+        ),
+      );
+
+      final figures = (await _settled(Ledger(state: state)))
+          .thisMonth!
+          .figures!;
+
+      expect(figures.spent, '0.00');
+      expect(figures.income, '0.00');
+      expect(figures.net, '0.00');
+      expect(figures.netKind, AmountKind.transfer);
+    });
   });
 
   group('Recent entries', () {

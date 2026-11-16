@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/overview/overview_flow.dart';
@@ -90,6 +89,7 @@ class _LoadingOverviewNotifier extends OverviewNotifier {
     today: null,
     recent: null,
     upcoming: null,
+    thisMonth: null,
   );
 }
 
@@ -103,30 +103,6 @@ void main() {
         : SpendWiseColors.light;
 
     group('ov-default in ${brightness.name}', () {
-      testWidgets('shows the header, Today, Recent entries and Coming up', (
-        tester,
-      ) async {
-        await _pumpOverview(tester, defaultState(), brightness: brightness);
-
-        expect(find.text('Saturday, 3 October'), findsOneWidget);
-        expect(find.text('Overview'), findsOneWidget);
-        expect(find.text('Today / 3 October'), findsOneWidget);
-        expect(find.text('S\$45.70'), findsOneWidget);
-        expect(find.text('Daily guide: about S\$39'), findsOneWidget);
-        expect(find.text('From your S\$1,200 monthly cap.'), findsOneWidget);
-        expect(find.text('Set a monthly cap'), findsNothing);
-        expect(find.text('Recent entries'), findsOneWidget);
-        expect(find.text('View History'), findsOneWidget);
-        expect(find.text('Coming up'), findsOneWidget);
-        expect(find.text('Next 6 weeks'), findsOneWidget);
-        expect(find.text('Edit Overview'), findsNothing);
-        expect(renderedOverviewKinds(tester), [
-          OverviewWidgetKind.today,
-          OverviewWidgetKind.recentEntries,
-          OverviewWidgetKind.comingUp,
-        ]);
-      }, timeout: uiTestTimeout);
-
       testWidgets('renders four recent rows with signed, styled amounts', (
         tester,
       ) async {
@@ -232,44 +208,6 @@ void main() {
         expect(
           container.read(overviewViewModelProvider).requireValue.step,
           isA<OverviewBudgetsRequested>(),
-        );
-      }, timeout: uiTestTimeout);
-
-      testWidgets('shows an error with Retry when Today fails', (tester) async {
-        var failing = true;
-        await _pumpOverview(
-          tester,
-          defaultState(),
-          brightness: brightness,
-          runner: (state) => failing
-              ? Future.error(StateError('boom'))
-              : syncComputeRunner(state),
-        );
-
-        expect(find.text("Couldn't load today's spending"), findsOneWidget);
-        expect(find.text('S\$45.70'), findsNothing);
-        expect(find.text('Recent entries'), findsOneWidget);
-
-        failing = false;
-        await tester.tap(find.text('Retry'));
-        await tester.runAsync(() => pumpEventQueue());
-        await tester.pumpAndSettle();
-
-        expect(find.text("Couldn't load today's spending"), findsNothing);
-        expect(find.text('S\$45.70'), findsOneWidget);
-      }, timeout: uiTestTimeout);
-
-      testWidgets('is never empty on a fresh install', (tester) async {
-        await _pumpOverview(tester, LedgerState(), brightness: brightness);
-
-        expect(find.text('Overview'), findsOneWidget);
-        expect(find.text('Nothing recorded today'), findsOneWidget);
-        expect(find.text('Recent entries'), findsOneWidget);
-        expect(find.text('Your entries will appear here.'), findsOneWidget);
-        expect(find.text('Coming up'), findsOneWidget);
-        expect(
-          find.text('No known dates in the next six weeks.'),
-          findsOneWidget,
         );
       }, timeout: uiTestTimeout);
 

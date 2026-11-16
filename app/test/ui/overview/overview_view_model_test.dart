@@ -1,6 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
@@ -15,28 +16,57 @@ Future<ProviderContainer> _keptContainer(Ledger ledger) async {
 }
 
 void main() {
-  test('a failed Today read is flagged and Retry recomputes', () async {
-    final ledger = Ledger(state: defaultState());
-    var failing = true;
-    final container = overviewContainer(
-      ledger,
-      runner: (state) =>
-          failing ? Future.error(StateError('boom')) : syncComputeRunner(state),
-    );
-    container.listen(overviewViewModelProvider, (_, _) {});
-    await pumpEventQueue();
-    expect(
-      container.read(overviewViewModelProvider).requireValue.todayFailed,
-      isTrue,
-    );
+  test(
+    'failed Today and This month reads are flagged and Retry recomputes',
+    () async {
+      final ledger = Ledger(state: defaultState());
+      var failing = true;
+      final container = overviewContainer(
+        ledger,
+        runner: (state) => failing
+            ? Future.error(StateError('boom'))
+            : syncComputeRunner(state),
+      );
+      container.listen(overviewViewModelProvider, (_, _) {});
+      await pumpEventQueue();
+      final failed = container.read(overviewViewModelProvider).requireValue;
+      expect(failed.todayFailed, isTrue);
+      expect(failed.thisMonthFailed, isTrue);
 
-    failing = false;
-    container.read(overviewViewModelProvider.notifier).retryToday();
+      failing = false;
+      container.read(overviewViewModelProvider.notifier).retryReads();
+      await settleAnalysis(container, ledger);
+
+      final viewState = container.read(overviewViewModelProvider).requireValue;
+      expect(viewState.todayFailed, isFalse);
+      expect(viewState.thisMonthFailed, isFalse);
+      expect(viewState.today!.spent, Decimal.parse('45.70'));
+      final figures = viewState.thisMonth!.figures!;
+      expect(figures.spent, '-53.70');
+      expect(figures.income, '+3,200.00');
+      expect(figures.net, '+3,146.30');
+    },
+  );
+
+  test('This month rolls over to the new month with the day', () async {
+    var now = DateTime.utc(2026, 10, 31);
+    final ledger = Ledger(state: defaultState());
+    final container = overviewContainer(ledger, clock: () => now);
+    container.listen(overviewViewModelProvider, (_, _) {});
     await settleAnalysis(container, ledger);
 
-    final viewState = container.read(overviewViewModelProvider).requireValue;
-    expect(viewState.todayFailed, isFalse);
-    expect(viewState.today!.spent, Decimal.parse('45.70'));
+    now = DateTime.utc(2026, 11, 1);
+    container.invalidate(todayProvider);
+    await settleAnalysis(container, ledger);
+
+    final month = container
+        .read(overviewViewModelProvider)
+        .requireValue
+        .thisMonth!;
+    expect(month.caption, 'November');
+    expect(month.figures!.spent, '-1,200.00');
+    expect(month.figures!.income, '0.00');
+    expect(month.figures!.net, '-1,200.00');
   });
 
   group('History step', () {

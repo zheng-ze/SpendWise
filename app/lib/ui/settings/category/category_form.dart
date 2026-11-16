@@ -358,7 +358,6 @@ class _CategoryFormBody extends StatelessWidget {
       body: body,
       footer: footer,
       alert: alert,
-      dragToDismiss: true,
       variant: AppSheetVariant.form,
     );
   }
