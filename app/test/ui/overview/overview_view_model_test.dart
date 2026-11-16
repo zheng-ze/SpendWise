@@ -31,7 +31,7 @@ void main() {
     );
 
     failing = false;
-    container.read(overviewViewModelProvider.notifier).retryToday();
+    container.read(overviewViewModelProvider.notifier).retryReads();
     await settleAnalysis(container, ledger);
 
     final viewState = container.read(overviewViewModelProvider).requireValue;

@@ -111,7 +111,7 @@ class OverviewEntryRequested extends OverviewStep {
 
 // MARK: - OverviewViewModel
 abstract class OverviewViewModel {
-  void retryToday();
+  void retryReads();
   void requestHistory();
   void requestBudgets();
   void openEntry(String id);
@@ -154,7 +154,7 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
   }
 
   @override
-  void retryToday() => ref.read(analysisQueriesProvider)?.retry();
+  void retryReads() => ref.read(analysisQueriesProvider)?.retry();
 
   @override
   void requestHistory() => emitStep(OverviewHistoryRequested());

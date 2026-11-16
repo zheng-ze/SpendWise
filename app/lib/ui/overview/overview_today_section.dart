@@ -2,10 +2,10 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ledger/analysis/summaries/today_summary.dart';
-import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
+import 'package:spendwise/ui/overview/overview_rows.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
@@ -47,7 +47,10 @@ class TodayTray extends StatelessWidget {
     final today = viewState.today;
     final Widget content;
     if (viewState.todayFailed) {
-      content = TodayLoadError(viewModel: viewModel);
+      content = OverviewLoadError(
+        message: overviewTodayErrorTitle,
+        onRetry: viewModel.retryReads,
+      );
     } else if (today == null) {
       content = const LoadingSkeleton();
     } else {
@@ -69,38 +72,6 @@ class TodayTray extends StatelessWidget {
         borderRadius: _radius,
       ),
       child: SizedBox(width: overviewFullWidth, child: content),
-    );
-  }
-}
-
-// MARK: - Error
-
-class TodayLoadError extends StatelessWidget {
-  const TodayLoadError({super.key, required this.viewModel});
-
-  final OverviewViewModel viewModel;
-
-  static const _messageGap = 10.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          overviewTodayErrorTitle,
-          style: TextStyle(
-            fontSize: overviewBodyFontSize,
-            fontWeight: overviewSemiBold,
-            color: context.colors.error,
-          ),
-        ),
-        const SizedBox(height: _messageGap),
-        PrimaryButton(
-          label: overviewRetryLabel,
-          onPressed: viewModel.retryToday,
-        ),
-      ],
     );
   }
 }
