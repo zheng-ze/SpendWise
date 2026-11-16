@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: bf6e6247
+Last reconciled: 9abfd429
 
 ## Feature overview
 
@@ -8,8 +8,8 @@ The Overview screen renders `DisplayPreferences.overviewWidgets` in stored order
 `OverviewWidgetKind`, below the header. `OverviewSlotGrid` reads the list through
 `displayPreferencesProvider` and lays the slots that map to a card out as a waterfall (masonry) in a
 column grid. Columns, and cards stacked within a column, are separated by the named 10 dp tray gap
-(`overviewTrayGap`). The grid has one column on phone
-and three columns on open. On desktop it has three columns when the window is 1250 dp wide or more
+(`overviewTrayGap`). The grid has one column on phone and three
+columns on open. On desktop it has three columns when the window is 1250 dp wide or more
 and two columns below that. Open and desktop drop to one column while the shell presents Overview as
 `ShellPagePresentation.singleColumn`, which happens whenever an AppSheet covers the shell: Add entry,
 Edit entry opened from a Recent row, or any other sheet over the shell. Every layout also drops to one
@@ -26,8 +26,8 @@ two-column card takes the adjacent column pair that wastes the least space under
 then the lower top, then the leftmost pair. With one column every card stacks in stored order. With
 two columns each spanning card takes both columns. Only kinds that map to a card take part in
 placement. The default list is Today, Recent entries and Coming up. `overviewSlotFor`
-(`overview_slots.dart`) is the single kind-to-widget mapping, an exhaustive switch with no default. Only `today`, `recentEntries` and `comingUp` map to a card; the
-other nine kinds map to null and render nothing, with no placeholder. A card ticket adds a kind by
+(`overview_slots.dart`) is the single kind-to-widget mapping, an exhaustive switch with no default.
+Only `today`, `recentEntries` and `comingUp` map to a card; the other nine kinds map to null and render nothing, with no placeholder. A card ticket adds a kind by
 replacing its null arm. The screen has no edit mode or widget catalogue. With the default list no
 section is ever blank: each section renders its own copy for an empty ledger, and a section whose
 read has not settled renders a `LoadingSkeleton`. The screen reads only through `AnalysisQueries`;
@@ -53,10 +53,11 @@ widgets compute no totals.
   every layout. Each slot is an `OverviewWaterfallSlot` keyed `ValueKey(kind)` with its column span.
 - `app/lib/ui/overview/overview_waterfall_layout.dart` - `OverviewWaterfall`, `OverviewWaterfallSlot`
   and `RenderOverviewWaterfall`. The render box lays each child out at its column-span width with an
-  unbounded height, asks `placeOverviewCard` for the column and top from the real heights, and
+  unbounded height, asks `OverviewWaterfallColumns` for the column and top from the real heights, and
   relayouts when a card height changes.
 - `app/lib/ui/overview/overview_grid_placement.dart` - the pure rules: `overviewColumnCount`,
-  `overviewColumnSpan` and `placeOverviewCard`. Their named constants
+  `overviewColumnSpan`, `placeOverviewCard` and `OverviewWaterfallColumns`, which owns the column-bottom
+  bookkeeping. Their named constants
   (column counts, spans, the 1250 dp desktop threshold and the 220 dp column floor) are in the Layout
   section of `overview_constants.dart`.
 - `app/lib/ui/overview/overview_slots.dart` - `overviewSlotFor`, the kind-to-widget switch.
