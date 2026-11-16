@@ -8,6 +8,20 @@ const overviewTrayGap = 10.0;
 
 const overviewFullWidth = double.infinity;
 
+const overviewSingleColumnCount = 1;
+
+const overviewDesktopColumnCount = 2;
+
+const overviewWideColumnCount = 3;
+
+const overviewWideSpan = 2;
+
+const overviewNarrowSpan = 1;
+
+const overviewDesktopWideWindowWidth = 1250.0;
+
+const overviewMinimumColumnWidth = 220.0;
+
 // MARK: - Type
 
 const overviewSmallFontSize = 10.0;

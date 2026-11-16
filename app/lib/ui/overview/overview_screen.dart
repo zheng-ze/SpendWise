@@ -4,14 +4,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
-import 'package:spendwise/ui/overview/overview_slot_column.dart';
+import 'package:spendwise/ui/overview/overview_slot_grid.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Screen
 
 class OverviewScreen extends ConsumerWidget {
-  const OverviewScreen({super.key});
+  const OverviewScreen({
+    super.key,
+    this.layoutMode = ShellLayoutMode.phone,
+    this.presentation = ShellPagePresentation.fullPage,
+  });
+
+  final ShellLayoutMode layoutMode;
+  final ShellPagePresentation presentation;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,15 +30,26 @@ class OverviewScreen extends ConsumerWidget {
       value: asyncState,
       onRetry: () => ref.invalidate(overviewViewModelProvider),
       fullPage: true,
-      data: (viewState) =>
-          _OverviewBody(viewState: viewState, viewModel: viewModel),
+      data: (viewState) => _OverviewBody(
+        layoutMode: layoutMode,
+        presentation: presentation,
+        viewState: viewState,
+        viewModel: viewModel,
+      ),
     );
   }
 }
 
 class _OverviewBody extends StatelessWidget {
-  const _OverviewBody({required this.viewState, required this.viewModel});
+  const _OverviewBody({
+    required this.layoutMode,
+    required this.presentation,
+    required this.viewState,
+    required this.viewModel,
+  });
 
+  final ShellLayoutMode layoutMode;
+  final ShellPagePresentation presentation;
   final OverviewViewState viewState;
   final OverviewViewModel viewModel;
 
@@ -43,7 +63,12 @@ class _OverviewBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _OverviewHeader(day: viewState.day),
-              OverviewSlotColumn(viewState: viewState, viewModel: viewModel),
+              OverviewSlotGrid(
+                layoutMode: layoutMode,
+                presentation: presentation,
+                viewState: viewState,
+                viewModel: viewModel,
+              ),
             ],
           ),
         ),
