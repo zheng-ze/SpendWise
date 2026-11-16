@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/ui/overview/overview_coming_up_section.dart';
 import 'package:spendwise/ui/overview/overview_recent_section.dart';
+import 'package:spendwise/ui/overview/overview_this_month_section.dart';
 import 'package:spendwise/ui/overview/overview_today_section.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 
@@ -20,7 +21,11 @@ Widget? overviewSlotFor(
     viewModel: viewModel,
   ),
   OverviewWidgetKind.comingUp => ComingUpTray(rows: viewState.upcoming),
-  OverviewWidgetKind.thisMonth ||
+  OverviewWidgetKind.thisMonth => ThisMonthTray(
+    month: viewState.thisMonth,
+    failed: viewState.thisMonthFailed,
+    onRetry: viewModel.retryReads,
+  ),
   OverviewWidgetKind.topCategories ||
   OverviewWidgetKind.cardStatement ||
   OverviewWidgetKind.accountBalances ||

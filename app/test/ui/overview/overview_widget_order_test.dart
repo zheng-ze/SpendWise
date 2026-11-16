@@ -78,10 +78,15 @@ void main() {
         _preferencesWith([
           OverviewWidgetKind.comingUp,
           OverviewWidgetKind.today,
+          OverviewWidgetKind.thisMonth,
           OverviewWidgetKind.recentEntries,
         ]),
       );
       final storedOrder = renderedOverviewKinds(tester);
+      final showedThisMonth = find
+          .text(overviewThisMonthTitle)
+          .evaluate()
+          .length;
       final notifier = container.read(displayPreferencesProvider.notifier);
       final replacement = _preferencesWith([OverviewWidgetKind.recentEntries]);
 
@@ -91,11 +96,14 @@ void main() {
       expect(storedOrder, [
         OverviewWidgetKind.comingUp,
         OverviewWidgetKind.today,
+        OverviewWidgetKind.thisMonth,
         OverviewWidgetKind.recentEntries,
       ]);
+      expect(showedThisMonth, 1);
       expect(renderedOverviewKinds(tester), [OverviewWidgetKind.recentEntries]);
       expect(find.text(_todayTitle), findsNothing);
       expect(find.text(overviewComingUpTitle), findsNothing);
+      expect(find.text(overviewThisMonthTitle), findsNothing);
     }, timeout: uiTestTimeout);
 
     testWidgets('a list loaded from storage renders deduplicated', (
@@ -126,7 +134,7 @@ void main() {
       await _pumpOverview(
         tester,
         _preferencesWith([
-          OverviewWidgetKind.thisMonth,
+          OverviewWidgetKind.topCategories,
           OverviewWidgetKind.insights,
           OverviewWidgetKind.weekSoFar,
         ]),

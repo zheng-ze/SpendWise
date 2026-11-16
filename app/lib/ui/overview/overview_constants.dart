@@ -81,3 +81,15 @@ const overviewNoCapCaption = 'Set a monthly cap to see a daily guide.';
 const overviewNoCapLink = 'Set a monthly cap';
 
 const overviewStatementSymbol = 'credit_card';
+
+const overviewThisMonthTitle = 'This month';
+
+const overviewThisMonthEmpty = 'No entries this month';
+
+const overviewThisMonthErrorTitle = "Couldn't load this month's totals";
+
+const overviewThisMonthSpentLabel = 'Spent';
+
+const overviewThisMonthIncomeLabel = 'Income';
+
+const overviewThisMonthNetLabel = 'Net';
