@@ -139,7 +139,7 @@ Future<ProviderContainer> pumpPlansShell(
       shellLayoutModeProvider.overrideWith(
         (ref) => ref.watch(plansShellModeFixture),
       ),
-      moneySegmentProvider.overrideWith((ref) => MoneySegment.plans),
+      moneySegmentProvider.overrideWithBuild((ref, _) => MoneySegment.plans),
       ...overrides,
     ],
   );

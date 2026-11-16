@@ -88,6 +88,28 @@ void main() {
     });
   });
 
+  group('Budgets step', () {
+    test(
+      'requestBudgets emits a budgets request that clearStep clears',
+      () async {
+        final container = await _keptContainer(Ledger(state: defaultState()));
+        final notifier = container.read(overviewViewModelProvider.notifier);
+
+        notifier.requestBudgets();
+        expect(
+          container.read(overviewViewModelProvider).requireValue.step,
+          isA<OverviewBudgetsRequested>(),
+        );
+
+        notifier.clearStep();
+        expect(
+          container.read(overviewViewModelProvider).requireValue.step,
+          isNull,
+        );
+      },
+    );
+  });
+
   group('entry rows', () {
     test('recent rows carry their entry id', () async {
       final container = await _keptContainer(Ledger(state: defaultState()));

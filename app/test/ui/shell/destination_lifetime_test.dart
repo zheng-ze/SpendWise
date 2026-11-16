@@ -9,6 +9,7 @@ import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart'
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/money/money_segment.dart';
@@ -69,12 +70,16 @@ void main() {
             ShellDestination.history;
       }
 
+      void ignoreBudgets() {}
+
       await pumpShellApp(
         tester,
         container,
         bodies: {
-          ShellDestination.overview: (_) =>
-              OverviewFlow(onHistorySelected: selectHistory),
+          ShellDestination.overview: (_) => OverviewFlow(
+            onHistorySelected: selectHistory,
+            onBudgetsSelected: ignoreBudgets,
+          ),
           ShellDestination.history: (_) => const TransactionsFlow(),
         },
       );
@@ -176,6 +181,48 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
+
+  testWidgets('Overview Set a monthly cap opens Money at Budgets', (
+    tester,
+  ) async {
+    final ledger = _noCapLedgerWithEntryToday();
+    final container = buildShellContainer(ledger: ledger);
+    container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.overview;
+    void openBudgets() => container
+        .read(moneySegmentProvider.notifier)
+        .openAt(MoneySegment.budgets);
+    void ignoreHistory() {}
+    await pumpShellApp(
+      tester,
+      container,
+      bodies: {
+        ShellDestination.overview: (_) => OverviewFlow(
+          onHistorySelected: ignoreHistory,
+          onBudgetsSelected: openBudgets,
+        ),
+        ShellDestination.money: (_) => const MoneyFlow(),
+      },
+    );
+    await tester.runAsync(() => settleAnalysis(container, ledger));
+    await tester.pumpAndSettle();
+    expect(container.read(moneySegmentProvider), MoneySegment.accounts);
+
+    await tester.tap(find.text(overviewNoCapLink));
+    await tester.pumpAndSettle();
+
+    expect(container.read(selectedDestinationProvider), ShellDestination.money);
+    expect(container.read(moneySegmentProvider), MoneySegment.budgets);
+    expect(find.byType(BudgetsFlow), findsOneWidget);
+    expect(container.read(selectedBudgetProvider), isNull);
+  }, timeout: uiTestTimeout);
+}
+
+Ledger _noCapLedgerWithEntryToday() {
+  final state = emptyState();
+  final today = DateTime.utc(2026, 3, 3);
+  state.addEntry(entry(1, '-5.00', today, categoryID: groceriesID));
+  return Ledger(state: state);
 }
 
 ProviderContainer _emptyLedgerContainer() {

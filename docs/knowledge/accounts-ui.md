@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: e9e21fdb
+Last reconciled: c7c4805c
 
 ## Feature overview
 
@@ -13,9 +13,13 @@ including posting a balance-adjustment delta entry.
 ## Money host
 
 `MoneyFlow` hosts Budgets, Accounts and Plans in that order and mounts only the visible segment.
-`moneySegmentProvider` is an autoDispose provider that defaults to Accounts and that `MoneyFlow`
-keeps alive while it is mounted. Switching segments, or leaving the Money destination, unmounts the
-previous segment and resets its state; Money opens at Accounts again after the destination is left.
+`moneySegmentProvider` is a non-autoDispose `NotifierProvider<MoneySegmentNotifier, MoneySegment>` that
+defaults to Accounts. Its `build` listens to `selectedDestinationProvider` and resets the segment to
+Accounts whenever the selected destination is not Money, so Money always opens at Accounts after the
+destination is left. The segmented control writes through `show(segment)`. `openAt(segment)` sets the
+segment and selects the Money destination. The segment is kept while Money is unmounted, so a caller
+outside Money lands on that segment; the Overview Today link opens Budgets this way. Switching segments unmounts
+the previous segment and resets its state.
 `MoneyFlow` passes a `MoneyHeader` to the segment root, and each segment renders it at the top of
 its own root page (`HeaderedPage`), so the header is part of the segment and a route pushed over the
 root, such as a scoped Transactions screen, covers it and owns its own heading. The header shows

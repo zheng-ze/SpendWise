@@ -55,6 +55,7 @@ class TodayTray extends StatelessWidget {
         day: viewState.day,
         summary: today,
         recorded: viewState.recordedToday,
+        onSetMonthlyCap: viewModel.requestBudgets,
       );
     }
     return Container(
@@ -112,11 +113,13 @@ class TodayContent extends StatelessWidget {
     required this.day,
     required this.summary,
     required this.recorded,
+    required this.onSetMonthlyCap,
   });
 
   final DateTime day;
   final TodaySummary summary;
   final bool recorded;
+  final VoidCallback onSetMonthlyCap;
 
   static const _heroVerticalGap = 4.0;
   static const _heroBottomGap = 6.0;
@@ -146,7 +149,11 @@ class TodayContent extends StatelessWidget {
         const SizedBox(height: _heroVerticalGap),
         headline,
         const SizedBox(height: _heroBottomGap),
-        DailyGuide(summary: summary, label: label),
+        DailyGuide(
+          summary: summary,
+          label: label,
+          onSetMonthlyCap: onSetMonthlyCap,
+        ),
       ],
     );
   }
@@ -155,10 +162,16 @@ class TodayContent extends StatelessWidget {
 // MARK: - Guide
 
 class DailyGuide extends StatelessWidget {
-  const DailyGuide({super.key, required this.summary, required this.label});
+  const DailyGuide({
+    super.key,
+    required this.summary,
+    required this.label,
+    required this.onSetMonthlyCap,
+  });
 
   final TodaySummary summary;
   final TextStyle label;
+  final VoidCallback onSetMonthlyCap;
 
   @override
   Widget build(BuildContext context) {
@@ -169,7 +182,7 @@ class DailyGuide extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(overviewNoCapCaption, style: label),
-          const _GuideLinkText(overviewNoCapLink),
+          MonthlyCapAction(onPressed: onSetMonthlyCap),
         ],
       );
     }
@@ -192,23 +205,38 @@ class DailyGuide extends StatelessWidget {
   }
 }
 
-// MARK: - Guide Link
-class _GuideLinkText extends StatelessWidget {
-  const _GuideLinkText(this.text);
+// MARK: - Monthly Cap Action
 
-  final String text;
+class MonthlyCapAction extends StatelessWidget {
+  const MonthlyCapAction({super.key, required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  static const _minWidth = 48.0;
+  static const _minHeight = 48.0;
+  static const _padding = EdgeInsets.zero;
+  static const _alignment = Alignment.centerLeft;
 
   @override
   Widget build(BuildContext context) {
     final color = context.colors.action;
     return Padding(
       padding: const EdgeInsets.only(top: overviewLinkTopPadding),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: overviewBodyFontSize,
-          fontWeight: overviewSemiBold,
-          color: color,
+      child: TextButton(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: color,
+          minimumSize: const Size(_minWidth, _minHeight),
+          tapTargetSize: MaterialTapTargetSize.padded,
+          padding: _padding,
+          alignment: _alignment,
+        ),
+        child: const Text(
+          overviewNoCapLink,
+          style: TextStyle(
+            fontSize: overviewBodyFontSize,
+            fontWeight: overviewSemiBold,
+          ),
         ),
       ),
     );

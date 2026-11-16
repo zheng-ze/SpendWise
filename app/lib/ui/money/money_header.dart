@@ -49,8 +49,7 @@ class MoneyHeader extends ConsumerWidget {
       options: _options,
       value: segment,
       small: presentation == ShellPagePresentation.singleColumn,
-      onChanged: (value) =>
-          ref.read(moneySegmentProvider.notifier).state = value,
+      onChanged: (value) => ref.read(moneySegmentProvider.notifier).show(value),
     );
     return Column(
       children: [

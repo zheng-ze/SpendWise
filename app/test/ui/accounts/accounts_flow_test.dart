@@ -512,7 +512,7 @@ Future<void> _verifyMoneySegmentLifetime(
       ShellDestination.money;
   await _pumpAccountsShell(tester, container);
   expect(find.byType(BudgetsFlow), findsNothing);
-  container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
+  container.read(moneySegmentProvider.notifier).show(MoneySegment.budgets);
   await tester.pumpAndSettle();
   container.read(selectedBudgetProvider.notifier).select(_retainedBudgetId);
   await tester.pumpAndSettle();
@@ -531,7 +531,7 @@ Future<void> _verifyMoneySegmentLifetime(
   _expectSameFlowElements(tester, elements);
   expect(find.byType(AccountsFlow, skipOffstage: false), findsNothing);
 
-  container.read(moneySegmentProvider.notifier).state = MoneySegment.accounts;
+  container.read(moneySegmentProvider.notifier).show(MoneySegment.accounts);
   await tester.pumpAndSettle();
   expect(find.byType(BudgetsFlow, skipOffstage: false), findsNothing);
   expect(container.read(selectedBudgetProvider.exists), isFalse);

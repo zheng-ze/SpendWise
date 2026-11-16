@@ -22,6 +22,8 @@ const _testDevicePixelRatio = 1.0;
 
 void _ignoreHistory() {}
 
+void _ignoreBudgets() {}
+
 Future<ProviderContainer> _pumpOverview(
   WidgetTester tester,
   LedgerState state, {
@@ -38,7 +40,36 @@ Future<ProviderContainer> _pumpOverview(
       container: container,
       child: MaterialApp(
         theme: buildSpendWiseTheme(brightness),
-        home: phoneShell(OverviewFlow(onHistorySelected: _ignoreHistory)),
+        home: phoneShell(
+          OverviewFlow(
+            onHistorySelected: _ignoreHistory,
+            onBudgetsSelected: _ignoreBudgets,
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.runAsync(() => settleAnalysis(container, ledger));
+  await tester.pumpAndSettle();
+  return container;
+}
+
+Future<ProviderContainer> _pumpBareOverviewScreen(
+  WidgetTester tester,
+  LedgerState state, {
+  required Brightness brightness,
+}) async {
+  tester.view.physicalSize = _phoneSize;
+  tester.view.devicePixelRatio = _testDevicePixelRatio;
+  addTearDown(tester.view.reset);
+  final ledger = Ledger(state: state);
+  final container = overviewContainer(ledger);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: buildSpendWiseTheme(brightness),
+        home: const OverviewScreen(),
       ),
     ),
   );
@@ -83,6 +114,7 @@ void main() {
         expect(find.text('S\$45.70'), findsOneWidget);
         expect(find.text('Daily guide: about S\$39'), findsOneWidget);
         expect(find.text('From your S\$1,200 monthly cap.'), findsOneWidget);
+        expect(find.text('Set a monthly cap'), findsNothing);
         expect(find.text('Recent entries'), findsOneWidget);
         expect(find.text('View History'), findsOneWidget);
         expect(find.text('Coming up'), findsOneWidget);
@@ -173,6 +205,36 @@ void main() {
         expect(find.textContaining('Daily guide'), findsNothing);
       }, timeout: uiTestTimeout);
 
+      testWidgets('Set a monthly cap requests the Budgets section', (
+        tester,
+      ) async {
+        final state = emptyState();
+        state.addEntry(
+          entry(
+            1,
+            '-5.00',
+            fixtureToday,
+            name: 'Lunch',
+            categoryID: groceriesID,
+          ),
+        );
+        final container = await _pumpBareOverviewScreen(
+          tester,
+          state,
+          brightness: brightness,
+        );
+
+        final action = find.text('Set a monthly cap');
+        await tester.ensureVisible(action);
+        await tester.tap(action);
+        await tester.pump();
+
+        expect(
+          container.read(overviewViewModelProvider).requireValue.step,
+          isA<OverviewBudgetsRequested>(),
+        );
+      }, timeout: uiTestTimeout);
+
       testWidgets('shows an error with Retry when Today fails', (tester) async {
         var failing = true;
         await _pumpOverview(
@@ -212,22 +274,11 @@ void main() {
       }, timeout: uiTestTimeout);
 
       testWidgets('View History requests the history page', (tester) async {
-        tester.view.physicalSize = _phoneSize;
-        tester.view.devicePixelRatio = _testDevicePixelRatio;
-        addTearDown(tester.view.reset);
-        final ledger = Ledger(state: defaultState());
-        final container = overviewContainer(ledger);
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: MaterialApp(
-              theme: buildSpendWiseTheme(brightness),
-              home: const OverviewScreen(),
-            ),
-          ),
+        final container = await _pumpBareOverviewScreen(
+          tester,
+          defaultState(),
+          brightness: brightness,
         );
-        await tester.runAsync(() => settleAnalysis(container, ledger));
-        await tester.pumpAndSettle();
 
         final action = find.widgetWithText(TextButton, 'View History');
         expect(action, findsOneWidget);
@@ -274,7 +325,12 @@ void main() {
             container: container,
             child: MaterialApp(
               theme: buildSpendWiseTheme(brightness),
-              home: phoneShell(OverviewFlow(onHistorySelected: _ignoreHistory)),
+              home: phoneShell(
+                OverviewFlow(
+                  onHistorySelected: _ignoreHistory,
+                  onBudgetsSelected: _ignoreBudgets,
+                ),
+              ),
             ),
           ),
         );

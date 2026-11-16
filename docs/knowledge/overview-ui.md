@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: 9abfd429
+Last reconciled: c7c4805c
 
 ## Feature overview
 
@@ -39,7 +39,8 @@ widgets compute no totals.
   (`AsyncNotifier` with `LedgerBackedNotifier`, `overviewViewModelProvider`), `OverviewViewState`,
   and the row types `OverviewEntryRow` and `OverviewUpcomingRow`. The view state carries an
   `OverviewStep` (`HasStep`/`StepEmitting`); `requestHistory` emits `OverviewHistoryRequested`,
-  `openEntry` emits `OverviewEntryRequested` and `clearStep` clears it. `OverviewEntryRow.entryId`
+  `requestBudgets` emits `OverviewBudgetsRequested`, `openEntry` emits `OverviewEntryRequested` and
+  `clearStep` clears it. `OverviewEntryRow.entryId`
   identifies the entry a Recent row opens. Rebuilds preserve a pending step.
 - `app/lib/ui/overview/overview_screen.dart` - `OverviewScreen` and its header; the body places
   `OverviewSlotGrid` under the header. `OverviewScreen` takes `layoutMode` (default phone) and
@@ -62,8 +63,10 @@ widgets compute no totals.
   section of `overview_constants.dart`.
 - `app/lib/ui/overview/overview_slots.dart` - `overviewSlotFor`, the kind-to-widget switch.
 - `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) subscribing to
-  `OverviewStep` once, calling its required `onHistorySelected` callback for history requests and
-  `openEditEntry` for entry requests. It supplies its page through `ShellPaneHost`. Its page builder
+  `OverviewStep` once, calling its required `onHistorySelected` callback for history requests, its
+  required `onBudgetsSelected` callback for budget requests and `openEditEntry` for entry requests.
+  `BootChrome` supplies both callbacks (`app/lib/ui/shell/boot_chrome.dart`). It supplies its page
+  through `ShellPaneHost`. Its page builder
   passes the layout mode from `ShellPaneScope` and the page presentation to `OverviewScreen`.
 - `app/lib/ledger/analysis/summaries/today_summary.dart` - `TodaySummary` carries `spent`, `dailyGuide` and
   `monthlyCap`.
@@ -94,6 +97,14 @@ Navigator mounts. On every layout `BootChrome` supplies a callback that selects 
 `ShellDestination.history` slot (`app/lib/ui/shell/boot_chrome.dart`); the flow pushes no route and
 History mounts fresh at the current month with an empty stack, and nothing is carried over from Overview before it mounts.
 History has no back-to-Overview control.
+The 'Set a monthly cap' link in the Today tray calls `OverviewViewModel.requestBudgets`, which emits
+`OverviewBudgetsRequested`. `OverviewFlow` consumes it once, clears it and calls `onBudgetsSelected`.
+`BootChrome` wires that callback to `moneySegmentProvider.notifier.openAt(MoneySegment.budgets)`.
+`openAt` sets the segment to Budgets and selects the Money destination. The segment is kept while Money
+is unmounted, so Money mounts at Budgets with no budget preselected, whichever segment it showed last. Overview does not know about
+Money. The link is absent while an unscoped budget exists. While an AppSheet covers the shell, a tap on
+the link reaches the modal barrier and only dismisses the sheet. On open and desktop the docked sheet
+leaves the link visible, so the first tap dismisses the sheet and a second tap navigates.
 Recent entries rows are tappable: `OverviewViewModel.openEntry` emits `OverviewEntryRequested` only
 for entries active in the ledger, and `OverviewFlow` calls `openEditEntry`
 (`app/lib/ui/transactions/entry/edit_entry_presenter.dart`). The Edit entry sheet presents over the
@@ -141,8 +152,9 @@ Overview tab and does not change the shell selection.
   than 220 dp.
 - `OverviewNotifier` and `OverviewViewState` do not depend on the widget list; the notifier stays
   synchronous and ledger-derived.
-- The 'Set a monthly cap' link renders as styled text without a tap target. The shell wiring
-  that makes it navigate does not exist yet.
+- The 'Set a monthly cap' link is a `MonthlyCapAction` button with a 48x48 minimum tap target. Its
+  tap opens Money at Budgets. Under a covering sheet it only dismisses that sheet, as described under
+  Module interactions.
 - 'View History' is a real action; it stays reachable for empty and section-loading Recent
   entries, not only for nonempty rows.
 - The screen has no header actions. The gear and 'Edit Overview' of the reference frame are not
@@ -184,3 +196,14 @@ Overview tab and does not change the shell selection.
   the shell. The window width, the mode and the presentation reach the column rule through the shell
   scopes
   (`app/test/ui/overview/overview_grid_layout_test.dart`).
+- The 'Set a monthly cap' link is shown only without an unscoped budget, and tapping it emits
+  `OverviewBudgetsRequested` (`app/test/ui/overview/overview_screen_test.dart`,
+  `app/test/ui/overview/overview_view_model_test.dart`). Overview's `requestBudgets` step is consumed
+  and cleared (`app/test/ui/overview/overview_view_model_test.dart`).
+- Money opens at the Budgets segment from Overview, selects the Money destination and mounts no budget
+  detail (`app/test/ui/shell/destination_lifetime_test.dart`). The segment provider keeps its value
+  while Money is selected and resets to Accounts after Money is left
+  (`app/test/ui/accounts/money_segment_test.dart`).
+- With an Edit entry sheet over Overview without a cap, a tap on the link only dismisses the sheet:
+  no budgets step is emitted and the destination does not change
+  (`app/test/ui/overview/overview_recent_edit_test.dart`).

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
+import 'package:spendwise/ui/money/money_segment.dart';
 import 'package:spendwise/ui/overview/overview_flow.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
@@ -62,6 +63,8 @@ class _OverviewTabEntry extends ConsumerWidget {
       onHistorySelected: () =>
           ref.read(selectedDestinationProvider.notifier).state =
               ShellDestination.history,
+      onBudgetsSelected: () =>
+          ref.read(moneySegmentProvider.notifier).openAt(MoneySegment.budgets),
     );
   }
 }

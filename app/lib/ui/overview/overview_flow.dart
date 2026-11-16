@@ -11,9 +11,14 @@ import 'package:spendwise/ui/transactions/entry/edit_entry_presenter.dart';
 
 // MARK: - OverviewFlow
 class OverviewFlow extends FlowBase<OverviewStep> {
-  const OverviewFlow({super.key, required this.onHistorySelected});
+  const OverviewFlow({
+    super.key,
+    required this.onHistorySelected,
+    required this.onBudgetsSelected,
+  });
 
   final VoidCallback onHistorySelected;
+  final VoidCallback onBudgetsSelected;
 
   @override
   ConsumerState<OverviewFlow> createState() => _OverviewFlowState();
@@ -36,6 +41,8 @@ class _OverviewFlowState extends FlowBaseState<OverviewStep, OverviewFlow> {
     switch (step) {
       case OverviewHistoryRequested():
         widget.onHistorySelected();
+      case OverviewBudgetsRequested():
+        widget.onBudgetsSelected();
       case OverviewEntryRequested(:final entryId):
         unawaited(openEditEntry(context: context, ref: ref, entryId: entryId));
     }
