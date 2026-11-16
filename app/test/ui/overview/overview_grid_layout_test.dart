@@ -69,7 +69,9 @@ void main() {
       expect(_columnCount(tester), 1);
     }, timeout: uiTestTimeout);
 
-    testWidgets('layouts render the stored order', (tester) async {
+    testWidgets('open layout renders the slots in stored order', (
+      tester,
+    ) async {
       await _pumpOpen(tester);
 
       expect(renderedOverviewKinds(tester), _storedOrder);

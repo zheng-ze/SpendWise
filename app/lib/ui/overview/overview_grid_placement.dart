@@ -6,6 +6,8 @@ import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 const _placementTolerance = 1e-10;
+const _emptyColumnBottom = 0.0;
+const _emptyGridHeight = 0.0;
 
 int overviewColumnCount({
   required ShellLayoutMode mode,
@@ -75,7 +77,7 @@ int overviewColumnSpan(OverviewWidgetKind kind) => switch (kind) {
 
 class OverviewWaterfallColumns {
   OverviewWaterfallColumns({required int columnCount, required this.gap})
-    : _bottoms = List<double>.filled(columnCount, 0);
+    : _bottoms = List<double>.filled(columnCount, _emptyColumnBottom);
 
   final double gap;
   final List<double> _bottoms;
@@ -100,5 +102,6 @@ class OverviewWaterfallColumns {
     return placement;
   }
 
-  double get height => _isEmpty ? 0 : _bottoms.reduce(math.max) - gap;
+  double get height =>
+      _isEmpty ? _emptyGridHeight : _bottoms.reduce(math.max) - gap;
 }

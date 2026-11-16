@@ -118,7 +118,7 @@ class RenderOverviewWaterfall extends RenderBox
     var child = firstChild;
     while (child != null) {
       final parentData = child.parentData! as OverviewWaterfallParentData;
-      final span = math.min(parentData.span, _columnCount);
+      final span = parentData.span;
       final size = measure(child, _childConstraints(columnWidth, span));
       final placement = columns.place(span: span, height: size.height);
       position?.call(
