@@ -209,7 +209,6 @@ class _SourceEditFormBody extends StatelessWidget {
       header: AppPickerHeader(title: title),
       body: fields,
       footer: saveButton,
-      dragToDismiss: true,
       variant: AppSheetVariant.form,
     );
   }

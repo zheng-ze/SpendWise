@@ -23,8 +23,6 @@ class AccountTypePicker extends StatelessWidget {
 
   final AppSheetPresentation Function(BuildContext)? sheetPresentation;
 
-  static const _sheetHeightFactor = 0.7;
-
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -39,34 +37,17 @@ class AccountTypePicker extends StatelessWidget {
   }
 
   Future<void> _pick(BuildContext context) async {
-    final presentation = sheetPresentation;
-    final chosen = presentation == null
-        ? await showModalBottomSheet<AccountType>(
-            context: context,
-            isScrollControlled: true,
-            builder: (_) => FractionallySizedBox(
-              heightFactor: _sheetHeightFactor,
-              child: SafeArea(
-                child: SingleChildScrollView(
-                  child: _AccountTypeOptions(
-                    selected: selected,
-                    onSelected: (type) => Navigator.of(context).pop(type),
-                  ),
-                ),
-              ),
-            ),
-          )
-        : await showPickerAppSheet<AccountType>(
-            context,
-            presentation: presentation,
-            builder: (routeContext) => AppPickerSheet(
-              title: 'Account type',
-              body: _AccountTypeOptions(
-                selected: selected,
-                onSelected: (type) => Navigator.of(routeContext).pop(type),
-              ),
-            ),
-          );
+    final chosen = await showPickerAppSheet<AccountType>(
+      context,
+      presentation: sheetPresentation,
+      builder: (routeContext) => AppPickerSheet(
+        title: 'Account type',
+        body: _AccountTypeOptions(
+          selected: selected,
+          onSelected: (type) => Navigator.of(routeContext).pop(type),
+        ),
+      ),
+    );
     if (!context.mounted || chosen == null) return;
     onSelected(chosen);
   }

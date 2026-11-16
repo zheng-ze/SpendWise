@@ -32,7 +32,6 @@ class FormSheetLoading extends StatelessWidget {
     return AppSheet(
       header: AppPickerHeader(title: title),
       body: const Center(child: body),
-      dragToDismiss: true,
       variant: AppSheetVariant.form,
     );
   }
@@ -65,7 +64,6 @@ class FormSheetLoadError extends StatelessWidget {
       body: const SizedBox.shrink(),
       footer: footer,
       alert: alert,
-      dragToDismiss: true,
       variant: AppSheetVariant.form,
     );
   }

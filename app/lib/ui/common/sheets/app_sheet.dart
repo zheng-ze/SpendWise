@@ -61,7 +61,7 @@ class AppSheet extends StatefulWidget {
     this.alert,
     this.onAlertAction,
     this.phoneMaxHeightFraction = defaultMaxHeightFraction,
-    this.dragToDismiss = false,
+    this.dragToDismiss = true,
     this.variant = AppSheetVariant.standard,
   });
 

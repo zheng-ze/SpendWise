@@ -21,8 +21,6 @@ class StatementDayPicker extends StatelessWidget {
 
   final AppSheetPresentation Function(BuildContext)? sheetPresentation;
 
-  static const _sheetHeightFactor = 0.7;
-
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -37,34 +35,17 @@ class StatementDayPicker extends StatelessWidget {
   }
 
   Future<void> _pick(BuildContext context) async {
-    final presentation = sheetPresentation;
-    final chosen = presentation == null
-        ? await showModalBottomSheet<int>(
-            context: context,
-            isScrollControlled: true,
-            builder: (_) => FractionallySizedBox(
-              heightFactor: _sheetHeightFactor,
-              child: SafeArea(
-                child: SingleChildScrollView(
-                  child: _StatementDayOptions(
-                    selected: selected,
-                    onSelected: (day) => Navigator.of(context).pop(day),
-                  ),
-                ),
-              ),
-            ),
-          )
-        : await showPickerAppSheet<int>(
-            context,
-            presentation: presentation,
-            builder: (routeContext) => AppPickerSheet(
-              title: 'Statement day',
-              body: _StatementDayOptions(
-                selected: selected,
-                onSelected: (day) => Navigator.of(routeContext).pop(day),
-              ),
-            ),
-          );
+    final chosen = await showPickerAppSheet<int>(
+      context,
+      presentation: sheetPresentation,
+      builder: (routeContext) => AppPickerSheet(
+        title: 'Statement day',
+        body: _StatementDayOptions(
+          selected: selected,
+          onSelected: (day) => Navigator.of(routeContext).pop(day),
+        ),
+      ),
+    );
     if (!context.mounted || chosen == null) return;
     onSelected(chosen);
   }
