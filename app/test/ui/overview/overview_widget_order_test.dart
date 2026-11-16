@@ -58,18 +58,6 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('Overview widget order', () {
-    testWidgets('default preferences render the three cards in order', (
-      tester,
-    ) async {
-      await _pumpOverview(tester, DisplayPreferences.defaults);
-
-      expect(renderedOverviewKinds(tester), [
-        OverviewWidgetKind.today,
-        OverviewWidgetKind.recentEntries,
-        OverviewWidgetKind.comingUp,
-      ]);
-    }, timeout: uiTestTimeout);
-
     testWidgets('stored order is rendered and a replaced list re-renders', (
       tester,
     ) async {

@@ -25,7 +25,7 @@ taken in stored order. `placeOverviewCard` puts each card at the top of the shor
 two-column card takes the adjacent column pair that wastes the least space under the shorter column,
 then the lower top, then the leftmost pair. With one column every card stacks in stored order. With
 two columns each spanning card takes both columns. Only kinds that map to a card take part in
-placement. The default list is Today, Recent entries and Coming up. `overviewSlotFor`
+placement. The default list is Today, This month, Recent entries and Coming up. `overviewSlotFor`
 (`overview_slots.dart`) is the single kind-to-widget mapping, an exhaustive switch with no default.
 Only `today`, `thisMonth`, `recentEntries` and `comingUp` map to a card; the other eight kinds map to
 null and render nothing, with no placeholder. A card ticket adds a kind by replacing its null arm. The screen has no edit mode or widget catalogue. With the default list no
@@ -184,8 +184,7 @@ Overview tab and does not change the shell selection.
   entries, not only for nonempty rows.
 - The This month card is deliberately untappable. It sends no History request and emits no step, so a
   tap does nothing.
-- The defaults are unchanged, so the This month card shows only when the stored `overviewWidgets` list
-  includes `thisMonth`.
+- The This month card is in the default list. A stored `overviewWidgets` list without `thisMonth` hides it.
 - Very large figures (7-8 digits) can overflow at the narrowest 220 dp column with 2x text. Recent
   entries rows can overflow the same way.
 - The screen has no header actions. The gear and 'Edit Overview' of the reference frame are not
@@ -217,8 +216,6 @@ Overview tab and does not change the shell selection.
   (`app/test/ui/overview/overview_screen_test.dart`).
 - Coming up excludes dates at or beyond 42 days
   (`app/test/ui/overview/overview_view_model_test.dart`).
-- With the default list, an empty ledger renders all three sections with their own copy
-  (`app/test/ui/overview/overview_screen_test.dart`).
 - The column count follows the layout mode, the shell presentation, the window width and the 220 dp
   column floor. Waterfall placement picks the shortest column or the least wasteful column pair
   for each card (`app/test/ui/overview/overview_grid_placement_test.dart`).

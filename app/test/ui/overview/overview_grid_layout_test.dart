@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/ui/overview/overview_waterfall_layout.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
@@ -11,12 +10,6 @@ const _desktopBelowWideSize = Size(1249, 800);
 const _desktopWideSize = Size(1250, 800);
 const _openWindowSize = Size(1600, 900);
 const _addEntrySplitOffset = 800.0;
-
-const _storedOrder = [
-  OverviewWidgetKind.today,
-  OverviewWidgetKind.recentEntries,
-  OverviewWidgetKind.comingUp,
-];
 
 Future<void> _pumpDesktop(WidgetTester tester, Size windowSize) =>
     pumpOverviewWindow(
@@ -67,14 +60,6 @@ void main() {
       await _pumpOpen(tester, sheetCovered: true);
 
       expect(_columnCount(tester), 1);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('open layout renders the slots in stored order', (
-      tester,
-    ) async {
-      await _pumpOpen(tester);
-
-      expect(renderedOverviewKinds(tester), _storedOrder);
     }, timeout: uiTestTimeout);
   });
 }

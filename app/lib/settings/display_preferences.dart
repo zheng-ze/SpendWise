@@ -100,6 +100,7 @@ class DisplayPreferences {
     this.appearance = Appearance.system,
     List<OverviewWidgetKind> overviewWidgets = const [
       OverviewWidgetKind.today,
+      OverviewWidgetKind.thisMonth,
       OverviewWidgetKind.recentEntries,
       OverviewWidgetKind.comingUp,
     ],
