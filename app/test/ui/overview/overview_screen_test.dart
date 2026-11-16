@@ -90,6 +90,7 @@ class _LoadingOverviewNotifier extends OverviewNotifier {
     today: null,
     recent: null,
     upcoming: null,
+    thisMonth: null,
   );
 }
 

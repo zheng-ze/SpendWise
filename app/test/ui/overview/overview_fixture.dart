@@ -174,12 +174,13 @@ ProviderContainer overviewContainer(
   Ledger ledger, {
   ComputeRunner runner = syncComputeRunner,
   DisplayPreferences? preferences,
+  DateTime Function()? clock,
 }) {
   final container = ProviderContainer(
     overrides: [
       ledgerProvider.overrideWithValue(ledger),
       analysisComputeRunnerProvider.overrideWithValue(runner),
-      clockProvider.overrideWithValue(() => fixtureToday),
+      clockProvider.overrideWithValue(clock ?? () => fixtureToday),
       if (preferences != null)
         initialDisplayPreferencesProvider.overrideWithValue(preferences),
     ],
