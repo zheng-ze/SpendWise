@@ -168,17 +168,18 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
     final monthEntries = queries.readRegisterDays(window: month).value;
     final periodSummary = period.value;
     final periodIsCurrent = period.sourceRevision == currentLedger.revision;
+    final thisMonth = periodIsCurrent && periodSummary != null
+        ? _thisMonth(
+            periodSummary,
+            monthEntries?.isNotEmpty ?? true,
+            month.start,
+          )
+        : null;
     return OverviewViewState(
       day: day,
       today: todayIsCurrent ? today.value : null,
       todayFailed: today.state == AnalysisQueryState.failed,
-      thisMonth: periodIsCurrent && periodSummary != null
-          ? _thisMonth(
-              periodSummary,
-              monthEntries?.isNotEmpty ?? true,
-              month.start,
-            )
-          : null,
+      thisMonth: thisMonth,
       thisMonthFailed: period.state == AnalysisQueryState.failed,
       recordedToday: newest?.entry.date == day,
       recent: recent == null
