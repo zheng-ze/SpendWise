@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: 025383e2
+Last reconciled: c7c4805c
 
 ## Feature overview
 
@@ -17,8 +17,8 @@ including posting a balance-adjustment delta entry.
 defaults to Accounts. Its `build` listens to `selectedDestinationProvider` and resets the segment to
 Accounts whenever the selected destination is not Money, so Money always opens at Accounts after the
 destination is left. The segmented control writes through `show(segment)`. `openAt(segment)` sets the
-segment first and then selects the Money destination, so a caller outside Money lands on that segment
-with no reset in between; the Overview Today link opens Budgets this way. Switching segments unmounts
+segment and selects the Money destination. The segment is kept while Money is unmounted, so a caller
+outside Money lands on that segment; the Overview Today link opens Budgets this way. Switching segments unmounts
 the previous segment and resets its state.
 `MoneyFlow` passes a `MoneyHeader` to the segment root, and each segment renders it at the top of
 its own root page (`HeaderedPage`), so the header is part of the segment and a route pushed over the

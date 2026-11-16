@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: 025383e2
+Last reconciled: c7c4805c
 
 ## Feature overview
 
@@ -100,8 +100,8 @@ History has no back-to-Overview control.
 The 'Set a monthly cap' link in the Today tray calls `OverviewViewModel.requestBudgets`, which emits
 `OverviewBudgetsRequested`. `OverviewFlow` consumes it once, clears it and calls `onBudgetsSelected`.
 `BootChrome` wires that callback to `moneySegmentProvider.notifier.openAt(MoneySegment.budgets)`.
-`openAt` sets the segment to Budgets first and then selects the Money destination, so Money mounts at
-Budgets with no budget preselected, whichever segment it showed last. Overview does not know about
+`openAt` sets the segment to Budgets and selects the Money destination. The segment is kept while Money
+is unmounted, so Money mounts at Budgets with no budget preselected, whichever segment it showed last. Overview does not know about
 Money. The link is absent while an unscoped budget exists. While an AppSheet covers the shell, a tap on
 the link reaches the modal barrier and only dismisses the sheet. On open and desktop the docked sheet
 leaves the link visible, so the first tap dismisses the sheet and a second tap navigates.
