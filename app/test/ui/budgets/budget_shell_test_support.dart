@@ -91,7 +91,7 @@ ProviderContainer _shellContainer({
   TargetPlatform? platform,
 }) {
   final overrides = <Override>[
-    moneySegmentProvider.overrideWith((ref) => MoneySegment.budgets),
+    moneySegmentProvider.overrideWithBuild((ref, _) => MoneySegment.budgets),
   ];
   if (platform != null) {
     final facts = (isWeb: false, targetPlatform: platform);

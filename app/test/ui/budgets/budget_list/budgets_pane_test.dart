@@ -943,7 +943,7 @@ Future<void> _verifyInactiveDeferredPhonePage(WidgetTester tester) async {
   final sheet = _pushTestSheet(tester);
   await tester.pumpAndSettle();
   container.read(budgetShellModeFixture.notifier).state = ShellLayoutMode.phone;
-  container.read(moneySegmentProvider.notifier).state = MoneySegment.accounts;
+  container.read(moneySegmentProvider.notifier).show(MoneySegment.accounts);
   await tester.pumpAndSettle();
   await closeShellSheet(tester, sheet);
   expect(find.byType(BudgetDetailScreen), findsNothing);
