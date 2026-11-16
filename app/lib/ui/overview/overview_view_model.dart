@@ -101,6 +101,8 @@ sealed class OverviewStep {}
 
 class OverviewHistoryRequested extends OverviewStep {}
 
+class OverviewBudgetsRequested extends OverviewStep {}
+
 class OverviewEntryRequested extends OverviewStep {
   OverviewEntryRequested(this.entryId);
 
@@ -111,6 +113,7 @@ class OverviewEntryRequested extends OverviewStep {
 abstract class OverviewViewModel {
   void retryToday();
   void requestHistory();
+  void requestBudgets();
   void openEntry(String id);
   void clearStep();
 }
@@ -155,6 +158,9 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
 
   @override
   void requestHistory() => emitStep(OverviewHistoryRequested());
+
+  @override
+  void requestBudgets() => emitStep(OverviewBudgetsRequested());
 
   @override
   void openEntry(String id) {

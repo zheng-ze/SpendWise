@@ -203,6 +203,8 @@ const _overviewDevicePixelRatio = 1.0;
 
 void _ignoreOverviewHistory() {}
 
+void _ignoreOverviewBudgets() {}
+
 Future<ProviderContainer> pumpOverviewWindow(
   WidgetTester tester, {
   required LedgerState state,
@@ -218,7 +220,10 @@ Future<ProviderContainer> pumpOverviewWindow(
   addTearDown(tester.view.reset);
   final ledger = Ledger(state: state);
   final container = overviewContainer(ledger, preferences: preferences);
-  final overview = OverviewFlow(onHistorySelected: _ignoreOverviewHistory);
+  final overview = OverviewFlow(
+    onHistorySelected: _ignoreOverviewHistory,
+    onBudgetsSelected: _ignoreOverviewBudgets,
+  );
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,

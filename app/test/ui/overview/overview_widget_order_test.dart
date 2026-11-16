@@ -21,6 +21,8 @@ const _storedWidgetCodes = 'comingUp,notAKind,today,comingUp';
 
 void _ignoreHistory() {}
 
+void _ignoreBudgets() {}
+
 DisplayPreferences _preferencesWith(List<OverviewWidgetKind> kinds) =>
     DisplayPreferences.defaults.copyWith(overviewWidgets: kinds);
 
@@ -38,7 +40,12 @@ Future<ProviderContainer> _pumpOverview(
       container: container,
       child: MaterialApp(
         theme: buildSpendWiseTheme(Brightness.light),
-        home: phoneShell(OverviewFlow(onHistorySelected: _ignoreHistory)),
+        home: phoneShell(
+          OverviewFlow(
+            onHistorySelected: _ignoreHistory,
+            onBudgetsSelected: _ignoreBudgets,
+          ),
+        ),
       ),
     ),
   );

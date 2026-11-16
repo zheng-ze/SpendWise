@@ -69,12 +69,16 @@ void main() {
             ShellDestination.history;
       }
 
+      void ignoreBudgets() {}
+
       await pumpShellApp(
         tester,
         container,
         bodies: {
-          ShellDestination.overview: (_) =>
-              OverviewFlow(onHistorySelected: selectHistory),
+          ShellDestination.overview: (_) => OverviewFlow(
+            onHistorySelected: selectHistory,
+            onBudgetsSelected: ignoreBudgets,
+          ),
           ShellDestination.history: (_) => const TransactionsFlow(),
         },
       );

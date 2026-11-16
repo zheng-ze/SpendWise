@@ -22,6 +22,8 @@ const _testDevicePixelRatio = 1.0;
 
 void _ignoreHistory() {}
 
+void _ignoreBudgets() {}
+
 Future<ProviderContainer> _pumpOverview(
   WidgetTester tester,
   LedgerState state, {
@@ -38,7 +40,12 @@ Future<ProviderContainer> _pumpOverview(
       container: container,
       child: MaterialApp(
         theme: buildSpendWiseTheme(brightness),
-        home: phoneShell(OverviewFlow(onHistorySelected: _ignoreHistory)),
+        home: phoneShell(
+          OverviewFlow(
+            onHistorySelected: _ignoreHistory,
+            onBudgetsSelected: _ignoreBudgets,
+          ),
+        ),
       ),
     ),
   );
@@ -274,7 +281,12 @@ void main() {
             container: container,
             child: MaterialApp(
               theme: buildSpendWiseTheme(brightness),
-              home: phoneShell(OverviewFlow(onHistorySelected: _ignoreHistory)),
+              home: phoneShell(
+                OverviewFlow(
+                  onHistorySelected: _ignoreHistory,
+                  onBudgetsSelected: _ignoreBudgets,
+                ),
+              ),
             ),
           ),
         );

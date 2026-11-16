@@ -32,8 +32,10 @@ void main() {
         tester,
         container,
         bodies: {
-          ShellDestination.overview: (_) =>
-              const OverviewFlow(onHistorySelected: _ignoreHistory),
+          ShellDestination.overview: (_) => const OverviewFlow(
+            onHistorySelected: _ignoreHistory,
+            onBudgetsSelected: _ignoreBudgets,
+          ),
         },
       );
       await tester.runAsync(() => settleAnalysis(container, ledger));
@@ -54,3 +56,5 @@ void main() {
 }
 
 void _ignoreHistory() {}
+
+void _ignoreBudgets() {}
