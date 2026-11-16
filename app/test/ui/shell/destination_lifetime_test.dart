@@ -182,45 +182,40 @@ void main() {
     timeout: uiTestTimeout,
   );
 
-  testWidgets(
-    'Overview Set a monthly cap opens Money at Budgets',
-    (tester) async {
-      final ledger = _noCapLedgerWithEntryToday();
-      final container = buildShellContainer(ledger: ledger);
-      container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.overview;
-      void openBudgets() => container
-          .read(moneySegmentProvider.notifier)
-          .openAt(MoneySegment.budgets);
-      void ignoreHistory() {}
-      await pumpShellApp(
-        tester,
-        container,
-        bodies: {
-          ShellDestination.overview: (_) => OverviewFlow(
-            onHistorySelected: ignoreHistory,
-            onBudgetsSelected: openBudgets,
-          ),
-          ShellDestination.money: (_) => const MoneyFlow(),
-        },
-      );
-      await tester.runAsync(() => settleAnalysis(container, ledger));
-      await tester.pumpAndSettle();
-      expect(container.read(moneySegmentProvider), MoneySegment.accounts);
+  testWidgets('Overview Set a monthly cap opens Money at Budgets', (
+    tester,
+  ) async {
+    final ledger = _noCapLedgerWithEntryToday();
+    final container = buildShellContainer(ledger: ledger);
+    container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.overview;
+    void openBudgets() => container
+        .read(moneySegmentProvider.notifier)
+        .openAt(MoneySegment.budgets);
+    void ignoreHistory() {}
+    await pumpShellApp(
+      tester,
+      container,
+      bodies: {
+        ShellDestination.overview: (_) => OverviewFlow(
+          onHistorySelected: ignoreHistory,
+          onBudgetsSelected: openBudgets,
+        ),
+        ShellDestination.money: (_) => const MoneyFlow(),
+      },
+    );
+    await tester.runAsync(() => settleAnalysis(container, ledger));
+    await tester.pumpAndSettle();
+    expect(container.read(moneySegmentProvider), MoneySegment.accounts);
 
-      await tester.tap(find.text(overviewNoCapLink));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text(overviewNoCapLink));
+    await tester.pumpAndSettle();
 
-      expect(
-        container.read(selectedDestinationProvider),
-        ShellDestination.money,
-      );
-      expect(container.read(moneySegmentProvider), MoneySegment.budgets);
-      expect(find.byType(BudgetsFlow), findsOneWidget);
-      expect(container.read(selectedBudgetProvider), isNull);
-    },
-    timeout: uiTestTimeout,
-  );
+    expect(container.read(selectedDestinationProvider), ShellDestination.money);
+    expect(container.read(moneySegmentProvider), MoneySegment.budgets);
+    expect(find.byType(BudgetsFlow), findsOneWidget);
+    expect(container.read(selectedBudgetProvider), isNull);
+  }, timeout: uiTestTimeout);
 }
 
 Ledger _noCapLedgerWithEntryToday() {

@@ -54,6 +54,30 @@ Future<ProviderContainer> _pumpOverview(
   return container;
 }
 
+Future<ProviderContainer> _pumpBareOverviewScreen(
+  WidgetTester tester,
+  LedgerState state, {
+  required Brightness brightness,
+}) async {
+  tester.view.physicalSize = _phoneSize;
+  tester.view.devicePixelRatio = _testDevicePixelRatio;
+  addTearDown(tester.view.reset);
+  final ledger = Ledger(state: state);
+  final container = overviewContainer(ledger);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: buildSpendWiseTheme(brightness),
+        home: const OverviewScreen(),
+      ),
+    ),
+  );
+  await tester.runAsync(() => settleAnalysis(container, ledger));
+  await tester.pumpAndSettle();
+  return container;
+}
+
 Finder _inTray(String title, String text) => find.descendant(
   of: find.ancestor(of: find.text(title), matching: find.byType(Tray)),
   matching: find.text(text),
@@ -184,9 +208,6 @@ void main() {
       testWidgets('Set a monthly cap requests the Budgets section', (
         tester,
       ) async {
-        tester.view.physicalSize = _phoneSize;
-        tester.view.devicePixelRatio = _testDevicePixelRatio;
-        addTearDown(tester.view.reset);
         final state = emptyState();
         state.addEntry(
           entry(
@@ -197,19 +218,11 @@ void main() {
             categoryID: groceriesID,
           ),
         );
-        final ledger = Ledger(state: state);
-        final container = overviewContainer(ledger);
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: MaterialApp(
-              theme: buildSpendWiseTheme(brightness),
-              home: const OverviewScreen(),
-            ),
-          ),
+        final container = await _pumpBareOverviewScreen(
+          tester,
+          state,
+          brightness: brightness,
         );
-        await tester.runAsync(() => settleAnalysis(container, ledger));
-        await tester.pumpAndSettle();
 
         final action = find.text('Set a monthly cap');
         await tester.ensureVisible(action);
@@ -261,22 +274,11 @@ void main() {
       }, timeout: uiTestTimeout);
 
       testWidgets('View History requests the history page', (tester) async {
-        tester.view.physicalSize = _phoneSize;
-        tester.view.devicePixelRatio = _testDevicePixelRatio;
-        addTearDown(tester.view.reset);
-        final ledger = Ledger(state: defaultState());
-        final container = overviewContainer(ledger);
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: MaterialApp(
-              theme: buildSpendWiseTheme(brightness),
-              home: const OverviewScreen(),
-            ),
-          ),
+        final container = await _pumpBareOverviewScreen(
+          tester,
+          defaultState(),
+          brightness: brightness,
         );
-        await tester.runAsync(() => settleAnalysis(container, ledger));
-        await tester.pumpAndSettle();
 
         final action = find.widgetWithText(TextButton, 'View History');
         expect(action, findsOneWidget);
