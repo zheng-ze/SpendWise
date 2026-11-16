@@ -101,6 +101,7 @@ void main() {
       expect(month.figures!.spent, '-167.40');
       expect(month.figures!.income, '+3,200.00');
       expect(month.figures!.net, '+3,032.60');
+      expect(month.figures!.netKind, AmountKind.income);
     });
 
     test('counts only the current month, dated ahead included', () async {
@@ -154,6 +155,7 @@ void main() {
       expect(figures.spent, '0.00');
       expect(figures.income, '0.00');
       expect(figures.net, '0.00');
+      expect(figures.netKind, AmountKind.transfer);
     });
   });
 

@@ -69,11 +69,13 @@ class OverviewMonthFigures {
     required this.spent,
     required this.income,
     required this.net,
+    required this.netKind,
   });
 
   final String spent;
   final String income;
   final String net;
+  final AmountKind netKind;
 }
 
 class OverviewThisMonth {
@@ -230,6 +232,12 @@ OverviewEntryRow _entryRow(Entry entry, LedgerState ledger, DateTime today) {
   );
 }
 
+AmountKind _netKind(Decimal net) {
+  if (net > Decimal.zero) return AmountKind.income;
+  if (net < Decimal.zero) return AmountKind.expense;
+  return AmountKind.transfer;
+}
+
 OverviewThisMonth _thisMonth(
   PeriodSummary summary,
   bool hasEntries,
@@ -239,6 +247,7 @@ OverviewThisMonth _thisMonth(
     spent: formatSignedMoney(-summary.spent, symbol: false),
     income: formatSignedMoney(summary.income, symbol: false),
     net: formatSignedMoney(summary.net, symbol: false),
+    netKind: _netKind(summary.net),
   );
   return OverviewThisMonth(
     caption: formatMonthName(monthStart),

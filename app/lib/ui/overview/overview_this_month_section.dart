@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/overview/overview_rows.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
-import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Tray
@@ -35,7 +35,13 @@ class ThisMonthTray extends StatelessWidget {
     } else if (month == null) {
       content = const LoadingSkeleton();
     } else if (figures == null) {
-      content = const OverviewEmptyCopy(overviewThisMonthEmpty);
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const OverviewEmptyCopy(overviewThisMonthEmpty),
+          ThisMonthCaption(month.caption),
+        ],
+      );
     } else {
       content = ThisMonthFigures(caption: month.caption, figures: figures);
     }
@@ -58,16 +64,6 @@ class ThisMonthFigures extends StatelessWidget {
   final String caption;
   final OverviewMonthFigures figures;
 
-  static const _captionTopGap = 6.0;
-  static const _negativePrefix = '-';
-  static const _positivePrefix = '+';
-
-  Color _netColor(SpendWiseColors colors) {
-    if (figures.net.startsWith(_negativePrefix)) return colors.expense;
-    if (figures.net.startsWith(_positivePrefix)) return colors.income;
-    return colors.text;
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -75,29 +71,39 @@ class ThisMonthFigures extends StatelessWidget {
       label: overviewThisMonthSpentLabel,
       value: figures.spent,
       color: colors.expense,
-      isLast: false,
     );
     final income = ThisMonthFigureRow(
       label: overviewThisMonthIncomeLabel,
       value: figures.income,
       color: colors.income,
-      isLast: false,
     );
     final net = ThisMonthFigureRow(
       label: overviewThisMonthNetLabel,
       value: figures.net,
-      color: _netColor(colors),
-      isLast: true,
+      color: AmountStyle.of(context, kind: figures.netKind).color,
     );
-    final range = Padding(
-      padding: const EdgeInsets.only(top: _captionTopGap),
-      child: OverviewEmptyCopy(caption),
-    );
+    final range = ThisMonthCaption(caption);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [spent, income, net, range],
     );
   }
+}
+
+// MARK: - Caption
+
+class ThisMonthCaption extends StatelessWidget {
+  const ThisMonthCaption(this.text, {super.key});
+
+  final String text;
+
+  static const _topGap = 6.0;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: _topGap),
+    child: OverviewEmptyCopy(text),
+  );
 }
 
 // MARK: - Figure Row
@@ -108,13 +114,11 @@ class ThisMonthFigureRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.color,
-    required this.isLast,
   });
 
   final String label;
   final String value;
   final Color color;
-  final bool isLast;
 
   static const _verticalPadding = 10.0;
   static const _labelGap = 10.0;
@@ -140,15 +144,13 @@ class ThisMonthFigureRow extends StatelessWidget {
     );
     return Container(
       padding: const EdgeInsets.symmetric(vertical: _verticalPadding),
-      decoration: isLast
-          ? null
-          : BoxDecoration(border: Border(bottom: divider)),
+      decoration: BoxDecoration(border: Border(bottom: divider)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
         children: [
-          labelText,
+          Expanded(child: labelText),
           const SizedBox(width: _labelGap),
           valueText,
         ],
