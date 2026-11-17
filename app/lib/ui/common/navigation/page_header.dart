@@ -21,7 +21,7 @@ class PageHeader extends StatelessWidget {
         ? null
         : Padding(
             padding: _backPadding,
-            child: BackButton(onPressed: onBack),
+            child: BackButton(onPressed: onBack, color: context.colors.text),
           );
     final titleStyle = context.text.headline.copyWith(
       fontWeight: FontWeight.w600,

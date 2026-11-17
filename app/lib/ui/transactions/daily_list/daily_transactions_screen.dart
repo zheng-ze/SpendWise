@@ -206,7 +206,7 @@ class _TransactionsHeader extends StatelessWidget {
             ),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: BackButton(onPressed: back),
+              child: BackButton(onPressed: back, color: context.colors.text),
             ),
           );
     final period = _PeriodRow(
