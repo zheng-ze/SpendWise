@@ -12,8 +12,6 @@ import 'package:spendwise/ui/symbol_map.dart';
 
 const _screenTitle = 'Recycle bin';
 
-const _backLabel = 'Settings';
-
 const _accountsTitle = 'Accounts';
 
 const _pocketsTitle = 'Pockets';
@@ -167,7 +165,6 @@ class _RecycleBinScreenBody extends StatelessWidget {
 
     final header = PageHeader(
       title: _screenTitle,
-      backLabel: _backLabel,
       onBack: Navigator.of(context).maybePop,
     );
     final page = Column(

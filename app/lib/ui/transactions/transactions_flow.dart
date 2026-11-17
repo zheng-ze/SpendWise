@@ -36,15 +36,9 @@ class TransactionsScope {
 
 // MARK: - TransactionsFlow
 class TransactionsFlow extends FlowBase<TransactionsStep> {
-  const TransactionsFlow({
-    super.key,
-    super.onEnded,
-    this.initialScope,
-    this.backLabel,
-  });
+  const TransactionsFlow({super.key, super.onEnded, this.initialScope});
 
   final TransactionsScope? initialScope;
-  final String? backLabel;
 
   @override
   ConsumerState<TransactionsFlow> createState() => _TransactionsFlowState();
@@ -126,7 +120,6 @@ class _TransactionsFlowState
     Widget screen(ShellPagePresentation presentation) => TransactionsScreen(
       scope: widget.initialScope,
       onBackPressed: showsOwnBackButton ? goBack : null,
-      backLabel: widget.backLabel,
       presentation: presentation,
     );
 

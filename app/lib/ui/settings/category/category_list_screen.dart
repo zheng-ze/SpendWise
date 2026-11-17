@@ -120,7 +120,6 @@ class _CategoryListScreenBody extends StatelessWidget {
   final CategoryListViewModel viewModel;
 
   static const _screenTitle = 'Categories';
-  static const _backLabel = 'Settings';
   static const _contentPadding = EdgeInsets.all(12);
   static const _sectionGap = 10.0;
   static const _addLabel = 'Add category';
@@ -130,7 +129,6 @@ class _CategoryListScreenBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final header = PageHeader(
       title: _screenTitle,
-      backLabel: _backLabel,
       onBack: Navigator.of(context).maybePop,
     );
     final expense = _CategorySection(

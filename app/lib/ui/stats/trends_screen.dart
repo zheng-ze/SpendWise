@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown_scope.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown_section.dart';
@@ -13,7 +12,6 @@ import 'package:spendwise/ui/stats/trends/trends_state_views.dart';
 import 'package:spendwise/ui/stats/trends/trends_view_model.dart';
 
 const _trendsTitle = 'Trends';
-const _historyBackLabel = 'History';
 const _pagePadding = EdgeInsets.fromLTRB(14, 12, 14, 14);
 
 class TrendsScreen extends ConsumerWidget {
@@ -41,10 +39,7 @@ class TrendsScreen extends ConsumerWidget {
     final onBackPressed = this.onBackPressed;
     final leading = onBackPressed == null
         ? null
-        : LabelledBackButton(
-            onPressed: onBackPressed,
-            label: _historyBackLabel,
-          );
+        : BackButton(onPressed: onBackPressed);
     final showStandaloneKindControl =
         !useOpenComposition || body is! TrendsReadyBody;
     final kindControl = showStandaloneKindControl

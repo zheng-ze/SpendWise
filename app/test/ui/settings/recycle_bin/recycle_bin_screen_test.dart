@@ -182,7 +182,7 @@ void _registerFooterTests() {
       expect(find.byType(RecycleBinScreen), findsOneWidget);
       expect(find.text('Recycle bin'), findsOneWidget);
 
-      await tester.tap(find.text('Settings'));
+      await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
 
       expect(find.byType(RecycleBinScreen), findsNothing);

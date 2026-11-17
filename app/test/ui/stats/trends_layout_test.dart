@@ -169,7 +169,7 @@ Future<void> _selectMonthScope(WidgetTester tester) async {
 
 Future<void> _tapCategoryDetailBack(WidgetTester tester) async {
   final detail = find.byType(CategoryDetailScreen);
-  final back = find.descendant(of: detail, matching: find.text('Trends'));
+  final back = find.descendant(of: detail, matching: find.byTooltip('Back'));
   await tester.tap(back);
   await tester.pumpAndSettle();
 }

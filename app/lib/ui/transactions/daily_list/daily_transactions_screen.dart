@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
-import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
@@ -43,15 +42,12 @@ class TransactionsScreen extends ConsumerWidget {
     super.key,
     this.scope,
     this.onBackPressed,
-    this.backLabel,
     this.presentation = ShellPagePresentation.fullPage,
   });
 
   final TransactionsScope? scope;
 
   final VoidCallback? onBackPressed;
-
-  final String? backLabel;
 
   final ShellPagePresentation presentation;
 
@@ -71,7 +67,6 @@ class TransactionsScreen extends ConsumerWidget {
         state: state,
         viewModel: viewModel,
         onBackPressed: onBackPressed,
-        backLabel: backLabel,
         showsTrendsAction: scope == null,
         wideComposition: wideComposition,
       ),
@@ -87,13 +82,11 @@ class _TransactionsScreenBody extends StatelessWidget {
     required this.showsTrendsAction,
     required this.wideComposition,
     this.onBackPressed,
-    this.backLabel,
   });
 
   final TransactionsViewState state;
   final TransactionsViewModel viewModel;
   final VoidCallback? onBackPressed;
-  final String? backLabel;
   final bool showsTrendsAction;
   final bool wideComposition;
 
@@ -105,7 +98,6 @@ class _TransactionsScreenBody extends StatelessWidget {
       selectedDate: state.selectedDate,
       viewModel: viewModel,
       onBackPressed: onBackPressed,
-      backLabel: backLabel,
     );
     final trendsAction = showsTrendsAction
         ? TrendsDetailAction(onPressed: viewModel.requestTrends)
@@ -182,14 +174,12 @@ class _TransactionsHeader extends StatelessWidget {
     required this.selectedDate,
     required this.viewModel,
     this.onBackPressed,
-    this.backLabel,
   });
 
   final String title;
   final DateTime selectedDate;
   final TransactionsViewModel viewModel;
   final VoidCallback? onBackPressed;
-  final String? backLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -216,7 +206,7 @@ class _TransactionsHeader extends StatelessWidget {
             ),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: LabelledBackButton(onPressed: back, label: backLabel),
+              child: BackButton(onPressed: back),
             ),
           );
     final period = _PeriodRow(

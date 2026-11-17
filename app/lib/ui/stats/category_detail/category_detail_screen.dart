@@ -10,11 +10,9 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _pagePadding = EdgeInsets.fromLTRB(14, 12, 14, 14);
 const _sectionGap = 12.0;
-const _backWidth = 112.0;
 const _subtitleSize = 12.0;
 const _headerGap = 2.0;
 const _statusPadding = EdgeInsets.all(24);
-const _backLabel = 'Trends';
 
 class CategoryDetailScreen extends ConsumerWidget {
   const CategoryDetailScreen({
@@ -54,17 +52,8 @@ class CategoryDetailScreen extends ConsumerWidget {
     final backAction = onBackPressed;
     final leading = backAction == null
         ? null
-        : TextButton.icon(
-            onPressed: backAction,
-            icon: const Icon(Icons.chevron_left),
-            label: const Text(_backLabel, maxLines: 1, softWrap: false),
-          );
-    final appBar = AppBar(
-      leadingWidth: _backWidth,
-      leading: leading,
-      title: heading,
-      centerTitle: false,
-    );
+        : BackButton(onPressed: backAction);
+    final appBar = AppBar(leading: leading, title: heading, centerTitle: false);
     final content = switch (body) {
       CategoryDetailReadyBody() when ledger != null => _CategoryDetailReadyView(
         body: body,

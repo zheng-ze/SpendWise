@@ -196,7 +196,7 @@ void main() {
       expect(find.byType(CategoryListScreen), findsOneWidget);
       expect(find.text('Categories'), findsOneWidget);
 
-      await tester.tap(find.text('Settings'));
+      await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
 
       expect(find.byType(CategoryListScreen), findsNothing);
