@@ -1,6 +1,6 @@
 # Trends & Category Detail UI
 
-Last reconciled: f9c2bb9f
+Last reconciled: f3627ea3
 
 ## Feature overview
 
@@ -15,7 +15,7 @@ incoming-period totals and a selectable scoped trend from `AnalysisQueries`.
 
 - `app/lib/ui/stats/trends_flow.dart` and `trends_screen.dart` - the nested Flow and page; the Flow
   root resolves phone versus the shared open/desktop composition from `ShellPaneScope.mode` once.
-  `TrendsScreen` owns the page scroller and optional History-labelled back button.
+  `TrendsScreen` owns the page scroller and optional icon-only back button.
 - `app/lib/ui/stats/trends/` - `trends_intent.dart` (route-owned intent, grid/page arithmetic, intent
   notifier), `trends_projection.dart` (day-aligned, revision-coherent projection of the analysis reads),
   `trends_usual.dart` (Compared with usual copy), `trends_body.dart` (presentation variants),
@@ -211,8 +211,8 @@ replace financial totals rather than displaying stale values (`trends_screen.dar
 ## Navigation
 
 `TransactionsFlow` handles `HistoryTrendsRequested`, seeds no month from History, and pushes one route containing `TrendsFlow(onEnded: ...)`.
-`TrendsFlow` uses its nested navigator and renders `TrendsScreen`. The optional History-labelled
-header Back delegates to `FlowBase.goBack`; at the root this ends the Flow and pops the History-owned
+`TrendsFlow` uses its nested navigator and renders `TrendsScreen`. The optional icon-only
+header back control (`BackButton`) delegates to `FlowBase.goBack`; at the root this ends the Flow and pops the History-owned
 route. System Back and the iOS edge swipe pop the enclosing route. `TransactionsFlow` holds its
 single-route guard until the matching route's `completed` future (`transactions-ui.md`,
 `app/lib/ui/transactions/transactions_flow.dart`, `app/lib/ui/common/base/flow_base.dart`).
@@ -246,12 +246,12 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
 
 ## Screens and flows
 
-- **Trends** - app bar titled "Trends", optional History-labelled back control, the kind and mode
+- **Trends** - app bar titled "Trends", optional back control (`BackButton`), the kind and mode
   controls (always mounted), and a body that is skeleton trays, an error box with a filled Retry, the
   fresh-ledger empty state with interactive month controls or a disabled year period row, or the
   layout-specific ready composition described above
   (`app/lib/ui/stats/trends_screen.dart`, `app/test/ui/stats/trends_layout_test.dart`).
-- **Category Detail** - one pushed `CategoryDetailScreen` shows the Trends back action, category
+- **Category Detail** - one pushed `CategoryDetailScreen` shows an icon-only back control (`BackButton`), category
   title, immutable incoming month/year subtitle, kind-token 26 px headline, scope chips, optional
   Subcategories tray, and trend tray. `CategoryDetailArgs` retains its fields and value
   equality; the projection normalizes `initialDate` to UTC month/year start without changing the args

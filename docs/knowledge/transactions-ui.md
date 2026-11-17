@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: ae736584
+Last reconciled: f3627ea3
 
 ## Feature overview
 
@@ -54,8 +54,8 @@ and edits existing ones (Edit entry); Add is the only place recurring plans are 
   `sheetPresentation`; there is no legacy modal or `showDatePicker` fallback.
 - `app/lib/ui/transactions/receipt_scan/` - the OCR entry hook (see `ocr-receipt-entry.md`).
 - `app/lib/ui/transactions/transactions_flow.dart` - the Flow that owns this list's nested navigator.
-  It takes an optional `backLabel` passed through to the screen's back control; the shell
-  History slot (every layout) and scoped lists set none. `transactionsViewModelProvider`
+  Its screen's back control is Flutter's icon-only `BackButton`, given `goBack` when
+  `showsOwnBackButton` is set. `transactionsViewModelProvider`
   is an autoDispose family keyed by the optional `TransactionsScope`, so History and each scoped list
   keep separate state that lasts while their Flow is mounted. `TransactionsFlow`
   handles and clears its screen `Step`s directly. `HistoryTrendsRequested` pushes one tracked
@@ -66,8 +66,6 @@ and edits existing ones (Edit entry); Add is the only place recurring plans are 
 - `app/lib/ui/transactions/trends_detail_action.dart` - 'See more detail', a muted trailing text
   action with chevron and a 48 dp invisible hit height (`trendsDetailActionHitHeight`), rendered
   below the totals band in unscoped History only, including empty months.
-- `app/lib/ui/common/navigation/labelled_back_button.dart` - the back control with an optional
-  accessible label, shared by `TransactionsScreen` and `TrendsScreen`.
 - `app/lib/ui/common/lists/day_sectioned_entry_list.dart`, `form_scaffold.dart`,
   `swipe_row.dart`, `pickers/` - shared components and picker sheets.
 - `app/lib/ui/symbol_map.dart` - symbol-to-IconData mapping.
@@ -127,10 +125,9 @@ phone/open resize changes only the sheet geometry, alignment and chrome around t
 form and never replaces the route. A late receipt finish after invalidation writes no state
 (`ReceiptEntryCoordinator` checks `ref.mounted` in its asynchronous finally). The account-scoped
 screen reuses the same screen with a custom title and `sourceIDs` filter. Each destination owns its own
-navigator, and a destination's back stack lasts while that destination is selected. A labelled back
-control keeps the existing `BackButton` and `goBack` behavior -
-inner child routes pop first - and only changes its accessible label; unlabelled flows render a
-plain back control.
+navigator, and a destination's back stack lasts while that destination is selected. Every back
+control is Flutter's icon-only `BackButton` with the default 'Back' accessible name; `goBack`
+pops inner child routes first.
 
 Shared sheet composition follows installed routes rather than an Add-specific presentation provider.
 `AppSheetRoute.install` registers with the optional `shellSheetOccupancyProvider` until

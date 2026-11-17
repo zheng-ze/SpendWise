@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: d11dea56
+Last reconciled: f3627ea3
 
 ## Feature overview
 
@@ -221,7 +221,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   History, Money, an Add entry button, flexible separation and
   Settings at the bottom. Overview hosts `OverviewFlow`, Money hosts
   `MoneyFlow`, History hosts the unscoped `TransactionsFlow`, Settings hosts
-  `SettingsFlow`. History has no back label and no phone back-to-Overview
+  `SettingsFlow`. History's root has no back control and no phone back-to-Overview
   control; its Navigator and selected date survive phone and open resizes while
   History is selected, and reset when another destination is selected and
   History is unmounted. Overview's View History selects History
@@ -280,7 +280,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
    (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_providers.dart`,
    `app/lib/ui/shell/boot_chrome.dart`)
 - **Settings hosting** - `BootChrome` supplies `SettingsFlow` in the Settings slot, built without
-  `backLabel` or `onEnded`, so its root screen shows no back control. `AppShell` mounts Settings
+  `onEnded`, so its root screen shows no back control. `AppShell` mounts Settings
   only while `ShellDestination.settings` is selected. Selecting Settings only writes
   `selectedDestinationProvider`. Back pops Settings child routes; at the root it preserves the
   selection. Leaving Settings disposes the Flow, its child routes and any open enrollment route, and

@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: 8f781336
+Last reconciled: f3627ea3
 
 ## Feature overview
 
@@ -56,8 +56,8 @@ counts. These counts include active and binned entries through `entriesReferenci
 
 The Settings Flow owns Settings' nested navigator; `AppShell` mounts it only while the
 `settings` destination is selected (see `ui-framework-mvvm.md`). The root screen shows the large "Settings" title with no
-back control. The Categories list and the Recycle bin use the same `PageHeader` (no AppBar) with a
-visible "Settings" back label that pops the route; the label is also the back control's semantics label. Back pops child routes and preserves the destination selection at the root. Phone/open
+back control. The Categories list and the Recycle bin use the same `PageHeader` (no AppBar) with
+Flutter's icon-only `BackButton` (accessible name "Back") that pops the route. Back pops child routes and preserves the destination selection at the root. Phone/open
 resize keeps the mounted flow and its open enrollment route in place, without re-hosting the
 enrollment flow. Selecting another destination disposes the flow and its child routes, and
 selecting Settings again builds it fresh at the root. The Categories row opens category management, whose forms open as AppSheets over it. Settings has no Recurring Plans row, request Step or Plans route.

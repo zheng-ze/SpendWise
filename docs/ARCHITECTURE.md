@@ -81,7 +81,7 @@ document is the wide-angle view that ties those entries together.
 - **UI** - four top-level destinations: Overview, History, Money, and Settings. Overview
   shows Today, Recent entries and Coming up. History shows a month-navigated list grouped into day
   sections, with month and week summaries. Its See more detail action pushes Trends, which currently
-  has a Trends header, a History back control, and an empty body. Money hosts Budgets, Accounts,
+  has a Trends header, a back control, and an empty body. Money hosts Budgets, Accounts,
   and Plans, defaulting to Budgets. Accounts groups money sources by account type, with pockets
   nested under their parent and card accounts showing payable and outstanding balances.
   Forms exist for entries, accounts, pockets, categories, and plans, plus a category picker, a
@@ -351,7 +351,7 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   pickers, a two-column category picker sheet, a recurrence picker, and an `includeInAnalysis`
   toggle. Read-only-first detail view, with a separate edit mode.
 - Trends: History's See more detail action pushes `TrendsFlow`, whose root `TrendsScreen` has a
-  Trends title, a History-labelled back control, and an empty body. Category Detail's subcategory
+  Trends title, a back control, and an empty body. Category Detail's subcategory
   table, trend card, and entry list remain implemented without a production entry point.
 - Money: Budgets, Accounts, and Plans segments, defaulting to Budgets. Budgets hosts its list,
   form, and detail.
