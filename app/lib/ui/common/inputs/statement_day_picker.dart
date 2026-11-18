@@ -26,6 +26,7 @@ const _dayFontWeight = FontWeight.w600;
 const _wheelPadding = EdgeInsets.symmetric(horizontal: 16);
 const _fieldBorderWidth = 2.0;
 const _bandBorderWidth = 1.0;
+const _fullWidth = double.infinity;
 const _maxWheelShare = 0.4;
 const _centreLabel = 'Type the day';
 const _fieldLabel = 'Statement day, $_firstDay to $_lastDay';
@@ -205,6 +206,7 @@ class _SelectionHighlight extends StatelessWidget {
       border: Border.all(color: colors.edge, width: _bandBorderWidth),
     );
     return SizedBox(
+      width: _fullWidth,
       height: height,
       child: DecoratedBox(decoration: decoration),
     );
