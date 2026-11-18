@@ -26,9 +26,11 @@ const _dayFontWeight = FontWeight.w600;
 const _wheelPadding = EdgeInsets.symmetric(horizontal: 16);
 const _fieldBorderWidth = 2.0;
 const _bandBorderWidth = 1.0;
+const _editIconSize = 20.0;
+const _editTapTarget = 48.0;
 const _fullWidth = double.infinity;
 const _maxWheelShare = 0.4;
-const _centreLabel = 'Type the day';
+const _editLabel = 'Type the day';
 const _fieldLabel = 'Statement day, $_firstDay to $_lastDay';
 const _invalidHint = 'Enter a day from $_firstDay to $_lastDay';
 const _wheelDragDevices = {
@@ -155,28 +157,23 @@ class _StatementDaySheetState extends State<_StatementDaySheet> {
       onScrollStart: _onScroll,
       onPointerDown: _stopEditing,
     );
-    final centre = _editing
-        ? _DayField(
-            controller: _field,
-            focusNode: _focus,
-            valid: _valid,
-            onDragStart: _stopEditing,
-            onChanged: _onTyped,
-          )
-        : Semantics(
-            label: _centreLabel,
-            button: true,
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _startEditing,
-            ),
-          );
+    final field = _DayField(
+      controller: _field,
+      focusNode: _focus,
+      valid: _valid,
+      onDragStart: _stopEditing,
+      onChanged: _onTyped,
+    );
+    final pencil = Align(
+      alignment: Alignment.centerRight,
+      child: _EditButton(onPressed: _startEditing),
+    );
     final stack = Stack(
       alignment: Alignment.center,
       children: [
         _SelectionHighlight(height: itemExtent),
         wheel,
-        SizedBox(height: itemExtent, child: centre),
+        if (_editing) SizedBox(height: itemExtent, child: field) else pencil,
       ],
     );
     final height = itemExtent * _visibleRows;
@@ -188,6 +185,38 @@ class _StatementDaySheetState extends State<_StatementDaySheet> {
         padding: _wheelPadding,
         child: SizedBox(height: height, child: stack),
       ),
+    );
+  }
+}
+
+class _EditButton extends StatelessWidget {
+  const _EditButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = Icon(
+      Icons.edit,
+      size: _editIconSize,
+      color: context.colors.subtext,
+    );
+    final button = IconButton(
+      onPressed: onPressed,
+      icon: icon,
+      padding: _noPadding,
+      constraints: const BoxConstraints.tightFor(
+        width: _editTapTarget,
+        height: _editTapTarget,
+      ),
+    );
+
+    return Semantics(
+      label: _editLabel,
+      button: true,
+      excludeSemantics: true,
+      onTap: onPressed,
+      child: button,
     );
   }
 }
