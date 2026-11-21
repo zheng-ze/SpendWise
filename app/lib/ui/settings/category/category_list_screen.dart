@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
+import 'package:spendwise/ui/common/lists/edge_divider.dart';
 import 'package:spendwise/ui/common/lists/medallion_row.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/common/navigation/compact_labelled_fab.dart';
@@ -16,7 +17,6 @@ import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/settings/category/category_form.dart';
 import 'package:spendwise/ui/settings/category/category_list_view_model.dart';
 import 'package:spendwise/ui/theme/category_palette.dart';
-import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - CategoryListScreen
@@ -212,7 +212,7 @@ class _CategorySection extends StatelessWidget {
               child: Text(_emptyText, style: TextStyle(color: colors.subtext)),
             ),
           ]
-        : _rows(colors);
+        : _rows();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -224,7 +224,7 @@ class _CategorySection extends StatelessWidget {
     );
   }
 
-  List<Widget> _rows(SpendWiseColors colors) {
+  List<Widget> _rows() {
     final childCounts = <String, int>{};
     for (final category in categories) {
       final parentID = category.parentID;
@@ -234,7 +234,7 @@ class _CategorySection extends StatelessWidget {
     }
     final rows = <Widget>[];
     for (final (index, category) in categories.indexed) {
-      if (index > 0) rows.add(_RowDivider(color: colors.edge));
+      if (index > 0) rows.add(const EdgeDivider());
       rows.add(
         SwipeRow(
           itemKey: ValueKey('category-${category.id}'),
@@ -253,19 +253,6 @@ class _CategorySection extends StatelessWidget {
     }
     return rows;
   }
-}
-
-// MARK: - RowDivider
-class _RowDivider extends StatelessWidget {
-  const _RowDivider({required this.color});
-
-  final Color color;
-
-  static const _height = 1.0;
-
-  @override
-  Widget build(BuildContext context) =>
-      Container(height: _height, color: color);
 }
 
 // MARK: - CategoryRow

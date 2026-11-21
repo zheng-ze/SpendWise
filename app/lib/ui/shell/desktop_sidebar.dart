@@ -188,16 +188,3 @@ class _SidebarDestination extends StatelessWidget {
     );
   }
 }
-
-// MARK: - SidebarDivider
-class SidebarDivider extends StatelessWidget {
-  const SidebarDivider({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return VerticalDivider(
-      width: sidebarDividerWidth,
-      color: context.colors.edge,
-    );
-  }
-}
