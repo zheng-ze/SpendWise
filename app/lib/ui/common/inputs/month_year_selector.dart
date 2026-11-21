@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/format/date_format.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - MonthYearStep
 enum MonthYearStep { month, year }
@@ -47,7 +48,7 @@ class MonthYearSelector extends StatelessWidget {
         ),
         Text(
           label,
-          style: theme.textTheme.titleMedium?.copyWith(
+          style: context.text.title.copyWith(
             color: theme.colorScheme.onSurface,
           ),
         ),
