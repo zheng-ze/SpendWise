@@ -8,6 +8,7 @@ import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/lists/edge_divider.dart';
 import 'package:spendwise/ui/common/lists/medallion_row.dart';
+import 'package:spendwise/ui/common/lists/section_label.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/common/navigation/compact_labelled_fab.dart';
 import 'package:spendwise/ui/common/navigation/page_header.dart';
@@ -191,20 +192,13 @@ class _CategorySection extends StatelessWidget {
   final void Function(TransactionCategory parent) onAddSubcategory;
 
   static const _emptyText = 'No categories yet';
-  static const _labelWeight = FontWeight.w600;
   static const _labelGap = 10.0;
   static const _emptyPadding = EdgeInsets.symmetric(vertical: 8);
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final label = Text(
-      title.toUpperCase(),
-      style: context.text.small.copyWith(
-        color: colors.subtext,
-        fontWeight: _labelWeight,
-      ),
-    );
+    final label = SectionLabel(title);
     final rows = categories.isEmpty
         ? [
             Padding(

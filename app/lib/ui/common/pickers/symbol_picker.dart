@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/lists/category_icon.dart';
+import 'package:spendwise/ui/common/lists/section_label.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
@@ -146,9 +147,9 @@ class _SymbolPickerState extends State<SymbolPicker> {
           color: displayColor,
           categoryName: widget.categoryName,
         ),
-        const _SectionLabel(label: _iconSectionLabel),
+        const SectionLabel(_iconSectionLabel, padding: _sectionLabelPadding),
         _IconGrid(selected: _symbol, onChosen: _chooseSymbol),
-        const _SectionLabel(label: _colourSectionLabel),
+        const SectionLabel(_colourSectionLabel, padding: _sectionLabelPadding),
         _SwatchRow(
           swatches: widget.swatches,
           selected: _color,
@@ -195,22 +196,6 @@ class _Preview extends StatelessWidget {
     return Padding(
       padding: _previewPadding,
       child: Row(spacing: _previewGap, children: [medallion, name]),
-    );
-  }
-}
-
-// MARK: - SectionLabel
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = context.text.small.copyWith(color: context.colors.subtext);
-    return Padding(
-      padding: _sectionLabelPadding,
-      child: Text(label.toUpperCase(), style: style),
     );
   }
 }

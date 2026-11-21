@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/lists/section_label.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_counted_entry_list.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_chart.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_presentation.dart';
@@ -222,15 +223,9 @@ class _EntriesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final copy = emptyCopy;
-    final theme = Theme.of(context);
-    final label = Padding(
+    final label = SectionLabel(
+      '${formatMonthLabel(viewState.selectedMonth)}$_entriesSuffix',
       padding: _entriesLabelPadding,
-      child: Text(
-        '${formatMonthLabel(viewState.selectedMonth).toUpperCase()}$_entriesSuffix',
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
     );
     final Widget content = copy == null
         ? BudgetCountedEntryList(

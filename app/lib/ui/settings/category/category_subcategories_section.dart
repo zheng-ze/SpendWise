@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/lists/medallion_row.dart';
+import 'package:spendwise/ui/common/lists/section_label.dart';
 import 'package:spendwise/ui/theme/category_palette.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -19,7 +20,6 @@ class CategorySubcategoriesSection extends StatelessWidget {
 
   static const _label = 'Subcategories';
   static const _addLabel = 'Add subcategory';
-  static const _labelWeight = FontWeight.w600;
   static const _labelPadding = EdgeInsets.only(bottom: 10.0);
   static const _rowPadding = EdgeInsets.symmetric(vertical: 7.0);
   static const _addPadding = EdgeInsets.symmetric(vertical: 4.0);
@@ -41,14 +41,7 @@ class CategorySubcategoriesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final labelStyle = context.text.small.copyWith(
-      color: colors.subtext,
-      fontWeight: _labelWeight,
-    );
-    final label = Padding(
-      padding: _labelPadding,
-      child: Text(_label.toUpperCase(), style: labelStyle),
-    );
+    const label = SectionLabel(_label, padding: _labelPadding);
     final divider = Container(height: _dividerHeight, color: colors.edge);
     final rows = [
       for (final subcategory in subcategories) ...[
