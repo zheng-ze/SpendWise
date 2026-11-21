@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: f3627ea3
+Last reconciled: e095355c
 
 ## Feature overview
 
@@ -537,11 +537,6 @@ under the confirmation helper.
 
 ## Gotchas and invariants
 
-- Legacy pickers still call `showModalBottomSheet`; using the kit does not imply that all
-  sheets have migrated. (`app/lib/ui/common/inputs/statement_day_picker.dart`,
-  `app/lib/ui/common/pickers/two_column_picker_sheet.dart`,
-  `app/lib/ui/common/pickers/recurrence_picker.dart`,
-  `app/lib/ui/common/pickers/account_type_picker.dart`)
 - "The View never decides what an input means" is a documented convention reviewed like any other
   convention violation, not tool-enforced.
 - The `updateState()` dispose guard is what a picker callback needs when its result arrives after the
