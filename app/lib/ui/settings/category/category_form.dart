@@ -4,7 +4,9 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 
+import 'package:spendwise/ui/common/base/step_listening_state.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/inputs/form_section_card.dart';
@@ -63,10 +65,14 @@ class CategoryForm extends ConsumerStatefulWidget {
 
 // MARK: - Form State
 
-class _CategoryFormState extends ConsumerState<CategoryForm> {
+class _CategoryFormState extends ConsumerState<CategoryForm>
+    with
+        StepListeningState<
+          CategoryForm,
+          CategoryFormViewState,
+          CategoryFormStep
+        > {
   late final TextEditingController _nameController = TextEditingController();
-
-  ProviderSubscription<AsyncValue<CategoryFormViewState>>? _subscription;
 
   ModalRoute<Object?>? _route;
   final List<ModalRoute<dynamic>> _pickerRoutes = [];
@@ -78,13 +84,14 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   );
 
   @override
-  void initState() {
-    super.initState();
-    _subscription = ref.listenManual(
-      categoryFormViewModelProvider(_args),
-      (previous, next) => _handleStep(next.value?.step),
-    );
-  }
+  ProviderListenable<AsyncValue<CategoryFormViewState>> get stepProvider =>
+      categoryFormViewModelProvider(_args);
+
+  @override
+  CategoryFormStep? stepOf(CategoryFormViewState viewState) => viewState.step;
+
+  @override
+  void clearStep() => _viewModel.clearStep();
 
   @override
   void didChangeDependencies() {
@@ -95,7 +102,6 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   @override
   void dispose() {
     _closePickers();
-    _subscription?.close();
     _nameController.dispose();
     super.dispose();
   }
@@ -116,8 +122,8 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   CategoryFormViewModel get _viewModel =>
       ref.read(categoryFormViewModelProvider(_args).notifier);
 
-  void _handleStep(CategoryFormStep? step) {
-    if (step == null) return;
+  @override
+  void handleStep(CategoryFormStep step) {
     switch (step) {
       case PickParentRequested():
         _pickParent();
@@ -128,7 +134,6 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
       case CategoryFormSaved():
         dismissSheetRoute(_route);
     }
-    _viewModel.clearStep();
   }
 
   Future<void> _pickSymbol() async {

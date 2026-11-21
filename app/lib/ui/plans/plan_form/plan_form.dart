@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 
+import 'package:spendwise/ui/common/base/step_listening_state.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/inputs/amount_field.dart';
@@ -68,24 +70,25 @@ class PlanForm extends ConsumerStatefulWidget {
 }
 
 // MARK: - PlanFormState
-class _PlanFormState extends ConsumerState<PlanForm> {
+class _PlanFormState extends ConsumerState<PlanForm>
+    with StepListeningState<PlanForm, PlanFormViewState, PlanFormStep> {
   late final TextEditingController _nameController = TextEditingController();
   late final TextEditingController _amountController = TextEditingController();
 
   late final _provider = planFormViewModelProvider(widget.planID);
 
-  ProviderSubscription<AsyncValue<PlanFormViewState>>? _subscription;
   ModalRoute<Object?>? _route;
   final List<ModalRoute<dynamic>> _pickerRoutes = [];
 
   @override
-  void initState() {
-    super.initState();
-    _subscription = ref.listenManual(
-      _provider,
-      (previous, next) => _handleStep(next.value?.step),
-    );
-  }
+  ProviderListenable<AsyncValue<PlanFormViewState>> get stepProvider =>
+      _provider;
+
+  @override
+  PlanFormStep? stepOf(PlanFormViewState viewState) => viewState.step;
+
+  @override
+  void clearStep() => _viewModel.clearStep();
 
   @override
   void didChangeDependencies() {
@@ -96,7 +99,6 @@ class _PlanFormState extends ConsumerState<PlanForm> {
   @override
   void dispose() {
     _closePickers();
-    _subscription?.close();
     _nameController.dispose();
     _amountController.dispose();
     super.dispose();
@@ -120,9 +122,8 @@ class _PlanFormState extends ConsumerState<PlanForm> {
     });
   }
 
-  void _handleStep(PlanFormStep? step) {
-    if (step == null) return;
-    _viewModel.clearStep();
+  @override
+  void handleStep(PlanFormStep step) {
     switch (step) {
       case PickRecurrenceRequested():
         _pickRecurrence();

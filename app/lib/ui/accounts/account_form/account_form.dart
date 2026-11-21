@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 
 import 'package:spendwise/ui/accounts/account_fields_card.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
@@ -8,7 +9,8 @@ import 'package:spendwise/ui/accounts/account_form/account_form_view_model.dart'
 import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
-import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/base/step_listening_state.dart';
+import 'package:spendwise/ui/common/sheets/show_form_sheet_then_invalidate.dart';
 import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 
@@ -26,19 +28,13 @@ const _balanceHint = 'Opening balance';
 Future<void> showAccountFormSheet({
   required BuildContext context,
   required ProviderContainer container,
-}) async {
-  AppSheetRoute<void>? route;
-  await showAppSheet<void>(
-    context,
-    presentation: shellSheetPresentation(context),
-    presentationResolver: shellSheetPresentation,
-    onRouteCreated: (createdRoute) => route = createdRoute,
+}) {
+  return showFormSheetThenInvalidate(
+    context: context,
+    container: container,
+    draftProvider: accountFormViewModelProvider,
     builder: (_) => const AccountForm(),
   );
-  final completedRoute = route;
-  if (completedRoute == null) return;
-  await completedRoute.completed;
-  container.invalidate(accountFormViewModelProvider);
 }
 
 // MARK: - AccountForm
@@ -50,43 +46,27 @@ class AccountForm extends ConsumerStatefulWidget {
 }
 
 // MARK: - AccountFormState
-class _AccountFormState extends ConsumerState<AccountForm> {
-  ProviderSubscription<AsyncValue<AccountFormViewState>>? _subscription;
+class _AccountFormState extends ConsumerState<AccountForm>
+    with StepListeningState<AccountForm, AccountFormViewState, AccountsStep> {
+  @override
+  ProviderListenable<AsyncValue<AccountFormViewState>> get stepProvider =>
+      accountFormViewModelProvider;
 
   @override
-  void initState() {
-    super.initState();
-    _subscription = ref.listenManual(
-      accountFormViewModelProvider,
-      (previous, next) => _handleStep(next.value?.step),
-    );
-  }
+  AccountsStep? stepOf(AccountFormViewState viewState) => viewState.step;
 
   @override
-  void dispose() {
-    _subscription?.close();
-    super.dispose();
-  }
+  void clearStep() => _viewModel.clearStep();
 
   AccountFormViewModel get _viewModel =>
       ref.read(accountFormViewModelProvider.notifier);
 
-  void _handleStep(AccountsStep? step) {
-    if (step == null) return;
-    switch (step) {
-      case PickParentRequested():
-        _pickParent();
-      case AccountFormSaved():
-        if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-      case AccountFormRequested():
-      case SourceEditRequested():
-      case AccountOpened():
-      case AccountAloneOpened():
-      case PocketOpened():
-      case SourceEditFormSaved():
-        break;
+  @override
+  void handleStep(AccountsStep step) {
+    if (step is PickParentRequested) _pickParent();
+    if (step is AccountFormSaved && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
     }
-    _viewModel.clearStep();
   }
 
   Future<void> _pickParent() async {

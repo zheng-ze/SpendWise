@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 
 import 'package:spendwise/ui/accounts/account_fields_card.dart';
 import 'package:spendwise/ui/accounts/account_form_frame.dart';
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
 import 'package:spendwise/ui/accounts/source_edit/source_edit_form_view_model.dart';
-import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
-import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/base/step_listening_state.dart';
+import 'package:spendwise/ui/common/sheets/show_form_sheet_then_invalidate.dart';
 import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
 
 // MARK: - Constants
@@ -26,19 +27,13 @@ Future<void> showSourceEditFormSheet({
   required BuildContext context,
   required String holderID,
   required ProviderContainer container,
-}) async {
-  AppSheetRoute<void>? route;
-  await showAppSheet<void>(
-    context,
-    presentation: shellSheetPresentation(context),
-    presentationResolver: shellSheetPresentation,
-    onRouteCreated: (createdRoute) => route = createdRoute,
+}) {
+  return showFormSheetThenInvalidate(
+    context: context,
+    container: container,
+    draftProvider: sourceEditFormViewModelProvider(holderID),
     builder: (_) => SourceEditForm(holderID: holderID),
   );
-  final completedRoute = route;
-  if (completedRoute == null) return;
-  await completedRoute.completed;
-  container.invalidate(sourceEditFormViewModelProvider(holderID));
 }
 
 // MARK: - SourceEditForm
@@ -52,42 +47,31 @@ class SourceEditForm extends ConsumerStatefulWidget {
 }
 
 // MARK: - SourceEditFormState
-class _SourceEditFormState extends ConsumerState<SourceEditForm> {
-  ProviderSubscription<AsyncValue<SourceEditFormViewState>>? _subscription;
+class _SourceEditFormState extends ConsumerState<SourceEditForm>
+    with
+        StepListeningState<
+          SourceEditForm,
+          SourceEditFormViewState,
+          AccountsStep
+        > {
+  @override
+  ProviderListenable<AsyncValue<SourceEditFormViewState>> get stepProvider =>
+      sourceEditFormViewModelProvider(widget.holderID);
 
   @override
-  void initState() {
-    super.initState();
-    _subscription = ref.listenManual(
-      sourceEditFormViewModelProvider(widget.holderID),
-      (previous, next) => _handleStep(next.value?.step),
-    );
-  }
+  AccountsStep? stepOf(SourceEditFormViewState viewState) => viewState.step;
 
   @override
-  void dispose() {
-    _subscription?.close();
-    super.dispose();
-  }
+  void clearStep() => _viewModel.clearStep();
 
   SourceEditFormViewModel get _viewModel =>
       ref.read(sourceEditFormViewModelProvider(widget.holderID).notifier);
 
-  void _handleStep(AccountsStep? step) {
-    if (step == null) return;
-    switch (step) {
-      case SourceEditFormSaved():
-        if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-      case AccountFormRequested():
-      case SourceEditRequested():
-      case AccountOpened():
-      case AccountAloneOpened():
-      case PocketOpened():
-      case PickParentRequested():
-      case AccountFormSaved():
-        break;
+  @override
+  void handleStep(AccountsStep step) {
+    if (step is SourceEditFormSaved && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
     }
-    _viewModel.clearStep();
   }
 
   @override
