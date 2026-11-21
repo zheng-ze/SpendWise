@@ -46,10 +46,7 @@ class DayHeader extends StatelessWidget {
     if (registerStyle) {
       return _RegisterDayHeader(day: day, net: net);
     }
-    final dayNumber = Text(
-      label.dayNumber,
-      style: context.text.title.copyWith(fontWeight: SpendWiseText.semibold),
-    );
+    final dayNumber = Text(label.dayNumber, style: context.text.headline);
     final caption = Text(
       label.caption,
       softWrap: true,
