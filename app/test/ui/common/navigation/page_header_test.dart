@@ -8,6 +8,8 @@ import '../../../support/ui_test_timeout.dart';
 
 const _title = 'Categories';
 const _homeText = 'Home page';
+const _subtitle = 'Groceries';
+const _trailing = 'Edit';
 
 class _PushedHeader extends StatelessWidget {
   const _PushedHeader();
@@ -52,5 +54,36 @@ void main() {
 
     expect(find.text(_title), findsNothing);
     expect(find.text(_homeText), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('a disabled back stays visible and does nothing', (tester) async {
+    const header = Scaffold(
+      body: PageHeader(title: _title, disabledBack: true, subtitle: _subtitle),
+    );
+    await pumpApp(tester, header);
+
+    final button = tester.widget<IconButton>(find.byType(IconButton));
+
+    expect(find.byTooltip('Back'), findsOneWidget);
+    expect(button.onPressed, isNull);
+    expect(find.text(_subtitle), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('the trailing action is shown and tappable', (tester) async {
+    var taps = 0;
+    final trailing = TextButton(
+      onPressed: () => taps++,
+      child: const Text(_trailing),
+    );
+    await pumpApp(
+      tester,
+      Scaffold(
+        body: PageHeader(title: _title, onBack: () {}, trailing: trailing),
+      ),
+    );
+
+    await tester.tap(find.text(_trailing));
+
+    expect(taps, 1);
   }, timeout: uiTestTimeout);
 }
