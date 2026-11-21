@@ -200,8 +200,9 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   the focused row keeps focus. A focused Name or Note replaces the divider below it with a 2 dp
   focus-colour underline (`_FocusDivider`). Opening any picker row
   unfocuses the current field first.
-  `NewEntryHeader` shows only the title on phone and desktop, and the title with Save in open
-  layout (a spacer of equal width keeps the title centered). There is no Cancel in any layout.
+  `NewEntryHeader` is the shared `AppPickerHeader` (`app_picker_sheet.dart`): the title alone on
+  phone and desktop, and the title with Save as its trailing action in open layout. There is no
+  Cancel in any layout.
   `NewEntrySaveFooter` supplies Save entry in all layouts, driven by `canSave`.
   Desktop uses docked form chrome without a grab handle; phone supports drag and barrier dismissal, and
   open and desktop dismiss by tapping the barrier.

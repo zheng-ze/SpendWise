@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
@@ -7,19 +8,11 @@ import 'package:spendwise/ui/transactions/entry/entry_pane_layout.dart';
 
 // MARK: - Visual Constants
 
-const _titleSize = 18.0;
-
-const _titleLineHeight = 1.2;
-
-const _titleWeight = FontWeight.w600;
-
 const _actionSize = 12.0;
 
 const _actionWeight = FontWeight.w600;
 
 const _sideColumnWidth = 52.0;
-
-const _headerMinHeight = 48.0;
 
 const _actionMinHeight = 48.0;
 
@@ -86,32 +79,10 @@ class NewEntryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = Theme.of(context).textTheme.titleMedium;
-    final titleText = Text(
-      title,
-      textAlign: TextAlign.center,
-      style: base?.copyWith(
-        fontSize: _titleSize,
-        fontWeight: _titleWeight,
-        height: _titleLineHeight,
-      ),
-    );
-    const bounds = BoxConstraints(minHeight: _headerMinHeight);
-    if (presentation != AppSheetPresentation.open) {
-      return ConstrainedBox(
-        constraints: bounds,
-        child: Center(child: titleText),
-      );
-    }
+    final open = presentation == AppSheetPresentation.open;
     final save = _SideAction(label: actionLabel, onPressed: onSave);
 
-    return Row(
-      children: [
-        const SizedBox(width: _sideColumnWidth),
-        Expanded(child: titleText),
-        SizedBox(width: _sideColumnWidth, child: save),
-      ],
-    );
+    return AppPickerHeader(title: title, trailing: open ? save : null);
   }
 }
 
