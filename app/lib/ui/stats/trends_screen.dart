@@ -13,7 +13,7 @@ import 'package:spendwise/ui/stats/trends/trends_state_views.dart';
 import 'package:spendwise/ui/stats/trends/trends_view_model.dart';
 
 const _trendsTitle = 'Trends';
-const _pagePadding = EdgeInsets.fromLTRB(14, 12, 14, 14);
+const _pagePadding = EdgeInsets.fromLTRB(14, 0, 14, 14);
 
 class TrendsScreen extends ConsumerWidget {
   const TrendsScreen({
