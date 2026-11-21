@@ -424,7 +424,7 @@ under the confirmation helper.
   colour swatch, a name over a caption, an `AmountText.formatted` amount, an optional bottom edge when
   `divided` and a chevron with an `InkWell` when `onTap` is set. Trends' breakdown and the category
   detail breakdown use it.
-- **`SectionLabel`** (`app/lib/ui/common/lists/section_label.dart`) is the upper-cased small subtext
+- **`SectionLabel`** (`app/lib/ui/common/lists/section_label.dart`) is the small subtext
   label above a group, with optional padding. Settings, the category list and form, the symbol picker
   and Budget detail use it.
 - **`EdgeDivider`** (`app/lib/ui/common/lists/edge_divider.dart`) is a one-pixel `edge`-colour line,

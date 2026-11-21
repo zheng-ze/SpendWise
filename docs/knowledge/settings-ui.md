@@ -131,7 +131,7 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 - **Currency** - a fixed row reading "Amounts display in Singapore dollars / SGD". There is no
   multi-currency support. (`app/lib/ui/settings/settings_root_screen.dart`)
 
-- **Category list** - two sections, Expense first and then Income, each a `Tray` card with upper-case `SectionLabel` heading,
+- **Category list** - two sections, Expense first and then Income, each a `Tray` card with a `SectionLabel` heading,
   `EdgeDivider` lines between rows, and the empty text "No categories yet". Rows are pre-ordered roots-then-children A-Z. Each row
   is a `MedallionRow` with the category medallion in its saved colour, the name, a chevron, and a
   "N subcategories" meta line ("1 subcategory" for one, none for zero). Child rows are indented 36.
