@@ -243,6 +243,8 @@ Future<int> _editTwiceAndAcceptFirst(
 }
 
 void main() {
+  setUp(silenceDebugPrint);
+
   test('monthTrendScopesReturnCommittedSlotTotals', () async {
     final setup = setupAnalysis();
     _populate(setup.ledger);

@@ -11,10 +11,14 @@ import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.da
 import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 
+import '../../../ledger/analysis_test_support.dart';
+
 const _readyTimeout = Duration(seconds: 5);
 const _maxReadyPumps = 100;
 
 void main() {
+  setUp(silenceDebugPrint);
+
   Decimal dec(String value) => Decimal.parse(value);
 
   final account = Account(

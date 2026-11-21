@@ -194,7 +194,7 @@ void main() {
       _expectKindAndModeControls(tester);
 
       setup.runner.pending.last.completeError(StateError('compute failed'));
-      await tester.pumpAndSettle();
+      await withSilencedDebugPrint(tester.pumpAndSettle);
       expect(find.text("Couldn't load your spending"), findsOneWidget);
       expect(find.text('Try again'), findsOneWidget);
       _expectKindAndModeControls(tester);
@@ -371,7 +371,7 @@ void main() {
     expect(stale, findsNothing);
 
     setup.runner.pending.last.completeError(StateError('compute failed'));
-    await tester.pumpAndSettle();
+    await withSilencedDebugPrint(tester.pumpAndSettle);
     expect(stale, findsNothing);
     expect(find.text('Try again'), findsOneWidget);
     _expectKindAndModeControls(tester);

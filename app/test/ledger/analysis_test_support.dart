@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:domain/domain.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
@@ -69,3 +70,19 @@ Future<void> settle(
 
 String testId(int n) =>
     '00000000-0000-4000-8000-${n.toString().padLeft(12, '0')}';
+
+void silenceDebugPrint() {
+  final original = debugPrint;
+  debugPrint = (String? message, {int? wrapWidth}) {};
+  addTearDown(() => debugPrint = original);
+}
+
+Future<void> withSilencedDebugPrint(Future<void> Function() body) async {
+  final original = debugPrint;
+  debugPrint = (String? message, {int? wrapWidth}) {};
+  try {
+    await body();
+  } finally {
+    debugPrint = original;
+  }
+}

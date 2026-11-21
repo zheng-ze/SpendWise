@@ -165,6 +165,8 @@ AnalysisQueryResult<TrendsPeriod> _readAt(
 );
 
 void main() {
+  setUp(silenceDebugPrint);
+
   test('December Trends aggregate includes committed future entries', () async {
     final fixture = setupAnalysis(today: _today);
     fixture.ledger.addAccount(

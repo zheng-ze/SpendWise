@@ -23,6 +23,7 @@ import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
+import '../../../ledger/analysis_test_support.dart';
 import '../../../support/number_pad_support.dart';
 import '../../../support/shell_sheet_harness.dart';
 import '../budget_shell_test_support.dart';
@@ -416,7 +417,7 @@ void main() {
       container
           .read(ledgerProvider)!
           .updateBudgetLimit('b2', Decimal.fromInt(60));
-      await tester.pumpAndSettle();
+      await withSilencedDebugPrint(tester.pumpAndSettle);
       expect(_inPane(find.text(_budgetDetailTryAgain)), findsOneWidget);
 
       fail = false;

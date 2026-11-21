@@ -173,6 +173,8 @@ TrendsIntent _yearIntent() {
 }
 
 void main() {
+  setUp(silenceDebugPrint);
+
   group('loading and refresh', () {
     test('initial computation shows the skeleton body', () async {
       final runner = ManualRunner();

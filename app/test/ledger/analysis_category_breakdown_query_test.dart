@@ -288,6 +288,8 @@ Future<int> _editTwiceAndAcceptFirst(
 }
 
 void main() {
+  setUp(silenceDebugPrint);
+
   test('mayBreakdownMatchesPeriodAndMonthSlotAtBothLevels', () async {
     final setup = setupAnalysis();
     _populate(setup.ledger);
