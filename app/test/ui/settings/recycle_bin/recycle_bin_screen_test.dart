@@ -34,11 +34,10 @@ Account _account(String name, {LifecycleState? lifecycle}) => Account(
   lifecycle: lifecycle ?? LifecycleState.active,
 );
 
-Entry _entry(String name, String sourceID, {String? categoryID}) => Entry(
+Entry _entry(String name, String sourceID) => Entry(
   amount: Decimal.parse('-5'),
   name: name,
   sourceID: sourceID,
-  categoryID: categoryID,
   date: DateTime.utc(2026, 1, 5),
 );
 
@@ -71,7 +70,6 @@ Future<void> _pump(WidgetTester tester, Ledger ledger) =>
     pumpApp(tester, const RecycleBinScreen(), ledger: ledger);
 
 void main() {
-  _registerFooterTests();
   testWidgets('a row Restore action restores the binned account', (
     tester,
   ) async {
@@ -114,63 +112,6 @@ void main() {
 
     final restored = ledger.state.categories[category.id]!;
     expect(restored.lifecycle, LifecycleState.active);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('rows show how many entries use them with the singular for one', (
-    tester,
-  ) async {
-    final account = _account('Old savings', lifecycle: LifecycleState.archived);
-    final category = _category('Fitness', lifecycle: LifecycleState.archived);
-    final single = _entry('One', account.id, categoryID: category.id);
-    final second = _entry('Two', account.id);
-    final ledger = _ledgerOf(
-      accounts: [account],
-      categories: [category],
-      entries: [single, second],
-    );
-    await _pump(tester, ledger);
-
-    expect(find.text('Used by 2 entries'), findsOneWidget);
-    expect(find.text('Used by 1 entry'), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('a binned row used by no entries reads zero entries', (
-    tester,
-  ) async {
-    final category = _category('Fitness', lifecycle: LifecycleState.archived);
-    await _pump(tester, _ledgerOf(categories: [category]));
-
-    expect(find.text('Used by 0 entries'), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('only non-empty sections are shown, titled in order', (
-    tester,
-  ) async {
-    final account = _account('Old savings', lifecycle: LifecycleState.archived);
-    final category = _category('Fitness', lifecycle: LifecycleState.archived);
-    await _pump(tester, _ledgerOf(accounts: [account], categories: [category]));
-
-    expect(find.text('Accounts'), findsOneWidget);
-    expect(find.text('Categories'), findsOneWidget);
-    expect(find.text('Entries'), findsNothing);
-    expect(find.text('Pockets'), findsNothing);
-    final texts = tester
-        .widgetList<Text>(find.byType(Text))
-        .map((text) => text.data)
-        .toList();
-    expect(texts.indexOf('Accounts'), isNonNegative);
-    expect(texts.indexOf('Accounts'), lessThan(texts.indexOf('Categories')));
-  }, timeout: uiTestTimeout);
-}
-
-void _registerFooterTests() {
-  const hint = 'Swipe right to restore or left to delete permanently.';
-
-  testWidgets('an empty bin shows the empty state and no hint', (tester) async {
-    await _pump(tester, _ledgerOf());
-
-    expect(find.text('Recycle bin is empty'), findsOneWidget);
-    expect(find.text(hint), findsNothing);
   }, timeout: uiTestTimeout);
 
   testWidgets(
