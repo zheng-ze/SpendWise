@@ -28,19 +28,13 @@ class BinFooterHint extends StatelessWidget {
 class BinEmptyState extends StatelessWidget {
   const BinEmptyState({super.key});
 
+  static const _emptyIcon = Icons.delete_outline;
   static const _emptyTitle = 'Recycle bin is empty';
-  static const _emptyFontSize = 14.0;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        _emptyTitle,
-        style: TextStyle(
-          fontSize: _emptyFontSize,
-          color: context.colors.subtext,
-        ),
-      ),
+    return const Center(
+      child: EmptyState(icon: _emptyIcon, title: _emptyTitle),
     );
   }
 }

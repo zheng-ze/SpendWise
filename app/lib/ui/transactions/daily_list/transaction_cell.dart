@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/lists/category_icon.dart';
+import 'package:spendwise/ui/common/lists/icon_medallion.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/symbol_map.dart';
@@ -97,9 +98,6 @@ class _RegisterTransactionCell extends StatelessWidget {
 
   static const _cellHorizontalInset = 12.0;
   static const _cellVerticalInset = 8.0;
-  static const _iconSize = 30.0;
-  static const _iconRadius = 9.0;
-  static const _iconGlyphSize = 17.0;
   static const _contentGap = 9.0;
   static const _amountGap = 8.0;
   static const _titleSize = 12.0;
@@ -133,19 +131,9 @@ class _RegisterTransactionCell extends StatelessWidget {
             )
           : null,
     );
-    final icon = Container(
-      width: _iconSize,
-      height: _iconSize,
-      decoration: BoxDecoration(
-        color: colors.tint,
-        borderRadius: BorderRadius.circular(_iconRadius),
-      ),
-      alignment: Alignment.center,
-      child: Icon(
-        symbolIcon(row.symbolName),
-        size: _iconGlyphSize,
-        color: row.color,
-      ),
+    final icon = IconMedallion.row(
+      icon: symbolIcon(row.symbolName),
+      iconColor: row.color,
     );
     final description = Expanded(
       child: Column(

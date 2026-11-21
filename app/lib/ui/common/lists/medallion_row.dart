@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/lists/icon_medallion.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
@@ -30,12 +31,6 @@ class MedallionRow extends StatelessWidget {
 
   final Widget? trailing;
 
-  static const _medallionSize = 30.0;
-
-  static const _medallionRadius = 9.0;
-
-  static const _medallionIconSize = 17.0;
-
   static const _titleFontSize = 12.0;
 
   static const _titleLineHeight = 1.25;
@@ -51,20 +46,7 @@ class MedallionRow extends StatelessWidget {
     final colors = context.colors;
     final icon = this.icon;
     final medallion =
-        leading ??
-        Container(
-          width: _medallionSize,
-          height: _medallionSize,
-          decoration: BoxDecoration(
-            color: colors.tint,
-            borderRadius: BorderRadius.circular(_medallionRadius),
-          ),
-          child: Icon(
-            icon,
-            size: _medallionIconSize,
-            color: iconColor ?? colors.action,
-          ),
-        );
+        leading ?? IconMedallion.row(icon: icon!, iconColor: iconColor);
     final subtitle = this.subtitle;
     final titleText = Text(
       title,

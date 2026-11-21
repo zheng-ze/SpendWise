@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
+import 'package:spendwise/ui/common/feedback/empty_state.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/lists/medallion_row.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
