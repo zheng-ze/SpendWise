@@ -39,8 +39,6 @@ class SheetAlert extends StatelessWidget {
 
   final VoidCallback? onAction;
 
-  static const _messageLineHeight = 1.45;
-
   static const _actionGap = 8.0;
 
   static const _cornerRadius = 10.0;
@@ -66,10 +64,7 @@ class SheetAlert extends StatelessWidget {
     final onAction = this.onAction;
     final message = Text(
       data.message,
-      style: context.text.body.copyWith(
-        color: foreground,
-        height: _messageLineHeight,
-      ),
+      style: context.text.body.copyWith(color: foreground),
     );
     final action = actionLabel != null && onAction != null
         ? _BannerAction(label: actionLabel, onPressed: onAction)

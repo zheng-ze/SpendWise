@@ -102,16 +102,11 @@ class TrayHeader extends StatelessWidget {
 
   static const defaultBottomPadding = 6.0;
 
-  static const _titleLineHeight = 1.25;
-
   @override
   Widget build(BuildContext context) {
     final titleText = Text(
       title,
-      style: context.text.title.copyWith(
-        fontWeight: SpendWiseText.semibold,
-        height: _titleLineHeight,
-      ),
+      style: context.text.title.copyWith(fontWeight: SpendWiseText.semibold),
     );
     final trailing = this.trailing;
     Widget content = titleText;

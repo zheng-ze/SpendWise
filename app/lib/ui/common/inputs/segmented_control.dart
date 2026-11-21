@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
-// MARK: - Constants
-
-const _regularWeight = FontWeight.w400;
-
 // MARK: - SegmentedOption
 @immutable
 class SegmentedOption<T> {
@@ -132,7 +128,7 @@ class _Segment extends StatelessWidget {
     final labelStyle = (small ? context.text.caption : context.text.body)
         .copyWith(
           color: selected ? selectedColor : colors.subtext,
-          fontWeight: selected ? SpendWiseText.semibold : _regularWeight,
+          fontWeight: selected ? SpendWiseText.semibold : null,
         );
     final labelText = Text(
       label,
