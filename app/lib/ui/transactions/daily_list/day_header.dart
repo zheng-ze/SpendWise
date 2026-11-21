@@ -8,6 +8,7 @@ import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
+import 'package:spendwise/ui/transactions/daily_list/register_insets.dart';
 
 // MARK: - Constants
 const double dayHeaderHeight = 56;
@@ -91,12 +92,10 @@ class _RegisterDayHeader extends StatelessWidget {
   final DateTime day;
   final Decimal net;
 
-  static const _horizontalInset = 14.0;
   static const _topInset = 10.0;
   static const _bottomInset = 8.0;
   static const _cornerRadius = 14.0;
   static const _labelGap = 8.0;
-  static const _pageInset = 14.0;
 
   @override
   Widget build(BuildContext context) {
@@ -123,14 +122,14 @@ class _RegisterDayHeader extends StatelessWidget {
     return ColoredBox(
       color: colors.base,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: _pageInset),
+        padding: const EdgeInsets.symmetric(horizontal: registerPageMargin),
         child: Container(
           height: _registerDayHeaderExtent(MediaQuery.textScalerOf(context)),
           decoration: decoration,
           padding: const EdgeInsetsDirectional.fromSTEB(
-            _horizontalInset,
+            registerInnerHorizontalInset,
             _topInset,
-            _horizontalInset,
+            registerInnerHorizontalInset,
             _bottomInset,
           ),
           child: Row(

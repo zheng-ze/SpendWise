@@ -6,6 +6,7 @@ import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/symbol_map.dart';
 import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
+import 'package:spendwise/ui/transactions/daily_list/register_insets.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
 // MARK: - TransactionCell
@@ -90,12 +91,10 @@ class _RegisterTransactionCell extends StatelessWidget {
   final bool isLastInDay;
   final VoidCallback? onTap;
 
-  static const _cellHorizontalInset = 12.0;
   static const _cellVerticalInset = 8.0;
   static const _contentGap = 9.0;
   static const _amountGap = 8.0;
   static const _rowCornerRadius = 14.0;
-  static const _rowMargin = 14.0;
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +135,7 @@ class _RegisterTransactionCell extends StatelessWidget {
       decoration: decoration,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: _cellHorizontalInset,
+          horizontal: registerInnerHorizontalInset,
           vertical: _cellVerticalInset,
         ),
         child: Row(
@@ -152,7 +151,9 @@ class _RegisterTransactionCell extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsetsDirectional.symmetric(horizontal: _rowMargin),
+      padding: const EdgeInsetsDirectional.symmetric(
+        horizontal: registerPageMargin,
+      ),
       child: Material(
         color: colors.surface,
         borderRadius: decoration.borderRadius,
