@@ -1,6 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/accounts/account_fields.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
@@ -9,7 +10,9 @@ import 'package:spendwise/ui/format/amount_parse.dart';
 
 // MARK: - AccountFormViewState
 class AccountFormViewState
-    implements HasStep<AccountFormViewState, AccountsStep> {
+    implements
+        HasStep<AccountFormViewState, AccountsStep>,
+        AccountFieldsState<AccountFormViewState> {
   const AccountFormViewState({
     required this.kind,
     required this.name,
@@ -23,10 +26,14 @@ class AccountFormViewState
   });
 
   final AccountFormKind kind;
+  @override
   final String name;
+  @override
   final AccountType type;
+  @override
   final int? statementDay;
   final String? parentId;
+  @override
   final String balanceText;
   final List<Account> pocketableParents;
   final LedgerError? error;
@@ -68,17 +75,30 @@ class AccountFormViewState
   @override
   AccountFormViewState withStep(AccountsStep? Function() step) =>
       copyWith(step: step);
+
+  @override
+  AccountFormViewState withFields({
+    String? name,
+    AccountType? type,
+    int? Function()? statementDay,
+    String? balanceText,
+  }) => copyWith(
+    name: name,
+    type: type,
+    statementDay: statementDay,
+    balanceText: balanceText,
+  );
+
+  @override
+  AccountFormViewState withError(LedgerError? Function() error) =>
+      copyWith(error: error);
 }
 
 // MARK: - AccountFormViewModel
-abstract class AccountFormViewModel {
+abstract class AccountFormViewModel implements AccountFieldsActions {
   void setKind(AccountFormKind kind);
-  void setName(String name);
-  void setType(AccountType type);
-  void setStatementDay(int day);
   void requestPickParent();
   void applyPickedParent(String? id);
-  void setBalance(String raw);
   Future<void> save();
   void clearStep();
 }
@@ -87,7 +107,8 @@ abstract class AccountFormViewModel {
 class AccountFormNotifier extends AsyncNotifier<AccountFormViewState>
     with
         LedgerBackedNotifier<AccountFormViewState>,
-        StepEmitting<AccountFormViewState, AccountsStep>
+        StepEmitting<AccountFormViewState, AccountsStep>,
+        AccountFieldsEditing<AccountFormViewState>
     implements AccountFormViewModel {
   @override
   Future<AccountFormViewState> build() async {
@@ -113,23 +134,6 @@ class AccountFormNotifier extends AsyncNotifier<AccountFormViewState>
   }
 
   @override
-  void setName(String name) => updateState((s) => s.copyWith(name: name));
-
-  @override
-  void setType(AccountType type) {
-    updateState(
-      (s) => s.copyWith(
-        type: type,
-        statementDay: type != AccountType.card ? () => null : null,
-      ),
-    );
-  }
-
-  @override
-  void setStatementDay(int day) =>
-      updateState((s) => s.copyWith(statementDay: () => day));
-
-  @override
   void requestPickParent() => emitStep(PickParentRequested());
 
   @override
@@ -137,10 +141,6 @@ class AccountFormNotifier extends AsyncNotifier<AccountFormViewState>
     if (!ref.mounted) return;
     updateState((s) => s.copyWith(parentId: () => id, step: () => null));
   }
-
-  @override
-  void setBalance(String raw) =>
-      updateState((s) => s.copyWith(balanceText: raw));
 
   @override
   Future<void> save() async {
@@ -173,7 +173,7 @@ class AccountFormNotifier extends AsyncNotifier<AccountFormViewState>
         (s) => s.copyWith(error: () => null, step: () => AccountFormSaved()),
       );
     } on LedgerError catch (error) {
-      updateState((s) => s.copyWith(error: () => error));
+      recordError(error);
     }
   }
 }

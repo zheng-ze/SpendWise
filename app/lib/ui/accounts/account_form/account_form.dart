@@ -1,27 +1,24 @@
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/accounts/account_fields_card.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
+import 'package:spendwise/ui/accounts/account_form_frame.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_view_model.dart';
-import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
-import 'package:spendwise/ui/common/buttons/app_buttons.dart';
-import 'package:spendwise/ui/common/inputs/amount_field.dart';
-import 'package:spendwise/ui/common/feedback/error_section.dart';
-import 'package:spendwise/ui/common/pickers/account_type_picker.dart';
-import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
-import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 
 // MARK: - Constants
 
 const _loadingTitle = 'New Account';
 const _loadErrorTitle = "Couldn't load the account form";
+const _accountTitle = 'New Account';
+const _subpocketTitle = 'New Subpocket';
+const _balanceHint = 'Opening balance';
 
 // MARK: - Visual Constants
 
@@ -54,9 +51,6 @@ class AccountForm extends ConsumerStatefulWidget {
 
 // MARK: - AccountFormState
 class _AccountFormState extends ConsumerState<AccountForm> {
-  late final TextEditingController _nameController = TextEditingController();
-  late final TextEditingController _balanceController = TextEditingController();
-
   ProviderSubscription<AsyncValue<AccountFormViewState>>? _subscription;
 
   @override
@@ -71,8 +65,6 @@ class _AccountFormState extends ConsumerState<AccountForm> {
   @override
   void dispose() {
     _subscription?.close();
-    _nameController.dispose();
-    _balanceController.dispose();
     super.dispose();
   }
 
@@ -130,44 +122,23 @@ class _AccountFormState extends ConsumerState<AccountForm> {
       title: _loadingTitle,
       loadErrorMessage: _loadErrorTitle,
       onRetry: () => ref.invalidate(accountFormViewModelProvider),
-      builder: (formState) => _AccountFormBody(
-        formState: formState,
-        viewModel: _viewModel,
-        nameController: _nameController,
-        balanceController: _balanceController,
-      ),
+      builder: (formState) =>
+          _AccountFormBody(formState: formState, viewModel: _viewModel),
     );
   }
 }
 
 // MARK: - AccountFormBody
 class _AccountFormBody extends StatelessWidget {
-  const _AccountFormBody({
-    required this.formState,
-    required this.viewModel,
-    required this.nameController,
-    required this.balanceController,
-  });
+  const _AccountFormBody({required this.formState, required this.viewModel});
 
   final AccountFormViewState formState;
   final AccountFormViewModel viewModel;
-  final TextEditingController nameController;
-  final TextEditingController balanceController;
-
-  static const _fieldGap = 16.0;
 
   @override
   Widget build(BuildContext context) {
-    if (nameController.text != formState.name) {
-      nameController.text = formState.name;
-    }
-    if (balanceController.text != formState.balanceText) {
-      balanceController.text = formState.balanceText;
-    }
-
-    final title = formState.effectiveKind == AccountFormKind.subpocket
-        ? 'New Subpocket'
-        : 'New Account';
+    final isAccountKind = formState.effectiveKind == AccountFormKind.account;
+    final title = isAccountKind ? _accountTitle : _subpocketTitle;
     final kindSelector = IgnorePointer(
       ignoring: formState.isLockedToAccount,
       child: SegmentedButton<AccountFormKind>(
@@ -184,66 +155,34 @@ class _AccountFormBody extends StatelessWidget {
             : (selection) => viewModel.setKind(selection.first),
       ),
     );
-    final fieldRows = FormSectionCard(
-      padding: FormSectionCard.fieldsPadding,
-      children: [
-        TextField(
-          controller: nameController,
-          decoration: const InputDecoration(hintText: 'Name'),
-          onChanged: viewModel.setName,
-        ),
-        const SizedBox(height: _fieldGap),
-        if (formState.effectiveKind == AccountFormKind.account) ...[
-          AccountTypePicker(
-            selected: formState.type,
-            onSelected: viewModel.setType,
-            sheetPresentation: shellSheetPresentation,
-          ),
-          if (formState.type == AccountType.card) ...[
-            const SizedBox(height: _fieldGap),
-            StatementDayPicker(
-              selected: formState.statementDay,
-              onSelected: viewModel.setStatementDay,
-              sheetPresentation: shellSheetPresentation,
-            ),
-          ],
-          const SizedBox(height: _fieldGap),
-          AmountField(
-            controller: balanceController,
-            allowsNegative: true,
-            hintText: 'Opening balance',
-            onChanged: viewModel.setBalance,
-          ),
-        ] else
-          FormSheetRow(
-            label: 'Account',
-            trailing: Text(_parentLabel() ?? 'Select'),
-            onTap: viewModel.requestPickParent,
-          ),
-      ],
+    final parentRow = FormSheetRow(
+      label: 'Account',
+      trailing: Text(_parentLabel() ?? 'Select'),
+      onTap: viewModel.requestPickParent,
     );
-    final fields = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        kindSelector,
-        const SizedBox(height: _fieldGap),
-        fieldRows,
-        ErrorSection(subject: 'account', error: formState.error),
+    final fieldRows = AccountFieldsCard(
+      fields: formState,
+      actions: viewModel,
+      balanceHint: _balanceHint,
+      showsTypeFields: isAccountKind,
+      showsBalance: isAccountKind,
+      extras: [
+        if (!isAccountKind) ...[
+          const SizedBox(height: accountFieldGap),
+          parentRow,
+        ],
       ],
-    );
-    final saveButton = SizedBox(
-      width: double.infinity,
-      child: PrimaryButton(
-        label: 'Save',
-        onPressed: formState.canSave ? viewModel.save : null,
-      ),
     );
 
-    return AppSheet(
-      header: AppPickerHeader(title: title),
-      body: fields,
-      footer: saveButton,
-      variant: AppSheetVariant.form,
+    return AccountFormFrame(
+      title: title,
+      error: formState.error,
+      onSave: formState.canSave ? viewModel.save : null,
+      children: [
+        kindSelector,
+        const SizedBox(height: accountFieldGap),
+        fieldRows,
+      ],
     );
   }
 
