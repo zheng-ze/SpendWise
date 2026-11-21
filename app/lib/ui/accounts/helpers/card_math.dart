@@ -5,7 +5,7 @@ DateTime statementCut(int statementDay, DateTime now) {
   final anchorsPreviousMonth = now.day < statementDay;
   final anchor = anchorsPreviousMonth
       ? DateTime.utc(now.year, now.month - 1)
-      : DateTime.utc(now.year, now.month);
+      : startOfMonthUtc(now);
 
   return shiftMonthThenClampDayUtc(anchor, 0, day: statementDay);
 }

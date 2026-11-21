@@ -1,8 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/settings/display_preferences_providers.dart';
+import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
 import 'package:spendwise/boot/providers.dart';
@@ -77,7 +77,7 @@ class BudgetsListViewState
       spent: formatMoney(all.spent),
       allowance: allowance == null
           ? null
-          : 'From ${DateFormat('d MMMM').format(tomorrow)}: about ${formatMoney(allowance)} a day.',
+          : 'From ${formatDayMonthLong(tomorrow)}: about ${formatMoney(allowance)} a day.',
       progress: cap == null
           ? null
           : (all.spent / cap).toDouble().clamp(_emptyProgress, _fullProgress),

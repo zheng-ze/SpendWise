@@ -12,7 +12,7 @@ class CategoryDetailIntent {
   factory CategoryDetailIntent.initial(CategoryDetailArgs args) {
     final period = args.isYearRange
         ? DateTime.utc(args.initialDate.year)
-        : DateTime.utc(args.initialDate.year, args.initialDate.month);
+        : startOfMonthUtc(args.initialDate);
     final mode = args.isYearRange ? TrendsMode.year : TrendsMode.month;
     final selected = args.isYearRange ? period.year : monthSerial(period);
     return CategoryDetailIntent(
