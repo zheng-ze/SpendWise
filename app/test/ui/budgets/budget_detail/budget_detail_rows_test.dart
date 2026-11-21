@@ -70,6 +70,8 @@ void main() {
       await tester.pump();
       expect(detailState(container).phase, BudgetDetailPhase.loading);
 
+      await tester.ensureVisible(find.text('Coffee'));
+      await tester.pumpAndSettle();
       await tester.drag(find.text('Coffee'), const Offset(-600, 0));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete'));
