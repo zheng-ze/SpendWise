@@ -2,7 +2,6 @@ import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/breakdowns/compared_with_usual.dart';
-import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 import 'package:spendwise/ledger/analysis/insights/insight_rules.dart';
 
 // MARK: - Changes

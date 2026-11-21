@@ -1,3 +1,5 @@
+import 'package:domain/src/time/calendar_month.dart';
+
 DateTime startOfDayUtc(DateTime date) =>
     DateTime.utc(date.year, date.month, date.day);
 
@@ -7,14 +9,10 @@ DateTime shiftMonthThenClampDayUtc(
   required int day,
 }) {
   final shifted = DateTime.utc(date.year, date.month + months);
+  final lastDay = daysInMonth(shifted);
   return DateTime.utc(
     shifted.year,
     shifted.month,
-    _clampDay(day, shifted.year, shifted.month),
+    day < lastDay ? day : lastDay,
   );
-}
-
-int _clampDay(int day, int year, int month) {
-  final lastDay = DateTime.utc(year, month + 1, 0).day;
-  return day < lastDay ? day : lastDay;
 }

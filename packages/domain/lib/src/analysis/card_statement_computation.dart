@@ -5,6 +5,7 @@ import 'package:domain/src/analysis/card_statement.dart';
 import 'package:domain/src/ids.dart';
 import 'package:domain/src/ledger_state/ledger_state.dart';
 import 'package:domain/src/time/calendar_day.dart';
+import 'package:domain/src/time/calendar_month.dart';
 import 'package:domain/src/time/date_range.dart';
 
 // MARK: - Computation
@@ -25,7 +26,7 @@ CardStatement? cardStatement({
     return null;
   }
 
-  final monthAnchor = DateTime.utc(day.year, day.month);
+  final monthAnchor = startOfMonthUtc(day);
   final thisMonthCut = shiftMonthThenClampDayUtc(
     monthAnchor,
     0,

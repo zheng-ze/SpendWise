@@ -1,8 +1,7 @@
+import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:spendwise/boot/providers.dart';
-
-DateTime startOfMonthUtc(DateTime date) => DateTime.utc(date.year, date.month);
 
 final budgetsMonthChoiceProvider = StateProvider.autoDispose<DateTime?>(
   (ref) => null,

@@ -2,7 +2,6 @@ import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/breakdowns/analysis_category_scope.dart';
-import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 import 'package:spendwise/ledger/analysis/summaries/month_spread.dart';
 
 // MARK: - Mode

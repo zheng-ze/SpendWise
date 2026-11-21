@@ -2,7 +2,6 @@ import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/budgets/budget_spend.dart';
-import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 import 'package:spendwise/ledger/analysis/insights/usual_baseline.dart';
 
 // MARK: - Results

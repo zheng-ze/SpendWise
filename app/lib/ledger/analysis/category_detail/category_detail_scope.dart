@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart' show immutable;
 
 import 'package:spendwise/ledger/analysis/breakdowns/analysis_category_scope.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
-import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 
 DateRange categoryDetailWindow(DateTime period, AnalysisPeriodMode mode) {
   return switch (mode) {

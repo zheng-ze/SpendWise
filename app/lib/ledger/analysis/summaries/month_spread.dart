@@ -1,8 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:spendwise/ledger/analysis/insights/completeness.dart';
-
 // MARK: - Slots
 
 @immutable

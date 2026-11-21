@@ -1,7 +1,5 @@
 import 'package:domain/domain.dart';
 
-import 'package:spendwise/ledger/analysis/insights/completeness.dart';
-
 bool _isMonthExpense(AnalysisItem item, DateRange window) =>
     window.contains(item.date) && item.kind == CategoryKind.expense;
 

@@ -68,12 +68,6 @@ PeriodCompleteness classifyPeriod({
 
 // MARK: - Windows
 
-DateRange monthWindow(DateTime month) {
-  final day = startOfDayUtc(month);
-  final start = DateTime.utc(day.year, day.month, 1);
-  return DateRange(start, DateTime.utc(day.year, day.month + 1, 1));
-}
-
 DateRange weekWindow(DateTime containingDay) {
   final day = startOfDayUtc(containingDay);
   final monday = day.subtract(Duration(days: day.weekday - DateTime.monday));
