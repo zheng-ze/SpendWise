@@ -25,6 +25,10 @@ const _identifierField = Key('syncIdentifierField');
 const _otpField = Key('syncOtpField');
 const _otpSubmit = Key('syncOtpSubmit');
 const _pickerBack = Key('syncPickerBack');
+final _pickerBackButton = find.descendant(
+  of: find.byKey(_pickerBack),
+  matching: find.byType(IconButton),
+);
 
 final class _Harness {
   late LedgerDatabase db;
@@ -478,7 +482,7 @@ void main() {
         findsOneWidget,
       );
 
-      await tester.tap(find.byKey(_pickerBack));
+      await tester.tap(_pickerBackButton);
       await pumpFlowFrames(tester);
       expect(endedCalls, 1);
 

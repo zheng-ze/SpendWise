@@ -47,63 +47,67 @@ class _SyncOtpScreenState extends ConsumerState<SyncOtpScreen> {
         ? const InlineSpinner()
         : const Text('Verify code');
 
+    final header = PageHeader(
+      key: const Key('syncOtpBack'),
+      title: 'Enter verification code',
+      onBack: viewModel.cancelOtp,
+    );
+    final content = ListView(
+      padding: _screenPadding,
+      children: [
+        Text('A six-digit code was sent to ${state.identifier}.'),
+        const SizedBox(height: _sectionSpacing),
+        TextField(
+          key: const Key('syncOtpField'),
+          controller: _otpController,
+          decoration: const InputDecoration(
+            labelText: 'Verification code',
+            hintText: '482916',
+          ),
+          keyboardType: TextInputType.number,
+          autocorrect: false,
+          onSubmitted: viewModel.submitOtp,
+        ),
+        if (state.explainCodeReplacement)
+          const Padding(
+            padding: _notePadding,
+            child: Text('Requesting a new code replaces the previous one.'),
+          ),
+        if (errorMessage != null)
+          SyncEnrollmentErrorText(message: errorMessage),
+        const SizedBox(height: _sectionSpacing),
+        FilledButton(
+          key: const Key('syncOtpSubmit'),
+          onPressed: () => viewModel.submitOtp(_otpController.text),
+          child: action,
+        ),
+        TextButton(
+          key: const Key('syncOtpNewCode'),
+          onPressed: cooldown == null && state.otpWaiting
+              ? () => viewModel.requestNewCode()
+              : null,
+          child: Text(
+            cooldown == null
+                ? 'Send a new code'
+                : 'Send a new code in ${_ceilCooldownSeconds(cooldown)}s',
+          ),
+        ),
+      ],
+    );
+    final page = Column(
+      children: [
+        header,
+        Expanded(child: content),
+      ],
+    );
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         viewModel.cancelOtp();
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Enter verification code'),
-          leading: BackButton(
-            key: const Key('syncOtpBack'),
-            onPressed: viewModel.cancelOtp,
-          ),
-        ),
-        body: ListView(
-          padding: _screenPadding,
-          children: [
-            Text('A six-digit code was sent to ${state.identifier}.'),
-            const SizedBox(height: _sectionSpacing),
-            TextField(
-              key: const Key('syncOtpField'),
-              controller: _otpController,
-              decoration: const InputDecoration(
-                labelText: 'Verification code',
-                hintText: '482916',
-              ),
-              keyboardType: TextInputType.number,
-              autocorrect: false,
-              onSubmitted: viewModel.submitOtp,
-            ),
-            if (state.explainCodeReplacement)
-              const Padding(
-                padding: _notePadding,
-                child: Text('Requesting a new code replaces the previous one.'),
-              ),
-            if (errorMessage != null)
-              SyncEnrollmentErrorText(message: errorMessage),
-            const SizedBox(height: _sectionSpacing),
-            FilledButton(
-              key: const Key('syncOtpSubmit'),
-              onPressed: () => viewModel.submitOtp(_otpController.text),
-              child: action,
-            ),
-            TextButton(
-              key: const Key('syncOtpNewCode'),
-              onPressed: cooldown == null && state.otpWaiting
-                  ? () => viewModel.requestNewCode()
-                  : null,
-              child: Text(
-                cooldown == null
-                    ? 'Send a new code'
-                    : 'Send a new code in ${_ceilCooldownSeconds(cooldown)}s',
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: Scaffold(body: SafeArea(child: page)),
     );
   }
 }

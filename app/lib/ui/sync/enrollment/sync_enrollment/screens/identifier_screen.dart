@@ -58,60 +58,64 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
     final action = state.inFlight
         ? const InlineSpinner()
         : const Text('Continue');
+    final header = PageHeader(
+      title: state.repairMode ? 'Repair Device Access' : 'Hosted sync sign-in',
+      onBack: () => Navigator.of(context).maybePop(),
+    );
+
+    final content = ListView(
+      padding: _screenPadding,
+      children: [
+        const Text(
+          'Enter the email address used for hosted sync. '
+          'A one-time code will be sent to it.',
+        ),
+        const SizedBox(height: _sectionSpacing),
+        TextField(
+          key: const Key('syncIdentifierField'),
+          controller: _identifierController,
+          enabled: !state.inFlight,
+          decoration: const InputDecoration(
+            labelText: 'Email',
+            hintText: 'you@example.com',
+          ),
+          keyboardType: TextInputType.emailAddress,
+          autocorrect: false,
+          onSubmitted: (_) =>
+              viewModel.submitIdentifier(_identifierController.text),
+        ),
+        if (state.explainCodeReplacement)
+          const Padding(
+            padding: _notePadding,
+            child: Text(
+              'Requesting a new code replaces the previous one. '
+              'Only the newest code will work.',
+            ),
+          ),
+        if (errorMessage != null)
+          SyncEnrollmentErrorText(message: errorMessage),
+        const SizedBox(height: _sectionSpacing),
+        FilledButton(
+          key: const Key('syncIdentifierContinue'),
+          onPressed: state.inFlight || cooldown != null
+              ? null
+              : () => viewModel.submitIdentifier(_identifierController.text),
+          child: action,
+        ),
+        if (countdown != null)
+          Padding(padding: _notePadding, child: Text(countdown)),
+      ],
+    );
+    final page = Column(
+      children: [
+        header,
+        Expanded(child: content),
+      ],
+    );
 
     return PopScope(
       canPop: state.repairMode || !state.inFlight,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            state.repairMode ? 'Repair Device Access' : 'Hosted sync sign-in',
-          ),
-        ),
-        body: ListView(
-          padding: _screenPadding,
-          children: [
-            const Text(
-              'Enter the email address used for hosted sync. '
-              'A one-time code will be sent to it.',
-            ),
-            const SizedBox(height: _sectionSpacing),
-            TextField(
-              key: const Key('syncIdentifierField'),
-              controller: _identifierController,
-              enabled: !state.inFlight,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                hintText: 'you@example.com',
-              ),
-              keyboardType: TextInputType.emailAddress,
-              autocorrect: false,
-              onSubmitted: (_) =>
-                  viewModel.submitIdentifier(_identifierController.text),
-            ),
-            if (state.explainCodeReplacement)
-              const Padding(
-                padding: _notePadding,
-                child: Text(
-                  'Requesting a new code replaces the previous one. '
-                  'Only the newest code will work.',
-                ),
-              ),
-            if (errorMessage != null)
-              SyncEnrollmentErrorText(message: errorMessage),
-            const SizedBox(height: _sectionSpacing),
-            FilledButton(
-              key: const Key('syncIdentifierContinue'),
-              onPressed: state.inFlight || cooldown != null
-                  ? null
-                  : () =>
-                        viewModel.submitIdentifier(_identifierController.text),
-              child: action,
-            ),
-            if (countdown != null)
-              Padding(padding: _notePadding, child: Text(countdown)),
-          ],
-        ),
-      ),
+      child: Scaffold(body: SafeArea(child: page)),
     );
   }
 }

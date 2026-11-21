@@ -27,6 +27,10 @@ const _identifierContinue = Key('syncIdentifierContinue');
 const _otpField = Key('syncOtpField');
 const _resumeRetry = Key('syncResumeRetry');
 const _pickerBack = Key('syncPickerBack');
+final _pickerBackButton = find.descendant(
+  of: find.byKey(_pickerBack),
+  matching: find.byType(IconButton),
+);
 
 final class FakeBackendSelectionWriter implements BackendSelectionWriter {
   Future<void> Function()? onWrite;
@@ -270,7 +274,7 @@ void main() {
       isTrue,
     );
 
-    await tester.tap(find.byKey(_pickerBack));
+    await tester.tap(_pickerBackButton);
     await tester.pump();
 
     expect(endedCalls, 0);
@@ -341,7 +345,7 @@ void main() {
     expect(
       find.byKey(_identifierField),
       findsOneWidget,
-      reason: 'the AppBar back affordance cannot pop while back is gated',
+      reason: 'the back affordance cannot pop while back is gated',
     );
     expect(find.byType(BackendPickerScreen), findsNothing);
 
