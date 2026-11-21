@@ -64,7 +64,7 @@ class PlanDetailContent extends StatelessWidget {
       _DetailRow(label: _endsLabel, value: viewState.ends),
     ];
     final editButton = PrimaryButton(label: _editLabel, onPressed: onEdit);
-    final deleteButton = PrimaryButton(
+    final deleteButton = SecondaryButton(
       label: _deleteLabel,
       destructive: true,
       onPressed: onDelete,
