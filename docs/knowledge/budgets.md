@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: 2ca37997
+Last reconciled: 7d891059
 
 ## Feature overview
 
@@ -19,8 +19,9 @@ indirectly, via the spend math the app layer runs against analysis.
   `budget_category_picker.dart`, `budget_scope_options.dart`, card, and `budgets_flow.dart`.
 - `app/lib/ui/budgets/budget_detail/` - the detail screen, pane, view model,
   `budget_edit_actions_sheet.dart`, `budget_limit_edit_sheet.dart` with
-  `budget_limit_editor_view_model.dart`, and `budget_limit_edit_sheet.dart` with the shared
-  `FormSheetLoadError`.
+  `budget_limit_editor_view_model.dart`, whose loading and load-error states come from the shared
+  `FormSheetAsyncHost`. The edit actions sheet opens through `showPickerAppSheet` and lists
+  `ChoiceTile`s.
 - `app/lib/ui/budgets/budget_amount_input.dart` - the amount input shared by both amount sheets.
 - Shared helpers Budgets uses: `app/lib/ui/shell/shell_sheet_presentation.dart`
   (`shellSheetPresentation`, the layout-mode to `AppSheetPresentation` mapping),
@@ -28,7 +29,7 @@ indirectly, via the spend math the app layer runs against analysis.
   `app/lib/ui/shell/selected_detail_controller.dart` (`SelectedDetailController`, phone page and owners),
   `app/lib/ui/common/sheets/sheet_session.dart` (`SheetSession`),
   `app/lib/ui/common/feedback/destructive_confirmation.dart` (`showDestructiveConfirmation`), and
-  `app/lib/ui/common/sheets/form_sheet_load_states.dart` (`FormSheetLoading`, `FormSheetLoadError`), and
+  `app/lib/ui/common/sheets/form_sheet_load_states.dart` (`FormSheetAsyncHost`, composed of `FormSheetLoading` and `FormSheetLoadError`), and
   `app/lib/ui/common/inputs/form_sheet_row.dart` (`FormSheetRow`, the labelled row in the Add form).
 - `app/lib/ledger/analysis/budgets/budget_spend.dart` - the app-layer spend math: `budgetItems`,
   `budgetSpend`, `monthExpenseSpend`, the shared `budgetCountsItem` predicate, and

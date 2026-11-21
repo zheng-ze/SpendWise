@@ -1,11 +1,11 @@
 # Trends & Category Detail UI
 
-Last reconciled: f3627ea3
+Last reconciled: 7d891059
 
 ## Feature overview
 
 History opens a full-screen Trends page through its own `TransactionsFlow` navigator. Trends shows an
-Expense/Income control, a Month by month/Year by year control, a period row with previous/next arrows,
+Expense/Income control, a Month by month/Year by year control, a period row with previous/next arrows (the shared `PeriodStepper`),
 a bar chart with selectable axis labels, a selected-period headline, (month mode only) a Compared
 with usual row, and a ranked category breakdown whose rows and chart blocks open Category Detail. Category
 Detail keeps the incoming month or year fixed while route-local scope and trend controls project the
@@ -192,9 +192,9 @@ A missing selected identity or duplicate identity in either input makes the proj
 (`app/lib/ui/stats/trends/trends_average_comparison.dart`, `trends_projection.dart`).
 
 The selected-period phone breakdown and shared scoped breakdown draw the saved chart (donut or
-category map) at the saved level and colour mode, then ranked rows with
+category map) at the saved level and colour mode, then ranked rows, each a shared `BreakdownRow`, with
 swatch, name, a caption of `share / parent` and the
-signed amount. A period with no records of the selected kind shows the empty card copy instead of chart
+signed amount (an `AmountText.formatted`). A period with no records of the selected kind shows the empty card copy instead of chart
 and rows. Colours resolve once per row through `CategoryPalette`; Direct rows use the parent's saved hex
 with their own rank. The donut centre label is bounded to the hole, and row labels wrap inside the
 card at phone width. A row with a navigation target shows a trailing chevron and a tap action; a row without
@@ -247,7 +247,7 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
 ## Screens and flows
 
 - **Trends** - app bar titled "Trends", optional back control (`BackButton`), the kind and mode
-  controls (always mounted), and a body that is skeleton trays, an error box with a filled Retry, the
+  controls (always mounted), and a body that is skeleton trays, an error box (the shared `LoadErrorView.box`) with a filled Retry, the
   fresh-ledger empty state with interactive month controls or a disabled year period row, or the
   layout-specific ready composition described above
   (`app/lib/ui/stats/trends_screen.dart`, `app/test/ui/stats/trends_layout_test.dart`).
@@ -258,7 +258,7 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
   (`category_detail_args.dart:CategoryDetailArgs`,
   `category_detail_projection.dart:categoryDetailUnreadyState`).
   Chips appear when children exist and offer All, every child, and Direct. Subcategories appears only
-  for All with children. It includes zero-total children with a one-decimal parent-total share; the
+  for All with children, drawn as shared `BreakdownRow`s (`category_detail_sections.dart`); a failed read shows `LoadErrorView.box`. It includes zero-total children with a one-decimal parent-total share; the
   Direct breakdown row appears only for a positive direct total. Rows rank by descending total, name,
   then ID. The page headline uses `context.text.headline` and the expense or income `AmountStyle`;
   category color and icon do not style that amount (`category_detail_sections.dart:CategoryDetailHeadline`,
