@@ -23,9 +23,6 @@ const _headerTopInset = 12.0;
 const _headingPeriodGap = 14.0;
 const _periodSummaryGap = 4.0;
 const _summaryRegisterGap = 16.0;
-const _headingFontFamily = 'InstrumentSans';
-const _headingFontSize = 26.0;
-const _headingLetterSpacing = -0.7;
 const _previousMonthLabel = 'Previous month';
 const _nextMonthLabel = 'Next month';
 
@@ -176,11 +173,7 @@ class _TransactionsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleStyle = TextStyle(
-      fontFamily: _headingFontFamily,
-      fontSize: _headingFontSize,
-      fontWeight: SpendWiseText.semibold,
-      letterSpacing: _headingLetterSpacing,
+    final titleStyle = context.text.headline.copyWith(
       color: context.colors.text,
     );
     final heading = Padding(

@@ -94,17 +94,13 @@ class _RegisterTransactionCell extends StatelessWidget {
   static const _cellVerticalInset = 8.0;
   static const _contentGap = 9.0;
   static const _amountGap = 8.0;
-  static const _subtitleLineHeight = 1.3;
   static const _rowCornerRadius = 14.0;
   static const _rowMargin = 14.0;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final subtitleStyle = context.text.caption.copyWith(
-      height: _subtitleLineHeight,
-      color: colors.subtext,
-    );
+    final subtitleStyle = context.text.caption.copyWith(color: colors.subtext);
     final titleStyle = context.text.body.copyWith(
       fontWeight: SpendWiseText.semibold,
       color: colors.text,

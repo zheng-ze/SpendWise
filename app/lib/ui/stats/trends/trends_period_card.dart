@@ -121,8 +121,6 @@ class _HeadlineTrailing extends StatelessWidget {
   final TrendsHeadline headline;
   final double maxWidth;
 
-  static const _amountFontSize = 24.0;
-
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -133,7 +131,6 @@ class _HeadlineTrailing extends StatelessWidget {
             maxLines: 1,
             softWrap: false,
             style: context.text.headline.copyWith(
-              fontSize: _amountFontSize,
               color: AmountStyle.of(context, kind: headline.amountKind).color,
             ),
           )

@@ -48,9 +48,7 @@ class DayHeader extends StatelessWidget {
     }
     final dayNumber = Text(
       label.dayNumber,
-      style: theme.textTheme.headlineSmall?.copyWith(
-        fontWeight: FontWeight.w700,
-      ),
+      style: context.text.title.copyWith(fontWeight: SpendWiseText.semibold),
     );
     final caption = Text(
       label.caption,
