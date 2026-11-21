@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/lists/icon_medallion.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
-import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/symbol_map.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
@@ -67,16 +66,10 @@ class TransactionCell extends StatelessWidget {
               ),
             ),
             const SizedBox(width: _contentGap),
-            Text(
-              formatSignedMoney(
-                row.amount,
-                kind: row.amountKind,
-                symbol: false,
-              ),
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: AmountStyle.of(context, kind: row.amountKind).color,
-                fontWeight: FontWeight.w600,
-              ),
+            AmountText(
+              amount: row.amount,
+              kind: row.amountKind,
+              size: AmountTextSize.row,
             ),
           ],
         ),
@@ -104,8 +97,6 @@ class _RegisterTransactionCell extends StatelessWidget {
   static const _titleWeight = FontWeight.w600;
   static const _subtitleSize = 10.0;
   static const _subtitleLineHeight = 1.3;
-  static const _amountSize = 12.0;
-  static const _amountWeight = FontWeight.w600;
   static const _rowBorderWidth = 1.0;
   static const _rowCornerRadius = 14.0;
   static const _rowMargin = 14.0;
@@ -151,14 +142,7 @@ class _RegisterTransactionCell extends StatelessWidget {
         ],
       ),
     );
-    final amount = Text(
-      formatSignedMoney(row.amount, kind: row.amountKind, symbol: false),
-      style: context.text.row.copyWith(
-        fontSize: _amountSize,
-        fontWeight: _amountWeight,
-        color: AmountStyle.of(context, kind: row.amountKind).color,
-      ),
-    );
+    final amount = AmountText(amount: row.amount, kind: row.amountKind);
     final content = Ink(
       decoration: decoration,
       child: Padding(

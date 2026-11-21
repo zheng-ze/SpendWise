@@ -52,25 +52,14 @@ class BinEntryRowContent extends StatelessWidget {
 
   static const _contentPadding = EdgeInsets.symmetric(vertical: 7);
   static const _restoreGap = 6.0;
-  static const _amountFontSize = 12.0;
-  static const _amountWeight = FontWeight.w600;
 
   @override
   Widget build(BuildContext context) {
-    final amountStyle = TextStyle(
-      fontSize: _amountFontSize,
-      fontWeight: _amountWeight,
-      color: AmountStyle.of(context, kind: row.amountKind).color,
-    );
-    final amountText = formatSignedMoney(
-      row.amount,
-      kind: row.amountKind,
-      symbol: false,
-    );
+    final amountText = AmountText(amount: row.amount, kind: row.amountKind);
     final trailing = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(amountText, style: amountStyle),
+        amountText,
         const SizedBox(width: _restoreGap),
         BinRestoreAction(onRestore: onRestore),
       ],

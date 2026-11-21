@@ -196,14 +196,11 @@ class _BreakdownTotalLine extends StatelessWidget {
       label,
       style: TextStyle(fontSize: _captionSize, color: context.colors.subtext),
     );
-    final totalText = Text(
-      total,
+    final totalText = AmountText.formatted(
+      text: total,
+      kind: amountKind,
+      size: AmountTextSize.row,
       textAlign: _totalLineAlignment,
-      style: context.text.small.copyWith(
-        fontSize: _headingSize,
-        fontWeight: _semiBold,
-        color: AmountStyle.of(context, kind: amountKind).color,
-      ),
     );
     return Row(
       children: [

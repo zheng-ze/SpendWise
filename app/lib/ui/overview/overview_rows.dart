@@ -51,12 +51,7 @@ class OverviewAmountText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(left: overviewRowTrailingGap),
-      child: Text(
-        formatSignedMoney(amount, kind: kind, symbol: false),
-        style: context.text.small.copyWith(
-          color: AmountStyle.of(context, kind: kind).color,
-        ),
-      ),
+      child: AmountText(amount: amount, kind: kind),
     );
   }
 }

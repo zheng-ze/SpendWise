@@ -63,12 +63,10 @@ class BreakdownRow extends StatelessWidget {
         Text(caption, style: captionStyle),
       ],
     );
-    final amountText = Text(
-      amount,
+    final amountText = AmountText.formatted(
+      text: amount,
+      kind: amountKind,
       textAlign: TextAlign.end,
-      style: context.text.small.copyWith(
-        color: AmountStyle.of(context, kind: amountKind).color,
-      ),
     );
     final chevron = onTap == null
         ? null

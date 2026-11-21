@@ -35,3 +35,42 @@ class AmountStyle {
 
   final Color color;
 }
+
+// MARK: - AmountText
+enum AmountTextSize { small, row }
+
+class AmountText extends StatelessWidget {
+  AmountText({
+    super.key,
+    required Decimal amount,
+    required this.kind,
+    this.size = AmountTextSize.small,
+    this.textAlign,
+  }) : text = formatSignedMoney(amount, kind: kind, symbol: false);
+
+  const AmountText.formatted({
+    super.key,
+    required this.text,
+    required this.kind,
+    this.size = AmountTextSize.small,
+    this.textAlign,
+  });
+
+  final String text;
+  final AmountKind kind;
+  final AmountTextSize size;
+  final TextAlign? textAlign;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = switch (size) {
+      AmountTextSize.small => context.text.small,
+      AmountTextSize.row => context.text.row,
+    };
+    return Text(
+      text,
+      textAlign: textAlign,
+      style: base.copyWith(color: AmountStyle.of(context, kind: kind).color),
+    );
+  }
+}
