@@ -14,6 +14,14 @@ void main() {
   const month = YearMonth(2026, 7);
   DateTime day(int d) => DateTime.utc(2026, 7, d);
 
+  TransactionCategory category(String id, {String? parentID}) => testCategory(
+    id: id,
+    name: id,
+    colorHex: '#FF0000',
+    parentID: parentID,
+    symbol: 'restaurant',
+  );
+
   Account account(String id, {bool flagged = false}) => Account(
     id: id,
     name: id,
@@ -55,25 +63,9 @@ void main() {
       ),
     },
     categories: {
-      foodID: testCategory(
-        id: foodID,
-        name: foodID,
-        colorHex: '#FF0000',
-        symbol: 'restaurant',
-      ),
-      hawkerID: testCategory(
-        id: hawkerID,
-        name: hawkerID,
-        colorHex: '#FF0000',
-        parentID: foodID,
-        symbol: 'restaurant',
-      ),
-      transportID: testCategory(
-        id: transportID,
-        name: transportID,
-        colorHex: '#FF0000',
-        symbol: 'restaurant',
-      ),
+      foodID: category(foodID),
+      hawkerID: category(hawkerID, parentID: foodID),
+      transportID: category(transportID),
     },
     entries: {for (final entry in entries) entry.id: entry},
   );

@@ -29,6 +29,26 @@ class _BinLauncher extends StatelessWidget {
   }
 }
 
+Account _account(String name, {LifecycleState? lifecycle}) => testAccount(
+  name: name,
+  type: AccountType.checking,
+  lifecycle: lifecycle ?? LifecycleState.active,
+);
+
+Entry _entry(String name, String sourceID) => testEntry(
+  amount: Decimal.parse('-5'),
+  name: name,
+  sourceID: sourceID,
+  date: DateTime.utc(2026, 1, 5),
+);
+
+TransactionCategory _category(String name, {LifecycleState? lifecycle}) =>
+    testCategory(
+      name: name,
+      colorHex: '#FF0000',
+      lifecycle: lifecycle ?? LifecycleState.active,
+    );
+
 Ledger _ledgerOf({
   List<Account> accounts = const [],
   List<TransactionCategory> categories = const [],
@@ -50,11 +70,7 @@ void main() {
   testWidgets('a row Restore action restores the binned account', (
     tester,
   ) async {
-    final account = testAccount(
-      name: 'Old savings',
-      type: AccountType.checking,
-      lifecycle: LifecycleState.archived,
-    );
+    final account = _account('Old savings', lifecycle: LifecycleState.archived);
     final ledger = _ledgerOf(accounts: [account]);
     await _pump(tester, ledger);
 
@@ -69,13 +85,8 @@ void main() {
   testWidgets('an entry row Restore action restores the binned entry', (
     tester,
   ) async {
-    final account = testAccount(name: 'Cash', type: AccountType.checking);
-    final entry = testEntry(
-      amount: Decimal.parse('-5'),
-      name: 'Hawker lunch',
-      sourceID: account.id,
-      date: DateTime.utc(2026, 1, 5),
-    );
+    final account = _account('Cash');
+    final entry = _entry('Hawker lunch', account.id);
     final ledger = _ledgerOf(accounts: [account], binnedEntries: [entry]);
     await _pump(tester, ledger);
 
@@ -89,11 +100,7 @@ void main() {
   testWidgets('a category row Restore action restores the binned category', (
     tester,
   ) async {
-    final category = testCategory(
-      name: 'Fitness',
-      colorHex: '#FF0000',
-      lifecycle: LifecycleState.archived,
-    );
+    final category = _category('Fitness', lifecycle: LifecycleState.archived);
     final ledger = _ledgerOf(categories: [category]);
     await _pump(tester, ledger);
 

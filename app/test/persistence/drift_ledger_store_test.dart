@@ -101,6 +101,30 @@ void main() {
     await db.close();
   });
 
+  domain.Account account(String id, String name) =>
+      testAccount(id: id, name: name, type: AccountType.cash);
+
+  domain.Entry entry(String id, String amount, {String source = 'a'}) =>
+      testEntry(
+        id: id,
+        sourceID: source,
+        amount: Decimal.parse(amount),
+        name: 'e-$id',
+        date: DateTime.utc(2026, 3, 14),
+      );
+
+  domain.TransactionCategory category(
+    String id,
+    String name, {
+    required String? parentID,
+  }) => testCategory(
+    id: id,
+    name: name,
+    colorHex: '#ff0000',
+    parentID: parentID,
+    symbol: 'fork',
+  );
+
   Future<void> settle() async {
     for (var i = 0; i < 20; i++) {
       await Future<void>.delayed(Duration.zero);
@@ -141,16 +165,8 @@ void main() {
   group('ordered ingest and debounce', () {
     test('enqueue buffers synchronously in arrival order', () async {
       store
-        ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'first', type: AccountType.cash),
-          ),
-        ])
-        ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a2', name: 'second', type: AccountType.cash),
-          ),
-        ]);
+        ..enqueue([UpsertAccount(account('a1', 'first'))])
+        ..enqueue([UpsertAccount(account('a2', 'second'))]);
 
       await debouncedSave();
 
@@ -159,20 +175,12 @@ void main() {
     });
 
     test('a burst re-arms the debounce and collapses to one save', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await settle();
       expect(clock.armedCount, 1);
       expect(clock.armedDelays.single, const Duration(milliseconds: 250));
 
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v2', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v2'))]);
       await settle();
 
       expect(clock.armedCount, 1);
@@ -186,11 +194,7 @@ void main() {
 
     test('rapid conflicting upserts store the last one', () async {
       for (var i = 1; i <= 50; i++) {
-        store.enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'v$i', type: AccountType.cash),
-          ),
-        ]);
+        store.enqueue([UpsertAccount(account('a1', 'v$i'))]);
       }
 
       await debouncedSave();
@@ -201,31 +205,11 @@ void main() {
 
   group('coalescing', () {
     test('upsertThenDeleteInOneWindowAppliesOnlyDelete', () async {
-      store.enqueue([
-        UpsertEntry(
-          testEntry(
-            id: 'e1',
-            sourceID: 'a',
-            amount: Decimal.parse('10'),
-            name: 'e-e1',
-            date: DateTime.utc(2026, 3, 14),
-          ),
-        ),
-      ]);
+      store.enqueue([UpsertEntry(entry('e1', '10'))]);
       await debouncedSave();
 
       store
-        ..enqueue([
-          UpsertEntry(
-            testEntry(
-              id: 'e1',
-              sourceID: 'a',
-              amount: Decimal.parse('99'),
-              name: 'e-e1',
-              date: DateTime.utc(2026, 3, 14),
-            ),
-          ),
-        ])
+        ..enqueue([UpsertEntry(entry('e1', '99'))])
         ..enqueue([const DeleteEntry('e1')]);
 
       await debouncedSave();
@@ -259,32 +243,12 @@ void main() {
     });
 
     test('deleteThenUpsertInOneWindowAppliesOnlyUpsert', () async {
-      store.enqueue([
-        UpsertEntry(
-          testEntry(
-            id: 'e1',
-            sourceID: 'a',
-            amount: Decimal.parse('10'),
-            name: 'e-e1',
-            date: DateTime.utc(2026, 3, 14),
-          ),
-        ),
-      ]);
+      store.enqueue([UpsertEntry(entry('e1', '10'))]);
       await debouncedSave();
 
       store
         ..enqueue([const DeleteEntry('e1')])
-        ..enqueue([
-          UpsertEntry(
-            testEntry(
-              id: 'e1',
-              sourceID: 'a',
-              amount: Decimal.parse('42'),
-              name: 'e-e1',
-              date: DateTime.utc(2026, 3, 14),
-            ),
-          ),
-        ]);
+        ..enqueue([UpsertEntry(entry('e1', '42'))]);
 
       await debouncedSave();
 
@@ -296,18 +260,10 @@ void main() {
     test('coalescing spans batches and preserves survivor order', () async {
       store
         ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-          ),
-          UpsertAccount(
-            testAccount(id: 'a2', name: 'b1', type: AccountType.cash),
-          ),
+          UpsertAccount(account('a1', 'v1')),
+          UpsertAccount(account('a2', 'b1')),
         ])
-        ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'v2', type: AccountType.cash),
-          ),
-        ]);
+        ..enqueue([UpsertAccount(account('a1', 'v2'))]);
 
       await debouncedSave();
 
@@ -317,26 +273,10 @@ void main() {
 
     test('survivors are applied in their original relative order', () async {
       store
-        ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'first', type: AccountType.cash),
-          ),
-        ])
-        ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a2', name: 'second', type: AccountType.cash),
-          ),
-        ])
-        ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a3', name: 'third', type: AccountType.cash),
-          ),
-        ])
-        ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'first again', type: AccountType.cash),
-          ),
-        ]);
+        ..enqueue([UpsertAccount(account('a1', 'first'))])
+        ..enqueue([UpsertAccount(account('a2', 'second'))])
+        ..enqueue([UpsertAccount(account('a3', 'third'))])
+        ..enqueue([UpsertAccount(account('a1', 'first again'))]);
 
       await debouncedSave();
 
@@ -351,21 +291,9 @@ void main() {
 
     test('a coalesced row is bumped exactly once per save', () async {
       store
-        ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-          ),
-        ])
-        ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'v2', type: AccountType.cash),
-          ),
-        ])
-        ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'v3', type: AccountType.cash),
-          ),
-        ]);
+        ..enqueue([UpsertAccount(account('a1', 'v1'))])
+        ..enqueue([UpsertAccount(account('a1', 'v2'))])
+        ..enqueue([UpsertAccount(account('a1', 'v3'))]);
 
       await debouncedSave();
 
@@ -378,18 +306,8 @@ void main() {
     test('saveFailureRollsBackThenRetrySucceeds', () async {
       flaky.failures = 1;
       store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-        UpsertEntry(
-          testEntry(
-            id: 'e1',
-            sourceID: 'a',
-            amount: Decimal.parse('10'),
-            name: 'e-e1',
-            date: DateTime.utc(2026, 3, 14),
-          ),
-        ),
+        UpsertAccount(account('a1', 'v1')),
+        UpsertEntry(entry('e1', '10')),
       ]);
 
       await debouncedSave();
@@ -418,11 +336,7 @@ void main() {
 
     test('a cycle retries twice before giving up', () async {
       flaky.failures = 3;
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
       await debouncedSave();
       expect(reported, [SaveBannerState.retrying]);
@@ -440,11 +354,7 @@ void main() {
 
     test('failedWillRetryEventuallyPersistsWhenStoreRecovers', () async {
       flaky.failures = 3;
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
       await debouncedSave();
       clock.fire();
@@ -466,11 +376,7 @@ void main() {
 
     test('a timed retry does not flip the banner back to retrying', () async {
       flaky.failures = 6;
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
       await debouncedSave();
       clock.fire();
@@ -496,11 +402,7 @@ void main() {
 
     test('the pending batch survives every failed attempt', () async {
       flaky.failures = 3;
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
       await debouncedSave();
       clock.fire();
@@ -520,19 +422,11 @@ void main() {
 
   group('save bookkeeping', () {
     test('a batch buffered during a save is not cleared by it', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await settle();
 
       clock.fire();
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a2', name: 'v2', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a2', 'v2'))]);
 
       await settle();
       await debouncedSave();
@@ -542,21 +436,9 @@ void main() {
 
     test('the raw pre-coalesce count is what clears from pending', () async {
       store
-        ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-          ),
-        ])
-        ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'v2', type: AccountType.cash),
-          ),
-        ])
-        ..enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'v3', type: AccountType.cash),
-          ),
-        ]);
+        ..enqueue([UpsertAccount(account('a1', 'v1'))])
+        ..enqueue([UpsertAccount(account('a1', 'v2'))])
+        ..enqueue([UpsertAccount(account('a1', 'v3'))]);
 
       await debouncedSave();
 
@@ -567,11 +449,7 @@ void main() {
     });
 
     test('saves are serialized behind one in-flight future', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await settle();
 
       final first = store.flushNow();
@@ -596,22 +474,14 @@ void main() {
     );
 
     test('a corrupt version vector reports the terminal state once', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'wallet'))]);
       await debouncedSave();
       expect((await db.select(db.accounts).getSingle()).name, 'wallet');
 
       await corruptVersion('a1');
       reported.clear();
 
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'changed name', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'changed name'))]);
       await debouncedSave();
 
       expect(reported, [SaveBannerState.permanentlyFailed]);
@@ -627,21 +497,13 @@ void main() {
     });
 
     test('the terminal save never drains the pending batch', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'wallet'))]);
       await debouncedSave();
 
       await corruptVersion('a1');
       reported.clear();
 
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'changed name', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'changed name'))]);
       final flush = expectLater(
         store.flushNow(),
         throwsA(
@@ -676,18 +538,10 @@ void main() {
 
   group('banner reporting', () {
     test('clearReportedOnlyAfterNonClearState', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await debouncedSave();
 
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a2', name: 'v2', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a2', 'v2'))]);
       await debouncedSave();
 
       expect(reported, isEmpty);
@@ -695,11 +549,7 @@ void main() {
 
     test('clear is reported once a non-clear state has been', () async {
       flaky.failures = 1;
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
       await debouncedSave();
       clock.fire();
@@ -710,20 +560,12 @@ void main() {
 
     test('clear is not repeated on a second healthy save', () async {
       flaky.failures = 1;
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await debouncedSave();
       clock.fire();
       await settle();
 
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a2', name: 'v2', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a2', 'v2'))]);
       await debouncedSave();
 
       expect(reported, [SaveBannerState.retrying, SaveBannerState.clear]);
@@ -732,11 +574,7 @@ void main() {
 
   group('flush barrier', () {
     test('flushNowPersistsAnEnqueueMadeMomentsBefore', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
       await store.flushNow();
 
@@ -747,11 +585,7 @@ void main() {
     });
 
     test('debouncedFlushPersistsWithoutAnExplicitFlush', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
       await debouncedSave();
 
@@ -760,60 +594,32 @@ void main() {
 
     test('flushNow starts the store when it was never started', () async {
       final unstarted = DriftLedgerStore(db, armTimer: clock.arm);
-      unstarted.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      unstarted.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
       await unstarted.flushNow();
 
       expect((await db.select(db.accounts).getSingle()).name, 'v1');
 
-      unstarted.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a2', name: 'v2', type: AccountType.cash),
-        ),
-      ]);
+      unstarted.enqueue([UpsertAccount(account('a2', 'v2'))]);
       await debouncedSave();
 
       expect((await db.select(db.accounts).get()).length, 2);
     });
 
     test('flushNow on an already started store does not restart it', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await store.flushNow();
 
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a2', name: 'v2', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a2', 'v2'))]);
       await store.flushNow();
 
       expect((await db.select(db.accounts).get()).length, 2);
     });
 
     test('the barrier rides the ingest queue behind earlier batches', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       final flush = store.flushNow();
-      store.enqueue([
-        UpsertAccount(
-          testAccount(
-            id: 'a2',
-            name: 'after the barrier',
-            type: AccountType.cash,
-          ),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a2', 'after the barrier'))]);
 
       await flush;
 
@@ -824,11 +630,7 @@ void main() {
     });
 
     test('flushNow cancels the armed debounce timer', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await settle();
       expect(clock.armedCount, 1);
 
@@ -841,27 +643,15 @@ void main() {
     });
 
     test('flushNowCoversBatchBufferedDuringInFlightSave', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await settle();
 
       clock.fire();
 
       flaky.onTransactionBegin = () {
-        store.enqueue([
-          UpsertAccount(
-            testAccount(id: 'a2', name: 'v2', type: AccountType.cash),
-          ),
-        ]);
+        store.enqueue([UpsertAccount(account('a2', 'v2'))]);
         flaky.onTransactionBegin = () {
-          store.enqueue([
-            UpsertAccount(
-              testAccount(id: 'a3', name: 'v3', type: AccountType.cash),
-            ),
-          ]);
+          store.enqueue([UpsertAccount(account('a3', 'v3'))]);
         };
       };
 
@@ -874,11 +664,7 @@ void main() {
       'flushNow stops looping when a cycle ends in failedWillRetry',
       () async {
         flaky.failures = 99;
-        store.enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-          ),
-        ]);
+        store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
         final flush = expectLater(
           store.flushNow(),
@@ -916,11 +702,7 @@ void main() {
     });
 
     test('flushNow after a completed save is a no-op', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await debouncedSave();
       final attemptsAfterSave = flaky.transactionAttempts;
 
@@ -932,11 +714,7 @@ void main() {
 
     test('a flush recovers from a failure inside its own loop', () async {
       flaky.failures = 1;
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
       final flush = store.flushNow();
       await settle();
@@ -949,18 +727,10 @@ void main() {
 
   group('apply rules', () {
     test('an upsert inserts when absent then updates in place', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await debouncedSave();
 
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v2', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v2'))]);
       await debouncedSave();
 
       final row = await db.select(db.accounts).getSingle();
@@ -969,11 +739,7 @@ void main() {
     });
 
     test('deleteMoneySource tombstones an account', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await debouncedSave();
 
       store.enqueue([const DeleteMoneySource('a1')]);
@@ -1016,28 +782,12 @@ void main() {
 
     test('an upsert keeps the stored parent of a category', () async {
       store.enqueue([
-        UpsertCategory(
-          testCategory(
-            id: 'c1',
-            name: 'food',
-            colorHex: '#ff0000',
-            symbol: 'fork',
-            parentID: 'parent-1',
-          ),
-        ),
+        UpsertCategory(category('c1', 'food', parentID: 'parent-1')),
       ]);
       await debouncedSave();
 
       store.enqueue([
-        UpsertCategory(
-          testCategory(
-            id: 'c1',
-            name: 'food renamed',
-            colorHex: '#ff0000',
-            symbol: 'fork',
-            parentID: 'parent-2',
-          ),
-        ),
+        UpsertCategory(category('c1', 'food renamed', parentID: 'parent-2')),
       ]);
       await debouncedSave();
 
@@ -1126,32 +876,10 @@ void main() {
 
     test('loadReturnsWhatWasEnqueued', () async {
       store.enqueue([
-        UpsertAccount(
-          testAccount(
-            id: 'a1',
-            name: 'wallet',
-            type: AccountType.cash,
-          ).addSubPocket('p1'),
-        ),
+        UpsertAccount(account('a1', 'wallet').addSubPocket('p1')),
         UpsertPocket(pocket('p1', 'rainy day')),
-        UpsertCategory(
-          testCategory(
-            id: 'c1',
-            name: 'food',
-            colorHex: '#ff0000',
-            symbol: 'fork',
-            parentID: null,
-          ),
-        ),
-        UpsertEntry(
-          testEntry(
-            id: 'e1',
-            sourceID: 'a1',
-            amount: Decimal.parse('12.34'),
-            name: 'e-e1',
-            date: DateTime.utc(2026, 3, 14),
-          ),
-        ),
+        UpsertCategory(category('c1', 'food', parentID: null)),
+        UpsertEntry(entry('e1', '12.34', source: 'a1')),
         UpsertPlan(plan('pl1')),
         UpsertBudget(budget('b1')),
       ]);
@@ -1170,18 +898,8 @@ void main() {
     });
 
     test('anArchivedEntryPersistsAsLifecycleOneAndReloadsIntoTheBin', () async {
-      final active = testEntry(
-        id: 'e1',
-        sourceID: 'a',
-        amount: Decimal.parse('12.34'),
-        name: 'e-e1',
-        date: DateTime.utc(2026, 3, 14),
-      );
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a', name: 'wallet', type: AccountType.cash),
-        ),
-      ]);
+      final active = entry('e1', '12.34');
+      store.enqueue([UpsertAccount(account('a', 'wallet'))]);
       store.enqueue([UpsertEntry(active)]);
       await store.flushNow();
 
@@ -1199,17 +917,9 @@ void main() {
     });
 
     test('restoringAnArchivedEntryPersistsLifecycleZero', () async {
-      final active = testEntry(
-        id: 'e1',
-        sourceID: 'a',
-        amount: Decimal.parse('12.34'),
-        name: 'e-e1',
-        date: DateTime.utc(2026, 3, 14),
-      );
+      final active = entry('e1', '12.34');
       store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a', name: 'wallet', type: AccountType.cash),
-        ),
+        UpsertAccount(account('a', 'wallet')),
         UpsertEntry(active.settingLifecycle(LifecycleState.archived)),
       ]);
       await store.flushNow();
@@ -1226,17 +936,9 @@ void main() {
 
     test('purgingAnArchivedEntryWritesTheTombstone', () async {
       store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a', name: 'wallet', type: AccountType.cash),
-        ),
+        UpsertAccount(account('a', 'wallet')),
         UpsertEntry(
-          testEntry(
-            id: 'e1',
-            sourceID: 'a',
-            amount: Decimal.parse('12.34'),
-            name: 'e-e1',
-            date: DateTime.utc(2026, 3, 14),
-          ).settingLifecycle(LifecycleState.archived),
+          entry('e1', '12.34').settingLifecycle(LifecycleState.archived),
         ),
       ]);
       await store.flushNow();
@@ -1252,13 +954,7 @@ void main() {
     });
 
     test('archivingAnEntryBumpsItsVersionVector', () async {
-      final active = testEntry(
-        id: 'e1',
-        sourceID: 'a',
-        amount: Decimal.parse('12.34'),
-        name: 'e-e1',
-        date: DateTime.utc(2026, 3, 14),
-      );
+      final active = entry('e1', '12.34');
       store.enqueue([UpsertEntry(active)]);
       await store.flushNow();
       final before = (await db.select(db.entries).getSingle()).versionData;
@@ -1275,18 +971,8 @@ void main() {
 
     test('deleteChangeRemovesFromLoadedState', () async {
       store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-        ),
-        UpsertEntry(
-          testEntry(
-            id: 'e1',
-            sourceID: 'a',
-            amount: Decimal.parse('12.34'),
-            name: 'e-e1',
-            date: DateTime.utc(2026, 3, 14),
-          ),
-        ),
+        UpsertAccount(account('a1', 'wallet')),
+        UpsertEntry(entry('e1', '12.34')),
       ]);
       await store.flushNow();
 
@@ -1304,18 +990,8 @@ void main() {
 
     test('enqueuedChangesPersistAcrossLoad', () async {
       store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-        ),
-        UpsertEntry(
-          testEntry(
-            id: 'e1',
-            sourceID: 'a1',
-            amount: Decimal.parse('12.34'),
-            name: 'e-e1',
-            date: DateTime.utc(2026, 3, 14),
-          ),
-        ),
+        UpsertAccount(account('a1', 'wallet')),
+        UpsertEntry(entry('e1', '12.34', source: 'a1')),
       ]);
       await store.flushNow();
 
@@ -1326,17 +1002,7 @@ void main() {
     });
 
     test('deleteTombstonesRowButHidesItFromLoad', () async {
-      store.enqueue([
-        UpsertEntry(
-          testEntry(
-            id: 'e1',
-            sourceID: 'a',
-            amount: Decimal.parse('12.34'),
-            name: 'e-e1',
-            date: DateTime.utc(2026, 3, 14),
-          ),
-        ),
-      ]);
+      store.enqueue([UpsertEntry(entry('e1', '12.34'))]);
       await store.flushNow();
 
       store.enqueue([const DeleteEntry('e1')]);
@@ -1356,28 +1022,8 @@ void main() {
 
     test('coalescedUpsertsWriteLatestValue', () async {
       store
-        ..enqueue([
-          UpsertCategory(
-            testCategory(
-              id: 'c1',
-              name: 'v1',
-              colorHex: '#ff0000',
-              symbol: 'fork',
-              parentID: null,
-            ),
-          ),
-        ])
-        ..enqueue([
-          UpsertCategory(
-            testCategory(
-              id: 'c1',
-              name: 'v2',
-              colorHex: '#ff0000',
-              symbol: 'fork',
-              parentID: null,
-            ),
-          ),
-        ]);
+        ..enqueue([UpsertCategory(category('c1', 'v1', parentID: null))])
+        ..enqueue([UpsertCategory(category('c1', 'v2', parentID: null))]);
       await store.flushNow();
 
       expect((await store.load()).categories['c1']!.name, 'v2');
@@ -1386,9 +1032,7 @@ void main() {
 
     test('planPersistsAndTombstonesAcrossLoad', () async {
       store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-        ),
+        UpsertAccount(account('a1', 'wallet')),
         UpsertPlan(plan('pl1')),
       ]);
       await store.flushNow();
@@ -1407,15 +1051,7 @@ void main() {
 
     test('budgetPersistsAndTombstonesAcrossLoad', () async {
       store.enqueue([
-        UpsertCategory(
-          testCategory(
-            id: 'c1',
-            name: 'food',
-            colorHex: '#ff0000',
-            symbol: 'fork',
-            parentID: null,
-          ),
-        ),
+        UpsertCategory(category('c1', 'food', parentID: null)),
         UpsertBudget(budget('b1')),
       ]);
       await store.flushNow();
@@ -1438,28 +1074,10 @@ void main() {
         store.enqueue([
           UpsertBudget(budget('b1')),
           UpsertPlan(plan('pl1')),
-          UpsertEntry(
-            testEntry(
-              id: 'e1',
-              sourceID: 'a',
-              amount: Decimal.parse('12.34'),
-              name: 'e-e1',
-              date: DateTime.utc(2026, 3, 14),
-            ),
-          ),
-          UpsertCategory(
-            testCategory(
-              id: 'c1',
-              name: 'food',
-              colorHex: '#ff0000',
-              symbol: 'fork',
-              parentID: null,
-            ),
-          ),
+          UpsertEntry(entry('e1', '12.34')),
+          UpsertCategory(category('c1', 'food', parentID: null)),
           UpsertPocket(pocket('p1', 'rainy day')),
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-          ),
+          UpsertAccount(account('a1', 'wallet')),
         ]);
         await store.flushNow();
 
@@ -1477,11 +1095,7 @@ void main() {
     );
 
     test('a corrupt version vector does not fail the load', () async {
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(account('a1', 'wallet'))]);
       await store.flushNow();
 
       await db.customUpdate(
@@ -1515,18 +1129,8 @@ void main() {
 
   group('seeding', () {
     List<LedgerChange> seedChanges() => [
-      UpsertAccount(
-        testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-      ),
-      UpsertEntry(
-        testEntry(
-          id: 'e1',
-          sourceID: 'a1',
-          amount: Decimal.parse('12.34'),
-          name: 'e-e1',
-          date: DateTime.utc(2026, 3, 14),
-        ),
-      ),
+      UpsertAccount(account('a1', 'wallet')),
+      UpsertEntry(entry('e1', '12.34', source: 'a1')),
     ];
 
     Future<bool> hasSeeded() async =>
@@ -1595,9 +1199,7 @@ void main() {
       'a stamped upsert persists its stamp verbatim without a local bump',
       () async {
         final stamp = VersionVector({'remote-a': 3});
-        final change = UpsertAccount(
-          testAccount(id: 'a1', name: 'remote', type: AccountType.cash),
-        );
+        final change = UpsertAccount(account('a1', 'remote'));
         store.enqueueStamped([change], stampsFor(change, stamp));
 
         await debouncedSave();
@@ -1609,12 +1211,8 @@ void main() {
     );
 
     test('stamped batches flattened by the drain keep their stamps', () async {
-      final first = UpsertAccount(
-        testAccount(id: 'a1', name: 'remote-a1', type: AccountType.cash),
-      );
-      final second = UpsertAccount(
-        testAccount(id: 'a2', name: 'remote-a2', type: AccountType.cash),
-      );
+      final first = UpsertAccount(account('a1', 'remote-a1'));
+      final second = UpsertAccount(account('a2', 'remote-a2'));
       final firstStamp = VersionVector({'remote-a': 1});
       final secondStamp = VersionVector({'remote-b': 2});
       store.enqueueStamped([first], stampsFor(first, firstStamp));
@@ -1628,28 +1226,10 @@ void main() {
 
     test('a stamped remote then local edit stores local content with a '
         'dominating vector', () async {
-      final remote = UpsertEntry(
-        testEntry(
-          id: 'e1',
-          sourceID: 'a',
-          amount: Decimal.parse('10'),
-          name: 'e-e1',
-          date: DateTime.utc(2026, 3, 14),
-        ),
-      );
+      final remote = UpsertEntry(entry('e1', '10'));
       final stamp = VersionVector({'remote-a': 2});
       store.enqueueStamped([remote], stampsFor(remote, stamp));
-      store.enqueue([
-        UpsertEntry(
-          testEntry(
-            id: 'e1',
-            sourceID: 'a',
-            amount: Decimal.parse('42'),
-            name: 'e-e1',
-            date: DateTime.utc(2026, 3, 14),
-          ),
-        ),
-      ]);
+      store.enqueue([UpsertEntry(entry('e1', '42'))]);
 
       await debouncedSave();
 
@@ -1663,26 +1243,8 @@ void main() {
 
     test('a local edit then stamped remote stores remote content with its '
         'stamp verbatim', () async {
-      store.enqueue([
-        UpsertEntry(
-          testEntry(
-            id: 'e1',
-            sourceID: 'a',
-            amount: Decimal.parse('10'),
-            name: 'e-e1',
-            date: DateTime.utc(2026, 3, 14),
-          ),
-        ),
-      ]);
-      final remote = UpsertEntry(
-        testEntry(
-          id: 'e1',
-          sourceID: 'a',
-          amount: Decimal.parse('99'),
-          name: 'e-e1',
-          date: DateTime.utc(2026, 3, 14),
-        ),
-      );
+      store.enqueue([UpsertEntry(entry('e1', '10'))]);
+      final remote = UpsertEntry(entry('e1', '99'));
       final stamp = VersionVector({'remote-a': 5});
       store.enqueueStamped([remote], stampsFor(remote, stamp));
 
@@ -1697,23 +1259,15 @@ void main() {
       'every observed stamp contributes to the carried maximum independently '
       'of last arrival',
       () async {
-        final first = UpsertAccount(
-          testAccount(id: 'a1', name: 'remote-v1', type: AccountType.cash),
-        );
-        final second = UpsertAccount(
-          testAccount(id: 'a1', name: 'remote-v2', type: AccountType.cash),
-        );
+        final first = UpsertAccount(account('a1', 'remote-v1'));
+        final second = UpsertAccount(account('a1', 'remote-v2'));
         store.enqueueStamped([
           first,
         ], stampsFor(first, VersionVector({'remote-a': 1})));
         store.enqueueStamped([
           second,
         ], stampsFor(second, VersionVector({'remote-b': 1})));
-        store.enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'local', type: AccountType.cash),
-          ),
-        ]);
+        store.enqueue([UpsertAccount(account('a1', 'local'))]);
 
         await debouncedSave();
 
@@ -1727,12 +1281,8 @@ void main() {
     );
 
     test('a stamped survivor keeps its own stamp verbatim', () async {
-      final first = UpsertAccount(
-        testAccount(id: 'a1', name: 'remote-v1', type: AccountType.cash),
-      );
-      final second = UpsertAccount(
-        testAccount(id: 'a1', name: 'remote-v2', type: AccountType.cash),
-      );
+      final first = UpsertAccount(account('a1', 'remote-v1'));
+      final second = UpsertAccount(account('a1', 'remote-v2'));
       store.enqueueStamped([
         first,
       ], stampsFor(first, VersionVector({'remote-a': 1})));
@@ -1750,9 +1300,7 @@ void main() {
       'a stamp survives a failed attempt and lands verbatim on retry',
       () async {
         flaky.failures = 1;
-        final change = UpsertAccount(
-          testAccount(id: 'a1', name: 'remote', type: AccountType.cash),
-        );
+        final change = UpsertAccount(account('a1', 'remote'));
         final stamp = VersionVector({'remote-a': 4});
         store.enqueueStamped([change], stampsFor(change, stamp));
 
@@ -1773,19 +1321,13 @@ void main() {
     test(
       'a local edit buffered mid-save still dominates the stamped prefix',
       () async {
-        final remote = UpsertAccount(
-          testAccount(id: 'a1', name: 'remote', type: AccountType.cash),
-        );
+        final remote = UpsertAccount(account('a1', 'remote'));
         final stamp = VersionVector({'remote-a': 2});
         store.enqueueStamped([remote], stampsFor(remote, stamp));
         await settle();
 
         flaky.onTransactionBegin = () {
-          store.enqueue([
-            UpsertAccount(
-              testAccount(id: 'a1', name: 'local', type: AccountType.cash),
-            ),
-          ]);
+          store.enqueue([UpsertAccount(account('a1', 'local'))]);
         };
 
         await store.flushNow();
@@ -1849,18 +1391,8 @@ void main() {
     );
 
     test('identical ids in different collections stay independent', () async {
-      final accountChange = UpsertAccount(
-        testAccount(id: 'shared', name: 'wallet', type: AccountType.cash),
-      );
-      final entryChange = UpsertEntry(
-        testEntry(
-          id: 'shared',
-          sourceID: 'a',
-          amount: Decimal.parse('10'),
-          name: 'e-shared',
-          date: DateTime.utc(2026, 3, 14),
-        ),
-      );
+      final accountChange = UpsertAccount(account('shared', 'wallet'));
+      final entryChange = UpsertEntry(entry('shared', '10'));
       final accountStamp = VersionVector({'remote-a': 1});
       final entryStamp = VersionVector({'remote-b': 2});
       store.enqueueStamped(
@@ -1883,11 +1415,7 @@ void main() {
     });
 
     test('an empty stamps map keeps the local bump path', () async {
-      store.enqueueStamped([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'v1', type: AccountType.cash),
-        ),
-      ], {});
+      store.enqueueStamped([UpsertAccount(account('a1', 'v1'))], {});
 
       await debouncedSave();
 
@@ -1897,17 +1425,7 @@ void main() {
     test(
       'a stamped delete persists its stamp verbatim on the tombstone',
       () async {
-        store.enqueue([
-          UpsertEntry(
-            testEntry(
-              id: 'e1',
-              sourceID: 'a',
-              amount: Decimal.parse('10'),
-              name: 'e-e1',
-              date: DateTime.utc(2026, 3, 14),
-            ),
-          ),
-        ]);
+        store.enqueue([UpsertEntry(entry('e1', '10'))]);
         await debouncedSave();
 
         const deletion = DeleteEntry('e1');
@@ -1972,11 +1490,7 @@ void main() {
     test(
       'a stamped money-source delete hitting accounts writes no orphan',
       () async {
-        store.enqueue([
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-          ),
-        ]);
+        store.enqueue([UpsertAccount(account('a1', 'wallet'))]);
         await debouncedSave();
 
         const deletion = DeleteMoneySource('a1');
@@ -2078,15 +1592,7 @@ void main() {
       await debouncedSave();
 
       final stamp = VersionVector({'remote-s': 1});
-      final upsert = UpsertEntry(
-        testEntry(
-          id: 'e1',
-          sourceID: 'a',
-          amount: Decimal.parse('10'),
-          name: 'e-e1',
-          date: DateTime.utc(2026, 3, 14),
-        ),
-      );
+      final upsert = UpsertEntry(entry('e1', '10'));
       store.enqueueStamped([upsert], stampsFor(upsert, stamp));
       await debouncedSave();
 
@@ -2106,17 +1612,7 @@ void main() {
         ], stampsFor(deletion, VersionVector({'remote-o': 3})));
         await debouncedSave();
 
-        store.enqueue([
-          UpsertEntry(
-            testEntry(
-              id: 'e1',
-              sourceID: 'a',
-              amount: Decimal.parse('10'),
-              name: 'e-e1',
-              date: DateTime.utc(2026, 3, 14),
-            ),
-          ),
-        ]);
+        store.enqueue([UpsertEntry(entry('e1', '10'))]);
         await debouncedSave();
 
         expect(await orphanVectors(SyncCollection.entries), isEmpty);
@@ -2135,24 +1631,8 @@ void main() {
       ], stampsFor(deletion, VersionVector({'remote-o': 2})));
       await debouncedSave();
 
-      final first = UpsertEntry(
-        testEntry(
-          id: 'e9',
-          sourceID: 'a',
-          amount: Decimal.parse('10'),
-          name: 'e-e9',
-          date: DateTime.utc(2026, 3, 14),
-        ),
-      );
-      final second = UpsertEntry(
-        testEntry(
-          id: 'e9',
-          sourceID: 'a',
-          amount: Decimal.parse('99'),
-          name: 'e-e9',
-          date: DateTime.utc(2026, 3, 14),
-        ),
-      );
+      final first = UpsertEntry(entry('e9', '10'));
+      final second = UpsertEntry(entry('e9', '99'));
       store.enqueueStamped([
         first,
       ], stampsFor(first, VersionVector({'remote-a': 1})));
@@ -2179,29 +1659,11 @@ void main() {
         ], stampsFor(deletion, VersionVector({'remote-o': 3})));
         await debouncedSave();
 
-        final first = UpsertEntry(
-          testEntry(
-            id: 'e8',
-            sourceID: 'a',
-            amount: Decimal.parse('10'),
-            name: 'e-e8',
-            date: DateTime.utc(2026, 3, 14),
-          ),
-        );
+        final first = UpsertEntry(entry('e8', '10'));
         store.enqueueStamped([
           first,
         ], stampsFor(first, VersionVector({'remote-c': 1})));
-        store.enqueue([
-          UpsertEntry(
-            testEntry(
-              id: 'e8',
-              sourceID: 'a',
-              amount: Decimal.parse('42'),
-              name: 'e-e8',
-              date: DateTime.utc(2026, 3, 14),
-            ),
-          ),
-        ]);
+        store.enqueue([UpsertEntry(entry('e8', '42'))]);
         await debouncedSave();
 
         final row = await db.select(db.entries).getSingle();
@@ -2226,17 +1688,7 @@ void main() {
         contains('absorb-me'),
       );
 
-      store.enqueue([
-        UpsertEntry(
-          testEntry(
-            id: 'absorb-me',
-            sourceID: 'a',
-            amount: Decimal.parse('10'),
-            name: 'e-absorb-me',
-            date: DateTime.utc(2026, 3, 14),
-          ),
-        ),
-      ]);
+      store.enqueue([UpsertEntry(entry('absorb-me', '10'))]);
       await debouncedSave();
 
       expect(await orphanVectors(SyncCollection.entries), isEmpty);
@@ -2275,17 +1727,7 @@ void main() {
       );
       reported.clear();
 
-      store.enqueue([
-        UpsertEntry(
-          testEntry(
-            id: 'e1',
-            sourceID: 'a',
-            amount: Decimal.parse('10'),
-            name: 'e-e1',
-            date: DateTime.utc(2026, 3, 14),
-          ),
-        ),
-      ]);
+      store.enqueue([UpsertEntry(entry('e1', '10'))]);
       await debouncedSave();
 
       expect(reported, [SaveBannerState.permanentlyFailed]);
@@ -2334,21 +1776,9 @@ void main() {
 
     Future<void> seedLedgerHolders() async {
       store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a', name: 'wallet', type: AccountType.cash),
-        ),
-        UpsertAccount(
-          testAccount(id: 'b', name: 'savings', type: AccountType.cash),
-        ),
-        UpsertCategory(
-          testCategory(
-            id: 'c1',
-            name: 'food',
-            colorHex: '#ff0000',
-            symbol: 'fork',
-            parentID: null,
-          ),
-        ),
+        UpsertAccount(account('a', 'wallet')),
+        UpsertAccount(account('b', 'savings')),
+        UpsertCategory(category('c1', 'food', parentID: null)),
       ]);
       await store.flushNow();
     }
@@ -2583,18 +2013,8 @@ void main() {
 
     Future<void> seedPlanHolders() async {
       store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a', name: 'wallet', type: AccountType.cash),
-        ),
-        UpsertCategory(
-          testCategory(
-            id: 'c1',
-            name: 'food',
-            colorHex: '#ff0000',
-            symbol: 'fork',
-            parentID: null,
-          ),
-        ),
+        UpsertAccount(account('a', 'wallet')),
+        UpsertCategory(category('c1', 'food', parentID: null)),
       ]);
       await store.flushNow();
     }

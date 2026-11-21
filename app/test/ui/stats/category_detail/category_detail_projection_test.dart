@@ -18,36 +18,13 @@ const _secondID = 'abcdefab-0000-4000-8000-000000000003';
 const _thirdID = 'abcdefab-0000-4000-8000-000000000004';
 const _accountID = 'abcdefab-0000-4000-8000-000000000005';
 const _revision = 7;
-const _colorHex = '#00AA00';
-const _symbol = 'restaurant';
 
 void main() {
   test('breakdown shares use parent totals and equal children rank by name then ID', () {
     final state = _state();
-    final children = [
-      testCategory(
-        id: _firstID,
-        name: 'Zulu',
-        colorHex: _colorHex,
-        symbol: _symbol,
-        parentID: _mainID,
-      ),
-      testCategory(
-        id: _thirdID,
-        name: 'Alpha',
-        colorHex: _colorHex,
-        symbol: _symbol,
-        parentID: _mainID,
-      ),
-      testCategory(
-        id: _secondID,
-        name: 'Alpha',
-        colorHex: _colorHex,
-        symbol: _symbol,
-        parentID: _mainID,
-      ),
-    ];
-    children.forEach(state.addCategory);
+    state.addCategory(_category(_firstID, 'Zulu', parent: _mainID));
+    state.addCategory(_category(_thirdID, 'Alpha', parent: _mainID));
+    state.addCategory(_category(_secondID, 'Alpha', parent: _mainID));
     _book(state, _firstID, '-10');
     _book(state, _secondID, '-10');
     _book(state, _thirdID, '-10');
@@ -85,14 +62,7 @@ void main() {
 
   test('zero children remain reachable and zero Direct is a chip without a breakdown row', () {
     final state = _state();
-    final empty = testCategory(
-      id: _firstID,
-      name: 'Empty',
-      colorHex: _colorHex,
-      symbol: _symbol,
-      parentID: _mainID,
-    );
-    state.addCategory(empty);
+    state.addCategory(_category(_firstID, 'Empty', parent: _mainID));
 
     final body = _project(state).body as CategoryDetailReadyBody;
 
@@ -212,14 +182,7 @@ void main() {
 
   test('missing main uses Uncategorized and retains matching entries', () {
     final fixture = _state();
-    final child = testCategory(
-      id: _firstID,
-      name: 'Child',
-      colorHex: _colorHex,
-      symbol: _symbol,
-      parentID: _mainID,
-    );
-    fixture.addCategory(child);
+    fixture.addCategory(_category(_firstID, 'Child', parent: _mainID));
     final entry = _book(fixture, _firstID, '-3');
     final state = LedgerState(
       moneySources: fixture.moneySources,
@@ -272,27 +235,34 @@ void main() {
   });
 }
 
+TransactionCategory _category(
+  String id,
+  String name, {
+  String? parent,
+  CategoryKind kind = CategoryKind.expense,
+}) => testCategory(
+  id: id,
+  name: name,
+  kind: kind,
+  colorHex: '#00AA00',
+  parentID: parent,
+  symbol: 'restaurant',
+);
+
 LedgerState _state({CategoryKind kind = CategoryKind.expense}) {
   final state = LedgerState();
-  final account = testAccount(
+  final account = Account(
     id: _accountID,
     name: 'Checking',
     type: AccountType.checking,
   );
-  final main = testCategory(
-    id: _mainID,
-    name: 'Food',
-    kind: kind,
-    colorHex: _colorHex,
-    symbol: _symbol,
-  );
   state.addAccount(account);
-  state.addCategory(main);
+  state.addCategory(_category(_mainID, 'Food', kind: kind));
   return state;
 }
 
 Entry _book(LedgerState state, String categoryID, String amount) {
-  final entry = testEntry(
+  final entry = Entry(
     amount: Decimal.parse(amount),
     name: 'Merchant',
     sourceID: _accountID,

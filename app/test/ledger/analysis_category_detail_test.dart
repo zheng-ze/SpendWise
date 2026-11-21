@@ -12,6 +12,22 @@ const emptyID = 'abcdefab-0000-4000-8000-000000000003';
 const accountID = 'abcdefab-0000-4000-8000-000000000004';
 final today = DateTime.utc(2026, 10, 15);
 
+TransactionCategory category(
+  String id, {
+  String? parent,
+  bool included = true,
+  CategoryKind kind = CategoryKind.expense,
+}) {
+  return testCategory(
+    id: id,
+    name: id,
+    kind: kind,
+    colorHex: '#123456',
+    includeInAnalysis: included,
+    parentID: parent,
+  );
+}
+
 LedgerState detailState() {
   final state = LedgerState();
   final account = Account(
@@ -20,25 +36,9 @@ LedgerState detailState() {
     type: AccountType.checking,
   );
   state.addAccount(account);
-  state.addCategory(
-    testCategory(id: mainID, name: mainID, colorHex: '#123456'),
-  );
-  state.addCategory(
-    testCategory(
-      id: childID,
-      name: childID,
-      colorHex: '#123456',
-      parentID: mainID,
-    ),
-  );
-  state.addCategory(
-    testCategory(
-      id: emptyID,
-      name: emptyID,
-      colorHex: '#123456',
-      parentID: mainID,
-    ),
-  );
+  state.addCategory(category(mainID));
+  state.addCategory(category(childID, parent: mainID));
+  state.addCategory(category(emptyID, parent: mainID));
   return state;
 }
 
@@ -143,28 +143,13 @@ void main() {
       book(state, 31, childID, '-3', DateTime.utc(2021));
       book(state, 33, mainID, '-7', DateTime.utc(2026, 10, 1), included: false);
       book(state, 34, childID, '-11', DateTime.utc(2026, 10, 1));
-      state.updateCategory(
-        testCategory(
-          id: childID,
-          name: childID,
-          colorHex: '#123456',
-          parentID: mainID,
-          includeInAnalysis: false,
-        ),
-      );
+      state.updateCategory(category(childID, parent: mainID, included: false));
       book(state, 32, mainID, '-5', DateTime.utc(2026, 10, 2));
       final result = period(state);
       expect(result.totals.mainTotal, Decimal.fromInt(5));
       expect(result.firstRecord, DateTime.utc(2026, 10, 2));
       expect(result.entryIDs, hasLength(1));
-      state.updateCategory(
-        testCategory(
-          id: mainID,
-          name: mainID,
-          colorHex: '#123456',
-          includeInAnalysis: false,
-        ),
-      );
+      state.updateCategory(category(mainID, included: false));
       final excludedParent = period(state);
       expect(excludedParent.totals.mainTotal, Decimal.zero);
       expect(excludedParent.firstRecord, isNull);
@@ -176,9 +161,7 @@ void main() {
     final state = detailState();
     book(state, 40, mainID, '-2', DateTime.utc(2026, 10));
     book(state, 41, childID, '-3', DateTime.utc(2026, 10));
-    state.updateCategory(
-      testCategory(id: childID, name: childID, colorHex: '#123456'),
-    );
+    state.updateCategory(category(childID));
     final reparented = period(state, scope: SubCategoryScope(childID));
     final missing = period(state, scope: SubCategoryScope(accountID));
     expect(reparented.scope, const AllCategoryScope());
@@ -234,17 +217,8 @@ void main() {
       const incomeID = 'abcdefab-0000-4000-8000-000000000005';
       const otherID = 'abcdefab-0000-4000-8000-000000000006';
       const savingsID = 'abcdefab-0000-4000-8000-000000000007';
-      state.addCategory(
-        testCategory(
-          id: incomeID,
-          name: incomeID,
-          colorHex: '#123456',
-          kind: CategoryKind.income,
-        ),
-      );
-      state.addCategory(
-        testCategory(id: otherID, name: otherID, colorHex: '#123456'),
-      );
+      state.addCategory(category(incomeID, kind: CategoryKind.income));
+      state.addCategory(category(otherID));
       final savings = Account(
         id: savingsID,
         name: 'Savings',

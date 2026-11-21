@@ -47,6 +47,19 @@ void main() {
     return subscription;
   }
 
+  TransactionCategory category({
+    String? id,
+    required String name,
+    CategoryKind kind = CategoryKind.expense,
+    String? parentID,
+  }) => testCategory(
+    id: id,
+    name: name,
+    kind: kind,
+    colorHex: '#FF0000',
+    parentID: parentID,
+  );
+
   group('isKindLocked', () {
     test('locked when editing', () {
       expect(
@@ -108,19 +121,16 @@ void main() {
   });
 
   group('eligibleParents', () {
-    final food = testCategory(
-      colorHex: '#FF0000',
+    final food = category(
       id: 'a0000000-0000-0000-0000-000000000001',
       name: 'Food',
     );
-    final snacks = testCategory(
-      colorHex: '#FF0000',
+    final snacks = category(
       id: 'a0000000-0000-0000-0000-000000000002',
       name: 'Snacks',
       parentID: food.id,
     );
-    final salary = testCategory(
-      colorHex: '#FF0000',
+    final salary = category(
       id: 'a0000000-0000-0000-0000-000000000003',
       name: 'Salary',
       kind: CategoryKind.income,
@@ -147,13 +157,11 @@ void main() {
     });
 
     test('excludes archived and referenceOnly roots', () {
-      final binned = testCategory(
-        colorHex: '#FF0000',
+      final binned = category(
         id: 'a0000000-0000-0000-0000-000000000004',
         name: 'Binned',
       ).settingLifecycle(LifecycleState.archived);
-      final reference = testCategory(
-        colorHex: '#FF0000',
+      final reference = category(
         id: 'a0000000-0000-0000-0000-000000000005',
         name: 'Reference',
       ).settingLifecycle(LifecycleState.referenceOnly);
@@ -215,7 +223,7 @@ void main() {
     });
 
     test('a preset parent prefills the kind and parent id', () async {
-      final parent = testCategory(colorHex: '#FF0000', name: 'Food');
+      final parent = category(name: 'Food');
       final ledger = Ledger(
         state: LedgerState(categories: {parent.id: parent}),
       );
@@ -251,7 +259,7 @@ void main() {
     });
 
     test('editing a stored root reads Edit category', () async {
-      final root = testCategory(colorHex: '#FF0000', name: 'Food');
+      final root = category(name: 'Food');
       final ledger = Ledger(state: LedgerState(categories: {root.id: root}));
       final container = buildContainer(ledger);
 
@@ -261,12 +269,8 @@ void main() {
     });
 
     test('editing a stored child reads Edit subcategory', () async {
-      final root = testCategory(colorHex: '#FF0000', name: 'Food');
-      final child = testCategory(
-        colorHex: '#FF0000',
-        name: 'Snacks',
-        parentID: root.id,
-      );
+      final root = category(name: 'Food');
+      final child = category(name: 'Snacks', parentID: root.id);
       final ledger = Ledger(
         state: LedgerState(categories: {root.id: root, child.id: child}),
       );
@@ -292,17 +296,9 @@ void main() {
     }
 
     test('lists only active children of the edited root by name', () async {
-      final root = testCategory(colorHex: '#FF0000', name: 'Food');
-      final zeta = testCategory(
-        colorHex: '#FF0000',
-        name: 'Zeta',
-        parentID: root.id,
-      );
-      final alpha = testCategory(
-        colorHex: '#FF0000',
-        name: 'Alpha',
-        parentID: root.id,
-      );
+      final root = category(name: 'Food');
+      final zeta = category(name: 'Zeta', parentID: root.id);
+      final alpha = category(name: 'Alpha', parentID: root.id);
       final binned = TransactionCategory(
         name: 'Binned',
         kind: CategoryKind.expense,
@@ -312,12 +308,8 @@ void main() {
         symbol: 'tag',
         lifecycle: LifecycleState.archived,
       );
-      final other = testCategory(colorHex: '#FF0000', name: 'Other');
-      final stranger = testCategory(
-        colorHex: '#FF0000',
-        name: 'Stranger',
-        parentID: other.id,
-      );
+      final other = category(name: 'Other');
+      final stranger = category(name: 'Stranger', parentID: other.id);
       final ledger = Ledger(
         state: LedgerState(
           categories: {
@@ -340,12 +332,8 @@ void main() {
     });
 
     test('is empty on an add form', () async {
-      final root = testCategory(colorHex: '#FF0000', name: 'Food');
-      final child = testCategory(
-        colorHex: '#FF0000',
-        name: 'Snacks',
-        parentID: root.id,
-      );
+      final root = category(name: 'Food');
+      final child = category(name: 'Snacks', parentID: root.id);
       final ledger = Ledger(
         state: LedgerState(categories: {root.id: root, child.id: child}),
       );
@@ -357,12 +345,8 @@ void main() {
     });
 
     test('is empty on a subcategory edit and add form', () async {
-      final root = testCategory(colorHex: '#FF0000', name: 'Food');
-      final child = testCategory(
-        colorHex: '#FF0000',
-        name: 'Snacks',
-        parentID: root.id,
-      );
+      final root = category(name: 'Food');
+      final child = category(name: 'Snacks', parentID: root.id);
       final ledger = Ledger(
         state: LedgerState(categories: {root.id: root, child.id: child}),
       );
@@ -396,7 +380,7 @@ void main() {
     });
 
     test('applyPickedParent sets the parent and clears the step', () async {
-      final parent = testCategory(colorHex: '#FF0000', name: 'Food');
+      final parent = category(name: 'Food');
       final ledger = Ledger(
         state: LedgerState(categories: {parent.id: parent}),
       );
@@ -418,7 +402,7 @@ void main() {
     });
 
     test('applyPickedParent ignores a parent binned while picking', () async {
-      final parent = testCategory(colorHex: '#FF0000', name: 'Food');
+      final parent = category(name: 'Food');
       final ledger = Ledger(
         state: LedgerState(categories: {parent.id: parent}),
       );
@@ -457,7 +441,7 @@ void main() {
     );
 
     test('changing kind clears a parent that no longer matches', () async {
-      final expenseParent = testCategory(colorHex: '#FF0000', name: 'Food');
+      final expenseParent = category(name: 'Food');
       final ledger = Ledger(
         state: LedgerState(categories: {expenseParent.id: expenseParent}),
       );
@@ -537,7 +521,7 @@ void main() {
 
   group('editing and deleting a category', () {
     test('save failure surfaces a LedgerError', () async {
-      final existing = testCategory(colorHex: '#FF0000', name: 'Food');
+      final existing = category(name: 'Food');
       final ledger = Ledger(
         state: LedgerState(categories: {existing.id: existing}),
       );
@@ -558,7 +542,7 @@ void main() {
     });
 
     test('requestDelete emits DeleteConfirmationRequested', () async {
-      final existing = testCategory(colorHex: '#FF0000', name: 'Food');
+      final existing = category(name: 'Food');
       final ledger = Ledger(
         state: LedgerState(categories: {existing.id: existing}),
       );
@@ -580,7 +564,7 @@ void main() {
     test(
       'applyDeleteConfirmed(true) deletes and emits CategoryFormSaved',
       () async {
-        final existing = testCategory(colorHex: '#FF0000', name: 'Food');
+        final existing = category(name: 'Food');
         final ledger = Ledger(
           state: LedgerState(categories: {existing.id: existing}),
         );
@@ -608,7 +592,7 @@ void main() {
     test(
       'applyDeleteConfirmed(false) keeps the category and clears the step',
       () async {
-        final existing = testCategory(colorHex: '#FF0000', name: 'Food');
+        final existing = category(name: 'Food');
         final ledger = Ledger(
           state: LedgerState(categories: {existing.id: existing}),
         );
@@ -631,7 +615,7 @@ void main() {
     );
 
     test('kind is locked while transactions reference the category', () async {
-      final existing = testCategory(colorHex: '#FF0000', name: 'Food');
+      final existing = category(name: 'Food');
       final account = Account(name: 'Wallet', type: AccountType.cash);
       final entry = Entry(
         name: 'Groceries',
@@ -658,7 +642,7 @@ void main() {
     });
 
     test('kind stays locked while only a binned entry references it', () async {
-      final existing = testCategory(colorHex: '#FF0000', name: 'Food');
+      final existing = category(name: 'Food');
       final account = Account(name: 'Wallet', type: AccountType.cash);
       final entry = Entry(
         name: 'Groceries',
@@ -686,18 +670,15 @@ void main() {
   });
 
   group('parent eligibility in the form', () {
-    final root = testCategory(
-      colorHex: '#FF0000',
+    final root = category(
       id: 'b0000000-0000-0000-0000-000000000001',
       name: 'Food',
     );
-    final binnedRoot = testCategory(
-      colorHex: '#FF0000',
+    final binnedRoot = category(
       id: 'b0000000-0000-0000-0000-000000000002',
       name: 'Binned',
     ).settingLifecycle(LifecycleState.archived);
-    final referenceRoot = testCategory(
-      colorHex: '#FF0000',
+    final referenceRoot = category(
       id: 'b0000000-0000-0000-0000-000000000003',
       name: 'Reference',
     ).settingLifecycle(LifecycleState.referenceOnly);
@@ -725,11 +706,7 @@ void main() {
     });
 
     test('parentLabel ignores inactive roots', () async {
-      final stored = testCategory(
-        colorHex: '#FF0000',
-        name: 'Orphan',
-        parentID: binnedRoot.id,
-      );
+      final stored = category(name: 'Orphan', parentID: binnedRoot.id);
       final formState = await openForm([
         binnedRoot,
         stored,
@@ -747,13 +724,11 @@ void main() {
     });
 
     test('a root whose only child is archived hides the picker', () async {
-      final other = testCategory(
-        colorHex: '#FF0000',
+      final other = category(
         id: 'b0000000-0000-0000-0000-000000000004',
         name: 'Other',
       );
-      final child = testCategory(
-        colorHex: '#FF0000',
+      final child = category(
         name: 'Snacks',
         parentID: root.id,
       ).settingLifecycle(LifecycleState.archived);
@@ -768,8 +743,7 @@ void main() {
     });
 
     test('a root with no children shows the picker', () async {
-      final other = testCategory(
-        colorHex: '#FF0000',
+      final other = category(
         id: 'b0000000-0000-0000-0000-000000000004',
         name: 'Other',
       );
@@ -792,13 +766,11 @@ void main() {
   });
 
   group('draft parent after a ledger change', () {
-    final parent = testCategory(
-      colorHex: '#FF0000',
+    final parent = category(
       id: 'c0000000-0000-0000-0000-000000000001',
       name: 'Food',
     );
-    final edited = testCategory(
-      colorHex: '#FF0000',
+    final edited = category(
       id: 'c0000000-0000-0000-0000-000000000002',
       name: 'Home',
     );
@@ -844,9 +816,7 @@ void main() {
             .read(categoryFormViewModelProvider(args).notifier)
             .setParentID(parent.id);
 
-        ledger.addCategory(
-          testCategory(colorHex: '#FF0000', name: 'Rent', parentID: edited.id),
-        );
+        ledger.addCategory(category(name: 'Rent', parentID: edited.id));
 
         final formState = read(container, args);
         expect(formState?.storedHasChildren, isTrue);
@@ -855,8 +825,7 @@ void main() {
     );
 
     test('binning the stored parent keeps an unchanged parent', () async {
-      final child = testCategory(
-        colorHex: '#FF0000',
+      final child = category(
         id: 'c0000000-0000-0000-0000-000000000003',
         name: 'Snacks',
         parentID: parent.id,
@@ -874,13 +843,11 @@ void main() {
     });
 
     test('binning a newly picked parent clears it on a subcategory', () async {
-      final other = testCategory(
-        colorHex: '#FF0000',
+      final other = category(
         id: 'c0000000-0000-0000-0000-000000000004',
         name: 'Travel',
       );
-      final child = testCategory(
-        colorHex: '#FF0000',
+      final child = category(
         id: 'c0000000-0000-0000-0000-000000000003',
         name: 'Snacks',
         parentID: parent.id,
@@ -913,7 +880,7 @@ void main() {
           .read(categoryFormViewModelProvider(args).notifier)
           .setParentID(parent.id);
 
-      ledger.addCategory(testCategory(colorHex: '#FF0000', name: 'Transport'));
+      ledger.addCategory(category(name: 'Transport'));
 
       expect(read(container, args)?.parentID, parent.id);
     });
@@ -934,7 +901,7 @@ void main() {
 
   group('kind lock', () {
     test('an unreferenced edit is locked', () async {
-      final existing = testCategory(colorHex: '#FF0000', name: 'Food');
+      final existing = category(name: 'Food');
       final ledger = Ledger(
         state: LedgerState(categories: {existing.id: existing}),
       );
@@ -982,7 +949,7 @@ void main() {
     });
 
     test('a parent form and a child form keep independent drafts', () async {
-      final parent = testCategory(colorHex: '#FF0000', name: 'Food');
+      final parent = category(name: 'Food');
       final ledger = Ledger(
         state: LedgerState(categories: {parent.id: parent}),
       );
@@ -1008,7 +975,7 @@ void main() {
     });
 
     test('a child form closing leaves the child key blank on reopen', () async {
-      final parent = testCategory(colorHex: '#FF0000', name: 'Food');
+      final parent = category(name: 'Food');
       final ledger = Ledger(
         state: LedgerState(categories: {parent.id: parent}),
       );
@@ -1032,7 +999,7 @@ void main() {
 
   group('ledger changes', () {
     test('refresh allCategories and keep the draft, step and error', () async {
-      final existing = testCategory(colorHex: '#FF0000', name: 'Food');
+      final existing = category(name: 'Food');
       final ledger = Ledger(
         state: LedgerState(categories: {existing.id: existing}),
       );
@@ -1047,7 +1014,7 @@ void main() {
       await viewModel.save();
       viewModel.requestPickSymbol();
 
-      ledger.addCategory(testCategory(colorHex: '#FF0000', name: 'Transport'));
+      ledger.addCategory(category(name: 'Transport'));
 
       final formState = container
           .read(categoryFormViewModelProvider(args))
@@ -1090,9 +1057,7 @@ void main() {
       await container.pump();
 
       expect(
-        () => ledger.addCategory(
-          testCategory(colorHex: '#FF0000', name: 'Transport'),
-        ),
+        () => ledger.addCategory(category(name: 'Transport')),
         returnsNormally,
       );
       expect(ledger.listenerCount, 0);

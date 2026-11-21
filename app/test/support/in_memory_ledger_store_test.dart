@@ -4,6 +4,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'in_memory_ledger_store.dart';
 import 'ledger_fixtures.dart';
 
+Account _account(String id, String name) =>
+    testAccount(id: id, name: name, type: AccountType.cash);
+
+TransactionCategory _category(String id, String name) =>
+    testCategory(id: id, name: name, colorHex: '#ff0000', symbol: 'fork');
+
+Entry _entry(String id, String amount) => testEntry(
+  id: id,
+  sourceID: 'a1',
+  amount: Decimal.parse(amount),
+  name: 'e-$id',
+  date: DateTime.utc(2026, 3, 14),
+);
+
 SubPocket _pocket(String id, String name) => SubPocket(id: id, name: name);
 
 RecurringPlan _plan(String id) => RecurringPlan(
@@ -22,27 +36,10 @@ void main() {
   test('a drained upsert reaches the state of every kind', () async {
     final store = InMemoryLedgerStore();
     store.enqueue([
-      UpsertAccount(
-        testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-      ),
+      UpsertAccount(_account('a1', 'wallet')),
       UpsertPocket(_pocket('p1', 'rainy day')),
-      UpsertCategory(
-        testCategory(
-          id: 'c1',
-          name: 'food',
-          colorHex: '#ff0000',
-          symbol: 'fork',
-        ),
-      ),
-      UpsertEntry(
-        testEntry(
-          id: 'e1',
-          sourceID: 'a1',
-          amount: Decimal.parse('12.34'),
-          name: 'e-e1',
-          date: DateTime.utc(2026, 3, 14),
-        ),
-      ),
+      UpsertCategory(_category('c1', 'food')),
+      UpsertEntry(_entry('e1', '12.34')),
       UpsertPlan(_plan('pl1')),
     ]);
 
@@ -58,27 +55,10 @@ void main() {
   test('a drained delete removes from the state of every kind', () async {
     final store = InMemoryLedgerStore();
     store.enqueue([
-      UpsertAccount(
-        testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-      ),
+      UpsertAccount(_account('a1', 'wallet')),
       UpsertPocket(_pocket('p1', 'rainy day')),
-      UpsertCategory(
-        testCategory(
-          id: 'c1',
-          name: 'food',
-          colorHex: '#ff0000',
-          symbol: 'fork',
-        ),
-      ),
-      UpsertEntry(
-        testEntry(
-          id: 'e1',
-          sourceID: 'a1',
-          amount: Decimal.parse('12.34'),
-          name: 'e-e1',
-          date: DateTime.utc(2026, 3, 14),
-        ),
-      ),
+      UpsertCategory(_category('c1', 'food')),
+      UpsertEntry(_entry('e1', '12.34')),
       UpsertPlan(_plan('pl1')),
     ]);
     await store.flushNow();
@@ -100,13 +80,7 @@ void main() {
 
   test('archive, restore and purge move an entry between the maps', () async {
     final store = InMemoryLedgerStore();
-    final active = testEntry(
-      id: 'e1',
-      sourceID: 'a1',
-      amount: Decimal.parse('12.34'),
-      name: 'e-e1',
-      date: DateTime.utc(2026, 3, 14),
-    );
+    final active = _entry('e1', '12.34');
     store.enqueue([UpsertEntry(active)]);
     await store.flushNow();
 
@@ -133,16 +107,8 @@ void main() {
 
   test('a later upsert of one id replaces the earlier one', () async {
     final store = InMemoryLedgerStore();
-    store.enqueue([
-      UpsertAccount(
-        testAccount(id: 'a1', name: 'first', type: AccountType.cash),
-      ),
-    ]);
-    store.enqueue([
-      UpsertAccount(
-        testAccount(id: 'a1', name: 'second', type: AccountType.cash),
-      ),
-    ]);
+    store.enqueue([UpsertAccount(_account('a1', 'first'))]);
+    store.enqueue([UpsertAccount(_account('a1', 'second'))]);
 
     await store.flushNow();
 
@@ -152,11 +118,7 @@ void main() {
 
   test('enqueued changes stay out of the state until a flush', () async {
     final store = InMemoryLedgerStore();
-    store.enqueue([
-      UpsertAccount(
-        testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-      ),
-    ]);
+    store.enqueue([UpsertAccount(_account('a1', 'wallet'))]);
 
     expect(store.state.moneySources, isEmpty);
 
@@ -167,17 +129,9 @@ void main() {
 
   test('batches drain in the order they were enqueued', () async {
     final store = InMemoryLedgerStore();
-    store.enqueue([
-      UpsertAccount(
-        testAccount(id: 'a1', name: 'first', type: AccountType.cash),
-      ),
-    ]);
+    store.enqueue([UpsertAccount(_account('a1', 'first'))]);
     store.enqueue([const DeleteMoneySource('a1')]);
-    store.enqueue([
-      UpsertAccount(
-        testAccount(id: 'a1', name: 'third', type: AccountType.cash),
-      ),
-    ]);
+    store.enqueue([UpsertAccount(_account('a1', 'third'))]);
 
     await store.flushNow();
 
@@ -186,11 +140,7 @@ void main() {
 
   test('a flush with nothing enqueued leaves the state alone', () async {
     final store = InMemoryLedgerStore();
-    store.enqueue([
-      UpsertAccount(
-        testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-      ),
-    ]);
+    store.enqueue([UpsertAccount(_account('a1', 'wallet'))]);
     store.enqueue([const DeleteMoneySource('a1')]);
     await store.flushNow();
 
@@ -201,24 +151,10 @@ void main() {
 
   test('the state carries an opening balance the store was built on', () async {
     final opening = LedgerState();
-    opening.apply([
-      UpsertAccount(
-        testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-      ),
-    ]);
+    opening.apply([UpsertAccount(_account('a1', 'wallet'))]);
 
     final store = InMemoryLedgerStore(state: opening);
-    store.enqueue([
-      UpsertEntry(
-        testEntry(
-          id: 'e1',
-          sourceID: 'a1',
-          amount: Decimal.parse('12.34'),
-          name: 'e-e1',
-          date: DateTime.utc(2026, 3, 14),
-        ),
-      ),
-    ]);
+    store.enqueue([UpsertEntry(_entry('e1', '12.34'))]);
     await store.flushNow();
 
     expect(store.state.moneySources.keys.toSet(), {'a1'});
@@ -227,11 +163,7 @@ void main() {
 
   test('load returns the same state the drain mutates', () async {
     final store = InMemoryLedgerStore();
-    store.enqueue([
-      UpsertAccount(
-        testAccount(id: 'a1', name: 'wallet', type: AccountType.cash),
-      ),
-    ]);
+    store.enqueue([UpsertAccount(_account('a1', 'wallet'))]);
     await store.flushNow();
 
     expect((await store.load()).moneySources.keys.toSet(), {'a1'});
@@ -241,30 +173,14 @@ void main() {
     'enqueuedBatches keeps batch boundaries the drained state merges away',
     () async {
       final store = InMemoryLedgerStore();
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'first', type: AccountType.cash),
-        ),
-      ]);
-      store.enqueue([
-        UpsertAccount(
-          testAccount(id: 'a1', name: 'second', type: AccountType.cash),
-        ),
-      ]);
+      store.enqueue([UpsertAccount(_account('a1', 'first'))]);
+      store.enqueue([UpsertAccount(_account('a1', 'second'))]);
 
       await store.flushNow();
 
       expect(store.enqueuedBatches, [
-        [
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'first', type: AccountType.cash),
-          ),
-        ],
-        [
-          UpsertAccount(
-            testAccount(id: 'a1', name: 'second', type: AccountType.cash),
-          ),
-        ],
+        [UpsertAccount(_account('a1', 'first'))],
+        [UpsertAccount(_account('a1', 'second'))],
       ]);
       expect(store.state.moneySources.keys.toSet(), {'a1'});
       expect(store.state.moneySources['a1']?.asAccount?.name, 'second');

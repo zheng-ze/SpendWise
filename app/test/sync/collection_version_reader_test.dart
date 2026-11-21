@@ -14,6 +14,16 @@ const _rowB = '22222222-2222-2222-2222-222222222222';
 const _rowC = '33333333-3333-3333-3333-333333333333';
 const _sourceID = 'aaaaaaaa-0000-1111-2222-333333333333';
 
+Account _account(
+  String id, {
+  LifecycleState lifecycle = LifecycleState.active,
+}) => testAccount(
+  id: id,
+  name: 'Checking',
+  type: AccountType.checking,
+  lifecycle: lifecycle,
+);
+
 SubPocket _pocket(
   String id, {
   LifecycleState lifecycle = LifecycleState.active,
@@ -22,6 +32,25 @@ SubPocket _pocket(
   name: 'Envelope',
   incomingTransfersAsExpenses: false,
   lifecycle: lifecycle,
+);
+
+TransactionCategory _category(
+  String id, {
+  LifecycleState lifecycle = LifecycleState.active,
+}) => testCategory(
+  id: id,
+  name: 'Groceries',
+  colorHex: '#44AA55',
+  symbol: 'food',
+  lifecycle: lifecycle,
+);
+
+Entry _entry(String id) => testEntry(
+  id: id,
+  sourceID: _sourceID,
+  amount: Decimal.parse('-12.50'),
+  name: 'Coffee',
+  date: DateTime.utc(2024, 3, 15),
 );
 
 RecurringPlan _plan(String id) => RecurringPlan(
@@ -65,17 +94,7 @@ void main() {
       final version = VersionVector({'device-a': 2});
       await db
           .into(db.categories)
-          .insert(
-            categoryToRow(
-              testCategory(
-                id: _rowA,
-                name: 'Groceries',
-                colorHex: '#44AA55',
-                symbol: 'food',
-              ),
-              version,
-            ),
-          );
+          .insert(categoryToRow(_category(_rowA), version));
 
       final result = await reader.readRowVersions(SyncCollection.categories);
 
@@ -92,13 +111,7 @@ void main() {
         .into(db.categories)
         .insert(
           categoryToRow(
-            testCategory(
-              id: _rowB,
-              name: 'Groceries',
-              colorHex: '#44AA55',
-              symbol: 'food',
-              lifecycle: LifecycleState.tombstoned,
-            ),
+            _category(_rowB, lifecycle: LifecycleState.tombstoned),
             version,
           ),
         );
@@ -115,13 +128,7 @@ void main() {
         .into(db.categories)
         .insert(
           categoryToRow(
-            testCategory(
-              id: _rowC,
-              name: 'Groceries',
-              colorHex: '#44AA55',
-              symbol: 'food',
-              lifecycle: LifecycleState.archived,
-            ),
+            _category(_rowC, lifecycle: LifecycleState.archived),
             version,
           ),
         );
@@ -136,20 +143,7 @@ void main() {
     'an entries row reads back with its stored vector and live lifecycle',
     () async {
       final version = VersionVector({'device-a': 4});
-      await db
-          .into(db.entries)
-          .insert(
-            entryToRow(
-              testEntry(
-                id: _rowA,
-                sourceID: _sourceID,
-                amount: Decimal.parse('-12.50'),
-                name: 'Coffee',
-                date: DateTime.utc(2024, 3, 15),
-              ),
-              version,
-            ),
-          );
+      await db.into(db.entries).insert(entryToRow(_entry(_rowA), version));
 
       final result = await reader.readRowVersions(SyncCollection.entries);
 
@@ -195,16 +189,7 @@ void main() {
     final pocketVersion = VersionVector({'device-a': 5});
     await db
         .into(db.accounts)
-        .insert(
-          accountToRow(
-            testAccount(
-              id: _rowA,
-              name: 'Checking',
-              type: AccountType.checking,
-            ),
-            accountVersion,
-          ),
-        );
+        .insert(accountToRow(_account(_rowA), accountVersion));
     await db
         .into(db.subPockets)
         .insert(pocketToRow(_pocket(_rowB), pocketVersion));
@@ -250,17 +235,7 @@ void main() {
       final contentVersion = VersionVector({'device-a': 3});
       await db
           .into(db.categories)
-          .insert(
-            categoryToRow(
-              testCategory(
-                id: _rowA,
-                name: 'Groceries',
-                colorHex: '#44AA55',
-                symbol: 'food',
-              ),
-              contentVersion,
-            ),
-          );
+          .insert(categoryToRow(_category(_rowA), contentVersion));
       await seedOrphan(
         SyncCollection.categories,
         _rowA,
@@ -281,16 +256,7 @@ void main() {
       final orphanVersion = VersionVector({'remote-a': 2});
       await db
           .into(db.accounts)
-          .insert(
-            accountToRow(
-              testAccount(
-                id: _rowA,
-                name: 'Checking',
-                type: AccountType.checking,
-              ),
-              accountVersion,
-            ),
-          );
+          .insert(accountToRow(_account(_rowA), accountVersion));
       await db
           .into(db.subPockets)
           .insert(pocketToRow(_pocket(_rowB), pocketVersion));

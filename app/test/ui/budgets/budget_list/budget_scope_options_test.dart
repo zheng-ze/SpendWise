@@ -5,6 +5,20 @@ import 'package:spendwise/ui/budgets/budget_list/budget_scope_options.dart';
 
 import '../../../support/ledger_fixtures.dart';
 
+TransactionCategory _category(
+  String name, {
+  String? parentID,
+  CategoryKind kind = CategoryKind.expense,
+  LifecycleState lifecycle = LifecycleState.active,
+}) => testCategory(
+  name: name,
+  kind: kind,
+  colorHex: '#00AA00',
+  parentID: parentID,
+  symbol: 'restaurant',
+  lifecycle: lifecycle,
+);
+
 LedgerState _state(
   List<TransactionCategory> categories, [
   List<Budget> budgets = const [],
@@ -22,28 +36,10 @@ BudgetScopeOption _option(List<BudgetScopeOption> options, String label) =>
 
 void main() {
   test('lists All spending first, then roots by name with their children', () {
-    final transport = testCategory(
-      name: 'Transport',
-      colorHex: '#00AA00',
-      symbol: 'restaurant',
-    );
-    final food = testCategory(
-      name: 'Food',
-      colorHex: '#00AA00',
-      symbol: 'restaurant',
-    );
-    final snacks = testCategory(
-      name: 'Snacks',
-      colorHex: '#00AA00',
-      symbol: 'restaurant',
-      parentID: food.id,
-    );
-    final dining = testCategory(
-      name: 'Dining',
-      colorHex: '#00AA00',
-      symbol: 'restaurant',
-      parentID: food.id,
-    );
+    final transport = _category('Transport');
+    final food = _category('Food');
+    final snacks = _category('Snacks', parentID: food.id);
+    final dining = _category('Dining', parentID: food.id);
 
     final options = budgetScopeOptions(
       _state([transport, snacks, food, dining]),
@@ -69,11 +65,7 @@ void main() {
   });
 
   test('All spending is enabled when only category budgets exist', () {
-    final food = testCategory(
-      name: 'Food',
-      colorHex: '#00AA00',
-      symbol: 'restaurant',
-    );
+    final food = _category('Food');
     final budget = Budget(categoryID: food.id, limit: Decimal.fromInt(10));
 
     final options = budgetScopeOptions(_state([food], [budget]));
@@ -84,17 +76,8 @@ void main() {
   test(
     'a budgeted root is disabled while its unbudgeted child stays enabled',
     () {
-      final food = testCategory(
-        name: 'Food',
-        colorHex: '#00AA00',
-        symbol: 'restaurant',
-      );
-      final dining = testCategory(
-        name: 'Dining',
-        colorHex: '#00AA00',
-        symbol: 'restaurant',
-        parentID: food.id,
-      );
+      final food = _category('Food');
+      final dining = _category('Dining', parentID: food.id);
       final budget = Budget(categoryID: food.id, limit: Decimal.fromInt(10));
 
       final options = budgetScopeOptions(_state([food, dining], [budget]));
@@ -105,29 +88,10 @@ void main() {
   );
 
   test('inactive and income categories are excluded', () {
-    final food = testCategory(
-      name: 'Food',
-      colorHex: '#00AA00',
-      symbol: 'restaurant',
-    );
-    final binned = testCategory(
-      name: 'Binned',
-      colorHex: '#00AA00',
-      symbol: 'restaurant',
-      lifecycle: LifecycleState.archived,
-    );
-    final salary = testCategory(
-      name: 'Salary',
-      colorHex: '#00AA00',
-      symbol: 'restaurant',
-      kind: CategoryKind.income,
-    );
-    final orphan = testCategory(
-      name: 'Orphan',
-      colorHex: '#00AA00',
-      symbol: 'restaurant',
-      parentID: binned.id,
-    );
+    final food = _category('Food');
+    final binned = _category('Binned', lifecycle: LifecycleState.archived);
+    final salary = _category('Salary', kind: CategoryKind.income);
+    final orphan = _category('Orphan', parentID: binned.id);
 
     final options = budgetScopeOptions(_state([food, binned, salary, orphan]));
 

@@ -10,6 +10,9 @@ import 'package:spendwise/ui/budgets/budget_list/budget_scope_options.dart';
 
 import '../../../support/ledger_fixtures.dart';
 
+TransactionCategory _category(String name) =>
+    testCategory(name: name, colorHex: '#00AA00', symbol: 'restaurant');
+
 typedef _Fixture = ({
   ProviderContainer container,
   BudgetDraftKey key,
@@ -94,11 +97,7 @@ void main() {
   });
 
   test('applyPickedScope sets the scope label and clears the step', () async {
-    final food = testCategory(
-      name: 'Food',
-      colorHex: '#00AA00',
-      symbol: 'restaurant',
-    );
+    final food = _category('Food');
     final ledger = Ledger(state: LedgerState(categories: {food.id: food}));
     final fixture = await _open(ledger);
 
@@ -110,11 +109,7 @@ void main() {
   });
 
   test('save writes exactly one budget with the chosen category', () async {
-    final food = testCategory(
-      name: 'Food',
-      colorHex: '#00AA00',
-      symbol: 'restaurant',
-    );
+    final food = _category('Food');
     final ledger = Ledger(state: LedgerState(categories: {food.id: food}));
     final fixture = await _open(ledger);
 
@@ -153,11 +148,7 @@ void main() {
   test(
     'a budget added elsewhere keeps the draft and a retry writes once',
     () async {
-      final food = testCategory(
-        name: 'Food',
-        colorHex: '#00AA00',
-        symbol: 'restaurant',
-      );
+      final food = _category('Food');
       final ledger = Ledger(state: LedgerState(categories: {food.id: food}));
       final fixture = await _open(ledger);
       fixture.viewModel.setAmount('250.00');
@@ -180,11 +171,7 @@ void main() {
   test(
     'a category archived after the pick keeps the draft and the error',
     () async {
-      final food = testCategory(
-        name: 'Food',
-        colorHex: '#00AA00',
-        symbol: 'restaurant',
-      );
+      final food = _category('Food');
       final ledger = Ledger(state: LedgerState(categories: {food.id: food}));
       final fixture = await _open(ledger);
       fixture.viewModel.applyPickedScope(CategoryChosen(food.id));

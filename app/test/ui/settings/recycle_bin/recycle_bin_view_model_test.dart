@@ -11,11 +11,34 @@ import '../../../support/ledger_fixtures.dart';
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
+  Account account(
+    String id,
+    String name, {
+    LifecycleState lifecycle = LifecycleState.archived,
+    Set<String> subPocketIDs = const {},
+  }) => testAccount(
+    id: id,
+    name: name,
+    type: AccountType.checking,
+    lifecycle: lifecycle,
+  ).withSubPockets(subPocketIDs);
+
   SubPocket pocket(
     String id,
     String name, {
     LifecycleState lifecycle = LifecycleState.archived,
   }) => SubPocket(id: id, name: name, lifecycle: lifecycle);
+
+  TransactionCategory category(
+    String id,
+    String name, {
+    LifecycleState lifecycle = LifecycleState.archived,
+  }) => testCategory(
+    id: id,
+    name: name,
+    colorHex: '#FF0000',
+    lifecycle: lifecycle,
+  );
 
   Ledger buildLedger({
     Map<String, MoneySource> moneySources = const {},
@@ -43,12 +66,7 @@ void main() {
   }
 
   test('restore(account) reactivates the account', () {
-    final acc = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Old Bank',
-      type: AccountType.checking,
-      lifecycle: LifecycleState.archived,
-    );
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
     final ledger = buildLedger(
       moneySources: {acc.id: MoneySource.account(acc)},
     );
@@ -62,12 +80,11 @@ void main() {
 
   test('restore(pocket) is a no-op while the parent account is still '
       'archived', () {
-    final parent = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Main',
-      type: AccountType.checking,
-      lifecycle: LifecycleState.archived,
-    ).withSubPockets({'a0000000-0000-0000-0000-000000000002'});
+    final parent = account(
+      'a0000000-0000-0000-0000-000000000001',
+      'Main',
+      subPocketIDs: {'a0000000-0000-0000-0000-000000000002'},
+    );
     final pkt = pocket('a0000000-0000-0000-0000-000000000002', 'Rent');
     final ledger = buildLedger(
       moneySources: {
@@ -87,12 +104,7 @@ void main() {
   });
 
   test('restore(category) reactivates the category', () {
-    final cat = testCategory(
-      id: 'a0000000-0000-0000-0000-000000000004',
-      name: 'Old Cat',
-      colorHex: '#FF0000',
-      lifecycle: LifecycleState.archived,
-    );
+    final cat = category('a0000000-0000-0000-0000-000000000004', 'Old Cat');
     final ledger = buildLedger(categories: {cat.id: cat});
     final container = buildContainer(ledger);
     final viewModel = container.read(recycleBinViewModelProvider.notifier);
@@ -103,12 +115,7 @@ void main() {
   });
 
   test('requestPurge emits PurgeConfirmationRequested carrying the row', () {
-    final acc = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Old Bank',
-      type: AccountType.checking,
-      lifecycle: LifecycleState.archived,
-    );
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
     final ledger = buildLedger(
       moneySources: {acc.id: MoneySource.account(acc)},
     );
@@ -129,12 +136,7 @@ void main() {
   });
 
   test('applyPurgeConfirmed(true) purges the account and clears the step', () {
-    final acc = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Old Bank',
-      type: AccountType.checking,
-      lifecycle: LifecycleState.archived,
-    );
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
     final ledger = buildLedger(
       moneySources: {acc.id: MoneySource.account(acc)},
     );
@@ -155,12 +157,7 @@ void main() {
 
   test('applyPurgeConfirmed(false) leaves the row untouched and clears the '
       'step', () {
-    final acc = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Old Bank',
-      type: AccountType.checking,
-      lifecycle: LifecycleState.archived,
-    );
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
     final ledger = buildLedger(
       moneySources: {acc.id: MoneySource.account(acc)},
     );
@@ -180,11 +177,12 @@ void main() {
   });
 
   test('applyPurgeConfirmed(true) purges a pocket', () {
-    final parent = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Main',
-      type: AccountType.checking,
-    ).withSubPockets({'a0000000-0000-0000-0000-000000000002'});
+    final parent = account(
+      'a0000000-0000-0000-0000-000000000001',
+      'Main',
+      lifecycle: LifecycleState.active,
+      subPocketIDs: {'a0000000-0000-0000-0000-000000000002'},
+    );
     final pkt = pocket('a0000000-0000-0000-0000-000000000002', 'Rent');
     final ledger = buildLedger(
       moneySources: {
@@ -201,12 +199,7 @@ void main() {
   });
 
   test('applyPurgeConfirmed(true) purges a category', () {
-    final cat = testCategory(
-      id: 'a0000000-0000-0000-0000-000000000004',
-      name: 'Old Cat',
-      colorHex: '#FF0000',
-      lifecycle: LifecycleState.archived,
-    );
+    final cat = category('a0000000-0000-0000-0000-000000000004', 'Old Cat');
     final ledger = buildLedger(categories: {cat.id: cat});
     final container = buildContainer(ledger);
     final viewModel = container.read(recycleBinViewModelProvider.notifier);
@@ -217,12 +210,7 @@ void main() {
   });
 
   test('clearStep resets the step to null', () {
-    final acc = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Old Bank',
-      type: AccountType.checking,
-      lifecycle: LifecycleState.archived,
-    );
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
     final ledger = buildLedger(
       moneySources: {acc.id: MoneySource.account(acc)},
     );
@@ -254,25 +242,10 @@ void main() {
 
   test('archived accounts, pockets and categories are each listed, sorted '
       'by name', () {
-    final zebra = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Zebra',
-      type: AccountType.checking,
-      lifecycle: LifecycleState.archived,
-    );
-    final alpha = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000002',
-      name: 'Alpha',
-      type: AccountType.checking,
-      lifecycle: LifecycleState.archived,
-    );
+    final zebra = account('a0000000-0000-0000-0000-000000000001', 'Zebra');
+    final alpha = account('a0000000-0000-0000-0000-000000000002', 'Alpha');
     final pkt = pocket('a0000000-0000-0000-0000-000000000003', 'Rent');
-    final cat = testCategory(
-      id: 'a0000000-0000-0000-0000-000000000004',
-      name: 'Old Cat',
-      colorHex: '#FF0000',
-      lifecycle: LifecycleState.archived,
-    );
+    final cat = category('a0000000-0000-0000-0000-000000000004', 'Old Cat');
     final container = buildContainer(
       buildLedger(
         moneySources: {
@@ -292,10 +265,10 @@ void main() {
   });
 
   test('an active holder is excluded from its row list', () {
-    final acc = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Active One',
-      type: AccountType.checking,
+    final acc = account(
+      'a0000000-0000-0000-0000-000000000001',
+      'Active One',
+      lifecycle: LifecycleState.active,
     );
     final container = buildContainer(
       buildLedger(moneySources: {acc.id: MoneySource.account(acc)}),
@@ -308,10 +281,10 @@ void main() {
   });
 
   test('a binned entry is listed with its name', () {
-    final acc = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Bank',
-      type: AccountType.checking,
+    final acc = account(
+      'a0000000-0000-0000-0000-000000000001',
+      'Bank',
+      lifecycle: LifecycleState.active,
     );
     final entry = testEntry(amount: dec('5'), name: 'Coffee', sourceID: acc.id);
     final container = buildContainer(
@@ -332,12 +305,7 @@ void main() {
   });
 
   test('a row shows how many entries reference it', () {
-    final acc = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Old Bank',
-      type: AccountType.checking,
-      lifecycle: LifecycleState.archived,
-    );
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
     final entry = testEntry(amount: dec('5'), name: 'x', sourceID: acc.id);
     final container = buildContainer(
       buildLedger(
@@ -357,11 +325,12 @@ void main() {
 
   test('a pocket row is named with its qualified name when the parent '
       'resolves', () {
-    final parent = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Main',
-      type: AccountType.checking,
-    ).withSubPockets({'a0000000-0000-0000-0000-000000000002'});
+    final parent = account(
+      'a0000000-0000-0000-0000-000000000001',
+      'Main',
+      lifecycle: LifecycleState.active,
+      subPocketIDs: {'a0000000-0000-0000-0000-000000000002'},
+    );
     final pkt = pocket('a0000000-0000-0000-0000-000000000002', 'Rent');
     final container = buildContainer(
       buildLedger(
@@ -382,12 +351,7 @@ void main() {
   });
 
   test('a ledger change refreshes the row lists', () {
-    final acc = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Old Bank',
-      type: AccountType.checking,
-      lifecycle: LifecycleState.archived,
-    );
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
     final ledger = buildLedger(
       moneySources: {acc.id: MoneySource.account(acc)},
     );
@@ -417,12 +381,7 @@ void main() {
   });
 
   test('a ledger change keeps the pending step', () {
-    final acc = testAccount(
-      id: 'a0000000-0000-0000-0000-000000000001',
-      name: 'Old Bank',
-      type: AccountType.checking,
-      lifecycle: LifecycleState.archived,
-    );
+    final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
     final ledger = buildLedger(
       moneySources: {acc.id: MoneySource.account(acc)},
     );

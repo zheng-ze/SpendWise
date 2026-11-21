@@ -17,7 +17,6 @@ const _barrierTap = Offset(160, 10);
 const _addSubcategoryTooltip = 'Add subcategory';
 const _addSubcategoryTitle = 'Add subcategory';
 const _launchLabel = 'Open categories';
-const _colorHex = '#FF0000';
 
 class _ListLauncher extends StatelessWidget {
   const _ListLauncher();
@@ -37,6 +36,19 @@ class _ListLauncher extends StatelessWidget {
 }
 
 final _addCategoryButton = find.byType(CompactLabelledFab);
+
+TransactionCategory _category(
+  String name, {
+  CategoryKind kind = CategoryKind.expense,
+  String? parentID,
+  bool includeInAnalysis = true,
+}) => testCategory(
+  name: name,
+  kind: kind,
+  colorHex: '#FF0000',
+  includeInAnalysis: includeInAnalysis,
+  parentID: parentID,
+);
 
 Ledger _ledgerOf(List<TransactionCategory> categories) => Ledger(
   state: LedgerState(categories: {for (final c in categories) c.id: c}),
@@ -82,19 +94,15 @@ void main() {
   }, timeout: uiTestTimeout);
 
   testWidgets('a root shows its subcategory count as meta', (tester) async {
-    final dining = testCategory(name: 'Dining', colorHex: _colorHex);
-    final groceries = testCategory(name: 'Groceries', colorHex: _colorHex);
+    final dining = _category('Dining');
+    final groceries = _category('Groceries');
     final all = [
       dining,
-      testCategory(name: 'Cafes', colorHex: _colorHex, parentID: dining.id),
-      testCategory(name: 'Takeaway', colorHex: _colorHex, parentID: dining.id),
+      _category('Cafes', parentID: dining.id),
+      _category('Takeaway', parentID: dining.id),
       groceries,
-      testCategory(
-        name: 'Supermarket',
-        colorHex: _colorHex,
-        parentID: groceries.id,
-      ),
-      testCategory(name: 'Transport', colorHex: _colorHex),
+      _category('Supermarket', parentID: groceries.id),
+      _category('Transport'),
     ];
 
     await _pumpList(tester, all);
@@ -114,26 +122,17 @@ void main() {
     tester,
   ) async {
     await _pumpList(tester, [
-      testCategory(name: 'Dining', colorHex: _colorHex),
-      testCategory(
-        name: 'Gifts',
-        colorHex: _colorHex,
-        includeInAnalysis: false,
-      ),
+      _category('Dining'),
+      _category('Gifts', includeInAnalysis: false),
     ]);
 
     expect(find.byIcon(Icons.bar_chart), findsOneWidget);
   }, timeout: uiTestTimeout);
 
   testWidgets('only root rows offer add subcategory', (tester) async {
-    final dining = testCategory(name: 'Dining', colorHex: _colorHex);
-    final cafes = testCategory(
-      name: 'Cafes',
-      colorHex: _colorHex,
-      parentID: dining.id,
-    );
+    final dining = _category('Dining');
 
-    await _pumpList(tester, [dining, cafes]);
+    await _pumpList(tester, [dining, _category('Cafes', parentID: dining.id)]);
 
     expect(find.byTooltip(_addSubcategoryTooltip), findsOneWidget);
   }, timeout: uiTestTimeout);
@@ -141,9 +140,7 @@ void main() {
   testWidgets('add subcategory opens the form with the parent preset', (
     tester,
   ) async {
-    await _pumpList(tester, [
-      testCategory(name: 'Dining', colorHex: _colorHex),
-    ]);
+    await _pumpList(tester, [_category('Dining')]);
 
     await tester.tap(find.byTooltip(_addSubcategoryTooltip));
     await tester.pumpAndSettle();
@@ -155,9 +152,7 @@ void main() {
   testWidgets('tapping a row opens the edit form for that category', (
     tester,
   ) async {
-    await _pumpList(tester, [
-      testCategory(name: 'Dining', colorHex: _colorHex),
-    ]);
+    await _pumpList(tester, [_category('Dining')]);
 
     await tester.tap(find.text('Dining'));
     await tester.pumpAndSettle();
@@ -168,9 +163,7 @@ void main() {
   testWidgets('the floating Add category button opens the add form', (
     tester,
   ) async {
-    await _pumpList(tester, [
-      testCategory(name: 'Dining', colorHex: _colorHex),
-    ]);
+    await _pumpList(tester, [_category('Dining')]);
 
     await tester.tap(_addCategoryButton);
     await tester.pumpAndSettle();
