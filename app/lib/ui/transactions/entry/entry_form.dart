@@ -10,7 +10,6 @@ import 'package:spendwise/ui/transactions/entry/new_entry_form.dart';
 
 const _loadErrorMessage = "Couldn't load the entry form";
 
-
 void _scheduleDismiss(BuildContext context, VoidCallback? onDismiss) {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     if (onDismiss != null) return onDismiss();

@@ -128,10 +128,7 @@ class _CategoryDetailErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = LoadErrorView.box(
-      message: _errorMessage,
-      onRetry: onRetry,
-    );
+    final content = LoadErrorView.box(message: _errorMessage, onRetry: onRetry);
     return Center(
       child: Padding(padding: _statusPadding, child: content),
     );

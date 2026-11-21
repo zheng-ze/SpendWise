@@ -24,10 +24,7 @@ class TrendsCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: children,
     );
-    return Tray(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      child: column,
-    );
+    return Tray(crossAxisAlignment: CrossAxisAlignment.stretch, child: column);
   }
 }
 
