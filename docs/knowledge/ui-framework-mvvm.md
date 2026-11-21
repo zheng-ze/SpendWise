@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: e095355c
+Last reconciled: db7050e9
 
 ## Feature overview
 
@@ -553,3 +553,7 @@ under the confirmation helper.
   navigates.
 - `Step` is sealed plain data, single-shot consumed and cleared by the Flow.
 - ViewModels backed by `Ledger` use the `LedgerBackedNotifier` mixin. (`ledger_backed_notifier.dart`)
+
+Sheet forms (account, source edit, category, plan) consume their one-shot Step through the
+`StepListeningState` mixin (`app/lib/ui/common/base/step_listening_state.dart`): it subscribes with
+`listenManual`, clears the Step, then passes it to `handleStep`.

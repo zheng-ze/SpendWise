@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: f152ec0a
+Last reconciled: db7050e9
 
 ## Feature overview
 
@@ -116,8 +116,9 @@ Navigator is not mounted), roots and untagged routes. Leaving the Accounts segme
 `app/lib/ui/accounts/money_navigation.dart`: `scopedRegisterSourceId`)
 
 Account and source-edit forms use root `showAppSheet` routes with `shellSheetPresentation` as the
-live resolver. `showAccountFormSheet` and `showSourceEditFormSheet` capture the exact route and wait
-for `route.completed` before invalidating their form providers. Installed/exiting AppSheet occupancy
+live resolver. `showAccountFormSheet` and `showSourceEditFormSheet` call `showFormSheetThenInvalidate`
+(`app/lib/ui/common/sheets/show_form_sheet_then_invalidate.dart`), which captures the exact route and
+waits for `route.completed` before invalidating the form provider. Installed/exiting AppSheet occupancy
 comes from the shared `shellSheetOccupancyProvider`; callers set no manual presentation flag.
 Accounts root actions have no detail to shift, so forms remain right-docked on open and desktop
 and bottom sheets on phone. Nested account type, day and parent AppSheets inherit coverage
