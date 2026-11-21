@@ -39,8 +39,6 @@ class SheetAlert extends StatelessWidget {
 
   final VoidCallback? onAction;
 
-  static const _messageFontSize = 12.0;
-
   static const _messageLineHeight = 1.45;
 
   static const _actionGap = 8.0;
@@ -68,9 +66,8 @@ class SheetAlert extends StatelessWidget {
     final onAction = this.onAction;
     final message = Text(
       data.message,
-      style: TextStyle(
+      style: context.text.body.copyWith(
         color: foreground,
-        fontSize: _messageFontSize,
         height: _messageLineHeight,
       ),
     );

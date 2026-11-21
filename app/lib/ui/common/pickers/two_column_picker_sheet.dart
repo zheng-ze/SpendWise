@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 
 // MARK: - PickerOption
 @immutable
@@ -57,8 +58,6 @@ const _rowChromeWidth =
 const _stackedChildIndent = 24.0;
 
 const _columnsHeightFraction = 0.5;
-
-const _columnDividerWidth = 1.0;
 
 Future<PickerOutcome?> showTwoColumnPickerSheet({
   required BuildContext context,
@@ -182,7 +181,7 @@ class _PickerGroupBodyState extends State<PickerGroupBody> {
 
     final sideBySideMinWidth =
         2 * (_rowChromeWidth + _longestWordWidth(context, widget.groups)) +
-        _columnDividerWidth;
+        edgeThickness;
 
     final phone =
         AppSheetAlertSlot.maybeOf(context)?.presentation ==
@@ -214,7 +213,7 @@ class _SideBySideGroups extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final divider = BorderSide(
-      width: _columnDividerWidth,
+      width: edgeThickness,
       color: Theme.of(context).dividerColor,
     );
     final childColumn = DecoratedBox(

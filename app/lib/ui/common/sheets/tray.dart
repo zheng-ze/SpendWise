@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Tray
@@ -27,10 +28,6 @@ class Tray extends StatelessWidget {
 
   static const contentPadding = 12.0;
 
-  static const semiBoldWeight = FontWeight.w600;
-
-  static const borderWidth = 1.0;
-
   static Color fillColor(BuildContext context, {bool selected = false}) {
     final colors = context.colors;
     return selected ? colors.tint : colors.surface;
@@ -38,8 +35,8 @@ class Tray extends StatelessWidget {
 
   static BorderSide _edgeSide(BuildContext context, {bool selected = false}) {
     final colors = context.colors;
-    final edgeColor = selected ? colors.action : colors.edge;
-    return BorderSide(color: edgeColor, width: borderWidth);
+    if (!selected) return edgeSide(colors);
+    return BorderSide(color: colors.action, width: edgeThickness);
   }
 
   static RoundedRectangleBorder shape(
@@ -105,17 +102,14 @@ class TrayHeader extends StatelessWidget {
 
   static const defaultBottomPadding = 6.0;
 
-  static const _titleFontSize = 14.0;
-
   static const _titleLineHeight = 1.25;
 
   @override
   Widget build(BuildContext context) {
     final titleText = Text(
       title,
-      style: const TextStyle(
-        fontSize: _titleFontSize,
-        fontWeight: Tray.semiBoldWeight,
+      style: context.text.title.copyWith(
+        fontWeight: SpendWiseText.semibold,
         height: _titleLineHeight,
       ),
     );

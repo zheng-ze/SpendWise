@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
@@ -22,10 +23,8 @@ const _rowHeight = 48.0;
 const _visibleRows = 5;
 const _selectionRadius = 14.0;
 const _dayFontSize = 20.0;
-const _dayFontWeight = FontWeight.w600;
 const _wheelPadding = EdgeInsets.symmetric(horizontal: 16);
 const _fieldBorderWidth = 2.0;
-const _bandBorderWidth = 1.0;
 const _editIconSize = 20.0;
 const _editTapTarget = 48.0;
 const _fullWidth = double.infinity;
@@ -238,7 +237,7 @@ class _SelectionHighlight extends StatelessWidget {
     final decoration = BoxDecoration(
       color: colors.interactionSurface,
       borderRadius: BorderRadius.circular(_selectionRadius),
-      border: Border.all(color: colors.edge, width: _bandBorderWidth),
+      border: fullEdgeBorder(colors),
     );
     return SizedBox(
       width: _fullWidth,
@@ -268,7 +267,7 @@ class _DayWheel extends StatelessWidget {
     final style = TextStyle(
       color: context.colors.text,
       fontSize: _dayFontSize,
-      fontWeight: _dayFontWeight,
+      fontWeight: SpendWiseText.semibold,
     );
     final picker = CupertinoPicker.builder(
       scrollController: controller,
@@ -317,13 +316,13 @@ class _DayField extends StatelessWidget {
     );
     final bandBorder = OutlineInputBorder(
       borderRadius: radius,
-      borderSide: BorderSide(color: colors.edge, width: _bandBorderWidth),
+      borderSide: edgeSide(colors),
     );
     final border = valid ? bandBorder : errorBorder;
     final style = TextStyle(
       color: valid ? colors.text : colors.error,
       fontSize: _dayFontSize,
-      fontWeight: _dayFontWeight,
+      fontWeight: SpendWiseText.semibold,
     );
     final decoration = InputDecoration(
       border: border,

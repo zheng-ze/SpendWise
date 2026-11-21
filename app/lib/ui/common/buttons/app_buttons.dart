@@ -4,15 +4,10 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
 
-const _semiBoldWeight = FontWeight.w600;
-
-const _actionWeight = FontWeight.w500;
-
 const _actionMinHeight = 48.0;
 
-const appActionLabelStyle = TextStyle(
-  fontSize: _labelFontSize,
-  fontWeight: _actionWeight,
+final appActionLabelStyle = SpendWiseText.standard.body.copyWith(
+  fontWeight: SpendWiseText.medium,
 );
 
 final _shape = RoundedRectangleBorder(
@@ -30,13 +25,10 @@ const _horizontalPadding = 12.0;
 
 const _verticalPadding = 10.0;
 
-const _labelFontSize = 12.0;
-
 TextStyle _labelStyle(BuildContext context) {
-  final base = Theme.of(context).textTheme.labelLarge
-      ?.copyWith(fontSize: _labelFontSize, fontWeight: _semiBoldWeight);
-  return base ??
-      const TextStyle(fontSize: _labelFontSize, fontWeight: _semiBoldWeight);
+  final body = context.text.body;
+  final base = Theme.of(context).textTheme.labelLarge?.merge(body);
+  return (base ?? body).copyWith(fontWeight: SpendWiseText.semibold);
 }
 
 // MARK: - PrimaryButton

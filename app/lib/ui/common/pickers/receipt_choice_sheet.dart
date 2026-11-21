@@ -13,8 +13,6 @@ const _scanLabel = 'Scan receipt';
 
 const _photoLabel = 'Choose photo';
 
-const _hintSize = 12.0;
-
 const _hintPadding = EdgeInsets.fromLTRB(16, 2, 16, 8);
 
 enum ReceiptChoice { scan, photo }
@@ -43,10 +41,9 @@ class _ReceiptChoiceBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final baseStyle =
         Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
-    final hintStyle = baseStyle.copyWith(
-      fontSize: _hintSize,
-      color: context.colors.subtext,
-    );
+    final hintStyle = baseStyle
+        .merge(context.text.body)
+        .copyWith(color: context.colors.subtext);
     final hint = Padding(
       padding: _hintPadding,
       child: Text(_hintLabel, style: hintStyle),

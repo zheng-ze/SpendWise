@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/common/sheets/sheet_drag_dismiss.dart';
 import 'package:spendwise/ui/common/sheets/sheet_pinned_layout.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 export 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
@@ -293,8 +294,6 @@ class _SheetChrome extends StatelessWidget {
 
   static const _dockedDesktopPadding = EdgeInsets.all(16);
 
-  static const _formTopBorderWidth = 1.0;
-
   static const _formShadow = BoxShadow(
     color: Color(0x1A000000),
     offset: Offset(0, -8),
@@ -304,8 +303,6 @@ class _SheetChrome extends StatelessWidget {
   static const _sheetTopRadius = 22.0;
 
   static const _topBorderWidth = 2.0;
-
-  static const _openBorderWidth = 1.0;
 
   static const _horizontalPadding = 14.0;
 
@@ -334,14 +331,14 @@ class _SheetChrome extends StatelessWidget {
     final desktop = presentation == AppSheetPresentation.desktop;
     final form = variant == AppSheetVariant.form;
     final topBorder = form
-        ? BorderSide(color: colors.edge, width: _formTopBorderWidth)
+        ? edgeSide(colors)
         : BorderSide(color: colors.control, width: _topBorderWidth);
     final radius = desktop || open
         ? BorderRadius.zero
         : const BorderRadius.vertical(top: Radius.circular(_sheetTopRadius));
     final border = desktop || open
         ? Border(
-            left: BorderSide(color: colors.control, width: _openBorderWidth),
+            left: BorderSide(color: colors.control, width: edgeThickness),
           )
         : Border(top: topBorder);
     final shadow = form && !desktop && !open ? [_formShadow] : null;
