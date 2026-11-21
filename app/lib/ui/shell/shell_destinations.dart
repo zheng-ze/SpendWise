@@ -17,8 +17,3 @@ const destinationIcons = {
   ShellDestination.money: Icons.account_balance_wallet_outlined,
   ShellDestination.settings: Icons.settings_outlined,
 };
-
-// MARK: - Destination Weights
-const selectedDestinationWeight = FontWeight.w600;
-
-const unselectedDestinationWeight = FontWeight.w500;

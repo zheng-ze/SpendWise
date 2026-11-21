@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const shellDetailPaneKey = ValueKey('shell-detail-pane');
@@ -14,7 +15,6 @@ const _detailBodyPadding = EdgeInsets.fromLTRB(16, 0, 16, 16);
 const _detailHeaderGap = 8.0;
 const _detailSubtitleGap = 2.0;
 const _detailCloseIconSize = 18.0;
-const _detailDividerWidth = 1.0;
 const _floatingActionRightInset = 3.0;
 const _floatingActionBottomInset = 10.0;
 const _minimumPinnedDetailPaneHeight = 280.0;
@@ -187,7 +187,7 @@ class _ShellPaneLayout extends StatelessWidget {
             ),
           );
     final dividerLine = SizedBox(
-      width: _detailDividerWidth,
+      width: edgeThickness,
       height: constraints.maxHeight,
       child: ColoredBox(color: context.colors.edge),
     );

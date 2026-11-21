@@ -9,17 +9,14 @@ class BinRestoreAction extends StatelessWidget {
 
   static const _minHeight = 30.0;
   static const _minWidth = 48.0;
-  static const _fontSize = 12.0;
-  static const _weight = FontWeight.w600;
   static const _label = 'Restore';
 
   @override
   Widget build(BuildContext context) {
     final label = Text(
       _label,
-      style: TextStyle(
-        fontSize: _fontSize,
-        fontWeight: _weight,
+      style: context.text.body.copyWith(
+        fontWeight: SpendWiseText.semibold,
         color: context.colors.action,
       ),
     );

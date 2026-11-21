@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:spendwise/ui/shell/desktop_sidebar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 
 const _columnDivisor = 2.0;
 const _minimumExtent = 0.0;
@@ -15,7 +16,7 @@ ShellPaneGeometry resolveShellPaneGeometry({
 }) {
   final desktop = mode == ShellLayoutMode.desktop;
   final contentLeft = desktop
-      ? padding.left + desktopSidebarWidth + sidebarDividerWidth
+      ? padding.left + desktopSidebarWidth + edgeThickness
       : padding.left;
   final contentRight = windowSize.width - padding.right;
   final midpoint = desktop

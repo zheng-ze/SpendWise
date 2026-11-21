@@ -6,17 +6,14 @@ class BinFooterHint extends StatelessWidget {
   const BinFooterHint({super.key});
 
   static const _hint = 'Swipe right to restore or left to delete permanently.';
-  static const _fontSize = 12.0;
-  static const _fontWeight = FontWeight.w600;
 
   @override
   Widget build(BuildContext context) {
     return Text(
       _hint,
       textAlign: TextAlign.center,
-      style: TextStyle(
-        fontSize: _fontSize,
-        fontWeight: _fontWeight,
+      style: context.text.body.copyWith(
+        fontWeight: SpendWiseText.semibold,
         color: context.colors.subtext,
       ),
     );

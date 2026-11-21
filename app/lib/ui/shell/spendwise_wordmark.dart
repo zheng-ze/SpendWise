@@ -6,7 +6,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 const _wordmarkStart = 'Spend';
 const _wordmarkEnd = 'Wise';
 const _wordmarkLetterSpacing = -0.8;
-const _wordmarkWeight = FontWeight.w600;
 
 // MARK: - SpendWiseWordmark
 class SpendWiseWordmark extends StatelessWidget {
@@ -19,7 +18,7 @@ class SpendWiseWordmark extends StatelessWidget {
     final colors = context.colors;
     final style = TextStyle(
       fontSize: fontSize,
-      fontWeight: _wordmarkWeight,
+      fontWeight: SpendWiseText.semibold,
       letterSpacing: _wordmarkLetterSpacing,
     );
 

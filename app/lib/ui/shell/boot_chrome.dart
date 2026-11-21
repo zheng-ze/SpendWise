@@ -50,8 +50,6 @@ const _failureTitle = "Couldn't load your data";
 const _failureMessage =
     'Something went wrong loading your data. Please try again.';
 const _failureTitleFontSize = 18.0;
-const _failureTitleWeight = FontWeight.w600;
-const _failureMessageFontSize = 12.0;
 const _retryWidth = double.infinity;
 
 // MARK: - OverviewTabEntry
@@ -153,7 +151,7 @@ class _LoadFailure extends ConsumerWidget {
       _failureTitle,
       style: theme.textTheme.headlineSmall?.copyWith(
         fontSize: _failureTitleFontSize,
-        fontWeight: _failureTitleWeight,
+        fontWeight: SpendWiseText.semibold,
         color: colors.text,
       ),
       textAlign: TextAlign.center,
@@ -161,7 +159,7 @@ class _LoadFailure extends ConsumerWidget {
     final message = Text(
       _failureMessage,
       style: theme.textTheme.bodyMedium?.copyWith(
-        fontSize: _failureMessageFontSize,
+        fontSize: context.text.body.fontSize,
         color: colors.subtext,
       ),
       textAlign: TextAlign.center,

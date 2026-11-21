@@ -7,12 +7,12 @@ import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 
 // MARK: - SettingsScreen
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  static const _dividerHeight = 1.0;
   static const _screenTitle = 'Settings';
 
   @override
@@ -28,10 +28,10 @@ class SettingsScreen extends ConsumerWidget {
           label: 'Categories',
           onTap: viewModel.requestCategories,
         ),
-        const Divider(height: _dividerHeight),
+        const Divider(height: edgeThickness),
         const SectionLabel('Hosted Sync', padding: _headerPadding),
         const _HostedSyncSection(),
-        const Divider(height: _dividerHeight),
+        const Divider(height: edgeThickness),
         const SectionLabel('Receipt Scanning', padding: _headerPadding),
         SwitchListTile(
           secondary: const Icon(Icons.document_scanner_outlined),
@@ -42,7 +42,7 @@ class SettingsScreen extends ConsumerWidget {
             ref.invalidate(scanStripEnabledProvider);
           },
         ),
-        const Divider(height: _dividerHeight),
+        const Divider(height: edgeThickness),
         const SectionLabel('Currency', padding: _headerPadding),
         const ListTile(
           leading: Icon(Icons.attach_money),
@@ -50,7 +50,7 @@ class SettingsScreen extends ConsumerWidget {
           subtitle: Text('Amounts display in Singapore dollars'),
           trailing: Text('SGD'),
         ),
-        const Divider(height: _dividerHeight),
+        const Divider(height: edgeThickness),
         const SectionLabel('Data', padding: _headerPadding),
         _SettingsLink(
           icon: Icons.delete_outline,
