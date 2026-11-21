@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:spendwise/ui/common/feedback/inline_spinner.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
 
 part 'screens/identifier_screen.dart';
@@ -18,8 +19,6 @@ int _ceilCooldownSeconds(Duration remaining) {
 }
 
 const _cooldownTick = Duration(seconds: 1);
-const _progressIndicatorSize = 20.0;
-const _progressStrokeWidth = 2.0;
 const _screenPadding = EdgeInsets.all(16);
 const _sectionSpacing = 16.0;
 const _notePadding = EdgeInsets.only(top: 12);

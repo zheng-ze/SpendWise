@@ -44,10 +44,7 @@ class _SyncOtpScreenState extends ConsumerState<SyncOtpScreen> {
     final cooldown = viewModel.codeCooldownRemaining();
     _syncCooldownTimer(cooldown);
     final action = state.inFlight
-        ? const SizedBox.square(
-            dimension: _progressIndicatorSize,
-            child: CircularProgressIndicator(strokeWidth: _progressStrokeWidth),
-          )
+        ? const InlineSpinner()
         : const Text('Verify code');
 
     return PopScope(

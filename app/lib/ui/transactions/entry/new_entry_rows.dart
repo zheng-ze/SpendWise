@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/feedback/inline_spinner.dart';
 import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/format/date_format.dart';
@@ -20,8 +21,6 @@ const _hintLineHeight = 1.4;
 const _hintPadding = EdgeInsets.only(top: 5.0, bottom: 4.0);
 
 const _spinnerSize = 14.0;
-
-const _spinnerStroke = 2.0;
 
 const _switchTapTarget = MaterialTapTargetSize.shrinkWrap;
 
@@ -366,10 +365,7 @@ class _ReceiptRow extends StatelessWidget {
   Widget build(BuildContext context) {
     const spinner = Align(
       alignment: AlignmentDirectional.centerEnd,
-      child: SizedBox.square(
-        dimension: _spinnerSize,
-        child: CircularProgressIndicator(strokeWidth: _spinnerStroke),
-      ),
+      child: InlineSpinner(size: _spinnerSize),
     );
     return AddEntryRow(
       label: scanning ? _readingReceiptLabel : _addReceiptLabel,

@@ -21,10 +21,7 @@ class SyncEnrollmentResumeScreen extends ConsumerWidget {
                   'Reconciling and publishing this device. Keep the app open.'
             : 'Finishing hosted sync enrollment.');
     final action = state.inFlight
-        ? const SizedBox.square(
-            dimension: _progressIndicatorSize,
-            child: CircularProgressIndicator(strokeWidth: _progressStrokeWidth),
-          )
+        ? const InlineSpinner()
         : const Text('Retry');
 
     return PopScope(

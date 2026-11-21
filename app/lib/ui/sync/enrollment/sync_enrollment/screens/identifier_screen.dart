@@ -56,10 +56,7 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
         ? null
         : 'Send a new code in ${_ceilCooldownSeconds(cooldown)}s';
     final action = state.inFlight
-        ? const SizedBox.square(
-            dimension: _progressIndicatorSize,
-            child: CircularProgressIndicator(strokeWidth: _progressStrokeWidth),
-          )
+        ? const InlineSpinner()
         : const Text('Continue');
 
     return PopScope(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/ui/common/feedback/inline_spinner.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 
 class BackendPickerScreen extends ConsumerStatefulWidget {
@@ -17,8 +18,6 @@ class BackendPickerScreen extends ConsumerStatefulWidget {
 class _BackendPickerScreenState extends ConsumerState<BackendPickerScreen> {
   static const _screenPadding = EdgeInsets.all(16);
   static const _continueGap = 16.0;
-  static const _progressIndicatorSize = 20.0;
-  static const _progressStrokeWidth = 2.0;
 
   late final TextEditingController _endpointController =
       TextEditingController();
@@ -38,10 +37,7 @@ class _BackendPickerScreenState extends ConsumerState<BackendPickerScreen> {
     final saveError = state.saveError;
     final isCustom = state.selectedBackend == SyncBackendKind.custom;
     final continueButton = state.saving
-        ? const SizedBox.square(
-            dimension: _progressIndicatorSize,
-            child: CircularProgressIndicator(strokeWidth: _progressStrokeWidth),
-          )
+        ? const InlineSpinner()
         : const Text('Continue');
     void selectBackend(SyncBackendKind? backend) {
       if (backend != null) viewModel.selectBackend(backend);
