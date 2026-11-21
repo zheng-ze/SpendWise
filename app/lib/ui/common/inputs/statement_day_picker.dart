@@ -113,6 +113,10 @@ class _StatementDaySheetState extends State<_StatementDaySheet> {
   }
 
   void _startEditing() {
+    if (_editing) {
+      _focus.requestFocus();
+      return;
+    }
     _field.text = '$_day';
     setState(() => _editing = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -168,12 +172,14 @@ class _StatementDaySheetState extends State<_StatementDaySheet> {
       alignment: Alignment.centerRight,
       child: _EditButton(onPressed: _startEditing),
     );
+    final fieldRow = SizedBox(height: itemExtent, child: field);
     final stack = Stack(
       alignment: Alignment.center,
       children: [
         _SelectionHighlight(height: itemExtent),
         wheel,
-        if (_editing) SizedBox(height: itemExtent, child: field) else pencil,
+        if (_editing) fieldRow,
+        pencil,
       ],
     );
     final height = itemExtent * _visibleRows;
