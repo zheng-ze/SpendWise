@@ -45,8 +45,6 @@ class _MapLabel extends StatelessWidget {
 
   static const _labelMaxLines = 3;
 
-  static const _labelLineHeight = 1.2;
-
   final CategoryMapTile tile;
 
   final Color fill;
@@ -55,8 +53,7 @@ class _MapLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       '${tile.label}\n${_shareText(tile.share)}',
-      style: _blockLabelStyle(context)
-          .copyWith(color: foregroundOn(fill), height: _labelLineHeight),
+      style: _blockLabelStyle(context).copyWith(color: foregroundOn(fill)),
       maxLines: _labelMaxLines,
       overflow: TextOverflow.ellipsis,
     );

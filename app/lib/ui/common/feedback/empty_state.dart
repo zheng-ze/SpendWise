@@ -32,8 +32,6 @@ class EmptyState extends StatelessWidget {
 
   static const _titleGap = 10.0;
 
-  static const _bodyLineHeight = 1.45;
-
   static const _bodyMaxWidth = 230.0;
 
   @override
@@ -52,10 +50,7 @@ class EmptyState extends StatelessWidget {
       bodyText = Text(
         body,
         textAlign: TextAlign.center,
-        style: context.text.body.copyWith(
-          color: colors.subtext,
-          height: _bodyLineHeight,
-        ),
+        style: context.text.body.copyWith(color: colors.subtext),
       );
     }
     final titleText = Text(

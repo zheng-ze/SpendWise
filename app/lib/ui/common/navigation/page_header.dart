@@ -4,7 +4,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
 const _pagePadding = EdgeInsets.fromLTRB(14, 12, 14, 14);
-const _titleLineHeight = 1.12;
 const _backPadding = EdgeInsets.only(bottom: 4);
 
 // MARK: - PageHeader
@@ -25,7 +24,6 @@ class PageHeader extends StatelessWidget {
           );
     final titleStyle = context.text.headline.copyWith(
       fontWeight: SpendWiseText.semibold,
-      height: _titleLineHeight,
       color: context.colors.text,
     );
     final heading = Semantics(

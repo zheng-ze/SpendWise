@@ -116,7 +116,6 @@ class _AxisCell extends StatelessWidget {
   static const _height = 28.0;
   static const _labelTopPadding = 4.0;
   static const _yearLabelLength = 4;
-  static const _bold = FontWeight.w700;
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +127,7 @@ class _AxisCell extends StatelessWidget {
       column.label,
       style: (isYear ? context.text.body : context.text.caption).copyWith(
         color: selected ? selectedColor : colors.subtext,
-        fontWeight: selected ? _bold : null,
+        fontWeight: selected ? SpendWiseText.semibold : null,
       ),
     );
     final aligned = Padding(

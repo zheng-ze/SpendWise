@@ -27,10 +27,6 @@ class MedallionRow extends StatelessWidget {
 
   final Widget? trailing;
 
-  static const _titleLineHeight = 1.25;
-
-  static const _subtitleLineHeight = 1.3;
-
   static const _medallionLabelGap = 9.0;
 
   @override
@@ -42,19 +38,13 @@ class MedallionRow extends StatelessWidget {
     final subtitle = this.subtitle;
     final titleText = Text(
       title,
-      style: context.text.body.copyWith(
-        fontWeight: SpendWiseText.semibold,
-        height: _titleLineHeight,
-      ),
+      style: context.text.body.copyWith(fontWeight: SpendWiseText.semibold),
     );
     final labelLines = <Widget>[titleText];
     if (subtitle != null) {
       final subtitleText = Text(
         subtitle,
-        style: context.text.caption.copyWith(
-          color: colors.subtext,
-          height: _subtitleLineHeight,
-        ),
+        style: context.text.caption.copyWith(color: colors.subtext),
       );
       labelLines.add(subtitleText);
     }

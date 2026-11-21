@@ -12,8 +12,6 @@ const _summaryVerticalPadding = 10.0;
 const _summaryColumnGap = 6.0;
 const _summaryStackGap = 4.0;
 const _summaryLabelAmountGap = 2.0;
-const _summaryPrimaryFontSize = 18.0;
-const _summaryPrimaryLetterSpacing = -0.3;
 const _summaryFlexScale = 100.0;
 const _summaryMetricCount = 3;
 
@@ -97,11 +95,7 @@ TextStyle _metricTextStyle(BuildContext context, bool primary) {
   if (!primary) {
     return context.text.body.copyWith(fontWeight: SpendWiseText.semibold);
   }
-  return const TextStyle(
-    fontSize: _summaryPrimaryFontSize,
-    fontWeight: SpendWiseText.medium,
-    letterSpacing: _summaryPrimaryLetterSpacing,
-  );
+  return context.text.row;
 }
 
 typedef _SummaryMetricData = ({String label, String value, TextStyle style});

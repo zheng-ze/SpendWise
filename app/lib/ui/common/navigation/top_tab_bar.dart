@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/theme/spendwise_text.dart';
+
 // MARK: - Constants
-
-const _regularWeight = FontWeight.w400;
-
-const _boldWeight = FontWeight.w700;
 
 const double _underlineThickness = 3;
 
@@ -46,10 +44,10 @@ class TopTabBar extends StatelessWidget {
                         child: Center(
                           child: Text(
                             titles[index],
-                            style: theme.textTheme.titleSmall?.copyWith(
+                            style: context.text.title.copyWith(
                               fontWeight: index == selectedIndex
-                                  ? _boldWeight
-                                  : _regularWeight,
+                                  ? SpendWiseText.semibold
+                                  : null,
                               color: index == selectedIndex
                                   ? theme.colorScheme.onSurface
                                   : theme.colorScheme.onSurfaceVariant,

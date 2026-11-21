@@ -66,7 +66,6 @@ class _LoadErrorBox extends StatelessWidget {
   static const _horizontalPadding = 12.0;
   static const _verticalPadding = 10.0;
   static const _verticalMargin = 8.0;
-  static const _messageLineHeight = 1.45;
   static const _titleGap = 2.0;
   static const _retryTopGap = 8.0;
 
@@ -86,10 +85,7 @@ class _LoadErrorBox extends StatelessWidget {
           );
     final message = Text(
       '${view.error}',
-      style: context.text.body.copyWith(
-        height: _messageLineHeight,
-        color: colors.error,
-      ),
+      style: context.text.body.copyWith(color: colors.error),
     );
     final content = <Widget>[
       if (titleText != null) ...[titleText, const SizedBox(height: _titleGap)],

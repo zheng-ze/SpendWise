@@ -72,18 +72,13 @@ class _DeleteDialog extends StatelessWidget {
 class _DeleteTitle extends StatelessWidget {
   const _DeleteTitle({required this.itemName});
 
-  static const _titleFontSize = 18.0;
-
   final String itemName;
 
   @override
   Widget build(BuildContext context) {
     return Text(
       'Delete $itemName?',
-      style: const TextStyle(
-        fontSize: _titleFontSize,
-        fontWeight: SpendWiseText.semibold,
-      ),
+      style: context.text.title.copyWith(fontWeight: SpendWiseText.semibold),
     );
   }
 }

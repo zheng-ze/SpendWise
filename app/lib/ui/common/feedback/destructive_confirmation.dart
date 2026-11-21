@@ -18,8 +18,6 @@ const _dialogRadius = 14.0;
 const _dialogBorderWidth = 1.0;
 const _dialogElevation = 0.0;
 const _transparent = Color(0x00000000);
-const _titleSize = 18.0;
-const _bodyHeight = 1.45;
 const _titleBodyGap = 6.0;
 const _bodyActionsGap = 14.0;
 const _actionsGap = 12.0;
@@ -78,15 +76,11 @@ class _DestructiveDialog extends StatelessWidget {
     final actionText = context.text.body.copyWith(
       fontWeight: SpendWiseText.semibold,
     );
-    final titleStyle = TextStyle(
+    final titleStyle = context.text.title.copyWith(
       color: colors.text,
-      fontSize: _titleSize,
       fontWeight: SpendWiseText.semibold,
     );
-    final bodyStyle = context.text.body.copyWith(
-      color: colors.subtext,
-      height: _bodyHeight,
-    );
+    final bodyStyle = context.text.body.copyWith(color: colors.subtext);
     final actionShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(_actionRadius),
     );

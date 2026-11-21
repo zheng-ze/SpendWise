@@ -33,8 +33,6 @@ class NoticeCard extends StatelessWidget {
 
   final NoticeCardAction? secondaryAction;
 
-  static const _bodyLineHeight = 1.45;
-
   static const _cornerRadius = 10.0;
 
   static const _horizontalPadding = 12.0;
@@ -56,19 +54,12 @@ class NoticeCard extends StatelessWidget {
 
     final bodyText = body == null
         ? null
-        : Text(
-            body,
-            style: context.text.body.copyWith(
-              color: colors.notice,
-              height: _bodyLineHeight,
-            ),
-          );
+        : Text(body, style: context.text.body.copyWith(color: colors.notice));
     final titleText = Text(
       title,
       style: context.text.body.copyWith(
         fontWeight: SpendWiseText.semibold,
         color: colors.notice,
-        height: _bodyLineHeight,
       ),
     );
     final content = <Widget>[titleText];
