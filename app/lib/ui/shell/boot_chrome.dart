@@ -121,10 +121,11 @@ class _BootLoading extends StatelessWidget {
       height: _progressSize,
       child: progress,
     );
+    final wordmark = SpendWiseWordmark(style: context.text.headline);
 
     return _BootPage(
       children: [
-        const SpendWiseWordmark(),
+        wordmark,
         const SizedBox(height: _bootContentGap),
         sizedProgress,
       ],
@@ -166,10 +167,11 @@ class _LoadFailure extends ConsumerWidget {
       onPressed: () => ref.read(appBootProvider).retry(),
     );
     final retry = SizedBox(width: _retryWidth, child: retryButton);
+    final wordmark = SpendWiseWordmark(style: context.text.headline);
 
     return _BootPage(
       children: [
-        const SpendWiseWordmark(),
+        wordmark,
         const SizedBox(height: _bootContentGap),
         title,
         const SizedBox(height: _bootContentGap),

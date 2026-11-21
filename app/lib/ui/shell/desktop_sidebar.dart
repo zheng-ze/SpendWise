@@ -46,6 +46,13 @@ class DesktopSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final wordmarkStyle = context.text.title.copyWith(
+      fontWeight: SpendWiseText.semibold,
+    );
+    final wordmark = Padding(
+      padding: _wordmarkPadding,
+      child: SpendWiseWordmark(style: wordmarkStyle),
+    );
     return Container(
       key: _sidebarKey,
       width: desktopSidebarWidth,
@@ -55,10 +62,7 @@ class DesktopSidebar extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Padding(
-              padding: _wordmarkPadding,
-              child: SpendWiseWordmark(),
-            ),
+            wordmark,
             for (final (index, destination) in _loopDestinations.indexed) ...[
               if (index > 0) const SizedBox(height: _sidebarItemGap),
               _SidebarDestination(

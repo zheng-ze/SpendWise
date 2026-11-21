@@ -8,14 +8,13 @@ const _wordmarkEnd = 'Wise';
 
 // MARK: - SpendWiseWordmark
 class SpendWiseWordmark extends StatelessWidget {
-  const SpendWiseWordmark({super.key});
+  const SpendWiseWordmark({super.key, required this.style});
+
+  final TextStyle style;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final style = context.text.title.copyWith(
-      fontWeight: SpendWiseText.semibold,
-    );
 
     return Text.rich(
       TextSpan(
