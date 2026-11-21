@@ -28,10 +28,9 @@ Future<ReceiptChoice?> showReceiptChoiceSheet({
     title: _titleLabel,
     body: const _ReceiptChoiceBody(),
   );
-  return showAppSheet<ReceiptChoice>(
+  return showPickerAppSheet<ReceiptChoice>(
     context,
-    presentation: presentation(context),
-    presentationResolver: presentation,
+    presentation: presentation,
     onRouteCreated: onRouteCreated,
     builder: (_) => sheet,
   );

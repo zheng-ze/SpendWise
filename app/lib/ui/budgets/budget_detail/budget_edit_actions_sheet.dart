@@ -21,10 +21,9 @@ Future<BudgetEditAction?> showBudgetEditActionsSheet({
   required BuildContext context,
   required void Function(AppSheetRoute<BudgetEditAction>) onRouteCreated,
 }) {
-  return showAppSheet<BudgetEditAction>(
+  return showPickerAppSheet<BudgetEditAction>(
     context,
-    presentation: shellSheetPresentation(context),
-    presentationResolver: shellSheetPresentation,
+    presentation: shellSheetPresentation,
     onRouteCreated: onRouteCreated,
     builder: (_) => const _BudgetEditActions(),
   );
