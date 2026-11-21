@@ -31,15 +31,34 @@ class Tray extends StatelessWidget {
 
   static const borderWidth = 1.0;
 
+  static Color fillColor(BuildContext context, {bool selected = false}) {
+    final colors = context.colors;
+    return selected ? colors.tint : colors.surface;
+  }
+
+  static BorderSide _edgeSide(BuildContext context, {bool selected = false}) {
+    final colors = context.colors;
+    final edgeColor = selected ? colors.action : colors.edge;
+    return BorderSide(color: edgeColor, width: borderWidth);
+  }
+
+  static RoundedRectangleBorder shape(
+    BuildContext context, {
+    bool selected = false,
+  }) {
+    return RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(cornerRadius),
+      side: _edgeSide(context, selected: selected),
+    );
+  }
+
   static BoxDecoration decoration(
     BuildContext context, {
     bool selected = false,
   }) {
-    final colors = context.colors;
-    final borderColor = selected ? colors.action : colors.edge;
     return BoxDecoration(
-      color: selected ? colors.tint : colors.surface,
-      border: Border.all(color: borderColor, width: borderWidth),
+      color: fillColor(context, selected: selected),
+      border: Border.fromBorderSide(_edgeSide(context, selected: selected)),
       borderRadius: BorderRadius.circular(cornerRadius),
     );
   }

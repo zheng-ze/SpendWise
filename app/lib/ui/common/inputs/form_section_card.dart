@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/sheets/tray.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - FormSectionCard
 class FormSectionCard extends StatelessWidget {
@@ -24,15 +23,9 @@ class FormSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(Tray.cornerRadius),
-      side: BorderSide(color: colors.edge, width: Tray.borderWidth),
-    );
-
     return Material(
-      color: colors.surface,
-      shape: shape,
+      color: Tray.fillColor(context),
+      shape: Tray.shape(context),
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: padding,
