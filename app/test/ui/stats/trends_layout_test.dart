@@ -196,7 +196,7 @@ void main() {
       setup.runner.pending.last.completeError(StateError('compute failed'));
       await tester.pumpAndSettle();
       expect(find.text("Couldn't load your spending"), findsOneWidget);
-      expect(find.text('Retry'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
       _expectKindAndModeControls(tester);
     },
     timeout: uiTestTimeout,
@@ -373,7 +373,7 @@ void main() {
     setup.runner.pending.last.completeError(StateError('compute failed'));
     await tester.pumpAndSettle();
     expect(stale, findsNothing);
-    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
     _expectKindAndModeControls(tester);
     expect(container.read(trendsIntentProvider).selected, selected);
     expect(
@@ -381,13 +381,13 @@ void main() {
       TrendsBreakdownScope.selectedPeriod,
     );
 
-    await tester.tap(find.text('Retry'));
+    await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
     await tester.runAsync(() => settle(setup.runner, setup.ledger));
     await tester.pumpAndSettle();
     expect(stale, findsNothing);
     expect(refreshed, findsWidgets);
-    expect(find.text('Retry'), findsNothing);
+    expect(find.text('Try again'), findsNothing);
     expect(container.read(trendsIntentProvider).selected, selected);
     expect(
       container.read(trendsBreakdownScopeProvider),

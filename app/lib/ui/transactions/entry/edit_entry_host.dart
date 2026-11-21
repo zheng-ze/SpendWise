@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/transactions/entry/edit_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
@@ -16,7 +17,7 @@ import 'package:spendwise/ui/transactions/entry/steps/entry_step_handlers.dart';
 const _loadAlert = SheetAlertData(
   message: "Couldn't load the entry form",
   severity: SheetAlertSeverity.error,
-  actionLabel: 'Retry',
+  actionLabel: loadErrorRetryLabel,
 );
 
 // MARK: - EditEntryHost

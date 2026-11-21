@@ -86,13 +86,13 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text(_loadError), findsOneWidget);
-    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
 
     final container = ProviderScope.containerOf(
       tester.element(find.byType(EditEntryHost)),
     );
     container.read(_ledgerHolder.notifier).restore(ledger);
-    await tester.tap(find.text('Retry'));
+    await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);

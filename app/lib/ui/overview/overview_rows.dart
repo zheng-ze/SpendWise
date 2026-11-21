@@ -1,7 +1,7 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/buttons/app_buttons.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
@@ -73,26 +73,9 @@ class OverviewLoadError extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
-  static const _messageGap = 10.0;
-
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          message,
-          style: TextStyle(
-            fontSize: overviewBodyFontSize,
-            fontWeight: overviewSemiBold,
-            color: context.colors.error,
-          ),
-        ),
-        const SizedBox(height: _messageGap),
-        PrimaryButton(label: overviewRetryLabel, onPressed: onRetry),
-      ],
-    );
-  }
+  Widget build(BuildContext context) =>
+      LoadErrorView.box(message: message, onRetry: onRetry);
 }
 
 // MARK: - Empty Copy

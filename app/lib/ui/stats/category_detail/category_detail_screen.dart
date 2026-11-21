@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_sections.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_trend.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
@@ -13,6 +14,7 @@ const _sectionGap = 12.0;
 const _subtitleSize = 12.0;
 const _headerGap = 2.0;
 const _statusPadding = EdgeInsets.all(24);
+const _errorMessage = 'Could not load category details';
 
 class CategoryDetailScreen extends ConsumerWidget {
   const CategoryDetailScreen({
@@ -126,10 +128,9 @@ class _CategoryDetailErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final retry = FilledButton(onPressed: onRetry, child: const Text('Retry'));
-    final content = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [const Text('Could not load category details'), retry],
+    final content = LoadErrorView.box(
+      message: _errorMessage,
+      onRetry: onRetry,
     );
     return Center(
       child: Padding(padding: _statusPadding, child: content),

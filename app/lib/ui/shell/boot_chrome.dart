@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/money/money_segment.dart';
 import 'package:spendwise/ui/overview/overview_flow.dart';
@@ -47,7 +49,6 @@ const _loadingSemanticsLabel = 'Loading your data';
 const _failureTitle = "Couldn't load your data";
 const _failureMessage =
     'Something went wrong loading your data. Please try again.';
-const _retryLabel = 'Retry';
 const _failureTitleFontSize = 18.0;
 const _failureTitleWeight = FontWeight.w600;
 const _failureMessageFontSize = 12.0;
@@ -165,9 +166,9 @@ class _LoadFailure extends ConsumerWidget {
       ),
       textAlign: TextAlign.center,
     );
-    final retryButton = FilledButton(
+    final retryButton = PrimaryButton(
+      label: loadErrorRetryLabel,
       onPressed: () => ref.read(appBootProvider).retry(),
-      child: const Text(_retryLabel),
     );
     final retry = SizedBox(width: _retryWidth, child: retryButton);
 

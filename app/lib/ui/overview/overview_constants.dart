@@ -66,8 +66,6 @@ const overviewTodayCaption = 'Today / ';
 
 const overviewTodayErrorTitle = "Couldn't load today's spending";
 
-const overviewRetryLabel = 'Retry';
-
 const overviewNothingToday = 'Nothing recorded today';
 
 const overviewGuideLabel = 'Daily guide: about ';

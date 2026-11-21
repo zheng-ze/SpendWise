@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_chrome.dart';
@@ -9,7 +10,6 @@ import 'package:spendwise/ui/transactions/entry/new_entry_form.dart';
 
 const _loadErrorMessage = "Couldn't load the entry form";
 
-const _retryLabel = 'Retry';
 
 void _scheduleDismiss(BuildContext context, VoidCallback? onDismiss) {
   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -35,7 +35,7 @@ class EntryForm extends ConsumerWidget {
       const loadAlert = SheetAlertData(
         message: _loadErrorMessage,
         severity: SheetAlertSeverity.error,
-        actionLabel: _retryLabel,
+        actionLabel: loadErrorRetryLabel,
       );
       return NewEntryLoadingForm(
         alert: failed ? loadAlert : null,

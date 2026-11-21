@@ -4,8 +4,8 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_counted_entry_list.dar
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_chart.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_presentation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
-import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/empty_state.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
@@ -26,7 +26,6 @@ const _entriesLabelPadding = EdgeInsets.fromLTRB(4, 16, 4, 8);
 const _entriesSuffix = ' ENTRIES';
 const _emptyIcon = Icons.receipt_long_outlined;
 const _failureTitle = "Couldn't load this budget";
-const _retryLabel = 'Try again';
 const _failureGap = 8.0;
 
 // MARK: - BudgetDetailContent
@@ -52,7 +51,12 @@ class BudgetDetailContent extends StatelessWidget {
     final summary = presentation.summary;
     final failureTray = failure == null
         ? null
-        : _FailureTray(reason: failure, onRetry: viewModel.retry);
+        : LoadErrorView(
+            error: failure,
+            title: _failureTitle,
+            onRetry: viewModel.retry,
+            padding: EdgeInsets.zero,
+          );
 
     final Widget body;
     if (projection != null && summary != null) {
@@ -239,28 +243,6 @@ class _EntriesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [label, content],
-    );
-  }
-}
-
-// MARK: - Failure
-class _FailureTray extends StatelessWidget {
-  const _FailureTray({required this.reason, required this.onRetry});
-
-  final Object reason;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tray(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(_failureTitle),
-          Text('$reason'),
-          PrimaryButton(label: _retryLabel, onPressed: onRetry),
-        ],
-      ),
     );
   }
 }
