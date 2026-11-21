@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: c7c4805c
+Last reconciled: f152ec0a
 
 ## Feature overview
 
@@ -71,6 +71,9 @@ notice is out of scope (issue 593).
   rendering.
 - `app/lib/ui/accounts/account_form/` - the New Account / New Subpocket sheet.
 - `app/lib/ui/accounts/source_edit/` - the Edit Account / Edit Subpocket sheet.
+- `app/lib/ui/accounts/account_fields.dart`, `account_fields_card.dart`, `account_form_frame.dart` - the
+  name/type/statement-day/balance state, setters and fields card, and the Save sheet frame, shared by
+  both forms.
 - `app/lib/ui/common/pickers/` - the account type and day pickers.
 - `app/lib/ui/plans/` - the Plans segment (see "Plans segment").
 - `packages/domain/lib/src/accounting.dart` - `accountTotal`, `netWorth`, `balance` (see
