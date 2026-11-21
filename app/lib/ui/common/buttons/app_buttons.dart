@@ -6,6 +6,15 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _semiBoldWeight = FontWeight.w600;
 
+const _actionWeight = FontWeight.w500;
+
+const _actionMinHeight = 48.0;
+
+const appActionLabelStyle = TextStyle(
+  fontSize: _labelFontSize,
+  fontWeight: _actionWeight,
+);
+
 final _shape = RoundedRectangleBorder(
   borderRadius: BorderRadius.circular(_cornerRadius),
 );
@@ -66,6 +75,7 @@ class SecondaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.outlined = false,
+    this.destructive = false,
   });
 
   final String label;
@@ -73,6 +83,8 @@ class SecondaryButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   final bool outlined;
+
+  final bool destructive;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +102,14 @@ class SecondaryButton extends StatelessWidget {
         onPressed: onPressed,
         child: Text(label),
       );
+    }
+    if (destructive) {
+      final style = TextButton.styleFrom(
+        foregroundColor: colors.error,
+        minimumSize: const Size.fromHeight(_actionMinHeight),
+        textStyle: appActionLabelStyle,
+      );
+      return TextButton(style: style, onPressed: onPressed, child: Text(label));
     }
     final style = TextButton.styleFrom(
       shape: _shape,

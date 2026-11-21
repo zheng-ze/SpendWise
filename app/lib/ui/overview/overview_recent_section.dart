@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/buttons/app_link_button.dart';
 import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
 import 'package:spendwise/ui/common/lists/medallion_row.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
@@ -63,41 +64,16 @@ class HistoryAction extends StatelessWidget {
 
   final VoidCallback onPressed;
 
-  static const _chevronGap = 4.0;
-  static const _minWidth = 48.0;
-  static const _minHeight = 48.0;
-  static const _padding = EdgeInsets.zero;
-  static const _alignment = Alignment.centerLeft;
-
   @override
   Widget build(BuildContext context) {
-    final color = context.colors.action;
+    final button = AppLinkButton(
+      label: overviewHistoryLink,
+      onPressed: onPressed,
+      color: context.colors.action,
+    );
     return Padding(
       padding: const EdgeInsets.only(top: overviewLinkTopPadding),
-      child: TextButton(
-        onPressed: onPressed,
-        style: TextButton.styleFrom(
-          foregroundColor: color,
-          minimumSize: const Size(_minWidth, _minHeight),
-          tapTargetSize: MaterialTapTargetSize.padded,
-          padding: _padding,
-          alignment: _alignment,
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              overviewHistoryLink,
-              style: TextStyle(
-                fontSize: overviewBodyFontSize,
-                fontWeight: overviewSemiBold,
-              ),
-            ),
-            SizedBox(width: _chevronGap),
-            Icon(overviewLinkChevron, size: overviewLinkIconSize),
-          ],
-        ),
-      ),
+      child: button,
     );
   }
 }

@@ -1,16 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/theme/spendwise_text.dart';
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 
 // MARK: - Visual Constants
 
 const _topSpacing = 12.0;
-
-const _actionMinHeight = 48.0;
-
-const _labelSize = 12.0;
-
-const _labelWeight = FontWeight.w500;
 
 // MARK: - Copy
 
@@ -24,19 +18,11 @@ class EditEntryDeleteAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = TextButton.styleFrom(
-      foregroundColor: context.colors.error,
-      minimumSize: const Size.fromHeight(_actionMinHeight),
-      textStyle: const TextStyle(
-        fontSize: _labelSize,
-        fontWeight: _labelWeight,
-      ),
-    );
-    final action = TextButton(
+    final action = SecondaryButton(
       key: const ValueKey('edit-entry-delete'),
-      style: style,
+      label: _deleteLabel,
+      destructive: true,
       onPressed: onDelete,
-      child: const Text(_deleteLabel),
     );
 
     return Padding(

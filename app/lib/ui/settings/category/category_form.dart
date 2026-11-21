@@ -14,7 +14,6 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/common/sheets/sheet_session.dart';
-import 'package:spendwise/ui/settings/category/category_danger_button.dart';
 import 'package:spendwise/ui/settings/category/category_form_fields.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
 import 'package:spendwise/ui/settings/category/category_subcategories_section.dart';
@@ -26,7 +25,6 @@ import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 
 const _loadingTitle = 'Category';
 const _saveLabel = 'Save';
-const _retryLabel = 'Try again';
 const _loadErrorTitle = "Couldn't load this category";
 const _saveErrorTitle = 'Could not save category';
 const _addFooterLabel = 'Save category';
@@ -205,32 +203,20 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
 
   @override
   Widget build(BuildContext context) {
-    final asyncState = ref.watch(categoryFormViewModelProvider(_args));
+    final provider = categoryFormViewModelProvider(_args);
 
-    final formState = asyncState.value;
-    if (formState != null) {
-      return _CategoryFormBody(
+    return FormSheetAsyncHost(
+      state: ref.watch(provider),
+      title: _loadingTitle,
+      loadErrorMessage: _loadErrorTitle,
+      onRetry: () => ref.invalidate(provider),
+      builder: (formState) => _CategoryFormBody(
         formState: formState,
         viewModel: _viewModel,
         nameController: _nameController,
         onSubcategoryTap: _openSubcategory,
         onAddSubcategory: _addSubcategory,
-      );
-    }
-    final error = asyncState.error;
-    if (error == null) return const FormSheetLoading(title: _loadingTitle);
-    final retry = SizedBox(
-      width: _footerWidth,
-      child: PrimaryButton(
-        label: _retryLabel,
-        onPressed: () => ref.invalidate(categoryFormViewModelProvider(_args)),
       ),
-    );
-    return FormSheetLoadError(
-      title: _loadingTitle,
-      message: _loadErrorTitle,
-      error: error,
-      footer: retry,
     );
   }
 }
@@ -316,8 +302,9 @@ class _CategoryFormBody extends StatelessWidget {
       onSubcategoryTap: onSubcategoryTap,
       onAddSubcategory: onAddSubcategory,
     );
-    final moveToBin = CategoryDangerButton(
+    final moveToBin = SecondaryButton(
       label: _moveToBinLabel,
+      destructive: true,
       onPressed: viewModel.requestDelete,
     );
     final body = formState.isEditing

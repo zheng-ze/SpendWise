@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
@@ -7,10 +8,6 @@ import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/transactions/entry/entry_pane_layout.dart';
 
 // MARK: - Visual Constants
-
-const _actionSize = 12.0;
-
-const _actionWeight = FontWeight.w600;
 
 const _sideColumnWidth = 52.0;
 
@@ -98,10 +95,7 @@ class _SideAction extends StatelessWidget {
     final style = TextButton.styleFrom(
       padding: EdgeInsets.zero,
       minimumSize: const Size(_sideColumnWidth, _actionMinHeight),
-      textStyle: const TextStyle(
-        fontSize: _actionSize,
-        fontWeight: _actionWeight,
-      ),
+      textStyle: appActionLabelStyle,
     );
 
     return TextButton(style: style, onPressed: onPressed, child: Text(label));
