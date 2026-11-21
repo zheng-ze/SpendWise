@@ -2,17 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
-const _nameSize = 12.0;
-const _captionSize = 10.0;
-const _nameWeight = FontWeight.w600;
 const _rowPadding = EdgeInsets.symmetric(vertical: 7);
 const _rowGap = 8.0;
 const _captionGap = 2.0;
 const _swatchSize = 10.0;
 const _swatchRadius = 3.0;
-const _dividerWidth = 1.0;
 const _chevron = Icons.chevron_right;
 const _chevronSize = 14.0;
 const _chevronPadding = EdgeInsets.only(left: 4);
@@ -48,16 +45,13 @@ class BreakdownRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(_swatchRadius),
       ),
     );
-    final captionStyle = TextStyle(
-      fontSize: _captionSize,
-      color: colors.subtext,
-    );
+    final captionStyle = context.text.caption.copyWith(color: colors.subtext);
     final label = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           name,
-          style: const TextStyle(fontSize: _nameSize, fontWeight: _nameWeight),
+          style: context.text.body.copyWith(fontWeight: SpendWiseText.semibold),
         ),
         const SizedBox(height: _captionGap),
         Text(caption, style: captionStyle),
@@ -84,11 +78,7 @@ class BreakdownRow extends StatelessWidget {
         ?chevron,
       ],
     );
-    final border = divided
-        ? Border(
-            bottom: BorderSide(color: colors.edge, width: _dividerWidth),
-          )
-        : null;
+    final border = divided ? bottomEdgeBorder(colors) : null;
     final surface = Container(
       padding: _rowPadding,
       decoration: BoxDecoration(border: border),

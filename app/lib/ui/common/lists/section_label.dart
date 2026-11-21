@@ -10,13 +10,12 @@ class SectionLabel extends StatelessWidget {
   final EdgeInsetsGeometry padding;
 
   static const _noPadding = EdgeInsets.zero;
-  static const _weight = FontWeight.w600;
 
   @override
   Widget build(BuildContext context) {
     final style = context.text.small.copyWith(
       color: context.colors.subtext,
-      fontWeight: _weight,
+      fontWeight: SpendWiseText.semibold,
     );
     return Padding(
       padding: padding,

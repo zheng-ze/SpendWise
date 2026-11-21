@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
 const _defaultPreviousLabel = 'Previous';
 const _defaultNextLabel = 'Next';
-const _labelFontSize = 12.0;
-const _labelWeight = FontWeight.w600;
 
 // MARK: - PeriodStepper
 class PeriodStepper extends StatelessWidget {
@@ -34,10 +33,7 @@ class PeriodStepper extends StatelessWidget {
     final text = Text(
       label,
       textAlign: TextAlign.center,
-      style: const TextStyle(
-        fontSize: _labelFontSize,
-        fontWeight: _labelWeight,
-      ),
+      style: context.text.body.copyWith(fontWeight: SpendWiseText.semibold),
     );
     final previous = _StepperArrow(
       icon: Icons.chevron_left,
@@ -81,7 +77,6 @@ class _StepperArrow extends StatelessWidget {
   static const _disabledOpacity = 0.6;
   static const _dashLength = 3.0;
   static const _dashGap = 3.0;
-  static const _borderWidth = 1.0;
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +102,7 @@ class _StepperArrow extends StatelessWidget {
                 radius: _radius,
                 dash: _dashLength,
                 gap: _dashGap,
-                width: _borderWidth,
+                width: edgeThickness,
               ),
               child: Center(child: glyph),
             ),

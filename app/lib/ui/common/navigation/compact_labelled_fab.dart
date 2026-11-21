@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
-// MARK: - Constants
-
-const _semiBoldWeight = FontWeight.w600;
-
 // MARK: - CompactLabelledFab
 class CompactLabelledFab extends StatelessWidget {
   const CompactLabelledFab({
@@ -23,8 +19,6 @@ class CompactLabelledFab extends StatelessWidget {
 
   static const _cornerRadius = 14.0;
 
-  static const _labelFontSize = 12.0;
-
   static const _iconSize = 16.0;
 
   static const _iconLabelGap = 6.0;
@@ -39,10 +33,11 @@ class CompactLabelledFab extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final radius = BorderRadius.circular(_cornerRadius);
-    final labelStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
-      fontSize: _labelFontSize,
-      fontWeight: _semiBoldWeight,
-      color: colors.onAction,
+    final labelStyle = Theme.of(context).textTheme.labelLarge?.merge(
+      context.text.body.copyWith(
+        fontWeight: SpendWiseText.semibold,
+        color: colors.onAction,
+      ),
     );
     final glyph = ExcludeSemantics(
       child: Icon(icon, size: _iconSize, color: colors.onAction),

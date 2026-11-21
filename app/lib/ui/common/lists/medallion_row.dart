@@ -3,10 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/common/lists/icon_medallion.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
-// MARK: - Constants
-
-const _semiBoldWeight = FontWeight.w600;
-
 // MARK: - MedallionRow
 class MedallionRow extends StatelessWidget {
   const MedallionRow({
@@ -31,11 +27,7 @@ class MedallionRow extends StatelessWidget {
 
   final Widget? trailing;
 
-  static const _titleFontSize = 12.0;
-
   static const _titleLineHeight = 1.25;
-
-  static const _subtitleFontSize = 10.0;
 
   static const _subtitleLineHeight = 1.3;
 
@@ -50,9 +42,8 @@ class MedallionRow extends StatelessWidget {
     final subtitle = this.subtitle;
     final titleText = Text(
       title,
-      style: const TextStyle(
-        fontSize: _titleFontSize,
-        fontWeight: _semiBoldWeight,
+      style: context.text.body.copyWith(
+        fontWeight: SpendWiseText.semibold,
         height: _titleLineHeight,
       ),
     );
@@ -60,8 +51,7 @@ class MedallionRow extends StatelessWidget {
     if (subtitle != null) {
       final subtitleText = Text(
         subtitle,
-        style: TextStyle(
-          fontSize: _subtitleFontSize,
+        style: context.text.caption.copyWith(
           color: colors.subtext,
           height: _subtitleLineHeight,
         ),
