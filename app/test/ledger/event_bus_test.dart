@@ -3,8 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:sync/sync.dart';
 
-Account _account({String name = 'acc'}) =>
-    Account(name: name, type: AccountType.savings);
+import '../support/ledger_fixtures.dart';
 
 void main() {
   test('subscriberReceivesPublishedBatch', () {
@@ -12,7 +11,7 @@ void main() {
     final received = <List<LedgerChange>>[];
     bus.subscribe().listen((publication) => received.add(publication.changes));
 
-    final a = _account();
+    final a = testAccount();
     bus.publish([UpsertAccount(a)]);
 
     expect(received, hasLength(1));
@@ -24,7 +23,7 @@ void main() {
     final received = <List<LedgerChange>>[];
     bus.subscribe().listen((publication) => received.add(publication.changes));
 
-    final a = _account();
+    final a = testAccount();
     final entry = Entry(amount: Decimal.fromInt(10), name: 'x', sourceID: a.id);
     bus.publish([UpsertAccount(a), UpsertEntry(entry)]);
 
@@ -38,9 +37,9 @@ void main() {
     final received = <List<LedgerChange>>[];
     bus.subscribe().listen((publication) => received.add(publication.changes));
 
-    final a = _account(name: 'a');
-    final b = _account(name: 'b');
-    final c = _account(name: 'c');
+    final a = testAccount(name: 'a');
+    final b = testAccount(name: 'b');
+    final c = testAccount(name: 'c');
     bus.publish([UpsertAccount(a)]);
     bus.publish([UpsertAccount(b)]);
     bus.publish([UpsertAccount(c)]);
@@ -59,7 +58,7 @@ void main() {
     bus.subscribe().listen((publication) => first.add(publication.changes));
     bus.subscribe().listen((publication) => second.add(publication.changes));
 
-    final a = _account();
+    final a = testAccount();
     bus.publish([UpsertAccount(a)]);
 
     expect(first, [
@@ -76,7 +75,7 @@ void main() {
     bus.subscribe().listen((publication) => received.add(publication.changes));
 
     bus.publish([]);
-    final a = _account();
+    final a = testAccount();
     bus.publish([UpsertAccount(a)]);
 
     expect(received, [
@@ -89,8 +88,8 @@ void main() {
     final received = <List<LedgerChange>>[];
     bus.subscribe().listen((publication) => received.add(publication.changes));
 
-    final a = _account(name: 'a');
-    final b = _account(name: 'b');
+    final a = testAccount(name: 'a');
+    final b = testAccount(name: 'b');
     bus.publish([UpsertAccount(a)]);
     bus.publish([UpsertAccount(b)]);
 
@@ -105,10 +104,10 @@ void main() {
     final received = <List<LedgerChange>>[];
     bus.subscribe().listen((publication) => received.add(publication.changes));
 
-    bus.publish([UpsertAccount(_account())]);
+    bus.publish([UpsertAccount(testAccount())]);
 
     expect(
-      () => received.single.add(UpsertAccount(_account())),
+      () => received.single.add(UpsertAccount(testAccount())),
       throwsUnsupportedError,
     );
   });
@@ -120,10 +119,10 @@ void main() {
       (publication) => received.add(publication.changes),
     );
 
-    final a = _account(name: 'a');
+    final a = testAccount(name: 'a');
     bus.publish([UpsertAccount(a)]);
     await subscription.cancel();
-    bus.publish([UpsertAccount(_account(name: 'b'))]);
+    bus.publish([UpsertAccount(testAccount(name: 'b'))]);
 
     expect(received, [
       [UpsertAccount(a)],
@@ -136,13 +135,13 @@ void main() {
 
     await bus.dispose();
 
-    expect(() => bus.publish([UpsertAccount(_account())]), throwsStateError);
+    expect(() => bus.publish([UpsertAccount(testAccount())]), throwsStateError);
   });
 
   test('reentrantPublishFromSubscriberThrows', () {
     final bus = EventBus();
-    final a = _account(name: 'a');
-    final b = _account(name: 'b');
+    final a = testAccount(name: 'a');
+    final b = testAccount(name: 'b');
     final received = <List<LedgerChange>>[];
     Object? caught;
     bus.subscribe().listen((publication) {
@@ -168,7 +167,7 @@ void main() {
     final publications = <LedgerPublication>[];
     bus.subscribe().listen(publications.add);
 
-    bus.publish([UpsertAccount(_account())]);
+    bus.publish([UpsertAccount(testAccount())]);
 
     expect(publications, hasLength(1));
     expect(publications.single.stamps, isNull);
@@ -180,7 +179,7 @@ void main() {
     final publications = <LedgerPublication>[];
     bus.subscribe().listen(publications.add);
 
-    final account = _account();
+    final account = testAccount();
     final row = SyncRowID.of(SyncCollection.moneySources, account.id);
     final stamps = {
       row: VersionVector({'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa': 3}),
@@ -198,7 +197,7 @@ void main() {
     final publications = <LedgerPublication>[];
     bus.subscribe().listen(publications.add);
 
-    final account = _account();
+    final account = testAccount();
     final row = SyncRowID.of(SyncCollection.moneySources, account.id);
     bus.publish(
       [UpsertAccount(account)],
@@ -227,7 +226,7 @@ void main() {
       '4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43',
     );
     bus.publish([], stamps: {row: VersionVector.empty});
-    bus.publish([UpsertAccount(_account())]);
+    bus.publish([UpsertAccount(testAccount())]);
 
     expect(publications, hasLength(1));
     expect(publications.single.stamps, isNull);
@@ -238,7 +237,7 @@ void main() {
     var delivered = false;
     bus.subscribe().listen((_) => delivered = true);
 
-    bus.publish([UpsertAccount(_account())]);
+    bus.publish([UpsertAccount(testAccount())]);
 
     expect(delivered, isTrue);
   });

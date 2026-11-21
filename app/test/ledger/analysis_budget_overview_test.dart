@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/analysis/budgets/budget_overview.dart';
 
+import '../support/ledger_fixtures.dart';
+
 const _foodID = 'a0000000-0000-0000-0000-00000000000f';
 const _hawkerID = 'a0000000-0000-0000-0000-0000000000a1';
 const _transportID = 'a0000000-0000-0000-0000-0000000000b2';
@@ -10,30 +12,48 @@ const _coffeeID = 'a0000000-0000-0000-0000-0000000000c3';
 const _lookalikeID = 'a0000000-0000-0000-0000-0000000000d4';
 const _month = YearMonth(2026, 10);
 final _october3 = DateTime.utc(2026, 10, 3);
+const _categoryColorHex = '#00AA00';
+const _categorySymbol = 'restaurant';
 
 Decimal dec(String value) => Decimal.parse(value);
-
-TransactionCategory category(String id, String name, {String? parentID}) =>
-    TransactionCategory(
-      id: id,
-      name: name,
-      kind: CategoryKind.expense,
-      colorHex: '#00AA00',
-      includeInAnalysis: true,
-      parentID: parentID,
-      symbol: 'restaurant',
-    );
 
 Budget budget(String? categoryID, String limit, {String? id}) =>
     Budget(id: id, categoryID: categoryID, limit: dec(limit));
 
 LedgerState ledgerWith(List<Budget> budgets) {
   final categories = [
-    category(_foodID, 'Food'),
-    category(_hawkerID, 'Hawker', parentID: _foodID),
-    category(_transportID, 'Transport'),
-    category(_coffeeID, 'Coffee', parentID: _transportID),
-    category(_lookalikeID, ' food '),
+    testCategory(
+      id: _foodID,
+      name: 'Food',
+      colorHex: _categoryColorHex,
+      symbol: _categorySymbol,
+    ),
+    testCategory(
+      id: _hawkerID,
+      name: 'Hawker',
+      colorHex: _categoryColorHex,
+      parentID: _foodID,
+      symbol: _categorySymbol,
+    ),
+    testCategory(
+      id: _transportID,
+      name: 'Transport',
+      colorHex: _categoryColorHex,
+      symbol: _categorySymbol,
+    ),
+    testCategory(
+      id: _coffeeID,
+      name: 'Coffee',
+      colorHex: _categoryColorHex,
+      parentID: _transportID,
+      symbol: _categorySymbol,
+    ),
+    testCategory(
+      id: _lookalikeID,
+      name: ' food ',
+      colorHex: _categoryColorHex,
+      symbol: _categorySymbol,
+    ),
   ];
   return LedgerState(
     categories: {for (final c in categories) c.id: c},

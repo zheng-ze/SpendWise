@@ -8,12 +8,7 @@ import 'package:spendwise/persistence/store/persistence_processor.dart';
 import 'package:sync/sync.dart';
 
 import '../support/in_memory_ledger_store.dart';
-
-Account _account({String name = 'acc'}) =>
-    Account(name: name, type: AccountType.savings);
-
-Entry _entry(String sourceID) =>
-    Entry(amount: Decimal.fromInt(-10), name: 'entry', sourceID: sourceID);
+import '../support/ledger_fixtures.dart';
 
 class _GatedStore extends InMemoryLedgerStore {
   final Completer<void> gate = Completer<void>();
@@ -32,7 +27,7 @@ void main() {
     final processor = PersistenceProcessor(store: store, bus: bus);
     await processor.start();
 
-    final a = _account();
+    final a = testAccount();
     final entry = Entry(
       amount: Decimal.fromInt(100),
       name: 'x',
@@ -52,7 +47,7 @@ void main() {
     final processor = PersistenceProcessor(store: store, bus: bus);
     await processor.start();
 
-    final first = _account(name: 'first');
+    final first = testAccount(name: 'first');
     final renamed = Account(id: first.id, name: 'second', type: first.type);
     bus.publish([UpsertAccount(first)]);
     bus.publish([UpsertAccount(renamed)]);
@@ -69,7 +64,7 @@ void main() {
     await processor.start();
     final ledger = Ledger(bus: bus);
 
-    final a = _account();
+    final a = testAccount();
     ledger.addAccount(a);
     final entry = Entry(
       amount: Decimal.fromInt(-25),
@@ -92,7 +87,9 @@ void main() {
     final ledger = Ledger(bus: bus);
 
     expect(
-      () => ledger.addEntry(_entry('4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43')),
+      () => ledger.addEntry(
+        testEntry(sourceID: '4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43'),
+      ),
       throwsA(isA<UnknownHolder>()),
     );
     await processor.flush();
@@ -107,10 +104,10 @@ void main() {
     final processor = PersistenceProcessor(store: store, bus: bus);
     await processor.start();
 
-    final before = _account(name: 'before');
+    final before = testAccount(name: 'before');
     bus.publish([UpsertAccount(before)]);
     await processor.dispose();
-    bus.publish([UpsertAccount(_account(name: 'after'))]);
+    bus.publish([UpsertAccount(testAccount(name: 'after'))]);
     await processor.flush();
 
     expect(store.enqueuedBatches, [
@@ -135,11 +132,11 @@ void main() {
     final processor = PersistenceProcessor(store: store, bus: bus);
     await processor.start();
 
-    final first = _account(name: 'first');
+    final first = testAccount(name: 'first');
     bus.publish([UpsertAccount(first)]);
     await processor.flush();
 
-    final second = _account(name: 'second');
+    final second = testAccount(name: 'second');
     bus.publish([UpsertAccount(second)]);
     await processor.flush();
 
@@ -154,7 +151,7 @@ void main() {
     final processor = PersistenceProcessor(store: store, bus: bus);
     await processor.start();
 
-    final a = _account();
+    final a = testAccount();
     bus.publish([UpsertAccount(a)]);
 
     expect((await store.load()).moneySources[a.id], isNull);
@@ -169,13 +166,13 @@ void main() {
 
     final starting = processor.start();
 
-    final early = _account(name: 'early');
+    final early = testAccount(name: 'early');
     bus.publish([UpsertAccount(early)]);
 
     store.gate.complete();
     await starting;
 
-    final late = _account(name: 'late');
+    final late = testAccount(name: 'late');
     bus.publish([UpsertAccount(late)]);
     await processor.flush();
 
@@ -190,8 +187,8 @@ void main() {
     final processor = PersistenceProcessor(store: store, bus: bus);
     await processor.start();
 
-    final a = _account(name: 'a');
-    final b = _account(name: 'b');
+    final a = testAccount(name: 'a');
+    final b = testAccount(name: 'b');
     bus.publish([UpsertAccount(a)]);
     bus.publish([UpsertAccount(b), UpsertAccount(a)]);
     await processor.flush();
@@ -208,7 +205,7 @@ void main() {
     final processor = PersistenceProcessor(store: store, bus: bus);
     await processor.start();
 
-    final a = _account();
+    final a = testAccount();
     bus.publish([UpsertAccount(a)]);
     await processor.flush();
 
@@ -227,7 +224,7 @@ void main() {
     final processor = PersistenceProcessor(store: store, bus: bus);
     await processor.start();
 
-    final a = _account();
+    final a = testAccount();
     final stamps = {
       SyncRowID.of(SyncCollection.moneySources, a.id): VersionVector({
         'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa': 3,
@@ -251,7 +248,7 @@ void main() {
     final processor = PersistenceProcessor(store: store, bus: bus);
     await processor.start();
 
-    final a = _account();
+    final a = testAccount();
     bus.publish([UpsertAccount(a)], stamps: const {});
     await processor.flush();
 

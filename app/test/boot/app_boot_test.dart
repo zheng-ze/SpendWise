@@ -4,10 +4,8 @@ import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/persistence/store/ledger_store.dart';
 
+import '../support/ledger_fixtures.dart';
 import '../support/recording_ledger_store.dart';
-
-Account _account({String name = 'acc'}) =>
-    Account(name: name, type: AccountType.savings);
 
 List<LedgerChange> _seed(Account account) => [UpsertAccount(account)];
 
@@ -20,7 +18,7 @@ void main() {
   test('storeIsWiredForErrorsBeforeSeedingAndSeededBeforeLoad', () async {
     final store = RecordingLedgerStore();
 
-    await _boot(store, seed: _seed(_account())).start();
+    await _boot(store, seed: _seed(testAccount())).start();
 
     expect(
       store.calls.where((call) => call != StoreCall.start).toList(),
@@ -33,7 +31,7 @@ void main() {
   });
 
   test('readyCarriesTheLoadedState', () async {
-    final account = _account(name: 'loaded');
+    final account = testAccount(name: 'loaded');
     final store = RecordingLedgerStore(
       state: LedgerState(
         moneySources: {account.id: MoneySource.account(account)},
@@ -77,7 +75,7 @@ void main() {
       test('failsWhen${step.name}Throws', () async {
         final store = RecordingLedgerStore()..failOn = step;
 
-        final boot = _boot(store, seed: _seed(_account()));
+        final boot = _boot(store, seed: _seed(testAccount()));
         await boot.start();
 
         final phase = boot.phase;
@@ -128,7 +126,7 @@ void main() {
     await boot.start();
 
     final ready = boot.phase as Ready;
-    final account = _account(name: 'after boot');
+    final account = testAccount(name: 'after boot');
     ready.ledger.addAccount(account);
     await ready.persistence.flush();
 
@@ -171,7 +169,7 @@ void main() {
     final store = _SeedFailingStore();
     final boot = AppBoot(
       createStore: () async => store,
-      seedChanges: () => _seed(_account()),
+      seedChanges: () => _seed(testAccount()),
       onSaveState: states.add,
     );
 

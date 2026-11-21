@@ -1,6 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
+import '../support/ledger_fixtures.dart';
 import 'analysis_test_support.dart';
 
 typedef PaceRow = ({String categoryKey, DateTime date, String amount});
@@ -113,21 +114,13 @@ List<AnalysisItem> paceItems() {
 }
 
 TransactionCategory _category(String key, CategoryKind kind) {
-  return TransactionCategory(
-    id: paceCategoryIDs[key]!,
-    name: key,
-    kind: kind,
-    colorHex: '#000000',
-    includeInAnalysis: true,
-    parentID: null,
-    symbol: 'tag',
-  );
+  return testCategory(id: paceCategoryIDs[key]!, name: key, kind: kind);
 }
 
 Entry _entry(int index, PaceRow row) {
   final isIncome = row.categoryKey == paceSalary;
   final amount = Decimal.parse(row.amount);
-  return Entry(
+  return testEntry(
     id: testId(100 + index),
     amount: isIncome ? amount : -amount,
     name: row.categoryKey,

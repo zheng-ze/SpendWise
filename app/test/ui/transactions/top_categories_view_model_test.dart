@@ -21,6 +21,7 @@ import 'package:spendwise/ui/transactions/top_categories_view_state.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 import '../../ledger/analysis_test_support.dart';
+import '../../support/ledger_fixtures.dart';
 
 const _readyTimeout = Duration(seconds: 5);
 const _pollInterval = Duration(milliseconds: 1);
@@ -540,7 +541,7 @@ void main() {
   });
 
   test('row metadata uses saved values and existing fallbacks', () async {
-    final category = _category(
+    final category = testCategory(
       id: 'c0000000-0000-0000-0000-000000000001',
       name: 'Saved name',
       colorHex: 'malformed',
@@ -656,7 +657,7 @@ ProviderContainer _container(
 _Fixture _fixture() {
   final categories = <TransactionCategory>[
     for (var index = 1; index <= 4; index++)
-      _category(
+      testCategory(
         id: 'c0000000-0000-0000-0000-${index.toString().padLeft(12, '0')}',
         name: 'Category $index',
         colorHex: index == 1 ? '#123456' : '#AABBCC',
@@ -679,7 +680,7 @@ _Fixture _fixture() {
 
 Ledger _singleCategoryLedger({required String name, required int amount}) {
   const categoryID = 'c0000000-0000-0000-0000-000000000001';
-  final category = _category(
+  final category = testCategory(
     id: categoryID,
     name: name,
     colorHex: '#123456',
@@ -693,7 +694,7 @@ Ledger _singleCategoryLedger({required String name, required int amount}) {
 
 Ledger _incomeLedger() {
   const categoryID = 'c0000000-0000-0000-0000-000000000001';
-  final category = _category(
+  final category = testCategory(
     id: categoryID,
     name: 'Salary',
     kind: CategoryKind.income,
@@ -706,26 +707,9 @@ Ledger _incomeLedger() {
   );
 }
 
-TransactionCategory _category({
-  required String id,
-  required String name,
-  CategoryKind kind = CategoryKind.expense,
-  required String colorHex,
-  String? parentID,
-  required String symbol,
-}) => TransactionCategory(
-  id: id,
-  name: name,
-  kind: kind,
-  colorHex: colorHex,
-  includeInAnalysis: true,
-  parentID: parentID,
-  symbol: symbol,
-);
-
 Ledger _ledgerWith(List<TransactionCategory> categories, List<Entry> entries) {
   const accountID = 'a0000000-0000-0000-0000-000000000001';
-  final account = Account(
+  final account = testAccount(
     id: accountID,
     name: 'Checking',
     type: AccountType.checking,
@@ -754,7 +738,7 @@ Entry _entry(
   final entryID =
       id ??
       'e0000000-0000-0000-0000-${(_nextEntryID++).toString().padLeft(12, '0')}';
-  return Entry(
+  return testEntry(
     id: entryID,
     amount: Decimal.fromInt(amount),
     name: 'Entry $entryID',
@@ -772,38 +756,38 @@ Ledger _boundaryLedger() {
   const thirdID = 'c0000000-0000-0000-0000-000000000003';
   const fourthID = 'c0000000-0000-0000-0000-000000000004';
   final categories = [
-    _category(
+    testCategory(
       id: firstID,
       name: 'Parent one',
       colorHex: '#123456',
       symbol: 'restaurant',
     ),
-    _category(
+    testCategory(
       id: secondID,
       name: 'Parent two',
       colorHex: '#123456',
       symbol: 'restaurant',
     ),
-    _category(
+    testCategory(
       id: thirdID,
       name: 'Parent three',
       colorHex: '#123456',
       symbol: 'restaurant',
     ),
-    _category(
+    testCategory(
       id: fourthID,
       name: 'Parent four',
       colorHex: '#123456',
       symbol: 'restaurant',
     ),
-    _category(
+    testCategory(
       id: 'c0000000-0000-0000-0000-000000000005',
       name: 'Child one',
       parentID: firstID,
       colorHex: '#123456',
       symbol: 'restaurant',
     ),
-    _category(
+    testCategory(
       id: 'c0000000-0000-0000-0000-000000000006',
       name: 'Salary',
       kind: CategoryKind.income,
@@ -838,7 +822,7 @@ Ledger _boundaryLedger() {
 Ledger _smallExpenseLedger(int rowCount) {
   final categories = [
     for (var index = 1; index <= rowCount; index++)
-      _category(
+      testCategory(
         id: 'c0000000-0000-0000-0000-${index.toString().padLeft(12, '0')}',
         name: 'Category $index',
         colorHex: '#123456',

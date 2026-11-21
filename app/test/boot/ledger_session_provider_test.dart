@@ -4,7 +4,6 @@ import 'package:domain/domain.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger_session.dart';
@@ -12,25 +11,15 @@ import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_view_model.dart';
 
+import '../support/boot_ready.dart';
 import '../support/in_memory_ledger_store.dart';
-
-Account _account({String name = 'acc'}) =>
-    Account(name: name, type: AccountType.savings);
-
-TransactionCategory _category({String name = 'food'}) => TransactionCategory(
-  name: name,
-  kind: CategoryKind.expense,
-  colorHex: '#000000',
-  includeInAnalysis: true,
-  parentID: null,
-  symbol: 'tag',
-);
+import '../support/ledger_fixtures.dart';
 
 LedgerState _stateWithExpense() {
   final state = LedgerState();
-  final account = _account();
+  final account = testAccount();
   state.addAccount(account);
-  final category = _category();
+  final category = testCategory(name: 'food');
   state.addCategory(category);
   state.addEntry(
     Entry(
@@ -71,14 +60,6 @@ ProviderContainer _containerFor(
   return container;
 }
 
-Future<Ready> _readyPhase(ProviderContainer container) async {
-  final boot = container.read(appBootProvider);
-  while (boot.phase is! Ready) {
-    await Future<void>.delayed(Duration.zero);
-  }
-  return boot.phase as Ready;
-}
-
 LedgerSession _readySession(ProviderContainer container) {
   final session = container.read(ledgerSessionProvider);
   expect(session, isNotNull);
@@ -98,7 +79,7 @@ void main() {
     expect(container.read(ledgerProvider), isNull);
     expect(container.read(ledgerSessionProvider), isNull);
 
-    await _readyPhase(container);
+    await readyPhase(container);
 
     expect(container.read(ledgerSessionProvider), isNotNull);
   });
@@ -108,14 +89,14 @@ void main() {
       InMemoryLedgerStore(hasSeeded: true),
       syncComputeRunner,
     );
-    final ready = await _readyPhase(container);
+    final ready = await readyPhase(container);
 
     final session = _readySession(container);
     final cache = session.analysisCache;
 
     expect(session.ledger, same(ready.ledger));
 
-    ready.ledger.addAccount(_account());
+    ready.ledger.addAccount(testAccount());
 
     expect(cache.revision, 1);
   });
@@ -125,7 +106,7 @@ void main() {
       InMemoryLedgerStore(hasSeeded: true),
       syncComputeRunner,
     );
-    await _readyPhase(container);
+    await readyPhase(container);
 
     final first = _readySession(container).analysisCache;
     final second = _readySession(container).analysisCache;
@@ -140,7 +121,7 @@ void main() {
       runner.call,
     );
     final boot = container.read(appBootProvider);
-    final firstReady = await _readyPhase(container);
+    final firstReady = await readyPhase(container);
     final oldCache = _readySession(container).analysisCache;
     var newNotifications = 0;
 
@@ -148,7 +129,7 @@ void main() {
     expect(runner.pending, hasLength(1));
 
     await boot.retry();
-    await _readyPhase(container);
+    await readyPhase(container);
     final newCache = _readySession(container).analysisCache;
     newCache.addListener(() => newNotifications++);
 
@@ -176,7 +157,7 @@ void main() {
       syncComputeRunner,
     );
     final boot = container.read(appBootProvider);
-    await _readyPhase(container);
+    await readyPhase(container);
 
     final before = await _openTrends(container);
     expect(before.value.headline.amount, '-S\$10.00');
@@ -184,7 +165,7 @@ void main() {
     await before.close();
 
     await boot.retry();
-    final secondReady = await _readyPhase(container);
+    final secondReady = await readyPhase(container);
     final newCache = _readySession(container).analysisCache;
     expect(identical(newCache, oldCache), isFalse);
     expect(() => oldCache.addListener(() {}), throwsFlutterError);

@@ -4,6 +4,7 @@ import 'package:spendwise/ledger/analysis/breakdowns/analysis_category_scope.dar
 import 'package:spendwise/ledger/analysis/summaries/month_spread.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
 
+import '../support/ledger_fixtures.dart';
 import 'analysis_test_support.dart';
 
 final _main = testId(1);
@@ -30,21 +31,6 @@ class _Booking {
   final DateTime date;
 }
 
-TransactionCategory _category(
-  String id, {
-  String? parent,
-  CategoryKind kind = CategoryKind.expense,
-}) => TransactionCategory(
-  id: id,
-  name: id,
-  kind: kind,
-  colorHex: '#000000',
-  includeInAnalysis: true,
-  parentID: parent,
-  symbol: 'tag',
-  lifecycle: LifecycleState.active,
-);
-
 LedgerState _state({
   required List<TransactionCategory> categories,
   required List<_Booking> bookings,
@@ -64,25 +50,13 @@ LedgerState _state({
       ),
     );
   categories.forEach(state.addCategory);
-  Entry entry(
-    int amount, {
-    String? categoryID,
-    String? destinationID,
-    DateTime? date,
-  }) => Entry(
-    id: null,
-    amount: Decimal.fromInt(amount),
-    name: 'entry',
-    sourceID: _checking,
-    destinationID: destinationID,
-    categoryID: categoryID,
-    date: date ?? _day,
-    includeInAnalysis: true,
-  );
   for (final booking in bookings) {
     state.addEntry(
-      entry(
-        booking.income ? booking.amount : -booking.amount,
+      testEntry(
+        sourceID: _checking,
+        amount: Decimal.fromInt(
+          booking.income ? booking.amount : -booking.amount,
+        ),
         categoryID: booking.categoryID,
         date: booking.date,
       ),
@@ -90,8 +64,9 @@ LedgerState _state({
   }
   if (syntheticTransfer > 0) {
     state.addEntry(
-      entry(
-        syntheticTransfer,
+      testEntry(
+        sourceID: _checking,
+        amount: Decimal.fromInt(syntheticTransfer),
         destinationID: _flagged,
         date: transferDate ?? _day,
       ),
@@ -102,11 +77,11 @@ LedgerState _state({
 
 LedgerState _coreState() => _state(
   categories: [
-    _category(_main),
-    _category(_childA, parent: _main),
-    _category(_childB, parent: _main),
-    _category(_other),
-    _category(_otherChild, parent: _other),
+    testCategory(id: _main, name: _main),
+    testCategory(id: _childA, name: _childA, parentID: _main),
+    testCategory(id: _childB, name: _childB, parentID: _main),
+    testCategory(id: _other, name: _other),
+    testCategory(id: _otherChild, name: _otherChild, parentID: _other),
   ],
   bookings: [
     _Booking(_childA, 2, date: DateTime.utc(2027, 1, 10)),
@@ -292,10 +267,15 @@ void main() {
     test('includes future months for the income kind', () {
       final state = _state(
         categories: [
-          _category(_incomeMain, kind: CategoryKind.income),
-          _category(
-            _incomeChild,
-            parent: _incomeMain,
+          testCategory(
+            id: _incomeMain,
+            name: _incomeMain,
+            kind: CategoryKind.income,
+          ),
+          testCategory(
+            id: _incomeChild,
+            name: _incomeChild,
+            parentID: _incomeMain,
             kind: CategoryKind.income,
           ),
         ],
@@ -379,8 +359,8 @@ void main() {
     test('exactly twelve months with half-open inclusion', () {
       final state = _state(
         categories: [
-          _category(_main),
-          _category(_childA, parent: _main),
+          testCategory(id: _main, name: _main),
+          testCategory(id: _childA, name: _childA, parentID: _main),
         ],
         bookings: [
           _Booking(_childA, 100, date: DateTime.utc(2026, 5, 31)),
@@ -414,9 +394,9 @@ void main() {
     test('includes january and december bookings', () {
       final state = _state(
         categories: [
-          _category(_main),
-          _category(_childA, parent: _main),
-          _category(_childB, parent: _main),
+          testCategory(id: _main, name: _main),
+          testCategory(id: _childA, name: _childA, parentID: _main),
+          testCategory(id: _childB, name: _childB, parentID: _main),
         ],
         bookings: [
           _Booking(_childA, 6, date: DateTime.utc(2026, 1, 5)),
@@ -444,9 +424,9 @@ void main() {
     test('empty scopes keep twelve zero slots in both modes', () {
       final state = _state(
         categories: [
-          _category(_main),
-          _category(_childA, parent: _main),
-          _category(_childB, parent: _main),
+          testCategory(id: _main, name: _main),
+          testCategory(id: _childA, name: _childA, parentID: _main),
+          testCategory(id: _childB, name: _childB, parentID: _main),
         ],
         bookings: [_Booking(_childA, 6, date: DateTime.utc(2027, 1, 10))],
       );
@@ -476,8 +456,17 @@ void main() {
   group('income', () {
     LedgerState incomeState() => _state(
       categories: [
-        _category(_incomeMain, kind: CategoryKind.income),
-        _category(_incomeChild, parent: _incomeMain, kind: CategoryKind.income),
+        testCategory(
+          id: _incomeMain,
+          name: _incomeMain,
+          kind: CategoryKind.income,
+        ),
+        testCategory(
+          id: _incomeChild,
+          name: _incomeChild,
+          parentID: _incomeMain,
+          kind: CategoryKind.income,
+        ),
       ],
       bookings: [
         _Booking(
@@ -715,8 +704,8 @@ void main() {
       const upperChild = '12345678-ABCD-4000-8000-ABCDEFABCDEF';
       final state = _state(
         categories: [
-          _category(upperMain),
-          _category(upperChild, parent: upperMain),
+          testCategory(id: upperMain, name: upperMain),
+          testCategory(id: upperChild, name: upperChild, parentID: upperMain),
         ],
         bookings: [
           _Booking(upperChild, 6, date: DateTime.utc(2027, 1, 10)),
@@ -787,7 +776,7 @@ void main() {
 
     test('null main works for all and direct', () {
       final state = _state(
-        categories: [_category(_main)],
+        categories: [testCategory(id: _main, name: _main)],
         bookings: [
           _Booking(null, 5, date: DateTime.utc(2027, 1, 10)),
           _Booking(_main, 20, date: DateTime.utc(2027, 1, 10)),
@@ -835,7 +824,7 @@ void main() {
 
     test('synthetic main works for all and direct', () {
       final state = _state(
-        categories: [_category(_main)],
+        categories: [testCategory(id: _main, name: _main)],
         bookings: [_Booking(_main, 20, date: DateTime.utc(2027, 1, 10))],
         syntheticTransfer: 20,
         transferDate: DateTime.utc(2027, 1, 12),

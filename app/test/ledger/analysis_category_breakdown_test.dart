@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart';
 
+import '../support/ledger_fixtures.dart';
 import 'analysis_test_support.dart';
 
 final _main = testId(1);
@@ -27,24 +28,6 @@ class _Booking {
   final DateTime date;
 }
 
-TransactionCategory _category(
-  String id, {
-  String? parent,
-  String? name,
-  CategoryKind kind = CategoryKind.expense,
-  LifecycleState lifecycle = LifecycleState.active,
-  bool includeInAnalysis = true,
-}) => TransactionCategory(
-  id: id,
-  name: name ?? id,
-  kind: kind,
-  colorHex: '#000000',
-  includeInAnalysis: includeInAnalysis,
-  parentID: parent,
-  symbol: 'tag',
-  lifecycle: lifecycle,
-);
-
 LedgerState _state({
   required List<TransactionCategory> categories,
   required List<_Booking> bookings,
@@ -63,32 +46,27 @@ LedgerState _state({
       ),
     );
   categories.forEach(state.addCategory);
-  Entry entry(
-    int amount, {
-    String? categoryID,
-    String? destinationID,
-    DateTime? date,
-  }) => Entry(
-    id: null,
-    amount: Decimal.fromInt(amount),
-    name: 'entry',
-    sourceID: _checking,
-    destinationID: destinationID,
-    categoryID: categoryID,
-    date: date ?? _day,
-    includeInAnalysis: true,
-  );
   for (final booking in bookings) {
     state.addEntry(
-      entry(
-        booking.income ? booking.amount : -booking.amount,
+      testEntry(
+        sourceID: _checking,
+        amount: Decimal.fromInt(
+          booking.income ? booking.amount : -booking.amount,
+        ),
         categoryID: booking.categoryID,
         date: booking.date,
       ),
     );
   }
   if (syntheticTransfer > 0) {
-    state.addEntry(entry(syntheticTransfer, destinationID: _flagged));
+    state.addEntry(
+      testEntry(
+        sourceID: _checking,
+        amount: Decimal.fromInt(syntheticTransfer),
+        destinationID: _flagged,
+        date: _day,
+      ),
+    );
   }
   return state;
 }
@@ -130,10 +108,10 @@ void _expectTenths(List<BreakdownRow> rows) {
 
 LedgerState _mixedState() => _state(
   categories: [
-    _category(_main),
-    _category(_childA, parent: _main),
-    _category(_childB, parent: _main),
-    _category(_childless),
+    testCategory(id: _main, name: _main),
+    testCategory(id: _childA, name: _childA, parentID: _main),
+    testCategory(id: _childB, name: _childB, parentID: _main),
+    testCategory(id: _childless, name: _childless),
   ],
   bookings: [
     _Booking(_childA, 20),
@@ -178,8 +156,8 @@ void main() {
     test('a main with children and only child bookings has no direct row', () {
       final state = _state(
         categories: [
-          _category(_main),
-          _category(_childA, parent: _main),
+          testCategory(id: _main, name: _main),
+          testCategory(id: _childA, name: _childA, parentID: _main),
         ],
         bookings: [_Booking(_childA, 20)],
       );
@@ -192,13 +170,13 @@ void main() {
     test('an unused child turns the ordinary main row into a direct row', () {
       final booked = [_Booking(_main, 10)];
       final childless = _state(
-        categories: [_category(_main)],
+        categories: [testCategory(id: _main, name: _main)],
         bookings: booked,
       );
       final withUnusedChild = _state(
         categories: [
-          _category(_main),
-          _category(_childA, parent: _main),
+          testCategory(id: _main, name: _main),
+          testCategory(id: _childA, name: _childA, parentID: _main),
         ],
         bookings: booked,
       );
@@ -214,8 +192,13 @@ void main() {
     test('a main whose only child is archived still gets a direct row', () {
       final state = _state(
         categories: [
-          _category(_main),
-          _category(_childA, parent: _main, lifecycle: LifecycleState.archived),
+          testCategory(id: _main, name: _main),
+          testCategory(
+            id: _childA,
+            name: _childA,
+            parentID: _main,
+            lifecycle: LifecycleState.archived,
+          ),
         ],
         bookings: [_Booking(_main, 10)],
       );
@@ -230,8 +213,13 @@ void main() {
       () {
         final state = _state(
           categories: [
-            _category(_main),
-            _category(_childA, parent: _main, includeInAnalysis: false),
+            testCategory(id: _main, name: _main),
+            testCategory(
+              id: _childA,
+              name: _childA,
+              parentID: _main,
+              includeInAnalysis: false,
+            ),
           ],
           bookings: [_Booking(_main, 10)],
         );
@@ -247,8 +235,13 @@ void main() {
     test('an income hierarchy groups like an expense hierarchy', () {
       final state = _state(
         categories: [
-          _category(_main, kind: CategoryKind.income),
-          _category(_childA, parent: _main, kind: CategoryKind.income),
+          testCategory(id: _main, name: _main, kind: CategoryKind.income),
+          testCategory(
+            id: _childA,
+            name: _childA,
+            parentID: _main,
+            kind: CategoryKind.income,
+          ),
         ],
         bookings: [
           _Booking(_childA, 20, income: true),
@@ -281,7 +274,8 @@ void main() {
       LedgerState build(List<String> order, Map<String, String> names) =>
           _state(
             categories: [
-              for (final id in order) _category(id, name: names[id]),
+              for (final id in order)
+                testCategory(id: id, name: names[id] ?? id),
             ],
             bookings: [for (final id in order) _Booking(id, 10)],
             syntheticTransfer: 10,
@@ -306,7 +300,7 @@ void main() {
 
     test('a null bucket sorts after a real bucket of equal amount', () {
       final state = _state(
-        categories: [_category(_childless)],
+        categories: [testCategory(id: _childless, name: _childless)],
         bookings: [_Booking(_childless, 5), _Booking(null, 5)],
       );
 
@@ -327,7 +321,11 @@ void main() {
         final second = testId(21);
         final third = testId(22);
         final state = _state(
-          categories: [_category(first), _category(second), _category(third)],
+          categories: [
+            testCategory(id: first, name: first),
+            testCategory(id: second, name: second),
+            testCategory(id: third, name: third),
+          ],
           bookings: [
             _Booking(first, 1),
             _Booking(second, 1),
@@ -352,7 +350,8 @@ void main() {
       LedgerState build(List<String> order, Map<String, String> names) =>
           _state(
             categories: [
-              for (final id in order) _category(id, name: names[id]),
+              for (final id in order)
+                testCategory(id: id, name: names[id] ?? id),
             ],
             bookings: [for (final id in order) _Booking(id, 1)],
           );
@@ -380,7 +379,11 @@ void main() {
       final lowA = testId(21);
       final lowB = testId(22);
       final state = _state(
-        categories: [_category(high), _category(lowA), _category(lowB)],
+        categories: [
+          testCategory(id: high, name: high),
+          testCategory(id: lowA, name: lowA),
+          testCategory(id: lowB, name: lowB),
+        ],
         bookings: [_Booking(high, 7), _Booking(lowA, 2), _Booking(lowB, 2)],
       );
 
@@ -403,7 +406,11 @@ void main() {
         final smallB = testId(21);
         final large = testId(22);
         final state = _state(
-          categories: [_category(smallA), _category(smallB), _category(large)],
+          categories: [
+            testCategory(id: smallA, name: smallA),
+            testCategory(id: smallB, name: smallB),
+            testCategory(id: large, name: large),
+          ],
           bookings: [
             _Booking(smallA, 1),
             _Booking(smallB, 1),
@@ -428,7 +435,7 @@ void main() {
       'equal real, synthetic and null amounts order lexically null-last',
       () {
         final state = _state(
-          categories: [_category(_childless)],
+          categories: [testCategory(id: _childless, name: _childless)],
           bookings: [_Booking(_childless, 5), _Booking(null, 5)],
           syntheticTransfer: 5,
         );
@@ -450,7 +457,10 @@ void main() {
       final big = testId(20);
       final tiny = testId(21);
       final state = _state(
-        categories: [_category(big), _category(tiny)],
+        categories: [
+          testCategory(id: big, name: big),
+          testCategory(id: tiny, name: tiny),
+        ],
         bookings: [_Booking(big, 9999)],
       );
       state.addEntry(
@@ -490,7 +500,7 @@ void main() {
 
     test('a one-row period gives 100.0', () {
       final state = _state(
-        categories: [_category(_childless)],
+        categories: [testCategory(id: _childless, name: _childless)],
         bookings: [_Booking(_childless, 42)],
       );
 
@@ -544,10 +554,19 @@ void main() {
   group('filters', () {
     final state = _state(
       categories: [
-        _category(_main),
-        _category(_childA, parent: _main),
-        _category(_incomeMain, kind: CategoryKind.income),
-        _category(_incomeChild, parent: _incomeMain, kind: CategoryKind.income),
+        testCategory(id: _main, name: _main),
+        testCategory(id: _childA, name: _childA, parentID: _main),
+        testCategory(
+          id: _incomeMain,
+          name: _incomeMain,
+          kind: CategoryKind.income,
+        ),
+        testCategory(
+          id: _incomeChild,
+          name: _incomeChild,
+          parentID: _incomeMain,
+          kind: CategoryKind.income,
+        ),
       ],
       bookings: [
         _Booking(_childA, 1, date: DateTime.utc(2025, 12, 31)),

@@ -6,12 +6,11 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:sync/sync.dart';
 
-Account _account({String name = 'acc'}) =>
-    Account(name: name, type: AccountType.savings);
+import '../support/ledger_fixtures.dart';
 
 LedgerState _stateWithExpense(String amount) {
   final state = LedgerState();
-  final account = _account();
+  final account = testAccount();
   state.addAccount(account);
   state.addEntry(
     Entry(amount: Decimal.parse(amount), name: 'e', sourceID: account.id),
@@ -42,7 +41,7 @@ void main() {
     final bus = EventBus();
     final cache = AnalysisCache()..start(bus);
 
-    bus.publish([UpsertAccount(_account())]);
+    bus.publish([UpsertAccount(testAccount())]);
 
     expect(cache.revision, 1);
   });
@@ -51,7 +50,7 @@ void main() {
     final bus = EventBus();
     final cache = AnalysisCache()..start(bus);
 
-    final account = _account();
+    final account = testAccount();
     bus.publish(
       [UpsertAccount(account)],
       stamps: {
@@ -69,8 +68,8 @@ void main() {
     final cache = AnalysisCache()..start(bus);
 
     bus.publish([
-      UpsertAccount(_account(name: 'a')),
-      UpsertAccount(_account(name: 'b')),
+      UpsertAccount(testAccount(name: 'a')),
+      UpsertAccount(testAccount(name: 'b')),
     ]);
 
     expect(cache.revision, 1);
@@ -82,7 +81,7 @@ void main() {
       ..start(bus)
       ..start(bus);
 
-    bus.publish([UpsertAccount(_account())]);
+    bus.publish([UpsertAccount(testAccount())]);
 
     expect(cache.revision, 1);
   });
@@ -95,11 +94,11 @@ void main() {
 
     expect(() => firstCache.start(second), throwsStateError);
 
-    second.publish([UpsertAccount(_account(name: 'b'))]);
+    second.publish([UpsertAccount(testAccount(name: 'b'))]);
     expect(secondCache.revision, 1);
     expect(firstCache.revision, 0);
 
-    first.publish([UpsertAccount(_account(name: 'a'))]);
+    first.publish([UpsertAccount(testAccount(name: 'a'))]);
     expect(firstCache.revision, 1);
     expect(secondCache.revision, 1);
   });
@@ -108,9 +107,9 @@ void main() {
     final bus = EventBus();
     final cache = AnalysisCache()..start(bus);
 
-    bus.publish([UpsertAccount(_account(name: 'a'))]);
+    bus.publish([UpsertAccount(testAccount(name: 'a'))]);
     await cache.dispose();
-    bus.publish([UpsertAccount(_account(name: 'b'))]);
+    bus.publish([UpsertAccount(testAccount(name: 'b'))]);
 
     expect(cache.revision, 1);
   });
@@ -148,7 +147,7 @@ void main() {
     runner.pending.single.complete(const []);
     await pumpEventQueue();
 
-    bus.publish([UpsertAccount(_account())]);
+    bus.publish([UpsertAccount(testAccount())]);
     cache.refresh(state);
 
     expect(runner.pending, hasLength(2));
@@ -178,7 +177,7 @@ void main() {
     ];
 
     cache.refresh(state);
-    bus.publish([UpsertAccount(_account())]);
+    bus.publish([UpsertAccount(testAccount())]);
     cache.refresh(state);
 
     expect(runner.pending, hasLength(2));
@@ -198,7 +197,7 @@ void main() {
     final state = _stateWithExpense('-10');
 
     cache.refresh(state);
-    bus.publish([UpsertAccount(_account())]);
+    bus.publish([UpsertAccount(testAccount())]);
     cache.refresh(state);
 
     runner.pending[1].complete(const []);

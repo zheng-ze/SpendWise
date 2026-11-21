@@ -7,8 +7,9 @@ import 'package:spendwise/ledger/analysis/category_detail/category_detail.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
+import '../support/ledger_fixtures.dart';
 import 'analysis_category_detail_test.dart'
-    show mainID, childID, accountID, category, today;
+    show mainID, childID, accountID, today;
 import 'analysis_test_support.dart';
 
 void seed(Ledger ledger) {
@@ -18,8 +19,17 @@ void seed(Ledger ledger) {
     type: AccountType.checking,
   );
   ledger.addAccount(account);
-  ledger.addCategory(category(mainID));
-  ledger.addCategory(category(childID, parent: mainID));
+  ledger.addCategory(
+    testCategory(id: mainID, name: mainID, colorHex: '#123456'),
+  );
+  ledger.addCategory(
+    testCategory(
+      id: childID,
+      name: childID,
+      colorHex: '#123456',
+      parentID: mainID,
+    ),
+  );
 }
 
 void addExpense(

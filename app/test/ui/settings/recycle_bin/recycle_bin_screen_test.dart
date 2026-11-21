@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_screen.dart';
 
+import '../../../support/ledger_fixtures.dart';
 import '../../../support/pump_app.dart';
 import '../../../support/ui_test_timeout.dart';
 
@@ -28,30 +29,6 @@ class _BinLauncher extends StatelessWidget {
   }
 }
 
-Account _account(String name, {LifecycleState? lifecycle}) => Account(
-  name: name,
-  type: AccountType.checking,
-  lifecycle: lifecycle ?? LifecycleState.active,
-);
-
-Entry _entry(String name, String sourceID) => Entry(
-  amount: Decimal.parse('-5'),
-  name: name,
-  sourceID: sourceID,
-  date: DateTime.utc(2026, 1, 5),
-);
-
-TransactionCategory _category(String name, {LifecycleState? lifecycle}) =>
-    TransactionCategory(
-      name: name,
-      kind: CategoryKind.expense,
-      colorHex: '#FF0000',
-      includeInAnalysis: true,
-      parentID: null,
-      symbol: 'tag',
-      lifecycle: lifecycle ?? LifecycleState.active,
-    );
-
 Ledger _ledgerOf({
   List<Account> accounts = const [],
   List<TransactionCategory> categories = const [],
@@ -73,7 +50,11 @@ void main() {
   testWidgets('a row Restore action restores the binned account', (
     tester,
   ) async {
-    final account = _account('Old savings', lifecycle: LifecycleState.archived);
+    final account = testAccount(
+      name: 'Old savings',
+      type: AccountType.checking,
+      lifecycle: LifecycleState.archived,
+    );
     final ledger = _ledgerOf(accounts: [account]);
     await _pump(tester, ledger);
 
@@ -88,8 +69,13 @@ void main() {
   testWidgets('an entry row Restore action restores the binned entry', (
     tester,
   ) async {
-    final account = _account('Cash');
-    final entry = _entry('Hawker lunch', account.id);
+    final account = testAccount(name: 'Cash', type: AccountType.checking);
+    final entry = testEntry(
+      amount: Decimal.parse('-5'),
+      name: 'Hawker lunch',
+      sourceID: account.id,
+      date: DateTime.utc(2026, 1, 5),
+    );
     final ledger = _ledgerOf(accounts: [account], binnedEntries: [entry]);
     await _pump(tester, ledger);
 
@@ -103,7 +89,11 @@ void main() {
   testWidgets('a category row Restore action restores the binned category', (
     tester,
   ) async {
-    final category = _category('Fitness', lifecycle: LifecycleState.archived);
+    final category = testCategory(
+      name: 'Fitness',
+      colorHex: '#FF0000',
+      lifecycle: LifecycleState.archived,
+    );
     final ledger = _ledgerOf(categories: [category]);
     await _pump(tester, ledger);
 

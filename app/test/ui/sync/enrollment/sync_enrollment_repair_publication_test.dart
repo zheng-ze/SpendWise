@@ -24,22 +24,12 @@ import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_vie
 import 'package:sync/sync.dart';
 
 import '../../../support/recording_ledger_store.dart';
+import '../../../support/sync_fixtures.dart';
 import '../../../sync/in_memory_secret_store.dart';
 
 SupabaseConfig get _testConfig => SupabaseConfig(
   projectUrl: Uri.parse('https://test.supabase.co'),
   anonKey: 'test-anon-key',
-);
-
-const _stubDeviceSecret = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
-
-String _credentialPayload(String device, String bearer) => base64Url.encode(
-  utf8.encode(
-    jsonEncode({
-      'deviceID': device,
-      'bearerToken': base64Url.encode(utf8.encode(bearer)),
-    }),
-  ),
 );
 
 String _e2eKeyPayload() => base64Url.encode(List<int>.filled(32, 7));
@@ -128,7 +118,7 @@ final class _ScriptedSyncHttpClient extends http.BaseClient {
           'expires_at': '2026-09-19T12:00:00.000Z',
         },
         if (_headerValue(headers, 'X-SpendWise-Binding-Authorization') != null)
-          'device_secret': _stubDeviceSecret,
+          'device_secret': deviceSecret(),
       };
     }
     if (path == '/rest/v1/rpc/sync_complete_reconcile') {
@@ -268,13 +258,13 @@ final class _RepairHarness {
   Future<void> seedBoundCredential({String bearer = 'old-bearer'}) async {
     final id = await deviceID(db);
     final credential = const CredentialCodec().restore(
-      _credentialPayload(id, bearer),
+      credentialPayload(id, bearer),
     );
     await secrets.write(
       syncCredentialSecretKey,
       const CredentialCodec().export(credential),
     );
-    await secrets.write(syncDeviceSecretKey, _stubDeviceSecret);
+    await secrets.write(syncDeviceSecretKey, deviceSecret());
     await secrets.write(syncE2EKeySecretKey, _e2eKeyPayload());
   }
 
@@ -460,7 +450,7 @@ void main() {
     await harness.metadataStore.enterSessionReauthRequired();
     final id = await deviceID(harness.db);
     final credential = const CredentialCodec().restore(
-      _credentialPayload(id, 'old-bearer'),
+      credentialPayload(id, 'old-bearer'),
     );
     await harness.secrets.write(
       syncCredentialSecretKey,

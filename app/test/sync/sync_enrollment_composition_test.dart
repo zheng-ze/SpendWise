@@ -24,20 +24,12 @@ import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:sync/sync.dart';
 
 import '../support/recording_ledger_store.dart';
+import '../support/sync_fixtures.dart';
 import 'in_memory_secret_store.dart';
 
 SupabaseConfig get _testConfig => SupabaseConfig(
   projectUrl: Uri.parse('https://test.supabase.co'),
   anonKey: 'test-anon-key',
-);
-
-String _credentialPayload(String device, String bearer) => base64Url.encode(
-  utf8.encode(
-    jsonEncode({
-      'deviceID': device,
-      'bearerToken': base64Url.encode(utf8.encode(bearer)),
-    }),
-  ),
 );
 
 String? _headerValue(Map<String, String> headers, String name) {
@@ -47,10 +39,6 @@ String? _headerValue(Map<String, String> headers, String name) {
   }
   return null;
 }
-
-// Canonical unpadded base64url encoding of 32 zero bytes, matching the
-// production device-secret format.
-const _stubDeviceSecret = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
 final class _RecordedHttpRequest {
   const _RecordedHttpRequest({
@@ -117,7 +105,7 @@ final class _FakeSyncHttpClient extends http.BaseClient {
           'expires_at': '2026-09-19T12:00:00.000Z',
         },
         if (_headerValue(headers, 'X-SpendWise-Binding-Authorization') != null)
-          'device_secret': _stubDeviceSecret,
+          'device_secret': deviceSecret(),
       };
     }
     if (path == '/rest/v1/rpc/sync_complete_reconcile') {
@@ -454,9 +442,9 @@ void main() {
 
     await secrets.write(
       syncCredentialSecretKey,
-      _credentialPayload(await deviceID(db), 'stub-bearer'),
+      credentialPayload(await deviceID(db), 'stub-bearer'),
     );
-    await secrets.write(syncDeviceSecretKey, _stubDeviceSecret);
+    await secrets.write(syncDeviceSecretKey, deviceSecret());
     await metadataStore.setPendingAcknowledgement(
       SyncCollection.entries,
       'cursor-1',
@@ -472,7 +460,7 @@ void main() {
     );
     expect(
       _headerValue(acknowledges.single.headers, 'X-SpendWise-Device-Secret'),
-      _stubDeviceSecret,
+      deviceSecret(),
     );
     expect(
       await metadataStore.pendingAcknowledgement(SyncCollection.entries),

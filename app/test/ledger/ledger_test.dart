@@ -3,31 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
-Account _account({String name = 'acc'}) =>
-    Account(name: name, type: AccountType.savings);
+import '../support/ledger_fixtures.dart';
 
 SubPocket _pocket({String name = 'pocket'}) => SubPocket(name: name);
-
-TransactionCategory _category({
-  required String name,
-  CategoryKind kind = CategoryKind.expense,
-  String? parentID,
-}) => TransactionCategory(
-  name: name,
-  kind: kind,
-  colorHex: '#000000',
-  includeInAnalysis: true,
-  parentID: parentID,
-  symbol: 'tag',
-);
-
-Entry _entry(String sourceID, {String name = 'entry', String? categoryID}) =>
-    Entry(
-      amount: Decimal.fromInt(-10),
-      name: name,
-      sourceID: sourceID,
-      categoryID: categoryID,
-    );
 
 RecurringPlan _plan({
   required EntryTemplate template,
@@ -53,7 +31,7 @@ void main() {
     final ledger = Ledger();
     final batches = _batchesOf(ledger);
 
-    final account = _account();
+    final account = testAccount();
     ledger.addAccount(account);
 
     expect(batches, [
@@ -66,7 +44,7 @@ void main() {
     final publications = <LedgerPublication>[];
     ledger.bus.subscribe().listen(publications.add);
 
-    final account = _account();
+    final account = testAccount();
     ledger.addAccount(account);
 
     expect(publications, hasLength(1));
@@ -76,7 +54,7 @@ void main() {
 
   test('cascadeMutationPublishesAllFactsInOneBatch', () {
     final ledger = Ledger();
-    final account = _account();
+    final account = testAccount();
     ledger.addAccount(account);
     final batches = _batchesOf(ledger);
 
@@ -92,7 +70,7 @@ void main() {
 
   test('updatePocketCommitsAndPublishesTheChangedPocket', () {
     final ledger = Ledger();
-    final account = _account();
+    final account = testAccount();
     ledger.addAccount(account);
     final pocket = SubPocket(name: 'Bills');
     ledger.addPocket(pocket, account.id);
@@ -113,7 +91,9 @@ void main() {
     ledger.addListener(() => notifications++);
 
     expect(
-      () => ledger.addEntry(_entry('4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43')),
+      () => ledger.addEntry(
+        testEntry(sourceID: '4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43'),
+      ),
       throwsA(isA<UnknownHolder>()),
     );
 
@@ -186,11 +166,11 @@ void main() {
     final ledger = Ledger();
     final batches = _batchesOf(ledger);
 
-    final first = _account(name: 'a');
-    final second = _account(name: 'b');
+    final first = testAccount(name: 'a');
+    final second = testAccount(name: 'b');
     ledger.addAccount(first);
     ledger.addAccount(second);
-    ledger.addEntry(_entry(first.id, name: 'e'));
+    ledger.addEntry(testEntry(sourceID: first.id, name: 'e'));
 
     expect(batches, hasLength(3));
     expect(batches[0], [UpsertAccount(first)]);
@@ -203,7 +183,7 @@ void main() {
     var notifications = 0;
     ledger.addListener(() => notifications++);
 
-    final account = _account();
+    final account = testAccount();
     ledger.addAccount(account);
     ledger.addPocket(_pocket(), account.id);
 
@@ -216,14 +196,14 @@ void main() {
     ledger.bus.subscribe().listen((_) => order.add('publish'));
     ledger.addListener(() => order.add('notify'));
 
-    ledger.addAccount(_account());
+    ledger.addAccount(testAccount());
 
     expect(order, ['publish', 'notify']);
   });
 
   test('stateIsCommittedBeforeTheBatchIsPublished', () {
     final ledger = Ledger();
-    final account = _account();
+    final account = testAccount();
     final seen = <String?>[];
     ledger.bus.subscribe().listen(
       (_) => seen.add(ledger.state.moneySources[account.id]?.name),
@@ -236,13 +216,13 @@ void main() {
 
   test('categoriesOfKindOrdersRootsThenTheirChildrenByName', () {
     final ledger = Ledger();
-    final beta = _category(name: 'Beta');
-    final alpha = _category(name: 'Alpha');
+    final beta = testCategory(name: 'Beta');
+    final alpha = testCategory(name: 'Alpha');
     ledger.addCategory(beta);
     ledger.addCategory(alpha);
-    final betaZ = _category(name: 'Zeta', parentID: beta.id);
-    final betaA = _category(name: 'Ants', parentID: beta.id);
-    final alphaB = _category(name: 'Bees', parentID: alpha.id);
+    final betaZ = testCategory(name: 'Zeta', parentID: beta.id);
+    final betaA = testCategory(name: 'Ants', parentID: beta.id);
+    final alphaB = testCategory(name: 'Bees', parentID: alpha.id);
     ledger.addCategory(betaZ);
     ledger.addCategory(betaA);
     ledger.addCategory(alphaB);
@@ -258,9 +238,9 @@ void main() {
 
   test('categoriesOfKindExcludesOtherKindsAndInactiveRows', () {
     final ledger = Ledger();
-    final expense = _category(name: 'Food');
-    final income = _category(name: 'Salary', kind: CategoryKind.income);
-    final archived = _category(name: 'Gone');
+    final expense = testCategory(name: 'Food');
+    final income = testCategory(name: 'Salary', kind: CategoryKind.income);
+    final archived = testCategory(name: 'Gone');
     ledger.addCategory(expense);
     ledger.addCategory(income);
     ledger.addCategory(archived);
@@ -276,12 +256,12 @@ void main() {
 
   test('categoriesOfKindDropsAChildWhoseParentIsFilteredOut', () {
     final ledger = Ledger();
-    final visible = _category(name: 'Visible');
-    final parent = _category(name: 'Parent');
+    final visible = testCategory(name: 'Visible');
+    final parent = testCategory(name: 'Parent');
     ledger.addCategory(visible);
     ledger.addCategory(parent);
     ledger.deleteCategory(parent.id);
-    final child = _category(name: 'Child', parentID: parent.id);
+    final child = testCategory(name: 'Child', parentID: parent.id);
     ledger.addCategory(child);
 
     expect(ledger.state.categories[child.id]!.lifecycle, LifecycleState.active);
@@ -293,7 +273,7 @@ void main() {
   test('categoriesOfKindSortsOrdinallyNotByLocale', () {
     final ledger = Ledger();
     for (final name in ['b', 'A', 'a', 'B']) {
-      ledger.addCategory(_category(name: name));
+      ledger.addCategory(testCategory(name: name));
     }
 
     expect(ledger.categories(CategoryKind.expense).map((c) => c.name), [
@@ -306,9 +286,9 @@ void main() {
 
   test('resolvePlansCommitsSuccessesAndReportsFailuresAfterwards', () {
     final ledger = Ledger();
-    final account = _account();
+    final account = testAccount();
     ledger.addAccount(account);
-    final category = _category(name: 'Rent');
+    final category = testCategory(name: 'Rent');
     ledger.addCategory(category);
 
     final anchor = DateTime.utc(2026, 1, 10);
@@ -356,7 +336,7 @@ void main() {
 
   test('resolvePlansWithNoFailuresDoesNotCallOnPlanError', () {
     final ledger = Ledger();
-    final account = _account();
+    final account = testAccount();
     ledger.addAccount(account);
     ledger.addPlan(
       _plan(
@@ -380,9 +360,9 @@ void main() {
 
   test('entryLifecycleMutatorsPublishAndNotify', () {
     final ledger = Ledger();
-    final account = _account();
+    final account = testAccount();
     ledger.addAccount(account);
-    final entry = _entry(account.id);
+    final entry = testEntry(sourceID: account.id);
     ledger.addEntry(entry);
     var notifications = 0;
     ledger.addListener(() => notifications++);

@@ -33,6 +33,7 @@ import 'package:spendwise/sync/sync_status.dart';
 import 'package:sync/sync.dart';
 
 import '../support/recording_ledger_store.dart';
+import '../support/sync_fixtures.dart';
 import 'in_memory_secret_store.dart';
 
 String _encodeKey(List<int> bytes) =>
@@ -254,7 +255,7 @@ final class _RotatingMissingSecretStore implements SecretStore {
     if (key == syncDeviceSecretKey && !replaced) {
       replaced = true;
       await gate.withSecretMutationLock(
-        () => inner.write(syncDeviceSecretKey, _deviceSecret(9)),
+        () => inner.write(syncDeviceSecretKey, deviceSecret(9)),
       );
       return null;
     }
@@ -319,18 +320,6 @@ PullResponse _pullPage(List<SyncEnvelope> envelopes, String cursor) =>
       'envelopes': [for (final envelope in envelopes) envelope.toWireJson()],
       'cursor': cursor,
     });
-
-String _credentialPayload(String deviceID, String bearer) => base64Url.encode(
-  utf8.encode(
-    jsonEncode({
-      'deviceID': deviceID,
-      'bearerToken': base64Url.encode(utf8.encode(bearer)),
-    }),
-  ),
-);
-
-String _deviceSecret([int fill = 0]) =>
-    base64Url.encode(List<int>.filled(32, fill)).replaceAll('=', '');
 
 const _missingPullBackendMessage =
     'Cannot pull SyncCollection.entries before enrollment: no sync backend.';
@@ -415,10 +404,10 @@ void main() {
     final id = await deviceID(db);
     await secrets.write(
       syncCredentialSecretKey,
-      _credentialPayload(id, 'test-bearer'),
+      credentialPayload(id, 'test-bearer'),
     );
     await secrets.write(syncE2EKeySecretKey, _encodeKey(e2eKey));
-    await secrets.write(syncDeviceSecretKey, _deviceSecret());
+    await secrets.write(syncDeviceSecretKey, deviceSecret());
     await SyncMetadataStore(db).enterSnapshotInProgress();
     return SyncCoordinator.forTesting(
       engine: SyncEngine(
@@ -498,10 +487,10 @@ void main() {
     final String id = await deviceID(db);
     await secrets.write(
       syncCredentialSecretKey,
-      _credentialPayload(id, 'test-bearer'),
+      credentialPayload(id, 'test-bearer'),
     );
     await secrets.write(syncE2EKeySecretKey, _encodeKey(key));
-    await secrets.write(syncDeviceSecretKey, _deviceSecret());
+    await secrets.write(syncDeviceSecretKey, deviceSecret());
     await SyncMetadataStore(db).enterSnapshotInProgress();
     final clock = _ManualClock();
     final DriftLedgerStore driftStore = DriftLedgerStore(
@@ -4157,7 +4146,7 @@ void main() {
       final backend = _FakeSyncBackend();
       final setup = await pushSetup(backend: backend);
       final coordinator = setup.coordinator;
-      final rotated = _deviceSecret(9);
+      final rotated = deviceSecret(9);
       backend.onPullRequest = (PullRequest request) async {
         await secrets.write(syncDeviceSecretKey, rotated);
         return const DeviceAuthorizationRequired<PullResponse>(
@@ -4419,7 +4408,7 @@ void main() {
           2,
           onRead: () => secrets.write(
             syncCredentialSecretKey,
-            _credentialPayload('another-device', 'replacement-bearer'),
+            credentialPayload('another-device', 'replacement-bearer'),
           ),
         );
         final coordinator = await pullCoordinator(
@@ -4827,7 +4816,7 @@ void main() {
       final setup = await pushSetup(backend: backend);
       backend.onPullRequest = (request) async {
         await setup.coordinator.repairGate.withSecretMutationLock(
-          () => secrets.write(syncDeviceSecretKey, _deviceSecret(9)),
+          () => secrets.write(syncDeviceSecretKey, deviceSecret(9)),
         );
         return const CredentialExpired<PullResponse>(message: 'expired');
       };
@@ -4890,7 +4879,7 @@ void main() {
               final id = await deviceID(db);
               await secrets.write(
                 syncCredentialSecretKey,
-                _credentialPayload(id, 'replacement'),
+                credentialPayload(id, 'replacement'),
               );
             }),
           );
@@ -4917,7 +4906,7 @@ void main() {
         final id = await deviceID(db);
         await secrets.write(
           syncCredentialSecretKey,
-          _credentialPayload(id, 'rotated-bearer'),
+          credentialPayload(id, 'rotated-bearer'),
         );
         return const CredentialExpired<PullResponse>(message: 'expired');
       };

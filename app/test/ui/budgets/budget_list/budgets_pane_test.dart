@@ -24,6 +24,7 @@ import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
 import '../../../ledger/analysis_test_support.dart';
+import '../../../support/ledger_fixtures.dart';
 import '../../../support/number_pad_support.dart';
 import '../../../support/shell_sheet_harness.dart';
 import '../budget_shell_test_support.dart';
@@ -51,7 +52,7 @@ bool _hasDetailOwners(ProviderContainer container, String budgetID) =>
 NavigatorState _rootNavigator(WidgetTester tester) =>
     tester.state<NavigatorState>(find.byType(Navigator).first);
 
-Entry _entry(int index) => Entry(
+Entry _entry(int index) => testEntry(
   amount: Decimal.parse('-1'),
   name: 'Entry ${(index + 1).toString().padLeft(2, '0')}',
   sourceID: budgetShellAccount.id,

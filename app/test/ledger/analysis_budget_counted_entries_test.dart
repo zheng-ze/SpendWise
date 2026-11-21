@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_counted_entries.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_spend.dart';
 
+import '../support/ledger_fixtures.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -11,17 +13,6 @@ void main() {
   const transportID = 'a0000000-0000-0000-0000-000000000003';
   const month = YearMonth(2026, 7);
   DateTime day(int d) => DateTime.utc(2026, 7, d);
-
-  TransactionCategory category(String id, {String? parentID}) =>
-      TransactionCategory(
-        id: id,
-        name: id,
-        kind: CategoryKind.expense,
-        colorHex: '#FF0000',
-        includeInAnalysis: true,
-        parentID: parentID,
-        symbol: 'restaurant',
-      );
 
   Account account(String id, {bool flagged = false}) => Account(
     id: id,
@@ -64,9 +55,25 @@ void main() {
       ),
     },
     categories: {
-      foodID: category(foodID),
-      hawkerID: category(hawkerID, parentID: foodID),
-      transportID: category(transportID),
+      foodID: testCategory(
+        id: foodID,
+        name: foodID,
+        colorHex: '#FF0000',
+        symbol: 'restaurant',
+      ),
+      hawkerID: testCategory(
+        id: hawkerID,
+        name: hawkerID,
+        colorHex: '#FF0000',
+        parentID: foodID,
+        symbol: 'restaurant',
+      ),
+      transportID: testCategory(
+        id: transportID,
+        name: transportID,
+        colorHex: '#FF0000',
+        symbol: 'restaurant',
+      ),
     },
     entries: {for (final entry in entries) entry.id: entry},
   );

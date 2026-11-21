@@ -10,6 +10,8 @@ import 'package:spendwise/persistence/database/ledger_database.dart'
 import 'package:spendwise/sync/drift_sync_staging_store.dart';
 import 'package:sync/sync.dart';
 
+import '../support/ledger_fixtures.dart';
+
 const _rowA = '11111111-1111-1111-1111-111111111111';
 const _rowB = '22222222-2222-2222-2222-222222222222';
 const _rowC = '33333333-3333-3333-3333-333333333333';
@@ -30,37 +32,6 @@ class FailingCommitInterceptor extends QueryInterceptor {
 class _CommitFailure implements Exception {
   const _CommitFailure();
 }
-
-Account _account(String id) => Account(
-  id: id,
-  name: 'Checking',
-  type: AccountType.checking,
-  subPocketIDs: const {},
-  incomingTransfersAsExpenses: false,
-  includeInNetWorth: true,
-  statementDay: null,
-);
-
-TransactionCategory _category(String id) => TransactionCategory(
-  id: id,
-  name: 'Groceries',
-  kind: CategoryKind.expense,
-  colorHex: '#44AA55',
-  includeInAnalysis: true,
-  parentID: null,
-  symbol: 'food',
-);
-
-Entry _entry(String id) => Entry(
-  id: id,
-  date: DateTime.utc(2024, 3, 15),
-  amount: Decimal.parse('-12.50'),
-  name: 'Coffee',
-  categoryID: null,
-  sourceID: 'aaaaaaaa-0000-1111-2222-333333333333',
-  destinationID: null,
-  includeInAnalysis: true,
-);
 
 RecurringPlan _plan(String id) => RecurringPlan(
   id: id,
@@ -84,11 +55,28 @@ Budget _budget(String id) =>
 LedgerChange _liveChange(SyncCollection collection, String rowID) {
   switch (collection) {
     case SyncCollection.moneySources:
-      return UpsertAccount(_account(rowID));
+      return UpsertAccount(
+        testAccount(id: rowID, name: 'Checking', type: AccountType.checking),
+      );
     case SyncCollection.categories:
-      return UpsertCategory(_category(rowID));
+      return UpsertCategory(
+        testCategory(
+          id: rowID,
+          name: 'Groceries',
+          colorHex: '#44AA55',
+          symbol: 'food',
+        ),
+      );
     case SyncCollection.entries:
-      return UpsertEntry(_entry(rowID));
+      return UpsertEntry(
+        testEntry(
+          id: rowID,
+          sourceID: 'aaaaaaaa-0000-1111-2222-333333333333',
+          amount: Decimal.parse('-12.50'),
+          name: 'Coffee',
+          date: DateTime.utc(2024, 3, 15),
+        ),
+      );
     case SyncCollection.plans:
       return UpsertPlan(_plan(rowID));
     case SyncCollection.budgets:

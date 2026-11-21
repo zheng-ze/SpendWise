@@ -16,6 +16,8 @@ import 'package:spendwise/ui/theme/spendwise_theme.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_view_model.dart';
 
+import '../../support/ledger_fixtures.dart';
+
 const checkingSourceID = '11111111-1111-1111-1111-111111111111';
 const foodCategoryID = '33333333-3333-3333-3333-333333333333';
 const payCategoryID = '44444444-4444-4444-4444-444444444444';
@@ -26,38 +28,26 @@ int _entryCounter = 0;
 Ledger emptyTrendsLedger() {
   final ledger = Ledger();
   ledger.addAccount(
-    Account(id: checkingSourceID, name: 'Checking', type: AccountType.checking),
-  );
-  for (final category in [
-    _category(foodCategoryID, 'Food', CategoryKind.expense, analysed: true),
-    _category(payCategoryID, 'Pay', CategoryKind.income, analysed: true),
-    _category(
-      hiddenCategoryID,
-      'Hidden',
-      CategoryKind.expense,
-      analysed: false,
+    testAccount(
+      id: checkingSourceID,
+      name: 'Checking',
+      type: AccountType.checking,
     ),
-  ]) {
+  );
+  final categories = [
+    testCategory(id: foodCategoryID, name: 'Food', kind: CategoryKind.expense),
+    testCategory(id: payCategoryID, name: 'Pay', kind: CategoryKind.income),
+    testCategory(
+      id: hiddenCategoryID,
+      name: 'Hidden',
+      kind: CategoryKind.expense,
+      includeInAnalysis: false,
+    ),
+  ];
+  for (final category in categories) {
     ledger.addCategory(category);
   }
   return ledger;
-}
-
-TransactionCategory _category(
-  String id,
-  String name,
-  CategoryKind kind, {
-  required bool analysed,
-}) {
-  return TransactionCategory(
-    id: id,
-    name: name,
-    kind: kind,
-    colorHex: '#000000',
-    includeInAnalysis: analysed,
-    parentID: null,
-    symbol: 'tag',
-  );
 }
 
 String addTrendsEntry(
@@ -72,7 +62,7 @@ String addTrendsEntry(
   final category =
       categoryID ?? (amount.startsWith('-') ? foodCategoryID : payCategoryID);
   ledger.addEntry(
-    Entry(
+    testEntry(
       id: id,
       amount: Decimal.parse(amount),
       name: 'entry',

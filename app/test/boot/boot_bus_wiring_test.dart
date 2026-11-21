@@ -1,15 +1,9 @@
-import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/app_phase.dart';
 
 import '../support/in_memory_ledger_store.dart';
-
-Account _account({String name = 'acc'}) =>
-    Account(name: name, type: AccountType.savings);
-
-Entry _entry(String sourceID) =>
-    Entry(amount: Decimal.fromInt(-10), name: 'entry', sourceID: sourceID);
+import '../support/ledger_fixtures.dart';
 
 Future<Ready> _bootReady(InMemoryLedgerStore store) async {
   final boot = AppBoot(
@@ -32,7 +26,7 @@ void main() {
     final store = InMemoryLedgerStore(hasSeeded: true);
     final ready = await _bootReady(store);
 
-    final account = _account();
+    final account = testAccount();
     ready.ledger.addAccount(account);
 
     expect(store.enqueuedBatches, hasLength(1));
@@ -46,9 +40,9 @@ void main() {
     final store = InMemoryLedgerStore(hasSeeded: true);
     final ready = await _bootReady(store);
 
-    final account = _account();
+    final account = testAccount();
     ready.ledger.addAccount(account);
-    final entry = _entry(account.id);
+    final entry = testEntry(sourceID: account.id);
     ready.ledger.addEntry(entry);
     await ready.persistence.flush();
 

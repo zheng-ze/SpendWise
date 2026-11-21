@@ -22,6 +22,7 @@ import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:sync/sync.dart';
 
 import '../support/recording_ledger_store.dart';
+import '../support/sync_fixtures.dart';
 import 'in_memory_secret_store.dart';
 
 String _rowID(SyncCollection collection) {
@@ -141,18 +142,6 @@ PushResponse _pushRowsResponse(
 Future<SyncOutcome<PushResponse>> _appliedPush(PushRequest request) async =>
     SyncSuccess<PushResponse>(_pushRowsResponse(request.envelopes));
 
-String _credentialPayload(String deviceID, String bearer) => base64Url.encode(
-  utf8.encode(
-    jsonEncode({
-      'deviceID': deviceID,
-      'bearerToken': base64Url.encode(utf8.encode(bearer)),
-    }),
-  ),
-);
-
-String _deviceSecret([int fill = 0]) =>
-    base64Url.encode(List<int>.filled(32, fill)).replaceAll('=', '');
-
 void main() {
   late LedgerDatabase db;
   late InMemorySecretStore coordinatorSecrets;
@@ -190,13 +179,13 @@ void main() {
     final id = await deviceID(db);
     await coordinatorSecrets.write(
       syncCredentialSecretKey,
-      _credentialPayload(id, 'test-bearer'),
+      credentialPayload(id, 'test-bearer'),
     );
     await coordinatorSecrets.write(
       syncE2EKeySecretKey,
       base64Url.encode(List<int>.generate(32, (index) => index)),
     );
-    await coordinatorSecrets.write(syncDeviceSecretKey, _deviceSecret());
+    await coordinatorSecrets.write(syncDeviceSecretKey, deviceSecret());
     await SyncMetadataStore(db).enterSnapshotInProgress();
     final coordinator = SyncCoordinator.forTesting(
       engine: SyncEngine(

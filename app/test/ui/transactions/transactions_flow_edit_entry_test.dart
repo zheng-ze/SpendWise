@@ -9,6 +9,7 @@ import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 import '../../support/edit_entry_harness.dart';
 import '../../support/pump_app.dart';
+import '../../support/row_tap.dart';
 import '../../support/ui_test_timeout.dart';
 
 const _scopeTitle = 'Checking';
@@ -30,11 +31,6 @@ Future<void> _pumpScopedFlow(WidgetTester tester, Entry entry) async {
   addTearDown(() => closeAllSheets(tester));
 }
 
-Future<void> _tapRow(WidgetTester tester, Entry entry) async {
-  await tester.tap(find.text(entry.name));
-  await tester.pumpAndSettle();
-}
-
 void main() {
   testWidgets('tapping a register row installs an Edit entry sheet', (
     tester,
@@ -42,7 +38,7 @@ void main() {
     final entry = editableEntry();
     await _pumpScopedFlow(tester, entry);
 
-    await _tapRow(tester, entry);
+    await tapRow(tester, find.text(entry.name));
 
     expect(find.byType(AppSheet), findsOneWidget);
     expect(find.text(_editTitle), findsOneWidget);
@@ -53,7 +49,7 @@ void main() {
     (tester) async {
       final entry = editableEntry();
       await _pumpScopedFlow(tester, entry);
-      await _tapRow(tester, entry);
+      await tapRow(tester, find.text(entry.name));
       final container = ProviderScope.containerOf(
         tester.element(find.byType(TransactionsFlow)),
       );
@@ -65,7 +61,7 @@ void main() {
       await tester.tap(find.text(_updateLabel));
       await tester.pumpAndSettle();
       expect(find.byType(AppSheet), findsNothing);
-      await _tapRow(tester, entry);
+      await tapRow(tester, find.text(entry.name));
 
       final amountField = tester.widget<EditableText>(
         find.byType(EditableText).first,

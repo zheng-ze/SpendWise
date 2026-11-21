@@ -16,6 +16,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
+import '../../../support/ledger_fixtures.dart';
 import '../../../support/number_pad_support.dart';
 import '../../../support/pump_app.dart';
 import '../../../support/sheet_contract.dart';
@@ -29,19 +30,22 @@ const _budgetedSubtitle = 'Has a budget';
 const _dragDown = Offset(0, 900);
 const _outsideTap = Offset(5, 5);
 
-TransactionCategory _category(String name, {String? parentID}) =>
-    TransactionCategory(
-      name: name,
-      kind: CategoryKind.expense,
-      colorHex: '#00AA00',
-      includeInAnalysis: true,
-      parentID: parentID,
-      symbol: 'restaurant',
-    );
-
-final _food = _category('Food');
-final _dining = _category('Dining', parentID: _food.id);
-final _transport = _category('Transport');
+final _food = testCategory(
+  name: 'Food',
+  colorHex: '#00AA00',
+  symbol: 'restaurant',
+);
+final _dining = testCategory(
+  name: 'Dining',
+  colorHex: '#00AA00',
+  symbol: 'restaurant',
+  parentID: _food.id,
+);
+final _transport = testCategory(
+  name: 'Transport',
+  colorHex: '#00AA00',
+  symbol: 'restaurant',
+);
 
 Ledger _ledgerWith({List<Budget> budgets = const []}) {
   final categories = [_food, _dining, _transport];

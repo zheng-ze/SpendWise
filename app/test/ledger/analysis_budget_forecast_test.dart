@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_forecast.dart';
 
+import '../support/ledger_fixtures.dart';
 import 'analysis_pace_fixture.dart';
 import 'analysis_test_support.dart';
 
@@ -16,18 +17,6 @@ final _augustFirstRecord = DateTime.utc(2026, 8, 1);
 final _october = DateTime.utc(2026, 10, 1);
 
 Decimal dec(String value) => Decimal.parse(value);
-
-TransactionCategory _category(String id, String name, {String? parentID}) {
-  return TransactionCategory(
-    id: id,
-    name: name,
-    kind: CategoryKind.expense,
-    colorHex: '#000000',
-    includeInAnalysis: true,
-    parentID: parentID,
-    symbol: 'tag',
-  );
-}
 
 Budget _diningBudget([Decimal? limit]) => Budget(
   id: _diningBudgetID,
@@ -56,8 +45,12 @@ List<Budget> _paceBudgets() => [
 LedgerState _state(List<Budget> budgets) {
   final categories = [
     for (final key in [paceDining, paceGroceries, paceTransport])
-      _category(paceCategoryIDs[key]!, key),
-    _category(_diningChildID, 'child', parentID: paceCategoryIDs[paceDining]),
+      testCategory(id: paceCategoryIDs[key]!, name: key),
+    testCategory(
+      id: _diningChildID,
+      name: 'child',
+      parentID: paceCategoryIDs[paceDining],
+    ),
   ];
   return LedgerState(
     categories: {for (final c in categories) c.id: c},

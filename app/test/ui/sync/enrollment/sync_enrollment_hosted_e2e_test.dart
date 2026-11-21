@@ -22,6 +22,7 @@ import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_vie
 import 'package:sync/sync.dart';
 
 import '../../../support/recording_ledger_store.dart';
+import '../../../support/sync_fixtures.dart';
 import '../../../sync/in_memory_secret_store.dart';
 import '../../../support/ui_test_timeout.dart';
 
@@ -55,9 +56,6 @@ String? _headerValue(Map<String, String> headers, String name) {
   }
   return null;
 }
-
-// Unpadded base64url of 32 zero bytes, the device-secret format.
-const _stubDeviceSecret = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
 final class _ScriptedSyncHttpClient extends http.BaseClient {
   final List<_RecordedHttpRequest> requests = [];
@@ -123,7 +121,7 @@ final class _ScriptedSyncHttpClient extends http.BaseClient {
           'expires_at': '2026-09-19T12:00:00.000Z',
         },
         if (_headerValue(headers, 'X-SpendWise-Binding-Authorization') != null)
-          'device_secret': _stubDeviceSecret,
+          'device_secret': deviceSecret(),
       };
     }
     if (path == '/rest/v1/rpc/sync_complete_reconcile') {

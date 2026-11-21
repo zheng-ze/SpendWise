@@ -3,11 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:sync/sync.dart';
 
-Account _account({String name = 'acc'}) =>
-    Account(name: name, type: AccountType.savings);
-
-Entry _entry(String sourceID) =>
-    Entry(amount: Decimal.fromInt(-10), name: 'entry', sourceID: sourceID);
+import '../support/ledger_fixtures.dart';
 
 VersionVector _stamp(int counter) =>
     VersionVector({'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa': counter});
@@ -20,14 +16,14 @@ void main() {
   test('localCommitAdvancesRevisionOnce', () {
     final ledger = Ledger();
 
-    ledger.addAccount(_account());
+    ledger.addAccount(testAccount());
 
     expect(ledger.revision, 1);
   });
 
   test('multiChangeCommitAdvancesRevisionOnce', () {
     final ledger = Ledger();
-    final account = _account();
+    final account = testAccount();
     ledger.addAccount(account);
 
     ledger.addPocket(SubPocket(name: 'pocket'), account.id);
@@ -37,7 +33,7 @@ void main() {
 
   test('stampedSyncCommitAdvancesRevisionOnce', () {
     final ledger = Ledger();
-    final account = _account();
+    final account = testAccount();
     final changes = <LedgerChange>[UpsertAccount(account)];
 
     ledger.applySyncBatch(changes, {
@@ -77,10 +73,12 @@ void main() {
 
   test('rejectedLocalMutationLeavesRevisionUnchanged', () {
     final ledger = Ledger();
-    ledger.addAccount(_account());
+    ledger.addAccount(testAccount());
 
     expect(
-      () => ledger.addEntry(_entry('4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43')),
+      () => ledger.addEntry(
+        testEntry(sourceID: '4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43'),
+      ),
       throwsA(isA<UnknownHolder>()),
     );
 
@@ -89,7 +87,7 @@ void main() {
 
   test('rejectedSyncBatchLeavesRevisionUnchanged', () {
     final ledger = Ledger();
-    final orphan = _entry('4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43');
+    final orphan = testEntry(sourceID: '4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43');
     var notifications = 0;
     ledger.addListener(() => notifications++);
 
@@ -115,7 +113,7 @@ void main() {
     });
     ledger.addListener(() => order.add('notify'));
 
-    ledger.addAccount(_account());
+    ledger.addAccount(testAccount());
 
     expect(publishedRevision, 1);
     expect(order, ['publish', 'notify']);
