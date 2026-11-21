@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
@@ -10,7 +11,6 @@ import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 const _loadingLabel = 'Loading';
 const _loadingGap = 12.0;
 const _loadingPadding = EdgeInsets.symmetric(vertical: 32);
-const _retryLabel = 'Try again';
 const _footerWidth = double.infinity;
 
 // MARK: - FormSheetLoading
@@ -98,7 +98,7 @@ class FormSheetAsyncHost<T> extends StatelessWidget {
     if (error == null) return FormSheetLoading(title: title);
     final retry = SizedBox(
       width: _footerWidth,
-      child: PrimaryButton(label: _retryLabel, onPressed: onRetry),
+      child: PrimaryButton(label: loadErrorRetryLabel, onPressed: onRetry),
     );
     return FormSheetLoadError(
       title: title,

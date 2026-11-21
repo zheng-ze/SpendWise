@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_flow.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
@@ -184,7 +185,7 @@ class _SyncEnrollmentFlowState
               FilledButton(
                 key: const Key('syncFreshRetryWait'),
                 onPressed: _retryFreshWait,
-                child: const Text('Try again'),
+                child: const Text(loadErrorRetryLabel),
               ),
             ],
           ),

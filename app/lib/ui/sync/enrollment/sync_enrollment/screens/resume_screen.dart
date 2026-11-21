@@ -22,7 +22,7 @@ class SyncEnrollmentResumeScreen extends ConsumerWidget {
             : 'Finishing hosted sync enrollment.');
     final action = state.inFlight
         ? const InlineSpinner()
-        : const Text('Retry');
+        : const Text(loadErrorRetryLabel);
 
     return PopScope(
       canPop: !state.repairMode || !state.inFlight,
