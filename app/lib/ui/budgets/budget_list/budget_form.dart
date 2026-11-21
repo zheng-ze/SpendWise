@@ -17,7 +17,6 @@ import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 const _sheetTitle = 'Add budget';
 const _categoryLabel = 'Category';
 const _saveLabel = 'Save budget';
-const _retryLabel = 'Try again';
 const _loadErrorTitle = "Couldn't load the budget form";
 const _saveErrorTitle = 'Could not save budget';
 
@@ -63,29 +62,17 @@ class _BudgetFormState extends ConsumerState<BudgetForm> {
   Widget build(BuildContext context) {
     final provider = budgetFormViewModelProvider(widget.draftKey);
     final viewModel = ref.read(provider.notifier);
-    final asyncState = ref.watch(provider);
-    final formState = asyncState.value;
 
-    if (formState != null) {
-      return _BudgetFormBody(
+    return FormSheetAsyncHost(
+      state: ref.watch(provider),
+      title: _sheetTitle,
+      loadErrorMessage: _loadErrorTitle,
+      onRetry: viewModel.retry,
+      builder: (formState) => _BudgetFormBody(
         formState: formState,
         viewModel: viewModel,
         amountController: _amountController,
-      );
-    }
-    final error = asyncState.error;
-    if (asyncState.isLoading || error == null) {
-      return const FormSheetLoading(title: _sheetTitle);
-    }
-    final retry = SizedBox(
-      width: _footerWidth,
-      child: PrimaryButton(label: _retryLabel, onPressed: viewModel.retry),
-    );
-    return FormSheetLoadError(
-      title: _sheetTitle,
-      message: _loadErrorTitle,
-      error: error,
-      footer: retry,
+      ),
     );
   }
 }

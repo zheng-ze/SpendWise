@@ -4,6 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_content.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
+
+// MARK: - Constants
+const _loadingTitle = 'Budget';
+const _loadErrorTitle = "Couldn't load this budget";
 
 // MARK: - Screen
 class BudgetDetailScreen extends ConsumerWidget {
@@ -13,22 +18,20 @@ class BudgetDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncState = ref.watch(budgetDetailViewModelProvider(budgetID));
+    final provider = budgetDetailViewModelProvider(budgetID);
     final ledger = ref.watch(ledgerProvider);
 
-    return asyncState.when(
-      data: (viewState) => ledger == null
+    return FormSheetAsyncHost(
+      state: ref.watch(provider),
+      title: _loadingTitle,
+      loadErrorMessage: _loadErrorTitle,
+      onRetry: () => ref.invalidate(provider),
+      builder: (viewState) => ledger == null
           ? const SizedBox.shrink()
           : _BudgetDetailPage(
               viewState: viewState,
-              viewModel: ref.read(
-                budgetDetailViewModelProvider(budgetID).notifier,
-              ),
+              viewModel: ref.read(provider.notifier),
             ),
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, stackTrace) =>
-          Scaffold(body: Center(child: Text('$error'))),
     );
   }
 }

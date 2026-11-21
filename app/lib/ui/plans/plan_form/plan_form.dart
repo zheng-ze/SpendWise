@@ -22,7 +22,6 @@ import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 // MARK: - Constants
 const _sheetTitle = 'Edit plan';
 const _saveLabel = 'Save plan';
-const _retryLabel = 'Try again';
 const _nameHint = 'Name';
 const _accountLabel = 'Account';
 const _repeatLabel = 'Repeat';
@@ -202,31 +201,18 @@ class _PlanFormState extends ConsumerState<PlanForm> {
 
   @override
   Widget build(BuildContext context) {
-    final asyncState = ref.watch(_provider);
-    final formState = asyncState.value;
-    if (formState != null) {
-      return _PlanFormBody(
+    return FormSheetAsyncHost(
+      state: ref.watch(_provider),
+      title: _sheetTitle,
+      loadErrorMessage: _loadErrorTitle,
+      onRetry: () => ref.invalidate(_provider),
+      builder: (formState) => _PlanFormBody(
         formState: formState,
         viewModel: _viewModel,
         nameController: _nameController,
         amountController: _amountController,
         onPickEnds: _pickEnds,
-      );
-    }
-    final error = asyncState.error;
-    if (error == null) return const FormSheetLoading(title: _sheetTitle);
-    final retry = SizedBox(
-      width: _footerWidth,
-      child: PrimaryButton(
-        label: _retryLabel,
-        onPressed: () => ref.invalidate(_provider),
       ),
-    );
-    return FormSheetLoadError(
-      title: _sheetTitle,
-      message: _loadErrorTitle,
-      error: error,
-      footer: retry,
     );
   }
 }

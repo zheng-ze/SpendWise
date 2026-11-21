@@ -12,7 +12,13 @@ import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
 import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
+
+// MARK: - Constants
+
+const _loadingTitle = 'Edit Account';
+const _loadErrorTitle = "Couldn't load this account";
 
 // MARK: - Visual Constants
 
@@ -94,19 +100,19 @@ class _SourceEditFormState extends ConsumerState<SourceEditForm> {
 
   @override
   Widget build(BuildContext context) {
-    final asyncState = ref.watch(
-      sourceEditFormViewModelProvider(widget.holderID),
-    );
+    final provider = sourceEditFormViewModelProvider(widget.holderID);
 
-    return asyncState.when(
-      data: (formState) => _SourceEditFormBody(
+    return FormSheetAsyncHost(
+      state: ref.watch(provider),
+      title: _loadingTitle,
+      loadErrorMessage: _loadErrorTitle,
+      onRetry: () => ref.invalidate(provider),
+      builder: (formState) => _SourceEditFormBody(
         formState: formState,
         viewModel: _viewModel,
         nameController: _nameController,
         balanceController: _balanceController,
       ),
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) => Center(child: Text('$error')),
     );
   }
 }

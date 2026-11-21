@@ -14,8 +14,14 @@ import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/pickers/account_type_picker.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
 import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
+
+// MARK: - Constants
+
+const _loadingTitle = 'New Account';
+const _loadErrorTitle = "Couldn't load the account form";
 
 // MARK: - Visual Constants
 
@@ -119,17 +125,17 @@ class _AccountFormState extends ConsumerState<AccountForm> {
 
   @override
   Widget build(BuildContext context) {
-    final asyncState = ref.watch(accountFormViewModelProvider);
-
-    return asyncState.when(
-      data: (formState) => _AccountFormBody(
+    return FormSheetAsyncHost(
+      state: ref.watch(accountFormViewModelProvider),
+      title: _loadingTitle,
+      loadErrorMessage: _loadErrorTitle,
+      onRetry: () => ref.invalidate(accountFormViewModelProvider),
+      builder: (formState) => _AccountFormBody(
         formState: formState,
         viewModel: _viewModel,
         nameController: _nameController,
         balanceController: _balanceController,
       ),
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) => Center(child: Text('$error')),
     );
   }
 }
