@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/common/pickers/choice_tile.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 // MARK: - Constants
@@ -20,14 +21,14 @@ Future<EndsChoice?> showEndsChoiceSheet({
   required bool hasEndDate,
   PickerRouteCallback? onRouteCreated,
 }) {
-  final never = _EndsChoiceRow(
+  final never = ChoiceTile<EndsChoice>(
     label: _neverLabel,
-    choice: EndsChoice.never,
+    value: EndsChoice.never,
     selected: !hasEndDate,
   );
-  final chooseDate = _EndsChoiceRow(
+  final chooseDate = ChoiceTile<EndsChoice>(
     label: _chooseDateLabel,
-    choice: EndsChoice.chooseDate,
+    value: EndsChoice.chooseDate,
     selected: hasEndDate,
   );
   final sheet = AppPickerSheet(
@@ -40,26 +41,4 @@ Future<EndsChoice?> showEndsChoiceSheet({
     onRouteCreated: onRouteCreated,
     builder: (_) => sheet,
   );
-}
-
-// MARK: - EndsChoiceRow
-class _EndsChoiceRow extends StatelessWidget {
-  const _EndsChoiceRow({
-    required this.label,
-    required this.choice,
-    required this.selected,
-  });
-
-  final String label;
-  final EndsChoice choice;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      onTap: () => Navigator.of(context).pop(choice),
-      title: Text(label),
-      trailing: selected ? const Icon(Icons.check) : null,
-    );
-  }
 }

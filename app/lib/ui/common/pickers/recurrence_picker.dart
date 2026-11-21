@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/common/pickers/choice_tile.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 // MARK: - Constants
@@ -55,38 +56,16 @@ List<Widget> _recurrenceRows(
 }) {
   return [
     if (includesNoRepeat)
-      _RecurrenceRow(
+      ChoiceTile<_RecurrenceOutcome>(
         label: addNoRepeatLabel,
+        value: const _RecurrenceOutcome(null),
         selected: selected == null,
-        outcome: const _RecurrenceOutcome(null),
       ),
     for (final frequency in RecurrenceFrequency.values)
-      _RecurrenceRow(
+      ChoiceTile<_RecurrenceOutcome>(
         label: addFrequencyLabels[frequency]!,
+        value: _RecurrenceOutcome(frequency),
         selected: selected == frequency,
-        outcome: _RecurrenceOutcome(frequency),
       ),
   ];
-}
-
-// MARK: - RecurrenceRow
-class _RecurrenceRow extends StatelessWidget {
-  const _RecurrenceRow({
-    required this.label,
-    required this.selected,
-    required this.outcome,
-  });
-
-  final String label;
-  final bool selected;
-  final _RecurrenceOutcome outcome;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      onTap: () => Navigator.of(context).pop(outcome),
-      title: Text(label),
-      trailing: selected ? const Icon(Icons.check) : null,
-    );
-  }
 }

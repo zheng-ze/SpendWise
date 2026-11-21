@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/common/pickers/choice_tile.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -55,38 +56,17 @@ class _ReceiptChoiceBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         hint,
-        const _ReceiptChoiceRow(
+        const ChoiceTile<ReceiptChoice>(
           label: _scanLabel,
-          icon: Icons.camera_alt_outlined,
-          choice: ReceiptChoice.scan,
+          leading: Icons.camera_alt_outlined,
+          value: ReceiptChoice.scan,
         ),
-        const _ReceiptChoiceRow(
+        const ChoiceTile<ReceiptChoice>(
           label: _photoLabel,
-          icon: Icons.image_outlined,
-          choice: ReceiptChoice.photo,
+          leading: Icons.image_outlined,
+          value: ReceiptChoice.photo,
         ),
       ],
-    );
-  }
-}
-
-class _ReceiptChoiceRow extends StatelessWidget {
-  const _ReceiptChoiceRow({
-    required this.label,
-    required this.icon,
-    required this.choice,
-  });
-
-  final String label;
-  final IconData icon;
-  final ReceiptChoice choice;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      onTap: () => Navigator.of(context).pop(choice),
-      leading: Icon(icon),
-      title: Text(label),
     );
   }
 }

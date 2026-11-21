@@ -4,7 +4,6 @@ import 'package:spendwise/ui/budgets/budget_list/budget_scope_options.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
-import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 
 // MARK: - Constants
@@ -23,10 +22,9 @@ Future<BudgetScopeChoice?> showBudgetCategoryPickerSheet({
   required List<BudgetScopeOption> options,
   required BudgetScopeChoice? selected,
 }) {
-  return showAppSheet<BudgetScopeChoice>(
+  return showPickerAppSheet<BudgetScopeChoice>(
     context,
-    presentation: shellSheetPresentation(context),
-    presentationResolver: shellSheetPresentation,
+    presentation: shellSheetPresentation,
     builder: (_) => _BudgetCategoryPicker(options: options, selected: selected),
   );
 }

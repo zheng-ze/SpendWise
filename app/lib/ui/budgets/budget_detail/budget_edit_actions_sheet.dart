@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/common/pickers/choice_tile.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 // MARK: - Constants
@@ -37,40 +38,18 @@ class _BudgetEditActions extends StatelessWidget {
   Widget build(BuildContext context) {
     const rows = Column(
       children: [
-        _ActionRow(
-          icon: _changeLimitIcon,
+        ChoiceTile<BudgetEditAction>(
+          leading: _changeLimitIcon,
           label: _changeLimitLabel,
-          action: BudgetEditAction.changeLimit,
+          value: BudgetEditAction.changeLimit,
         ),
-        _ActionRow(
-          icon: _deleteIcon,
+        ChoiceTile<BudgetEditAction>(
+          leading: _deleteIcon,
           label: _deleteLabel,
-          action: BudgetEditAction.delete,
+          value: BudgetEditAction.delete,
         ),
       ],
     );
     return const AppPickerSheet(title: _sheetTitle, body: rows);
-  }
-}
-
-// MARK: - ActionRow
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.icon,
-    required this.label,
-    required this.action,
-  });
-
-  final IconData icon;
-  final String label;
-  final BudgetEditAction action;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(label),
-      onTap: () => Navigator.of(context).pop(action),
-    );
   }
 }
