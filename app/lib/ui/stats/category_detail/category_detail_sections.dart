@@ -29,10 +29,11 @@ class CategoryDetailHeadline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = AmountStyle.of(context, kind: kind);
-    final text = Text(
-      formatSignedMoney(amount, kind: kind),
-      style: context.text.headline.copyWith(color: style.color),
+    final text = AmountText(
+      amount: amount,
+      kind: kind,
+      size: AmountTextSize.headline,
+      showSymbol: true,
     );
     return Padding(padding: _headlinePadding, child: text);
   }

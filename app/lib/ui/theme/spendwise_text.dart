@@ -13,7 +13,6 @@ const _rowLetterSpacing = -0.2;
 const _smallSize = 12.0;
 const _smallLetterSpacing = 0.0;
 const _captionSize = 10.0;
-const _bodySize = 12.0;
 const _titleSize = 14.0;
 
 // MARK: - Amount Style
@@ -42,6 +41,7 @@ class SpendWiseText extends ThemeExtension<SpendWiseText> {
 
   static const semibold = FontWeight.w600;
   static const medium = FontWeight.w500;
+  static const bodySize = 12.0;
 
   static final standard = SpendWiseText(
     hero: _amount(_heroSize, medium, _heroLetterSpacing),
@@ -49,7 +49,7 @@ class SpendWiseText extends ThemeExtension<SpendWiseText> {
     row: _amount(_rowSize, semibold, _rowLetterSpacing),
     small: _amount(_smallSize, semibold, _smallLetterSpacing),
     caption: const TextStyle(fontSize: _captionSize),
-    body: const TextStyle(fontSize: _bodySize),
+    body: const TextStyle(fontSize: bodySize),
     title: const TextStyle(fontSize: _titleSize),
   );
 

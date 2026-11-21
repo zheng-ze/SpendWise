@@ -186,19 +186,20 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final header = section.header;
     final trailing = switch (header) {
-      SubtotalHeader(:final subtotal) => _SectionAmount(
-        amount: formatMoney(subtotal, symbol: false),
-        color: AmountStyle.of(context, signedValue: subtotal).color,
+      SubtotalHeader(:final subtotal) => AmountText.formatted(
+        text: formatMoney(subtotal, symbol: false),
+        kind: amountKindOfSign(subtotal),
       ),
       CardHeader(:final payable, :final outstanding) => Wrap(
         spacing: _headerAmountGap,
         children: [
-          _SectionAmount(
-            amount: 'Payable ${formatMoney(payable, symbol: false)}',
-            color: AmountStyle.of(context, kind: AmountKind.expense).color,
+          AmountText.formatted(
+            text: 'Payable ${formatMoney(payable, symbol: false)}',
+            kind: AmountKind.expense,
           ),
-          _SectionAmount(
-            amount: 'Outstanding ${formatMoney(outstanding, symbol: false)}',
+          AmountText.formatted(
+            text: 'Outstanding ${formatMoney(outstanding, symbol: false)}',
+            kind: AmountKind.transfer,
             color: context.colors.subtext,
           ),
         ],
@@ -213,15 +214,4 @@ class _SectionHeader extends StatelessWidget {
       ),
     );
   }
-}
-
-class _SectionAmount extends StatelessWidget {
-  const _SectionAmount({required this.amount, required this.color});
-
-  final String amount;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) =>
-      Text(amount, style: context.text.caption.copyWith(color: color));
 }

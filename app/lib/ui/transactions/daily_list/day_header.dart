@@ -14,7 +14,7 @@ const double dayHeaderHeight = 56;
 const double registerDayHeaderHeight = 46;
 
 double _registerDayHeaderExtent(TextScaler textScaler) {
-  final scaledDateFontSize = textScaler.scale(_RegisterDayHeader._dateFontSize);
+  final scaledDateFontSize = textScaler.scale(SpendWiseText.bodySize);
   final twoLineContentHeight =
       _RegisterDayHeader._topInset +
       _RegisterDayHeader._bottomInset +
@@ -68,12 +68,10 @@ class DayHeader extends StatelessWidget {
       ],
     );
     final dateLabelFlex = Expanded(child: dateLabel);
-    final netText = Text(
-      formatMoney(net, symbol: false),
-      style: theme.textTheme.titleSmall?.copyWith(
-        color: AmountStyle.of(context, signedValue: net).color,
-        fontWeight: SpendWiseText.semibold,
-      ),
+    final netText = AmountText.formatted(
+      text: formatMoney(net, symbol: false),
+      kind: amountKindOfSign(net),
+      size: AmountTextSize.row,
     );
     final content = Row(
       children: [
@@ -101,7 +99,6 @@ class _RegisterDayHeader extends StatelessWidget {
   static const _horizontalInset = 14.0;
   static const _topInset = 10.0;
   static const _bottomInset = 8.0;
-  static const _dateFontSize = 12.0;
   static const _cornerRadius = 14.0;
   static const _labelGap = 8.0;
   static const _pageInset = 14.0;
@@ -109,7 +106,6 @@ class _RegisterDayHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final netColor = AmountStyle.of(context, signedValue: net).color;
     final decoration = BoxDecoration(
       color: colors.surface,
       border: fullEdgeBorder(colors),
@@ -124,12 +120,9 @@ class _RegisterDayHeader extends StatelessWidget {
         color: colors.text,
       ),
     );
-    final amount = Text(
-      formatMoney(net, symbol: false),
-      style: context.text.body.copyWith(
-        fontWeight: SpendWiseText.semibold,
-        color: netColor,
-      ),
+    final amount = AmountText.formatted(
+      text: formatMoney(net, symbol: false),
+      kind: amountKindOfSign(net),
     );
 
     return ColoredBox(

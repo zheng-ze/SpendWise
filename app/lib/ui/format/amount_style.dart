@@ -36,8 +36,14 @@ class AmountStyle {
   final Color color;
 }
 
+AmountKind amountKindOfSign(Decimal value) {
+  if (value < Decimal.zero) return AmountKind.expense;
+  if (value > Decimal.zero) return AmountKind.income;
+  return AmountKind.transfer;
+}
+
 // MARK: - AmountText
-enum AmountTextSize { small, row }
+enum AmountTextSize { small, row, headline }
 
 class AmountText extends StatelessWidget {
   AmountText({
@@ -46,7 +52,9 @@ class AmountText extends StatelessWidget {
     required this.kind,
     this.size = AmountTextSize.small,
     this.textAlign,
-  }) : text = formatSignedMoney(amount, kind: kind, symbol: false);
+    bool showSymbol = false,
+    this.color,
+  }) : text = formatSignedMoney(amount, kind: kind, symbol: showSymbol);
 
   const AmountText.formatted({
     super.key,
@@ -54,23 +62,28 @@ class AmountText extends StatelessWidget {
     required this.kind,
     this.size = AmountTextSize.small,
     this.textAlign,
+    this.color,
   });
 
   final String text;
   final AmountKind kind;
   final AmountTextSize size;
   final TextAlign? textAlign;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final base = switch (size) {
       AmountTextSize.small => context.text.small,
       AmountTextSize.row => context.text.row,
+      AmountTextSize.headline => context.text.headline,
     };
     return Text(
       text,
       textAlign: textAlign,
-      style: base.copyWith(color: AmountStyle.of(context, kind: kind).color),
+      style: base.copyWith(
+        color: color ?? AmountStyle.of(context, kind: kind).color,
+      ),
     );
   }
 }
