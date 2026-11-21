@@ -25,7 +25,6 @@ const _periodSummaryGap = 4.0;
 const _summaryRegisterGap = 16.0;
 const _headingFontFamily = 'InstrumentSans';
 const _headingFontSize = 26.0;
-const _headingWeight = FontWeight.w600;
 const _headingLetterSpacing = -0.7;
 const _previousMonthLabel = 'Previous month';
 const _nextMonthLabel = 'Next month';
@@ -180,7 +179,7 @@ class _TransactionsHeader extends StatelessWidget {
     final titleStyle = TextStyle(
       fontFamily: _headingFontFamily,
       fontSize: _headingFontSize,
-      fontWeight: _headingWeight,
+      fontWeight: SpendWiseText.semibold,
       letterSpacing: _headingLetterSpacing,
       color: context.colors.text,
     );

@@ -44,7 +44,6 @@ class _AccountsList extends StatelessWidget {
   static const _listPadding = EdgeInsets.all(14);
   static const _sectionGap = 10.0;
   static const _emptyTopPadding = 28.0;
-  static const _emptyTextSize = 14.0;
   @override
   Widget build(BuildContext context) {
     final netWorth = viewState.netWorth;
@@ -81,9 +80,8 @@ class _AccountsList extends StatelessWidget {
             child: Center(
               child: Text(
                 'No accounts yet',
-                style: TextStyle(
+                style: context.text.title.copyWith(
                   color: context.colors.subtext,
-                  fontSize: _emptyTextSize,
                 ),
               ),
             ),
@@ -223,11 +221,7 @@ class _SectionAmount extends StatelessWidget {
   final String amount;
   final Color color;
 
-  static const _amountSize = 10.0;
-
   @override
-  Widget build(BuildContext context) => Text(
-    amount,
-    style: TextStyle(fontSize: _amountSize, color: color),
-  );
+  Widget build(BuildContext context) =>
+      Text(amount, style: context.text.caption.copyWith(color: color));
 }

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
@@ -17,7 +18,7 @@ double _registerDayHeaderExtent(TextScaler textScaler) {
   final twoLineContentHeight =
       _RegisterDayHeader._topInset +
       _RegisterDayHeader._bottomInset +
-      2 * _RegisterDayHeader._borderWidth +
+      2 * edgeThickness +
       2 * scaledDateFontSize;
   return math.max(registerDayHeaderHeight, twoLineContentHeight);
 }
@@ -71,7 +72,7 @@ class DayHeader extends StatelessWidget {
       formatMoney(net, symbol: false),
       style: theme.textTheme.titleSmall?.copyWith(
         color: AmountStyle.of(context, signedValue: net).color,
-        fontWeight: FontWeight.w600,
+        fontWeight: SpendWiseText.semibold,
       ),
     );
     final content = Row(
@@ -101,10 +102,6 @@ class _RegisterDayHeader extends StatelessWidget {
   static const _topInset = 10.0;
   static const _bottomInset = 8.0;
   static const _dateFontSize = 12.0;
-  static const _dateFontWeight = FontWeight.w600;
-  static const _amountFontSize = 12.0;
-  static const _amountFontWeight = FontWeight.w600;
-  static const _borderWidth = 1.0;
   static const _cornerRadius = 14.0;
   static const _labelGap = 8.0;
   static const _pageInset = 14.0;
@@ -115,24 +112,22 @@ class _RegisterDayHeader extends StatelessWidget {
     final netColor = AmountStyle.of(context, signedValue: net).color;
     final decoration = BoxDecoration(
       color: colors.surface,
-      border: Border.all(color: colors.edge, width: _borderWidth),
+      border: fullEdgeBorder(colors),
       borderRadius: const BorderRadius.vertical(
         top: Radius.circular(_cornerRadius),
       ),
     );
     final date = Text(
       formatWeekdayDate(day),
-      style: TextStyle(
-        fontSize: _dateFontSize,
-        fontWeight: _dateFontWeight,
+      style: context.text.body.copyWith(
+        fontWeight: SpendWiseText.semibold,
         color: colors.text,
       ),
     );
     final amount = Text(
       formatMoney(net, symbol: false),
-      style: TextStyle(
-        fontSize: _amountFontSize,
-        fontWeight: _amountFontWeight,
+      style: context.text.body.copyWith(
+        fontWeight: SpendWiseText.semibold,
         color: netColor,
       ),
     );

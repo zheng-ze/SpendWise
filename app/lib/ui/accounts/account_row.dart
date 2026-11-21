@@ -7,6 +7,7 @@ import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - AccountRowTile
@@ -211,9 +212,7 @@ class _SubRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: context.colors.edge)),
-        ),
+        decoration: BoxDecoration(border: bottomEdgeBorder(context.colors)),
         padding: const EdgeInsets.fromLTRB(
           _subRowLeftInset,
           _subRowVerticalPadding,

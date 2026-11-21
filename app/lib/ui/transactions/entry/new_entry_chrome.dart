@@ -5,6 +5,7 @@ import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/entry/entry_pane_layout.dart';
 
 // MARK: - Visual Constants
@@ -14,10 +15,6 @@ const _sideColumnWidth = 52.0;
 const _actionMinHeight = 48.0;
 
 const _saveRadius = 10.0;
-
-const _saveLabelSize = 12.0;
-
-const _saveLabelWeight = FontWeight.w600;
 
 const _saveHorizontalPadding = 12.0;
 
@@ -128,8 +125,9 @@ class NewEntrySaveFooter extends StatelessWidget {
         vertical: keypad ? _saveKeypadVerticalPadding : _saveVerticalPadding,
         horizontal: _saveHorizontalPadding,
       ),
-      textStyle: Theme.of(context).textTheme.labelLarge
-          ?.copyWith(fontSize: _saveLabelSize, fontWeight: _saveLabelWeight),
+      textStyle: Theme.of(context).textTheme.labelLarge?.merge(
+        context.text.body.copyWith(fontWeight: SpendWiseText.semibold),
+      ),
     );
     final button = FilledButton(
       style: style,

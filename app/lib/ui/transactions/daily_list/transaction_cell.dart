@@ -4,6 +4,7 @@ import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/lists/icon_medallion.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/symbol_map.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
@@ -93,27 +94,26 @@ class _RegisterTransactionCell extends StatelessWidget {
   static const _cellVerticalInset = 8.0;
   static const _contentGap = 9.0;
   static const _amountGap = 8.0;
-  static const _titleSize = 12.0;
-  static const _titleWeight = FontWeight.w600;
-  static const _subtitleSize = 10.0;
   static const _subtitleLineHeight = 1.3;
-  static const _rowBorderWidth = 1.0;
   static const _rowCornerRadius = 14.0;
   static const _rowMargin = 14.0;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final subtitleStyle = TextStyle(
-      fontSize: _subtitleSize,
+    final subtitleStyle = context.text.caption.copyWith(
       height: _subtitleLineHeight,
       color: colors.subtext,
+    );
+    final titleStyle = context.text.body.copyWith(
+      fontWeight: SpendWiseText.semibold,
+      color: colors.text,
     );
     final primaryText = row.note.isEmpty ? row.title : row.note;
     final secondaryText = row.note.isEmpty
         ? row.accountLine
         : '${row.title} / ${row.accountLine}';
-    final border = BorderSide(color: colors.edge, width: _rowBorderWidth);
+    final border = edgeSide(colors);
     final decoration = BoxDecoration(
       border: Border(left: border, right: border, bottom: border),
       borderRadius: isLastInDay
@@ -130,14 +130,7 @@ class _RegisterTransactionCell extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            primaryText,
-            style: TextStyle(
-              fontSize: _titleSize,
-              fontWeight: _titleWeight,
-              color: colors.text,
-            ),
-          ),
+          Text(primaryText, style: titleStyle),
           Text(secondaryText, style: subtitleStyle),
         ],
       ),

@@ -15,8 +15,6 @@ import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 
 const _focusedUnderlineHeight = 2.0;
 
-const _hintSize = 10.0;
-
 const _hintLineHeight = 1.4;
 
 const _hintPadding = EdgeInsets.only(top: 5.0, bottom: 4.0);
@@ -401,11 +399,9 @@ class _RecurringHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.bodyMedium!.copyWith(
-      fontSize: _hintSize,
-      height: _hintLineHeight,
-      color: context.colors.subtext,
-    );
+    final style = Theme.of(context).textTheme.bodyMedium!
+        .merge(context.text.caption)
+        .copyWith(height: _hintLineHeight, color: context.colors.subtext);
     return Padding(
       padding: _hintPadding,
       child: Text(_recurringHint, style: style),
