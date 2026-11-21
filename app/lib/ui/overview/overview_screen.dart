@@ -86,9 +86,6 @@ class _OverviewHeader extends StatelessWidget {
 
   static const _bottomPadding = 14.0;
   static const _dateGap = 2.0;
-  static const _titleFontSize = 26.0;
-  static const _titleLineHeight = 1.12;
-  static const _titleLetterSpacing = -0.7;
 
   @override
   Widget build(BuildContext context) {
@@ -103,15 +100,7 @@ class _OverviewHeader extends StatelessWidget {
             style: context.text.caption.copyWith(color: colors.subtext),
           ),
           const SizedBox(height: _dateGap),
-          Text(
-            overviewTitle,
-            style: TextStyle(
-              fontSize: _titleFontSize,
-              fontWeight: SpendWiseText.semibold,
-              height: _titleLineHeight,
-              letterSpacing: _titleLetterSpacing,
-            ),
-          ),
+          Text(overviewTitle, style: context.text.headline),
         ],
       ),
     );

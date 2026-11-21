@@ -42,14 +42,12 @@ Widget _buildOverviewTab(BuildContext context) => const _OverviewTabEntry();
 // MARK: - Constants
 const _bootPagePadding = EdgeInsets.all(30);
 const _bootContentGap = 14.0;
-const _bootWordmarkFontSize = 26.0;
 const _progressSize = 30.0;
 const _progressStrokeWidth = 3.0;
 const _loadingSemanticsLabel = 'Loading your data';
 const _failureTitle = "Couldn't load your data";
 const _failureMessage =
     'Something went wrong loading your data. Please try again.';
-const _failureTitleFontSize = 18.0;
 const _retryWidth = double.infinity;
 
 // MARK: - OverviewTabEntry
@@ -126,7 +124,7 @@ class _BootLoading extends StatelessWidget {
 
     return _BootPage(
       children: [
-        const SpendWiseWordmark(fontSize: _bootWordmarkFontSize),
+        const SpendWiseWordmark(),
         const SizedBox(height: _bootContentGap),
         sizedProgress,
       ],
@@ -149,8 +147,7 @@ class _LoadFailure extends ConsumerWidget {
 
     final title = Text(
       _failureTitle,
-      style: theme.textTheme.headlineSmall?.copyWith(
-        fontSize: _failureTitleFontSize,
+      style: context.text.title.copyWith(
         fontWeight: SpendWiseText.semibold,
         color: colors.text,
       ),
@@ -172,7 +169,7 @@ class _LoadFailure extends ConsumerWidget {
 
     return _BootPage(
       children: [
-        const SpendWiseWordmark(fontSize: _bootWordmarkFontSize),
+        const SpendWiseWordmark(),
         const SizedBox(height: _bootContentGap),
         title,
         const SizedBox(height: _bootContentGap),

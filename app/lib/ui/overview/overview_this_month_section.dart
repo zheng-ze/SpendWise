@@ -123,16 +123,12 @@ class ThisMonthFigureRow extends StatelessWidget {
 
   static const _verticalPadding = 10.0;
   static const _labelGap = 10.0;
-  static const _labelWeight = FontWeight.w400;
 
   @override
   Widget build(BuildContext context) {
     final labelText = Text(
       label,
-      style: context.text.body.copyWith(
-        fontWeight: _labelWeight,
-        color: context.colors.subtext,
-      ),
+      style: context.text.body.copyWith(color: context.colors.subtext),
     );
     final valueText = Text(
       value,

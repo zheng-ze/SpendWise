@@ -94,8 +94,6 @@ class TodayContent extends StatelessWidget {
 
   static const _heroVerticalGap = 4.0;
   static const _heroBottomGap = 6.0;
-  static const _midFontSize = 18.0;
-  static const _midLetterSpacing = -0.3;
 
   @override
   Widget build(BuildContext context) {
@@ -105,9 +103,8 @@ class TodayContent extends StatelessWidget {
         ? Text(formatMoney(summary.spent), style: context.text.hero)
         : Text(
             overviewNothingToday,
-            style: context.text.headline.copyWith(
-              fontSize: _midFontSize,
-              letterSpacing: _midLetterSpacing,
+            style: context.text.title.copyWith(
+              fontWeight: SpendWiseText.semibold,
             ),
           );
     return Column(

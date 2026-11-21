@@ -20,7 +20,6 @@ const _railPadding = EdgeInsets.symmetric(vertical: 12, horizontal: 2);
 const _railItemGap = 14.0;
 const _railAddTopGap = 2.0;
 const _railIconSize = 24.0;
-const _railLabelFontSize = 8.0;
 const _railLabelGap = 4.0;
 const _railItemCornerRadius = 10.0;
 const _railMinHitSize = 48.0;
@@ -146,8 +145,7 @@ class _RailItem extends StatelessWidget {
               const SizedBox(height: _railLabelGap),
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: _railLabelFontSize,
+                style: context.text.caption.copyWith(
                   fontWeight: highlighted
                       ? SpendWiseText.semibold
                       : SpendWiseText.medium,

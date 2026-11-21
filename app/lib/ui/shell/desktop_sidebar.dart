@@ -12,19 +12,16 @@ const _sidebarKey = ValueKey('sidebar');
 
 const desktopSidebarWidth = 172.0;
 const _sidebarPadding = EdgeInsets.fromLTRB(8, 12, 8, 12);
-const _wordmarkFontSize = 18.0;
 const _wordmarkPadding = EdgeInsets.fromLTRB(8, 0, 8, 16);
 const _sidebarItemPadding = EdgeInsets.symmetric(horizontal: 10, vertical: 9);
 const _sidebarItemGap = 2.0;
 const _sidebarItemCornerRadius = 12.0;
 const _sidebarIconSize = 20.0;
 const _sidebarLabelGap = 10.0;
-const _sidebarLabelFontSize = 13.0;
 const _sidebarAddGap = 8.0;
 const _sidebarAddVerticalPadding = 12.0;
 const _unselectedBackground = Colors.transparent;
 const _addEntryLabel = 'Add entry';
-const _syncLabelFontSize = 11.0;
 const _syncStatusPadding = EdgeInsets.fromLTRB(10, 8, 10, 0);
 
 const _loopDestinations = [
@@ -60,7 +57,7 @@ class DesktopSidebar extends StatelessWidget {
           children: [
             const Padding(
               padding: _wordmarkPadding,
-              child: SpendWiseWordmark(fontSize: _wordmarkFontSize),
+              child: SpendWiseWordmark(),
             ),
             for (final (index, destination) in _loopDestinations.indexed) ...[
               if (index > 0) const SizedBox(height: _sidebarItemGap),
@@ -107,7 +104,7 @@ class _SidebarSyncStatus extends ConsumerWidget {
       padding: _syncStatusPadding,
       child: Text(
         label,
-        style: TextStyle(fontSize: _syncLabelFontSize, color: colors.subtext),
+        style: context.text.body.copyWith(color: colors.subtext),
       ),
     );
   }
@@ -171,8 +168,7 @@ class _SidebarDestination extends StatelessWidget {
               Expanded(
                 child: Text(
                   destinationLabels[destination]!,
-                  style: TextStyle(
-                    fontSize: _sidebarLabelFontSize,
+                  style: context.text.body.copyWith(
                     fontWeight: isSelected
                         ? SpendWiseText.semibold
                         : SpendWiseText.medium,

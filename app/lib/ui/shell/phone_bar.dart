@@ -26,7 +26,6 @@ const _barPadding = EdgeInsets.fromLTRB(
 const _barCornerRadius = 20.0;
 const _barIconSize = 24.0;
 const _barLabelGap = 3.0;
-const _barLabelHeightFactor = 1.4;
 const _barLabelMaxLines = 1;
 const _barItemCornerRadius = 14.0;
 const _barItemVerticalPadding = 4.0;
@@ -164,7 +163,6 @@ class _BarDestination extends StatelessWidget {
           maxLines: _barLabelMaxLines,
           overflow: TextOverflow.ellipsis,
           style: context.text.caption.copyWith(
-            height: _barLabelHeightFactor,
             fontWeight: isSelected
                 ? SpendWiseText.semibold
                 : SpendWiseText.medium,
@@ -204,7 +202,6 @@ class _BarAdd extends StatelessWidget {
           maxLines: _barLabelMaxLines,
           overflow: TextOverflow.ellipsis,
           style: context.text.caption.copyWith(
-            height: _barLabelHeightFactor,
             fontWeight: SpendWiseText.semibold,
             color: colors.action,
           ),

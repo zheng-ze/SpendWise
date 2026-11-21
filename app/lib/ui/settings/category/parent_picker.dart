@@ -22,7 +22,6 @@ const double _rowVerticalPadding = 10;
 const double _rowGap = 8;
 const double _leadingSize = 28;
 const double _topLevelIconSize = 18;
-const _unselectedWeight = FontWeight.w400;
 
 // MARK: - ParentChoice
 class ParentChoice {
@@ -108,7 +107,7 @@ class _ParentRow extends StatelessWidget {
     final colors = context.colors;
     final labelStyle = context.text.body.copyWith(
       color: colors.text,
-      fontWeight: selected ? SpendWiseText.semibold : _unselectedWeight,
+      fontWeight: selected ? SpendWiseText.semibold : null,
     );
     final check = Icon(_selectedIcon, color: colors.action);
     final row = Row(
