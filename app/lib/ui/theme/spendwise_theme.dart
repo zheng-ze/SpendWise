@@ -15,9 +15,7 @@ ThemeData buildSpendWiseTheme(Brightness brightness) {
   final tokens = brightness == Brightness.dark
       ? SpendWiseColors.dark
       : SpendWiseColors.light;
-  final amountRoles = brightness == Brightness.dark
-      ? SpendWiseText.dark
-      : SpendWiseText.light;
+  final amountRoles = SpendWiseText.standard;
 
   final scheme = ColorScheme(
     brightness: brightness,

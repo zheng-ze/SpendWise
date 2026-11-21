@@ -12,6 +12,9 @@ const _rowSize = 14.0;
 const _rowLetterSpacing = -0.2;
 const _smallSize = 12.0;
 const _smallLetterSpacing = 0.0;
+const _captionSize = 10.0;
+const _bodySize = 12.0;
+const _titleSize = 14.0;
 
 // MARK: - Amount Style
 
@@ -32,26 +35,31 @@ class SpendWiseText extends ThemeExtension<SpendWiseText> {
     required this.headline,
     required this.row,
     required this.small,
+    required this.caption,
+    required this.body,
+    required this.title,
   });
 
-  static final light = SpendWiseText(
-    hero: _amount(_heroSize, FontWeight.w500, _heroLetterSpacing),
-    headline: _amount(_headlineSize, FontWeight.w500, _headlineLetterSpacing),
-    row: _amount(_rowSize, FontWeight.w600, _rowLetterSpacing),
-    small: _amount(_smallSize, FontWeight.w600, _smallLetterSpacing),
-  );
+  static const semibold = FontWeight.w600;
+  static const medium = FontWeight.w500;
 
-  static final dark = SpendWiseText(
-    hero: _amount(_heroSize, FontWeight.w500, _heroLetterSpacing),
-    headline: _amount(_headlineSize, FontWeight.w500, _headlineLetterSpacing),
-    row: _amount(_rowSize, FontWeight.w600, _rowLetterSpacing),
-    small: _amount(_smallSize, FontWeight.w600, _smallLetterSpacing),
+  static final standard = SpendWiseText(
+    hero: _amount(_heroSize, medium, _heroLetterSpacing),
+    headline: _amount(_headlineSize, medium, _headlineLetterSpacing),
+    row: _amount(_rowSize, semibold, _rowLetterSpacing),
+    small: _amount(_smallSize, semibold, _smallLetterSpacing),
+    caption: const TextStyle(fontSize: _captionSize),
+    body: const TextStyle(fontSize: _bodySize),
+    title: const TextStyle(fontSize: _titleSize),
   );
 
   final TextStyle hero;
   final TextStyle headline;
   final TextStyle row;
   final TextStyle small;
+  final TextStyle caption;
+  final TextStyle body;
+  final TextStyle title;
 
   @override
   SpendWiseText copyWith({
@@ -59,12 +67,18 @@ class SpendWiseText extends ThemeExtension<SpendWiseText> {
     TextStyle? headline,
     TextStyle? row,
     TextStyle? small,
+    TextStyle? caption,
+    TextStyle? body,
+    TextStyle? title,
   }) {
     return SpendWiseText(
       hero: hero ?? this.hero,
       headline: headline ?? this.headline,
       row: row ?? this.row,
       small: small ?? this.small,
+      caption: caption ?? this.caption,
+      body: body ?? this.body,
+      title: title ?? this.title,
     );
   }
 
@@ -76,6 +90,9 @@ class SpendWiseText extends ThemeExtension<SpendWiseText> {
       headline: TextStyle.lerp(headline, other.headline, t)!,
       row: TextStyle.lerp(row, other.row, t)!,
       small: TextStyle.lerp(small, other.small, t)!,
+      caption: TextStyle.lerp(caption, other.caption, t)!,
+      body: TextStyle.lerp(body, other.body, t)!,
+      title: TextStyle.lerp(title, other.title, t)!,
     );
   }
 }
@@ -86,5 +103,5 @@ extension SpendWiseThemeContext on BuildContext {
       Theme.of(this).extension<SpendWiseColors>() ?? SpendWiseColors.light;
 
   SpendWiseText get text =>
-      Theme.of(this).extension<SpendWiseText>() ?? SpendWiseText.light;
+      Theme.of(this).extension<SpendWiseText>() ?? SpendWiseText.standard;
 }
