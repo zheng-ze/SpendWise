@@ -84,7 +84,7 @@ List<DateRange>? previousCompleteMonthWindows({
   required DateTime today,
 }) {
   final selected = monthWindow(selectedMonth).start;
-  final selectedLength = _monthLength(selected);
+  final selectedLength = daysInMonth(selected);
   if (elapsedDayCount < 1 || elapsedDayCount > selectedLength) {
     throw ArgumentError.value(
       elapsedDayCount,
@@ -92,22 +92,19 @@ List<DateRange>? previousCompleteMonthWindows({
       'Must be within the selected month.',
     );
   }
-  final first = firstRecordMonth == null
-      ? null
-      : DateTime.utc(firstRecordMonth.year, firstRecordMonth.month, 1);
   final day = startOfDayUtc(today);
   final windows = <DateRange>[];
   for (var back = 3; back >= 1; back--) {
     final baseline = DateTime.utc(selected.year, selected.month - back, 1);
     if (classifyPeriod(
           window: monthWindow(baseline),
-          firstRecordMonth: first,
+          firstRecordMonth: firstRecordMonth,
           today: day,
         ) !=
         PeriodCompleteness.complete) {
       return null;
     }
-    final elapsed = elapsedDayCount.clamp(1, _monthLength(baseline));
+    final elapsed = elapsedDayCount.clamp(1, daysInMonth(baseline));
     windows.add(DateRange(baseline, baseline.add(Duration(days: elapsed))));
   }
   return List.unmodifiable(windows);
@@ -125,9 +122,6 @@ ComparedWithUsual comparedWithUsual({
   final selected = monthWindow(selectedMonth).start;
   final day = startOfDayUtc(today);
   final currentMonth = monthWindow(day).start;
-  final first = firstRecordMonth == null
-      ? null
-      : DateTime.utc(firstRecordMonth.year, firstRecordMonth.month, 1);
   final DateRange observedWindow;
   final int elapsedDayCount;
   if (selected == currentMonth) {
@@ -135,7 +129,7 @@ ComparedWithUsual comparedWithUsual({
     elapsedDayCount = day.day;
   } else {
     observedWindow = monthWindow(selected);
-    elapsedDayCount = _monthLength(selected);
+    elapsedDayCount = daysInMonth(selected);
   }
   final ofKind = items.where((item) => item.kind == kind).toList();
   var observedTotal = Decimal.zero;
@@ -146,14 +140,14 @@ ComparedWithUsual comparedWithUsual({
   final baselines = previousCompleteMonthWindows(
     selectedMonth: selected,
     elapsedDayCount: elapsedDayCount,
-    firstRecordMonth: first,
+    firstRecordMonth: firstRecordMonth,
     today: day,
   );
   if (baselines == null) {
     return ComparedWithUsual(
       selectedMonth: selected,
       kind: kind,
-      firstRecordMonth: first,
+      firstRecordMonth: firstRecordMonth,
       observedWindow: observedWindow,
       elapsedDayCount: elapsedDayCount,
       observedTotal: observedTotal,
@@ -174,7 +168,7 @@ ComparedWithUsual comparedWithUsual({
   return ComparedWithUsual(
     selectedMonth: selected,
     kind: kind,
-    firstRecordMonth: first,
+    firstRecordMonth: firstRecordMonth,
     observedWindow: observedWindow,
     elapsedDayCount: elapsedDayCount,
     observedTotal: observedTotal,
@@ -185,14 +179,4 @@ ComparedWithUsual comparedWithUsual({
       scaleOnInfinitePrecision: 12,
     ),
   );
-}
-
-// MARK: - Helpers
-
-int _monthLength(DateTime monthStart) {
-  return DateTime.utc(
-    monthStart.year,
-    monthStart.month + 1,
-    1,
-  ).difference(monthStart).inDays;
 }

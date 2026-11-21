@@ -112,12 +112,9 @@ BudgetForecasts budgetForecasts({
   required DateTime today,
 }) {
   final day = startOfDayUtc(today);
-  final month = DateTime.utc(day.year, day.month, 1);
-  final firstMonth = firstRecordMonth == null
-      ? null
-      : DateTime.utc(firstRecordMonth.year, firstRecordMonth.month, 1);
+  final month = startOfMonthUtc(day);
   final baselineMonths = usualBaselineMonths(
-    firstRecordMonth: firstMonth,
+    firstRecordMonth: firstRecordMonth,
     today: day,
   );
   final monthCount = baselineMonths.length;
@@ -141,10 +138,11 @@ BudgetForecasts budgetForecasts({
       if (baselineWindow.contains(item.date)) item,
   ];
   final thisMonth = YearMonth.fromUtc(month);
+  final monthDays = daysInMonth(month);
   final timing = _Timing(
     monthCount: monthCount,
-    daysInMonth: monthWindow(month).end.difference(month).inDays,
-    daysAfterToday: monthWindow(month).end.difference(elapsed.end).inDays,
+    daysInMonth: monthDays,
+    daysAfterToday: monthDays - day.day,
   );
 
   final budgets = state.budgets.values;

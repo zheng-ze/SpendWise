@@ -46,7 +46,7 @@ DateTime? firstRecordMonth(LedgerState ledger) {
     }
   }
   if (earliest == null) return null;
-  return DateTime.utc(earliest.year, earliest.month, 1);
+  return startOfMonthUtc(earliest);
 }
 
 // MARK: - Classification
