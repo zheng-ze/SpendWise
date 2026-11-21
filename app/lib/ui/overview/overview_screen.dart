@@ -100,17 +100,14 @@ class _OverviewHeader extends StatelessWidget {
         children: [
           Text(
             formatWeekdayDate(day),
-            style: TextStyle(
-              fontSize: overviewSmallFontSize,
-              color: colors.subtext,
-            ),
+            style: context.text.caption.copyWith(color: colors.subtext),
           ),
           const SizedBox(height: _dateGap),
-          const Text(
+          Text(
             overviewTitle,
             style: TextStyle(
               fontSize: _titleFontSize,
-              fontWeight: overviewSemiBold,
+              fontWeight: SpendWiseText.semibold,
               height: _titleLineHeight,
               letterSpacing: _titleLetterSpacing,
             ),

@@ -10,7 +10,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 const _loadErrorTitle = "Couldn't load this plan";
 const _headingFontFamily = 'InstrumentSans';
 const _headingFontSize = 26.0;
-const _headingWeight = FontWeight.w600;
 const _headingLetterSpacing = -0.7;
 const _headerHorizontalInset = 14.0;
 const _headerTopInset = 4.0;
@@ -61,7 +60,7 @@ class _PlanDetailHeader extends StatelessWidget {
     final headingStyle = TextStyle(
       fontFamily: _headingFontFamily,
       fontSize: _headingFontSize,
-      fontWeight: _headingWeight,
+      fontWeight: SpendWiseText.semibold,
       letterSpacing: _headingLetterSpacing,
       color: context.colors.text,
     );

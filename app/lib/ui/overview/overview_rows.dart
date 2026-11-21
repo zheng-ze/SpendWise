@@ -5,6 +5,7 @@ import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Row Frame
@@ -21,10 +22,7 @@ class OverviewRowFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final divider = BorderSide(
-      color: context.colors.edge,
-      width: overviewRowDividerWidth,
-    );
+    final divider = edgeSide(context.colors);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: overviewRowVerticalPadding),
       decoration: isLast
@@ -83,9 +81,6 @@ class OverviewEmptyCopy extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: TextStyle(
-      fontSize: overviewSmallFontSize,
-      color: context.colors.subtext,
-    ),
+    style: context.text.caption.copyWith(color: context.colors.subtext),
   );
 }

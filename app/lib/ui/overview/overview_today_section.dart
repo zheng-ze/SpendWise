@@ -8,6 +8,7 @@ import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/overview/overview_rows.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/format/date_format.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 final _wholeDollarsSuffix = RegExp(r'\.00$');
@@ -30,7 +31,6 @@ class TodayTray extends StatelessWidget {
   final OverviewViewModel viewModel;
 
   static const _padding = 14.0;
-  static const _borderWidth = 1.0;
   static const _largeRadius = 20.0;
   static const _cornerRadius = 7.0;
   static const _radius = BorderRadius.only(
@@ -67,7 +67,7 @@ class TodayTray extends StatelessWidget {
         color: isLight ? colors.surface : colors.tint,
         border: Border.all(
           color: isLight ? colors.edge : colors.tint,
-          width: _borderWidth,
+          width: edgeThickness,
         ),
         borderRadius: _radius,
       ),
@@ -100,10 +100,7 @@ class TodayContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final label = TextStyle(
-      fontSize: overviewSmallFontSize,
-      color: colors.subtext,
-    );
+    final label = context.text.caption.copyWith(color: colors.subtext);
     final headline = recorded
         ? Text(formatMoney(summary.spent), style: context.text.hero)
         : Text(
@@ -162,10 +159,7 @@ class DailyGuide extends StatelessWidget {
       children: [
         Text(
           '$overviewGuideLabel${_wholeWhenExact(guide)}',
-          style: const TextStyle(
-            fontSize: overviewBodyFontSize,
-            fontWeight: overviewSemiBold,
-          ),
+          style: context.text.body.copyWith(fontWeight: SpendWiseText.semibold),
         ),
         Text(
           '$overviewCapCaptionPrefix${_wholeWhenExact(cap)}$overviewCapCaptionSuffix',
@@ -202,12 +196,9 @@ class MonthlyCapAction extends StatelessWidget {
           padding: _padding,
           alignment: _alignment,
         ),
-        child: const Text(
+        child: Text(
           overviewNoCapLink,
-          style: TextStyle(
-            fontSize: overviewBodyFontSize,
-            fontWeight: overviewSemiBold,
-          ),
+          style: context.text.body.copyWith(fontWeight: SpendWiseText.semibold),
         ),
       ),
     );

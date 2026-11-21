@@ -20,7 +20,6 @@ const _rowPadding = EdgeInsets.symmetric(vertical: 7);
 const _amountGap = 9.0;
 const _helperTopGap = 10.0;
 const _countFontSize = 11.0;
-const _endedFontSize = 10.0;
 const _endedWidth = 30.0;
 const _trayTitle = 'Next up';
 const _endedLabel = 'Ended';
@@ -130,7 +129,7 @@ class _PlanRow extends StatelessWidget {
             child: Text(
               _endedLabel,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: _endedFontSize, color: colors.subtext),
+              style: context.text.caption.copyWith(color: colors.subtext),
             ),
           )
         : DateBadge(day: nextDate.day, month: nextDate.month);

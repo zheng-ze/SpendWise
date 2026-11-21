@@ -14,7 +14,6 @@ const _frequencyGap = 2.0;
 const _rowsTopGap = 6.0;
 const _buttonsTopGap = 12.0;
 const _rowPadding = EdgeInsets.symmetric(vertical: 4);
-const _rowValueWeight = FontWeight.w600;
 const _labelValueGap = 12.0;
 const _nextLabel = 'Next';
 const _accountLabel = 'Account';
@@ -108,7 +107,7 @@ class _DetailRow extends StatelessWidget {
     final valueText = Text(
       value,
       textAlign: TextAlign.end,
-      style: const TextStyle(fontWeight: _rowValueWeight),
+      style: const TextStyle(fontWeight: SpendWiseText.semibold),
     );
 
     return Padding(

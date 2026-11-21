@@ -6,6 +6,7 @@ import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/overview/overview_rows.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Tray
@@ -128,8 +129,7 @@ class ThisMonthFigureRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final labelText = Text(
       label,
-      style: TextStyle(
-        fontSize: overviewBodyFontSize,
+      style: context.text.body.copyWith(
         fontWeight: _labelWeight,
         color: context.colors.subtext,
       ),
@@ -138,10 +138,7 @@ class ThisMonthFigureRow extends StatelessWidget {
       value,
       style: context.text.small.copyWith(color: color),
     );
-    final divider = BorderSide(
-      color: context.colors.edge,
-      width: overviewRowDividerWidth,
-    );
+    final divider = edgeSide(context.colors);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: _verticalPadding),
       decoration: BoxDecoration(border: Border(bottom: divider)),
