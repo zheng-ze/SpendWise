@@ -10,10 +10,9 @@ class BinSectionTray extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dividerColor = context.colors.edge;
     final spaced = <Widget>[];
     for (final (index, row) in rows.indexed) {
-      if (index > 0) spaced.add(BinRowDivider(color: dividerColor));
+      if (index > 0) spaced.add(const EdgeDivider());
       spaced.add(row);
     }
     return Tray(
@@ -21,20 +20,6 @@ class BinSectionTray extends StatelessWidget {
       child: Column(children: spaced),
     );
   }
-}
-
-// MARK: - Row Divider
-
-class BinRowDivider extends StatelessWidget {
-  const BinRowDivider({super.key, required this.color});
-
-  final Color color;
-
-  static const _height = 1.0;
-
-  @override
-  Widget build(BuildContext context) =>
-      Container(height: _height, color: color);
 }
 
 // MARK: - Entries Section
