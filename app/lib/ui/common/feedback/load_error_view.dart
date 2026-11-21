@@ -66,12 +66,9 @@ class _LoadErrorBox extends StatelessWidget {
   static const _horizontalPadding = 12.0;
   static const _verticalPadding = 10.0;
   static const _verticalMargin = 8.0;
-  static const _titleFontSize = 12.0;
-  static const _messageFontSize = 12.0;
   static const _messageLineHeight = 1.45;
   static const _titleGap = 2.0;
   static const _retryTopGap = 8.0;
-  static const _semiBold = FontWeight.w600;
 
   @override
   Widget build(BuildContext context) {
@@ -82,16 +79,14 @@ class _LoadErrorBox extends StatelessWidget {
         ? null
         : Text(
             title,
-            style: TextStyle(
-              fontSize: _titleFontSize,
-              fontWeight: _semiBold,
+            style: context.text.body.copyWith(
+              fontWeight: SpendWiseText.semibold,
               color: colors.error,
             ),
           );
     final message = Text(
       '${view.error}',
-      style: TextStyle(
-        fontSize: _messageFontSize,
+      style: context.text.body.copyWith(
         height: _messageLineHeight,
         color: colors.error,
       ),

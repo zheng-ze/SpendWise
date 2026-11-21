@@ -5,8 +5,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
 
-const _semiBoldWeight = FontWeight.w600;
-
 // MARK: - DonutSegment
 @immutable
 class DonutSegment {
@@ -111,10 +109,6 @@ class _DonutCenter extends StatelessWidget {
     required this.innerDiameter,
   });
 
-  static const _valueFontSize = 14.0;
-
-  static const _labelFontSize = 10.0;
-
   static const _horizontalPadding = 6.0;
 
   final String? centerLabel;
@@ -131,19 +125,15 @@ class _DonutCenter extends StatelessWidget {
         ? null
         : Text(
             centerValue,
-            style: const TextStyle(
-              fontSize: _valueFontSize,
-              fontWeight: _semiBoldWeight,
+            style: context.text.title.copyWith(
+              fontWeight: SpendWiseText.semibold,
             ),
           );
     final labelText = centerLabel == null
         ? null
         : Text(
             centerLabel,
-            style: TextStyle(
-              fontSize: _labelFontSize,
-              color: context.colors.subtext,
-            ),
+            style: context.text.caption.copyWith(color: context.colors.subtext),
           );
     final entries = [
       if (valueText != null) FittedBox(fit: BoxFit.scaleDown, child: valueText),

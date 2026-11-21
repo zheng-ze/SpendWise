@@ -31,15 +31,21 @@ TextPainter _measure(
   return painter;
 }
 
-bool _labelFits(Rect rect, String name, String share, TextScaler scaler) {
+TextStyle _blockLabelStyle(BuildContext context) {
+  return context.text.body.copyWith(fontWeight: SpendWiseText.semibold);
+}
+
+bool _labelFits(
+  Rect rect,
+  String name,
+  String share,
+  TextScaler scaler,
+  TextStyle style,
+) {
   final available = Size(rect.width - _labelInset, rect.height - _labelInset);
   if (available.width <= _emptyExtent || available.height <= _emptyExtent) {
     return false;
   }
-  const style = TextStyle(
-    fontSize: _labelFontSize,
-    fontWeight: _semiBoldWeight,
-  );
   final namePainter = _measure(
     name,
     style,

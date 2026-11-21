@@ -38,6 +38,7 @@ class CategoryMap extends StatelessWidget {
             ? constraints.maxWidth
             : MediaQuery.of(context).size.width;
         final scaler = MediaQuery.textScalerOf(context);
+        final labelStyle = _blockLabelStyle(context);
         final shares = [for (final tile in tiles) tile.share];
         final rects = layoutCategoryMap(shares, Size(width, height));
         final fits = [
@@ -48,6 +49,7 @@ class CategoryMap extends StatelessWidget {
                   tiles[i].label,
                   _shareText(tiles[i].share),
                   scaler,
+                  labelStyle,
                 ),
         ];
         final blocks = [

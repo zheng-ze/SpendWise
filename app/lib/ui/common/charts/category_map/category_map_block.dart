@@ -55,12 +55,8 @@ class _MapLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       '${tile.label}\n${_shareText(tile.share)}',
-      style: TextStyle(
-        fontSize: _labelFontSize,
-        fontWeight: _semiBoldWeight,
-        color: foregroundOn(fill),
-        height: _labelLineHeight,
-      ),
+      style: _blockLabelStyle(context)
+          .copyWith(color: foregroundOn(fill), height: _labelLineHeight),
       maxLines: _labelMaxLines,
       overflow: TextOverflow.ellipsis,
     );

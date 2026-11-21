@@ -4,8 +4,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
 
-const _semiBoldWeight = FontWeight.w600;
-
 const _paintOrigin = Offset.zero;
 
 const _unboundedExtent = double.infinity;
@@ -109,8 +107,6 @@ class _DayColumn extends StatelessWidget {
 
   static const _barWidthFactor = 0.48;
 
-  static const _captionFontSize = 10.0;
-
   final WeekStripDay day;
 
   @override
@@ -126,16 +122,13 @@ class _DayColumn extends StatelessWidget {
     );
     final title = Text(
       day.label,
-      style: const TextStyle(
-        fontSize: _captionFontSize,
-        fontWeight: _semiBoldWeight,
-      ),
+      style: context.text.caption.copyWith(fontWeight: SpendWiseText.semibold),
       maxLines: _labelMaxLines,
       overflow: TextOverflow.ellipsis,
     );
     final caption = Text(
       day.caption,
-      style: TextStyle(fontSize: _captionFontSize, color: colors.subtext),
+      style: context.text.caption.copyWith(color: colors.subtext),
       maxLines: _labelMaxLines,
       overflow: TextOverflow.ellipsis,
     );

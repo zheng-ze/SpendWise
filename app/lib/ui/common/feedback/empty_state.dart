@@ -7,8 +7,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
 
-const _semiBoldWeight = FontWeight.w600;
-
 // MARK: - EmptyState
 class EmptyState extends StatelessWidget {
   const EmptyState({
@@ -34,10 +32,6 @@ class EmptyState extends StatelessWidget {
 
   static const _titleGap = 10.0;
 
-  static const _titleFontSize = 14.0;
-
-  static const _bodyFontSize = 12.0;
-
   static const _bodyLineHeight = 1.45;
 
   static const _bodyMaxWidth = 230.0;
@@ -58,8 +52,7 @@ class EmptyState extends StatelessWidget {
       bodyText = Text(
         body,
         textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: _bodyFontSize,
+        style: context.text.body.copyWith(
           color: colors.subtext,
           height: _bodyLineHeight,
         ),
@@ -68,10 +61,7 @@ class EmptyState extends StatelessWidget {
     final titleText = Text(
       title,
       textAlign: TextAlign.center,
-      style: const TextStyle(
-        fontSize: _titleFontSize,
-        fontWeight: _semiBoldWeight,
-      ),
+      style: context.text.title.copyWith(fontWeight: SpendWiseText.semibold),
     );
     final content = <Widget>[
       medallion,

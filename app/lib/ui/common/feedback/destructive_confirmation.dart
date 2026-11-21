@@ -19,11 +19,7 @@ const _dialogBorderWidth = 1.0;
 const _dialogElevation = 0.0;
 const _transparent = Color(0x00000000);
 const _titleSize = 18.0;
-const _titleWeight = FontWeight.w600;
-const _bodySize = 12.0;
 const _bodyHeight = 1.45;
-const _actionSize = 12.0;
-const _actionWeight = FontWeight.w600;
 const _titleBodyGap = 6.0;
 const _bodyActionsGap = 14.0;
 const _actionsGap = 12.0;
@@ -79,18 +75,16 @@ class _DestructiveDialog extends StatelessWidget {
       _ => false,
     };
     final navigator = Navigator.of(context);
-    const actionText = TextStyle(
-      fontSize: _actionSize,
-      fontWeight: _actionWeight,
+    final actionText = context.text.body.copyWith(
+      fontWeight: SpendWiseText.semibold,
     );
     final titleStyle = TextStyle(
       color: colors.text,
       fontSize: _titleSize,
-      fontWeight: _titleWeight,
+      fontWeight: SpendWiseText.semibold,
     );
-    final bodyStyle = TextStyle(
+    final bodyStyle = context.text.body.copyWith(
       color: colors.subtext,
-      fontSize: _bodySize,
       height: _bodyHeight,
     );
     final actionShape = RoundedRectangleBorder(
