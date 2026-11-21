@@ -11,7 +11,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _pagePadding = EdgeInsets.fromLTRB(14, 12, 14, 14);
 const _sectionGap = 12.0;
-const _subtitleSize = 12.0;
 const _headerGap = 2.0;
 const _statusPadding = EdgeInsets.all(24);
 const _errorMessage = 'Could not load category details';
@@ -41,7 +40,7 @@ class CategoryDetailScreen extends ConsumerWidget {
     final titleText = Text(title);
     final subtitleText = Text(
       subtitle,
-      style: TextStyle(color: context.colors.subtext, fontSize: _subtitleSize),
+      style: context.text.body.copyWith(color: context.colors.subtext),
     );
     final heading = Column(
       crossAxisAlignment: CrossAxisAlignment.start,

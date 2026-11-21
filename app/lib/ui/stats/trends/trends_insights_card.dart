@@ -6,9 +6,6 @@ import 'package:spendwise/ui/stats/trends/trends_whole_period.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _headingText = 'Insights';
-const _titleSize = 10.0;
-const _valueSize = 12.0;
-const _semiBold = FontWeight.w600;
 const _sectionGap = 12.0;
 const _titleGap = 2.0;
 const _rowGap = 8.0;
@@ -27,7 +24,7 @@ class TrendsInsightsCard extends StatelessWidget {
         ? null
         : Text(
             emptyMessage,
-            style: TextStyle(fontSize: _valueSize, color: colors.subtext),
+            style: context.text.body.copyWith(color: colors.subtext),
           );
     final observations = [
       for (final insight in insights.observations)
@@ -50,11 +47,11 @@ class _InsightRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = Text(
       insight.title,
-      style: TextStyle(fontSize: _titleSize, color: context.colors.subtext),
+      style: context.text.caption.copyWith(color: context.colors.subtext),
     );
     final value = Text(
       insight.value,
-      style: const TextStyle(fontSize: _valueSize, fontWeight: _semiBold),
+      style: context.text.body.copyWith(fontWeight: SpendWiseText.semibold),
     );
     final column = Column(
       crossAxisAlignment: CrossAxisAlignment.start,

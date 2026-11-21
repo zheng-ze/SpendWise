@@ -5,12 +5,10 @@ import 'package:spendwise/ui/common/charts/month_bars.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
-const _semiBold = FontWeight.w600;
-const _captionFontSize = 10.0;
-const _labelFontSize = 12.0;
 
 // MARK: - Card
 class TrendsCard extends StatelessWidget {
@@ -70,11 +68,11 @@ class TrendsHeadlineView extends StatelessWidget {
     final colors = context.colors;
     final title = Text(
       headline.title,
-      style: const TextStyle(fontSize: _labelFontSize, fontWeight: _semiBold),
+      style: context.text.body.copyWith(fontWeight: SpendWiseText.semibold),
     );
     final sublabel = Text(
       headline.sublabel,
-      style: TextStyle(fontSize: _captionFontSize, color: colors.subtext),
+      style: context.text.caption.copyWith(color: colors.subtext),
     );
     final label = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,7 +139,7 @@ class _HeadlineTrailing extends StatelessWidget {
           )
         : Text(
             headline.emptyMessage ?? '',
-            style: TextStyle(fontSize: _labelFontSize, color: colors.subtext),
+            style: context.text.body.copyWith(color: colors.subtext),
           );
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
@@ -159,19 +157,18 @@ class TrendsUsualView extends StatelessWidget {
   static const _topMargin = 6.0;
   static const _verticalPadding = 6.0;
   static const _bodyGap = 2.0;
-  static const _ruleWidth = 1.0;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final rule = BorderSide(color: colors.edge, width: _ruleWidth);
+    final rule = edgeSide(colors);
     final title = Text(
       usual.title,
-      style: const TextStyle(fontSize: _labelFontSize, fontWeight: _semiBold),
+      style: context.text.body.copyWith(fontWeight: SpendWiseText.semibold),
     );
     final body = Text(
       usual.body,
-      style: TextStyle(fontSize: _captionFontSize, color: colors.subtext),
+      style: context.text.caption.copyWith(color: colors.subtext),
     );
     return Container(
       margin: const EdgeInsets.only(top: _topMargin),

@@ -15,9 +15,6 @@ import 'package:spendwise/ui/theme/category_palette.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _captionSeparator = ' / ';
-const _headingSize = 14.0;
-const _captionSize = 10.0;
-const _semiBold = FontWeight.w600;
 const _sectionGap = 12.0;
 const _headingGap = 4.0;
 const _headingPadding = 0.0;
@@ -158,15 +155,14 @@ class _BreakdownHeading extends StatelessWidget {
     final heading = TrayHeader(title: title, bottomPadding: _headingPadding);
     final caption = Text(
       subtitle,
-      style: TextStyle(fontSize: _captionSize, color: context.colors.subtext),
+      style: context.text.caption.copyWith(color: context.colors.subtext),
     );
     final totalText = total == null
         ? null
         : Text(
             total!,
-            style: const TextStyle(
-              fontSize: _headingSize,
-              fontWeight: _semiBold,
+            style: context.text.title.copyWith(
+              fontWeight: SpendWiseText.semibold,
             ),
           );
     return Wrap(
@@ -194,7 +190,7 @@ class _BreakdownTotalLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final labelText = Text(
       label,
-      style: TextStyle(fontSize: _captionSize, color: context.colors.subtext),
+      style: context.text.caption.copyWith(color: context.colors.subtext),
     );
     final totalText = AmountText.formatted(
       text: total,

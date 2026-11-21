@@ -8,6 +8,7 @@ import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_body.dart';
 import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _headlinePadding = EdgeInsets.only(bottom: 12);
@@ -15,9 +16,6 @@ const _chipsPadding = EdgeInsets.only(bottom: 12);
 const _chipGap = 6.0;
 const _chipPadding = EdgeInsets.symmetric(horizontal: 10, vertical: 5);
 const _chipRadius = 20.0;
-const _chipFontSize = 12.0;
-const _mediumWeight = FontWeight.w600;
-const _borderWidth = 1.0;
 
 class CategoryDetailHeadline extends StatelessWidget {
   const CategoryDetailHeadline({
@@ -75,14 +73,13 @@ class _ScopeChip extends StatelessWidget {
     final colors = context.colors;
     final fill = chip.selected ? colors.tint : colors.surface;
     final foreground = chip.selected ? colors.action : colors.subtext;
-    final border = Border.all(color: colors.edge, width: _borderWidth);
+    final border = fullEdgeBorder(colors);
     final radius = BorderRadius.circular(_chipRadius);
     final label = Text(
       chip.label,
-      style: TextStyle(
-        fontSize: _chipFontSize,
+      style: context.text.body.copyWith(
         color: foreground,
-        fontWeight: _mediumWeight,
+        fontWeight: SpendWiseText.semibold,
       ),
     );
     final padded = Padding(padding: _chipPadding, child: label);
