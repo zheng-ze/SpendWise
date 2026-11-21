@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: 7d891059
+Last reconciled: 6a34f454
 
 ## Feature overview
 
@@ -14,8 +14,10 @@ screens are mostly stateless facades over `Ledger`, with per-sheet form view mod
 
 - `app/lib/ui/settings/settings_root_view_model.dart`, `settings_root_screen.dart`,
   `settings_flow.dart` - the root list of navigation links.
-- `app/lib/ui/common/navigation/page_header.dart` - the shared large-title page header used by the
-  Settings root, the Categories list and the Recycle bin.
+- `app/lib/ui/common/navigation/page_header.dart` - the shared large-title page header. It takes an
+  optional back callback, a disabled-back flag, a subtitle and a trailing action, draws its title in
+  the headline style's own medium weight, and every screen with a back control uses it, including
+  the Settings root, the Categories list and the Recycle bin.
 - `app/lib/ui/settings/category/` - category list, form sheet, subcategories section and parent picker.
 - `app/lib/ui/common/pickers/symbol_picker.dart`, `app/lib/ui/theme/category_palette.dart` - the icon and
   colour picker and the saved-colour mapping.

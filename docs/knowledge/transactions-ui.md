@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 7d891059
+Last reconciled: 6a34f454
 
 ## Feature overview
 
@@ -16,7 +16,7 @@ and edits existing ones (Edit entry); Add is the only place recurring plans are 
 - `app/lib/ui/transactions/top_categories_view_model.dart` and
   `top_categories_view_state.dart` - the History top-categories period key, immutable projection,
   state variants and Retry interface; the card widget and History placement are separate.
-- `app/lib/ui/transactions/daily_list/daily_transactions_screen.dart` - History-local heading,
+- `app/lib/ui/transactions/daily_list/daily_transactions_screen.dart` - History-local `PageHeader`,
   month controls and day-sectioned register host.
 - `app/lib/ui/transactions/daily_list/transactions_summary.dart` - `TransactionsSummary`, the
   state-free responsive Net/Spent/Income band shared by unscoped History and scoped Money routes.
@@ -54,7 +54,7 @@ and edits existing ones (Edit entry); Add is the only place recurring plans are 
   `sheetPresentation`; there is no legacy modal or `showDatePicker` fallback.
 - `app/lib/ui/transactions/receipt_scan/` - the OCR entry hook (see `ocr-receipt-entry.md`).
 - `app/lib/ui/transactions/transactions_flow.dart` - the Flow that owns this list's nested navigator.
-  Its screen's back control is Flutter's icon-only `BackButton`, given `goBack` when
+  Its screen's `PageHeader` back control is Flutter's icon-only `BackButton`, given `goBack` when
   `showsOwnBackButton` is set. `transactionsViewModelProvider`
   is an autoDispose family keyed by the optional `TransactionsScope`, so History and each scoped list
   keep separate state that lasts while their Flow is mounted. `TransactionsFlow`
@@ -126,7 +126,7 @@ form and never replaces the route. A late receipt finish after invalidation writ
 (`ReceiptEntryCoordinator` checks `ref.mounted` in its asynchronous finally). The account-scoped
 screen reuses the same screen with a custom title and `sourceIDs` filter. Each destination owns its own
 navigator, and a destination's back stack lasts while that destination is selected. Every back
-control is Flutter's icon-only `BackButton` with the default 'Back' accessible name; `goBack`
+control is the `PageHeader` back control, Flutter's icon-only `BackButton` with the default 'Back' accessible name; `goBack`
 pops inner child routes first.
 
 Shared sheet composition follows installed routes rather than an Add-specific presentation provider.
@@ -143,7 +143,7 @@ shell unshifted. (`app/lib/ui/shell/shell_sheet_occupancy.dart`,
 
 ## Screens and flows
 
-The screen owns its heading and period controls; `TransactionsSummary` owns the state-free
+The screen owns its `PageHeader` and period controls; `TransactionsSummary` owns the state-free
 Net/Spent/Income presentation. The period control is the shared `PeriodStepper`, and `ColumnText` remains a separate
 component. The default title is History; scoped instances retain their custom title, filter and
 Back control. The screen passes the existing register totals and shell composition mode into

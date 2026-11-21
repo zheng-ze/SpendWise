@@ -1,6 +1,6 @@
 # Trends & Category Detail UI
 
-Last reconciled: 7d891059
+Last reconciled: 6a34f454
 
 ## Feature overview
 
@@ -15,7 +15,7 @@ incoming-period totals and a selectable scoped trend from `AnalysisQueries`.
 
 - `app/lib/ui/stats/trends_flow.dart` and `trends_screen.dart` - the nested Flow and page; the Flow
   root resolves phone versus the shared open/desktop composition from `ShellPaneScope.mode` once.
-  `TrendsScreen` owns the page scroller and optional icon-only back button.
+  `TrendsScreen` owns the page scroller and a `PageHeader` titled "Trends" whose back control appears only when the Flow supplies `onBackPressed`.
 - `app/lib/ui/stats/trends/` - `trends_intent.dart` (route-owned intent, grid/page arithmetic, intent
   notifier), `trends_projection.dart` (day-aligned, revision-coherent projection of the analysis reads),
   `trends_usual.dart` (Compared with usual copy), `trends_body.dart` (presentation variants),
@@ -212,7 +212,7 @@ replace financial totals rather than displaying stale values (`trends_screen.dar
 
 `TransactionsFlow` handles `HistoryTrendsRequested`, seeds no month from History, and pushes one route containing `TrendsFlow(onEnded: ...)`.
 `TrendsFlow` uses its nested navigator and renders `TrendsScreen`. The optional icon-only
-header back control (`BackButton`) delegates to `FlowBase.goBack`; at the root this ends the Flow and pops the History-owned
+`PageHeader` back control delegates to `FlowBase.goBack`; at the root this ends the Flow and pops the History-owned
 route. System Back and the iOS edge swipe pop the enclosing route. `TransactionsFlow` holds its
 single-route guard until the matching route's `completed` future (`transactions-ui.md`,
 `app/lib/ui/transactions/transactions_flow.dart`, `app/lib/ui/common/base/flow_base.dart`).
@@ -246,13 +246,13 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
 
 ## Screens and flows
 
-- **Trends** - app bar titled "Trends", optional back control (`BackButton`), the kind and mode
+- **Trends** - a `PageHeader` titled "Trends" (no app bar) with an optional back control, the kind and mode
   controls (always mounted), and a body that is skeleton trays, an error box (the shared `LoadErrorView.box`) with a filled Retry, the
   fresh-ledger empty state with interactive month controls or a disabled year period row, or the
   layout-specific ready composition described above
-  (`app/lib/ui/stats/trends_screen.dart`, `app/test/ui/stats/trends_layout_test.dart`).
-- **Category Detail** - one pushed `CategoryDetailScreen` shows an icon-only back control (`BackButton`), category
-  title, immutable incoming month/year subtitle, kind-token 26 px headline, scope chips, optional
+  (`app/lib/ui/stats/trends_screen.dart`, `app/lib/ui/common/navigation/page_header.dart`, `app/test/ui/stats/trends_layout_test.dart`).
+- **Category Detail** - one pushed `CategoryDetailScreen` shows a `PageHeader` carrying the icon-only back control, category
+  title and immutable incoming month/year subtitle, then kind-token 26 px headline, scope chips, optional
   Subcategories tray, and trend tray. `CategoryDetailArgs` retains its fields and value
   equality; the projection normalizes `initialDate` to UTC month/year start without changing the args
   (`category_detail_args.dart:CategoryDetailArgs`,

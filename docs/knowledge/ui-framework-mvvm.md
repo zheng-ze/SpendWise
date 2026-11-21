@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 7d891059
+Last reconciled: 6a34f454
 
 ## Feature overview
 
@@ -430,6 +430,7 @@ under the confirmation helper.
 - **`EdgeDivider`** (`app/lib/ui/common/lists/edge_divider.dart`) is a one-pixel `edge`-colour line,
   horizontal by default or vertical with `axis: Axis.vertical`. The shell's sidebar boundary, the
   Settings category list, the recycle bin sections and the entry form rows use it.
+- **`PageHeader`** (`app/lib/ui/common/navigation/page_header.dart`) is the one header for every screen with a back control: Trends, Category detail, Budget detail, Plan detail, History, the sync enrollment screens, the backend picker, document crop, the Categories list and the Recycle bin. No screen draws its own `AppBar`. It takes a title, an optional back callback (`BackButton` when set), a `disabledBack` flag that draws an inert back arrow, an optional subtitle and an optional trailing action, and sets the title in the headline style's medium weight.
 - **`PeriodStepper`** (`app/lib/ui/common/navigation/period_stepper.dart`) is the previous and next
   arrow pair around a centred label. A disabled arrow draws a dashed outline. The daily list and the
   Trends controls use it.

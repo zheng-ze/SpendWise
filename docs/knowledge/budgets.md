@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: 7d891059
+Last reconciled: 6a34f454
 
 ## Feature overview
 
@@ -432,8 +432,8 @@ supplies a `ShellPane` whose `ShellDetail` is titled with the budget's category 
 month (both from `budgetPaneHeaderProvider`), whose only header action is Edit, and whose body is
 `BudgetPaneBody`, the shared `BudgetDetailContent` in one `ListView` without a second app bar. Empty list space closes the pane; the pane has no Close
 control. `ShellDetail.onClose` is optional, and callers that supply it retain their Close control.
-Phone shows the same content as a managed page, with its own app bar and an Edit action
-with the tooltip "Edit". Failed detail reads show the actual reason from `AnalysisQueryResult.failure`; the detail view model
+Phone shows the same content as a managed page, with a `PageHeader` (back control, title and a trailing Edit action
+with the tooltip "Edit") instead of an app bar. Failed detail reads show the actual reason from `AnalysisQueryResult.failure`; the detail view model
 has no local fallback re-evaluation. Both Edit actions call
 `requestEdit`, which opens the Edit actions sheet (see "Edit flow and sheets"). A budget removed
 elsewhere closes the detail (see "Shown budget disappears"). (`budget_detail_content.dart`,
