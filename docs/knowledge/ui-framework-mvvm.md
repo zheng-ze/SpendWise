@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 6a34f454
+Last reconciled: dc79efdd
 
 ## Feature overview
 
@@ -583,6 +583,10 @@ under the confirmation helper.
 - **Sheet checks** - `app/test/support/sheet_contract.dart` provides route pumping
   with an explicit presentation, cap checks for every drawn phone sheet, and an
   assertion that the alert sits outside the sheet subtree.
+- **Shared fixtures** - `app/test/support/` holds `ledger_fixtures.dart` (`testAccount`,
+  `testCategory`, `testEntry`), `boot_ready.dart` (`readyPhase`), `sync_fixtures.dart`
+  (`credentialPayload`, `deviceSecret`) and `row_tap.dart` (`tapRow`). A test file may keep a thin
+  local wrapper over them for file-specific defaults.
 
 ## Gotchas and invariants
 

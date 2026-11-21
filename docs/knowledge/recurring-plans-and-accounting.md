@@ -1,6 +1,6 @@
 # Recurring Plans & Accounting
 
-Last reconciled: e9e21fdb
+Last reconciled: dc79efdd
 
 The pure-domain plan and accounting logic in `packages/domain/lib/src/plans/` and
 `packages/domain/lib/src/accounting.dart`, plus the plan mutators on `LedgerState`. Plans expand
@@ -20,6 +20,10 @@ classification from the entry log as pure static functions.
 - `packages/domain/lib/src/ledger_state/mutators/ledger_state_plans.dart` - the plan mutators on `LedgerState`.
 - `packages/domain/lib/src/time/calendar_day.dart`, `date_range.dart`, `year_month.dart` - date
   helpers, including the month-clamp function.
+- `packages/domain/lib/src/time/calendar_month.dart` - the single owner of `startOfMonthUtc`,
+  `daysInMonth` and `monthWindow` (half-open `[1st, next 1st)`), exported by `domain.dart`. They read
+  the input's own year and month and ignore the day and time of day; there is no `toUtc` and no
+  `startOfDayUtc`. The app and the analysis code use them instead of local copies.
 
 ## Module interactions
 
@@ -41,7 +45,8 @@ on-or-after and used by the UI, not resolution.
 
 **Month-end clamping** - Dart's `DateTime` silently rolls Feb 31 over to March, so stepped dates
 use `_addMonths` through `RecurrenceFrequency.stepFrom` (`plan_scheduling.dart`). Card cuts use
-`shiftMonthThenClampDayUtc` (`time/calendar_day.dart`). The full matrix
+`shiftMonthThenClampDayUtc` (`time/calendar_day.dart`), which clamps through `daysInMonth`.
+`_addMonths` stays separate because it keeps the time of day and the UTC or local flag. The full matrix
 (Jan 31 → Feb 28/29, 30-day months, year rollover, leap-day yearly) is required.
 
 **OccurrenceID** - `OccurrenceID.make(planID, occurrenceDay)` in `occurrence_id.dart` computes a
