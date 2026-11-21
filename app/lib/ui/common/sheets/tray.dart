@@ -9,6 +9,7 @@ class Tray extends StatelessWidget {
     this.title,
     this.trailing,
     this.selected = false,
+    this.crossAxisAlignment = CrossAxisAlignment.start,
     required this.child,
   });
 
@@ -17,6 +18,8 @@ class Tray extends StatelessWidget {
   final Widget? trailing;
 
   final bool selected;
+
+  final CrossAxisAlignment crossAxisAlignment;
 
   final Widget child;
 
@@ -56,7 +59,7 @@ class Tray extends StatelessWidget {
       padding: const EdgeInsets.all(contentPadding),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: crossAxisAlignment,
         children: content,
       ),
     );

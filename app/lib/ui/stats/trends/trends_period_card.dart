@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/charts/month_bar_chart.dart';
 import 'package:spendwise/ui/common/charts/month_bars.dart';
+import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
@@ -17,24 +18,14 @@ class TrendsCard extends StatelessWidget {
 
   final List<Widget> children;
 
-  static const _radius = 14.0;
-  static const _padding = 12.0;
-
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final column = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: children,
     );
-    final decoration = BoxDecoration(
-      color: colors.surface,
-      border: Border.all(color: colors.edge),
-      borderRadius: BorderRadius.circular(_radius),
-    );
-    return Container(
-      decoration: decoration,
-      padding: const EdgeInsets.all(_padding),
+    return Tray(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       child: column,
     );
   }
