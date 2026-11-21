@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/feedback/inline_spinner.dart';
 import 'package:spendwise/ui/common/inputs/form_section_card.dart';
+import 'package:spendwise/ui/common/lists/edge_divider.dart';
 import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
@@ -234,9 +235,7 @@ class NewEntryRows extends StatelessWidget {
       final above = children.isEmpty ? null : underlined[children.last];
       if (children.isNotEmpty) {
         children.add(
-          above == null
-              ? const EntryRowDivider()
-              : _FocusDivider(focusNode: above),
+          above == null ? const EdgeDivider() : _FocusDivider(focusNode: above),
         );
       }
       children.add(row);
@@ -389,7 +388,7 @@ class _FocusDivider extends StatelessWidget {
     return ListenableBuilder(
       listenable: focusNode,
       builder: (context, _) {
-        if (!focusNode.hasFocus) return const EntryRowDivider();
+        if (!focusNode.hasFocus) return const EdgeDivider();
         return Container(height: _focusedUnderlineHeight, color: focusColor);
       },
     );
