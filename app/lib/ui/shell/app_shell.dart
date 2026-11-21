@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ui/common/lists/edge_divider.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/shell/day_ticker.dart';
 import 'package:spendwise/ui/shell/desktop_sidebar.dart';
@@ -111,7 +112,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       final row = Row(
         children: [
           sidebar,
-          const SidebarDivider(),
+          const EdgeDivider(axis: Axis.vertical),
           Expanded(child: stack),
         ],
       );

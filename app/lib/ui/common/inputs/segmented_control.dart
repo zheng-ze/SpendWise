@@ -2,12 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
-// MARK: - Constants
-
-const _regularWeight = FontWeight.w400;
-
-const _semiBoldWeight = FontWeight.w600;
-
 // MARK: - SegmentedOption
 @immutable
 class SegmentedOption<T> {
@@ -106,10 +100,6 @@ class _Segment extends StatelessWidget {
 
   static const _selectedUnderlineWidth = 2.0;
 
-  static const _regularFontSize = 12.0;
-
-  static const _smallFontSize = 10.0;
-
   static const _regularVerticalPadding = 6.0;
 
   static const _smallVerticalPadding = 5.0;
@@ -135,14 +125,15 @@ class _Segment extends StatelessWidget {
             child: ColoredBox(color: colors.action),
           )
         : null;
+    final labelStyle = (small ? context.text.caption : context.text.body)
+        .copyWith(
+          color: selected ? selectedColor : colors.subtext,
+          fontWeight: selected ? SpendWiseText.semibold : null,
+        );
     final labelText = Text(
       label,
       textAlign: TextAlign.center,
-      style: TextStyle(
-        fontSize: small ? _smallFontSize : _regularFontSize,
-        color: selected ? selectedColor : colors.subtext,
-        fontWeight: selected ? _semiBoldWeight : _regularWeight,
-      ),
+      style: labelStyle,
     );
     final padding = EdgeInsets.symmetric(
       vertical:

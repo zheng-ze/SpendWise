@@ -10,7 +10,6 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_editor_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
-import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 import '../../../support/number_pad_support.dart';
@@ -22,14 +21,28 @@ const _budgetID = 'b1';
 const _title = 'Change limit';
 const _saveLabel = 'Save';
 const _seededAmountLength = 6;
+const _retryLabel = 'Try again';
 const _loadErrorMessage =
     "Couldn't load the budget limit\nBad state: Limit unavailable";
+const _firstLoadAttempt = 1;
 
-class _UnavailableLimitNotifier extends BudgetLimitEditorNotifier {
-  _UnavailableLimitNotifier(super.draftKey);
+class _LimitLoadCounter {
+  int count = 0;
+}
+
+class _FailsFirstLoadLimitNotifier extends BudgetLimitEditorNotifier {
+  _FailsFirstLoadLimitNotifier(super.draftKey, this._loads);
+
+  final _LimitLoadCounter _loads;
 
   @override
-  BudgetLimitEditorState build() => throw StateError('Limit unavailable');
+  BudgetLimitEditorState build() {
+    _loads.count++;
+    if (_loads.count == _firstLoadAttempt) {
+      throw StateError('Limit unavailable');
+    }
+    return super.build();
+  }
 }
 
 Ledger _ledger() => Ledger(
@@ -132,23 +145,30 @@ void main() {
     expect(ledger.state.budgets.containsKey(_budgetID), isFalse);
   }, timeout: uiTestTimeout);
 
-  testWidgets('le-budget-limit-err shows the reason and keeps Save disabled', (
-    tester,
-  ) async {
-    await _openEditor(
-      tester,
-      _ledger(),
-      overrides: [
-        budgetLimitEditorViewModelProvider.overrideWith2(
-          _UnavailableLimitNotifier.new,
-        ),
-      ],
-    );
+  testWidgets(
+    'le-budget-limit-err shows the reason and Try again reloads the form',
+    (tester) async {
+      final loads = _LimitLoadCounter();
+      await _openEditor(
+        tester,
+        _ledger(),
+        overrides: [
+          budgetLimitEditorViewModelProvider.overrideWith2(
+            (draftKey) => _FailsFirstLoadLimitNotifier(draftKey, loads),
+          ),
+        ],
+      );
 
-    expect(find.text(_loadErrorMessage), findsOneWidget);
-    final save = tester.widget<PrimaryButton>(
-      find.widgetWithText(PrimaryButton, _saveLabel),
-    );
-    expect(save.onPressed, isNull);
-  }, timeout: uiTestTimeout);
+      expect(find.text(_loadErrorMessage), findsOneWidget);
+      expect(find.text(_retryLabel), findsOneWidget);
+
+      await tester.tap(find.text(_retryLabel));
+      await tester.pumpAndSettle();
+
+      expect(loads.count, 2);
+      expect(find.text(_loadErrorMessage), findsNothing);
+      expect(find.text('100.00'), findsOneWidget);
+    },
+    timeout: uiTestTimeout,
+  );
 }

@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: ae736584
+Last reconciled: 6a34f454
 
 ## Feature overview
 
@@ -16,7 +16,7 @@ and edits existing ones (Edit entry); Add is the only place recurring plans are 
 - `app/lib/ui/transactions/top_categories_view_model.dart` and
   `top_categories_view_state.dart` - the History top-categories period key, immutable projection,
   state variants and Retry interface; the card widget and History placement are separate.
-- `app/lib/ui/transactions/daily_list/daily_transactions_screen.dart` - History-local heading,
+- `app/lib/ui/transactions/daily_list/daily_transactions_screen.dart` - History-local `PageHeader`,
   month controls and day-sectioned register host.
 - `app/lib/ui/transactions/daily_list/transactions_summary.dart` - `TransactionsSummary`, the
   state-free responsive Net/Spent/Income band shared by unscoped History and scoped Money routes.
@@ -28,7 +28,7 @@ and edits existing ones (Edit entry); Add is the only place recurring plans are 
   `entryFormViewModelProvider(entryId)` on every open so each open starts from persisted values, and
   one owner per entry through claim tokens (`claim`, `owns`, `release`).
 - `app/lib/ui/transactions/entry/edit_entry_host.dart` - `EditEntryHost`: claims ownership,
-  subscribes to the form view model, dispatches its Steps from its own context with
+  subscribes to the form view model through the shared `StepListeningState` mixin, dispatches its Steps from its own context with
   `sheetPresentation: shellSheetPresentation` and `onPickerRouteCreated`, removes still-active
   picker routes on dispose, and shows the load alert with Retry. Hosted in a sheet or in the History
   detail pane (`EntryFormFrame.sheet` or `.pane`).
@@ -54,8 +54,8 @@ and edits existing ones (Edit entry); Add is the only place recurring plans are 
   `sheetPresentation`; there is no legacy modal or `showDatePicker` fallback.
 - `app/lib/ui/transactions/receipt_scan/` - the OCR entry hook (see `ocr-receipt-entry.md`).
 - `app/lib/ui/transactions/transactions_flow.dart` - the Flow that owns this list's nested navigator.
-  It takes an optional `backLabel` passed through to the screen's back control; the shell
-  History slot (every layout) and scoped lists set none. `transactionsViewModelProvider`
+  Its screen's `PageHeader` back control is Flutter's icon-only `BackButton`, given `goBack` when
+  `showsOwnBackButton` is set. `transactionsViewModelProvider`
   is an autoDispose family keyed by the optional `TransactionsScope`, so History and each scoped list
   keep separate state that lasts while their Flow is mounted. `TransactionsFlow`
   handles and clears its screen `Step`s directly. `HistoryTrendsRequested` pushes one tracked
@@ -63,11 +63,9 @@ and edits existing ones (Edit entry); Add is the only place recurring plans are 
   `route.completed`. The push seeds nothing from History's selected date. The route and
   History's state survive resizes while History is selected, and are discarded when another
   destination is selected and History unmounts.
-- `app/lib/ui/transactions/trends_detail_action.dart` - 'See more detail', a muted trailing text
-  action with chevron and a 48 dp invisible hit height (`trendsDetailActionHitHeight`), rendered
+- `app/lib/ui/transactions/trends_detail_action.dart` - 'See more detail', the shared `AppLinkButton`
+  (muted subtext colour, trailing chevron, 48 dp minimum hit size) aligned to the trailing edge, rendered
   below the totals band in unscoped History only, including empty months.
-- `app/lib/ui/common/navigation/labelled_back_button.dart` - the back control with an optional
-  accessible label, shared by `TransactionsScreen` and `TrendsScreen`.
 - `app/lib/ui/common/lists/day_sectioned_entry_list.dart`, `form_scaffold.dart`,
   `swipe_row.dart`, `pickers/` - shared components and picker sheets.
 - `app/lib/ui/symbol_map.dart` - symbol-to-IconData mapping.
@@ -127,10 +125,9 @@ phone/open resize changes only the sheet geometry, alignment and chrome around t
 form and never replaces the route. A late receipt finish after invalidation writes no state
 (`ReceiptEntryCoordinator` checks `ref.mounted` in its asynchronous finally). The account-scoped
 screen reuses the same screen with a custom title and `sourceIDs` filter. Each destination owns its own
-navigator, and a destination's back stack lasts while that destination is selected. A labelled back
-control keeps the existing `BackButton` and `goBack` behavior -
-inner child routes pop first - and only changes its accessible label; unlabelled flows render a
-plain back control.
+navigator, and a destination's back stack lasts while that destination is selected. Every back
+control is the `PageHeader` back control, Flutter's icon-only `BackButton` with the default 'Back' accessible name; `goBack`
+pops inner child routes first.
 
 Shared sheet composition follows installed routes rather than an Add-specific presentation provider.
 `AppSheetRoute.install` registers with the optional `shellSheetOccupancyProvider` until
@@ -146,9 +143,9 @@ shell unshifted. (`app/lib/ui/shell/shell_sheet_occupancy.dart`,
 
 ## Screens and flows
 
-The screen owns its heading and period controls; `TransactionsSummary` owns the state-free
-Net/Spent/Income presentation. The shared `MonthYearSelector` and `ColumnText` remain separate
-components. The default title is History; scoped instances retain their custom title, filter and
+The screen owns its `PageHeader` and period controls; `TransactionsSummary` owns the state-free
+Net/Spent/Income presentation. The period control is the shared `PeriodStepper`, and `ColumnText` remains a separate
+component. The default title is History; scoped instances retain their custom title, filter and
 Back control. The screen passes the existing register totals and shell composition mode into
 `TransactionsSummary`. Phone places Net above Spent and Income; open and desktop place all three in
 a row when the measured, text-scaled values fit. Narrow widths stack supporting values, and each
@@ -171,7 +168,7 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   falling back to the category title when empty; the secondary label retains category and source
   when a note exists, or source alone otherwise. Icons use the row's symbol and colour, and amounts
   keep signed formatting and `AmountStyle` colours. Tapping a row opens Edit entry (`EntryRow` calls `openEditEntry`).
-  The empty state shows an inbox icon and "No transactions".
+  The empty state is the shared `EmptyState` (the daily list's own empty-state widget was removed) showing an inbox icon and "No transactions".
   Swipe leading-to-trailing opens a "Delete this transaction?" confirmation.
 - **Entry form** - one amount-first form serves Add and Edit (`EntryFormMode` is `newEntry` or
   `editing`). `NewEntryForm` shows the kind selector, `AddAmountBlock`, then the `NewEntryRows` group;
@@ -181,13 +178,13 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   From, To), Date, Repeat, Ends (only while recurring), Note, Include in analysis and Add receipt
   (key `new-entry-receipt`, camera icon, empty value, no chevron; hidden when
   `scanStripEnabledProvider` is false). Edit rows omit Repeat, Ends, the recurring hint and Add
-  receipt, keep Note editable, and end with `EditEntryDeleteAction` (key `edit-entry-delete`), with one `EntryRowDivider` between adjacent rows. The
+  receipt, keep Note editable, and end with `EditEntryDeleteAction` (key `edit-entry-delete`), with one shared `EdgeDivider` between adjacent rows. The
   receipt row opens a content-height `AppSheet` chooser with the header "Add receipt", the hint
   "Scanning fills in a draft. You check it before saving.", and plain "Scan receipt" (camera icon)
   and "Choose photo" (image icon) rows. It has no Cancel and dismisses by dragging down on phone
   or tapping outside. A choice closes the chooser and calls the keyed form's existing `requestScan`
   with camera or gallery. While scanning, the final row reads "Reading receipt", shows a small
-  spinner on the right and ignores taps. The hint "Saving creates a plan. Review it in Money,
+  `InlineSpinner` on the right and ignores taps. The hint "Saving creates a plan. Review it in Money,
   Plans." follows that row directly in recurring drafts, without a divider. Opening the chooser
   unfocuses Amount, Name and Note; returning leaves the pad and IME dismissed. The chooser uses
   the live Add presentation on the root navigator, and the Add session tracks its exact route,
@@ -200,11 +197,12 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   Name and Note are inline right-aligned multiline `TextField`s (keys `new-entry-name`,
   `new-entry-note`, minLines 1, no length limit, blank with no hint text) built by one private
   `_InlineTextRow`; each row's label and value share one `TextFieldTapRegion` group id, so tapping
-  the focused row keeps focus. A focused Name or Note replaces the divider below it with a 2 dp
+  the focused row keeps focus. A focused Name or Note replaces the `EdgeDivider` below it with a 2 dp
   focus-colour underline (`_FocusDivider`). Opening any picker row
   unfocuses the current field first.
-  `NewEntryHeader` shows only the title on phone and desktop, and the title with Save in open
-  layout (a spacer of equal width keeps the title centered). There is no Cancel in any layout.
+  `NewEntryHeader` is the shared `AppPickerHeader` (`app_picker_sheet.dart`): the title alone on
+  phone and desktop, and the title with Save as its trailing action in open layout. There is no
+  Cancel in any layout.
   `NewEntrySaveFooter` supplies Save entry in all layouts, driven by `canSave`.
   Desktop uses docked form chrome without a grab handle; phone supports drag and barrier dismissal, and
   open and desktop dismiss by tapping the barrier.

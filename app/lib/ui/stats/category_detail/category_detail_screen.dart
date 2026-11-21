@@ -3,18 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
+import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_sections.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_trend.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _pagePadding = EdgeInsets.fromLTRB(14, 12, 14, 14);
 const _sectionGap = 12.0;
-const _backWidth = 112.0;
-const _subtitleSize = 12.0;
-const _headerGap = 2.0;
 const _statusPadding = EdgeInsets.all(24);
-const _backLabel = 'Trends';
+const _errorMessage = 'Could not load category details';
 
 class CategoryDetailScreen extends ConsumerWidget {
   const CategoryDetailScreen({
@@ -38,32 +36,10 @@ class CategoryDetailScreen extends ConsumerWidget {
         ? body.title
         : category?.name ?? 'Uncategorized';
     final subtitle = viewState?.subtitle ?? '';
-    final titleText = Text(title);
-    final subtitleText = Text(
-      subtitle,
-      style: TextStyle(color: context.colors.subtext, fontSize: _subtitleSize),
-    );
-    final heading = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        titleText,
-        const SizedBox(height: _headerGap),
-        subtitleText,
-      ],
-    );
-    final backAction = onBackPressed;
-    final leading = backAction == null
-        ? null
-        : TextButton.icon(
-            onPressed: backAction,
-            icon: const Icon(Icons.chevron_left),
-            label: const Text(_backLabel, maxLines: 1, softWrap: false),
-          );
-    final appBar = AppBar(
-      leadingWidth: _backWidth,
-      leading: leading,
-      title: heading,
-      centerTitle: false,
+    final header = PageHeader(
+      title: title,
+      subtitle: subtitle,
+      onBack: onBackPressed,
     );
     final content = switch (body) {
       CategoryDetailReadyBody() when ledger != null => _CategoryDetailReadyView(
@@ -76,10 +52,13 @@ class CategoryDetailScreen extends ConsumerWidget {
       ),
       _ => const Center(child: CircularProgressIndicator()),
     };
-    return Scaffold(
-      appBar: appBar,
-      body: SafeArea(child: content),
+    final page = Column(
+      children: [
+        header,
+        Expanded(child: content),
+      ],
     );
+    return Scaffold(body: SafeArea(child: page));
   }
 }
 
@@ -137,11 +116,7 @@ class _CategoryDetailErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final retry = FilledButton(onPressed: onRetry, child: const Text('Retry'));
-    final content = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [const Text('Could not load category details'), retry],
-    );
+    final content = LoadErrorView.box(message: _errorMessage, onRetry: onRetry);
     return Center(
       child: Padding(padding: _statusPadding, child: content),
     );

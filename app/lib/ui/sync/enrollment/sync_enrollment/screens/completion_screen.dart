@@ -13,41 +13,48 @@ class SyncEnrollmentCompletionScreen extends ConsumerWidget {
     final SyncEnrollmentState state = ref.watch(
       syncEnrollmentViewModelProvider,
     );
-    if (!state.repairMode) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Sync enrolled')),
-        body: Padding(
-          padding: _screenPadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Sync enrollment complete'),
-              const SizedBox(height: _sectionSpacing),
-              FilledButton(
-                key: const Key('syncFreshDone'),
-                onPressed: viewModel.dismissFlow,
-                child: const Text('Done'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    return Scaffold(
-      appBar: AppBar(title: const Text('Repair Device Access')),
-      body: ListView(
-        padding: _screenPadding,
+    final header = PageHeader(
+      title: state.repairMode ? 'Repair Device Access' : 'Sync enrolled',
+      onBack: state.repairMode
+          ? viewModel.dismissRepairFlow
+          : viewModel.dismissFlow,
+    );
+    final freshContent = Padding(
+      padding: _screenPadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Device access restored'),
-          const Text('Sync writes have resumed.'),
+          const Text('Sync enrollment complete'),
           const SizedBox(height: _sectionSpacing),
           FilledButton(
-            key: const Key('syncRepairDone'),
-            onPressed: viewModel.dismissRepairFlow,
+            key: const Key('syncFreshDone'),
+            onPressed: viewModel.dismissFlow,
             child: const Text('Done'),
           ),
         ],
       ),
     );
+    final repairContent = ListView(
+      padding: _screenPadding,
+      children: [
+        const Text('Device access restored'),
+        const Text('Sync writes have resumed.'),
+        const SizedBox(height: _sectionSpacing),
+        FilledButton(
+          key: const Key('syncRepairDone'),
+          onPressed: viewModel.dismissRepairFlow,
+          child: const Text('Done'),
+        ),
+      ],
+    );
+    final content = state.repairMode ? repairContent : freshContent;
+    final page = Column(
+      children: [
+        header,
+        Expanded(child: content),
+      ],
+    );
+
+    return Scaffold(body: SafeArea(child: page));
   }
 }

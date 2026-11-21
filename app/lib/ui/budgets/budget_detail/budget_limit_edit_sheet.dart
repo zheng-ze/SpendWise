@@ -59,23 +59,17 @@ class _BudgetLimitEditSheetState extends ConsumerState<BudgetLimitEditSheet> {
   @override
   Widget build(BuildContext context) {
     final provider = budgetLimitEditorViewModelProvider(widget.draftKey);
-    final editorState = ref.watch(provider).value;
-    if (editorState == null) {
-      const save = SizedBox(
-        width: _footerWidth,
-        child: PrimaryButton(label: _saveLabel, onPressed: null),
-      );
-      return FormSheetLoadError(
-        title: _sheetTitle,
-        message: _loadErrorTitle,
-        error: ref.watch(provider).error,
-        footer: save,
-      );
-    }
-    return _BudgetLimitBody(
-      editorState: editorState,
-      viewModel: ref.read(provider.notifier),
-      amountController: _amountController,
+
+    return FormSheetAsyncHost(
+      state: ref.watch(provider),
+      title: _sheetTitle,
+      loadErrorMessage: _loadErrorTitle,
+      onRetry: () => ref.invalidate(provider),
+      builder: (editorState) => _BudgetLimitBody(
+        editorState: editorState,
+        viewModel: ref.read(provider.notifier),
+        amountController: _amountController,
+      ),
     );
   }
 }

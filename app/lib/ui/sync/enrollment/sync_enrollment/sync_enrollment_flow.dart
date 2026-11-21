@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
+import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_flow.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
@@ -160,64 +162,68 @@ class _SyncEnrollmentFlowState
         onHostedReady: _viewModel.hostedReady,
       );
     }
+    final header = PageHeader(
+      key: const Key('syncPickerBack'),
+      title: 'Choose sync backend',
+      onBack: showsOwnBackButton ? goBack : null,
+    );
     if (_waitTimedOut) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Choose sync backend'),
-          leading: showsOwnBackButton
-              ? BackButton(key: const Key('syncPickerBack'), onPressed: goBack)
-              : null,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: _noticePadding,
-                child: Text(
-                  'Still finishing the previous attempt. '
-                  'You can keep waiting or go back.',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: _noticeGap),
-              FilledButton(
-                key: const Key('syncFreshRetryWait'),
-                onPressed: _retryFreshWait,
-                child: const Text('Try again'),
-              ),
-            ],
-          ),
+      const timedOutNotice = Padding(
+        padding: _noticePadding,
+        child: Text(
+          'Still finishing the previous attempt. '
+          'You can keep waiting or go back.',
+          textAlign: TextAlign.center,
         ),
       );
+      final timedOutContent = Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            timedOutNotice,
+            const SizedBox(height: _noticeGap),
+            FilledButton(
+              key: const Key('syncFreshRetryWait'),
+              onPressed: _retryFreshWait,
+              child: const Text(loadErrorRetryLabel),
+            ),
+          ],
+        ),
+      );
+      final timedOutPage = Column(
+        children: [
+          header,
+          Expanded(child: timedOutContent),
+        ],
+      );
+      return Scaffold(body: SafeArea(child: timedOutPage));
     }
     // The picker stays behind this loading root until the prior operation
     // settles and the reset clears any settling save and its step, so a
     // stale HostedReady cannot advance this route.
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Choose sync backend'),
-        leading: showsOwnBackButton
-            ? BackButton(key: const Key('syncPickerBack'), onPressed: goBack)
-            : null,
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: _noticeGap),
-            Padding(
-              padding: _noticePadding,
-              child: Text(
-                'Finishing the previous attempt. '
-                'This usually takes a few seconds.',
-                textAlign: TextAlign.center,
-              ),
+    const loadingContent = Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: _noticeGap),
+          Padding(
+            padding: _noticePadding,
+            child: Text(
+              'Finishing the previous attempt. '
+              'This usually takes a few seconds.',
+              textAlign: TextAlign.center,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+    final loadingPage = Column(
+      children: [
+        header,
+        const Expanded(child: loadingContent),
+      ],
+    );
+    return Scaffold(body: SafeArea(child: loadingPage));
   }
 }

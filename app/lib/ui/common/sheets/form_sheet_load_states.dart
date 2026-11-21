@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
@@ -8,6 +11,7 @@ import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 const _loadingLabel = 'Loading';
 const _loadingGap = 12.0;
 const _loadingPadding = EdgeInsets.symmetric(vertical: 32);
+const _footerWidth = double.infinity;
 
 // MARK: - FormSheetLoading
 class FormSheetLoading extends StatelessWidget {
@@ -65,6 +69,42 @@ class FormSheetLoadError extends StatelessWidget {
       footer: footer,
       alert: alert,
       variant: AppSheetVariant.form,
+    );
+  }
+}
+
+// MARK: - FormSheetAsyncHost
+class FormSheetAsyncHost<T> extends StatelessWidget {
+  const FormSheetAsyncHost({
+    super.key,
+    required this.state,
+    required this.title,
+    required this.loadErrorMessage,
+    required this.onRetry,
+    required this.builder,
+  });
+
+  final AsyncValue<T> state;
+  final String title;
+  final String loadErrorMessage;
+  final VoidCallback onRetry;
+  final Widget Function(T value) builder;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = state.value;
+    if (value != null) return builder(value);
+    final error = state.error;
+    if (error == null) return FormSheetLoading(title: title);
+    final retry = SizedBox(
+      width: _footerWidth,
+      child: PrimaryButton(label: loadErrorRetryLabel, onPressed: onRetry),
+    );
+    return FormSheetLoadError(
+      title: title,
+      message: loadErrorMessage,
+      error: error,
+      footer: retry,
     );
   }
 }

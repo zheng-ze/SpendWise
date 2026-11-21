@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_content.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/common/navigation/page_header.dart';
+
+// MARK: - Constants
+const _editTooltip = 'Edit';
 
 // MARK: - Screen
 class BudgetDetailScreen extends ConsumerWidget {
@@ -46,39 +50,30 @@ class _BudgetDetailPage extends StatelessWidget {
       viewState: viewState,
       viewModel: viewModel,
     );
-
-    return Scaffold(
-      appBar: _BudgetDetailAppBar(title: viewState.title, viewModel: viewModel),
-      body: SafeArea(
-        child: ListView(
-          physics: const ClampingScrollPhysics(),
-          children: [content],
-        ),
-      ),
-    );
-  }
-}
-
-// MARK: - App Bar
-class _BudgetDetailAppBar extends StatelessWidget
-    implements PreferredSizeWidget {
-  const _BudgetDetailAppBar({required this.title, required this.viewModel});
-
-  static const _editTooltip = 'Edit';
-
-  final String title;
-  final BudgetDetailViewModel viewModel;
-
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
-
-  @override
-  Widget build(BuildContext context) {
     final edit = IconButton(
       icon: const Icon(Icons.edit_outlined),
       tooltip: _editTooltip,
       onPressed: viewModel.requestEdit,
     );
-    return AppBar(title: Text(title), actions: [edit]);
+    final header = PageHeader(
+      title: viewState.title,
+      onBack: Navigator.of(context).maybePop,
+      trailing: edit,
+    );
+    final scroller = ListView(
+      physics: const ClampingScrollPhysics(),
+      children: [content],
+    );
+
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            header,
+            Expanded(child: scroller),
+          ],
+        ),
+      ),
+    );
   }
 }

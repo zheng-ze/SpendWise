@@ -5,8 +5,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
 
-const _semiBoldWeight = FontWeight.w600;
-
 // MARK: - NoticeCardAction
 @immutable
 class NoticeCardAction {
@@ -35,10 +33,6 @@ class NoticeCard extends StatelessWidget {
 
   final NoticeCardAction? secondaryAction;
 
-  static const _bodyFontSize = 12.0;
-
-  static const _bodyLineHeight = 1.45;
-
   static const _cornerRadius = 10.0;
 
   static const _horizontalPadding = 12.0;
@@ -60,21 +54,12 @@ class NoticeCard extends StatelessWidget {
 
     final bodyText = body == null
         ? null
-        : Text(
-            body,
-            style: TextStyle(
-              fontSize: _bodyFontSize,
-              color: colors.notice,
-              height: _bodyLineHeight,
-            ),
-          );
+        : Text(body, style: context.text.body.copyWith(color: colors.notice));
     final titleText = Text(
       title,
-      style: TextStyle(
-        fontSize: _bodyFontSize,
-        fontWeight: _semiBoldWeight,
+      style: context.text.body.copyWith(
+        fontWeight: SpendWiseText.semibold,
         color: colors.notice,
-        height: _bodyLineHeight,
       ),
     );
     final content = <Widget>[titleText];

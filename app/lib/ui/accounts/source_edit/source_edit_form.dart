@@ -1,18 +1,22 @@
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 
+import 'package:spendwise/ui/accounts/account_fields_card.dart';
+import 'package:spendwise/ui/accounts/account_form_frame.dart';
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
 import 'package:spendwise/ui/accounts/source_edit/source_edit_form_view_model.dart';
-import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
-import 'package:spendwise/ui/common/buttons/app_buttons.dart';
-import 'package:spendwise/ui/common/pickers/account_type_picker.dart';
-import 'package:spendwise/ui/common/inputs/amount_field.dart';
-import 'package:spendwise/ui/common/inputs/form_section_card.dart';
-import 'package:spendwise/ui/common/feedback/error_section.dart';
-import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
-import 'package:spendwise/ui/common/sheets/app_sheet.dart';
-import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
+import 'package:spendwise/ui/common/base/step_listening_state.dart';
+import 'package:spendwise/ui/common/sheets/show_form_sheet_then_invalidate.dart';
+import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
+
+// MARK: - Constants
+
+const _loadingTitle = 'Edit Account';
+const _loadErrorTitle = "Couldn't load this account";
+const _accountTitle = 'Edit Account';
+const _subpocketTitle = 'Edit Subpocket';
+const _balanceHint = 'Balance';
 
 // MARK: - Visual Constants
 
@@ -23,19 +27,13 @@ Future<void> showSourceEditFormSheet({
   required BuildContext context,
   required String holderID,
   required ProviderContainer container,
-}) async {
-  AppSheetRoute<void>? route;
-  await showAppSheet<void>(
-    context,
-    presentation: shellSheetPresentation(context),
-    presentationResolver: shellSheetPresentation,
-    onRouteCreated: (createdRoute) => route = createdRoute,
+}) {
+  return showFormSheetThenInvalidate(
+    context: context,
+    container: container,
+    draftProvider: sourceEditFormViewModelProvider(holderID),
     builder: (_) => SourceEditForm(holderID: holderID),
   );
-  final completedRoute = route;
-  if (completedRoute == null) return;
-  await completedRoute.completed;
-  container.invalidate(sourceEditFormViewModelProvider(holderID));
 }
 
 // MARK: - SourceEditForm
@@ -49,167 +47,93 @@ class SourceEditForm extends ConsumerStatefulWidget {
 }
 
 // MARK: - SourceEditFormState
-class _SourceEditFormState extends ConsumerState<SourceEditForm> {
-  late final TextEditingController _nameController = TextEditingController();
-  late final TextEditingController _balanceController = TextEditingController();
-
-  ProviderSubscription<AsyncValue<SourceEditFormViewState>>? _subscription;
+class _SourceEditFormState extends ConsumerState<SourceEditForm>
+    with
+        StepListeningState<
+          SourceEditForm,
+          SourceEditFormViewState,
+          AccountsStep
+        > {
+  @override
+  ProviderListenable<AsyncValue<SourceEditFormViewState>> get stepProvider =>
+      sourceEditFormViewModelProvider(widget.holderID);
 
   @override
-  void initState() {
-    super.initState();
-    _subscription = ref.listenManual(
-      sourceEditFormViewModelProvider(widget.holderID),
-      (previous, next) => _handleStep(next.value?.step),
-    );
-  }
+  AccountsStep? stepOf(SourceEditFormViewState viewState) => viewState.step;
 
   @override
-  void dispose() {
-    _subscription?.close();
-    _nameController.dispose();
-    _balanceController.dispose();
-    super.dispose();
-  }
+  void clearStep() => _viewModel.clearStep();
 
   SourceEditFormViewModel get _viewModel =>
       ref.read(sourceEditFormViewModelProvider(widget.holderID).notifier);
 
-  void _handleStep(AccountsStep? step) {
-    if (step == null) return;
-    switch (step) {
-      case SourceEditFormSaved():
-        if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-      case AccountFormRequested():
-      case SourceEditRequested():
-      case AccountOpened():
-      case AccountAloneOpened():
-      case PocketOpened():
-      case PickParentRequested():
-      case AccountFormSaved():
-        break;
+  @override
+  void handleStep(AccountsStep step) {
+    if (step is SourceEditFormSaved && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
     }
-    _viewModel.clearStep();
   }
 
   @override
   Widget build(BuildContext context) {
-    final asyncState = ref.watch(
-      sourceEditFormViewModelProvider(widget.holderID),
-    );
+    final provider = sourceEditFormViewModelProvider(widget.holderID);
 
-    return asyncState.when(
-      data: (formState) => _SourceEditFormBody(
-        formState: formState,
-        viewModel: _viewModel,
-        nameController: _nameController,
-        balanceController: _balanceController,
-      ),
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) => Center(child: Text('$error')),
+    return FormSheetAsyncHost(
+      state: ref.watch(provider),
+      title: _loadingTitle,
+      loadErrorMessage: _loadErrorTitle,
+      onRetry: () => ref.invalidate(provider),
+      builder: (formState) =>
+          _SourceEditFormBody(formState: formState, viewModel: _viewModel),
     );
   }
 }
 
 // MARK: - SourceEditFormBody
 class _SourceEditFormBody extends StatelessWidget {
-  const _SourceEditFormBody({
-    required this.formState,
-    required this.viewModel,
-    required this.nameController,
-    required this.balanceController,
-  });
+  const _SourceEditFormBody({required this.formState, required this.viewModel});
 
   final SourceEditFormViewState formState;
   final SourceEditFormViewModel viewModel;
-  final TextEditingController nameController;
-  final TextEditingController balanceController;
-
-  static const _fieldGap = 16.0;
 
   @override
   Widget build(BuildContext context) {
-    if (nameController.text != formState.name) {
-      nameController.text = formState.name;
-    }
-    if (balanceController.text != formState.balanceText) {
-      balanceController.text = formState.balanceText;
-    }
-
-    final title = formState.isAccount ? 'Edit Account' : 'Edit Subpocket';
-    final fieldRows = FormSectionCard(
-      padding: FormSectionCard.fieldsPadding,
-      children: [
-        TextField(
-          controller: nameController,
-          decoration: const InputDecoration(hintText: 'Name'),
-          onChanged: viewModel.setName,
-        ),
-        if (formState.isAccount) ...[
-          const SizedBox(height: _fieldGap),
-          AccountTypePicker(
-            selected: formState.type,
-            onSelected: viewModel.setType,
-            sheetPresentation: shellSheetPresentation,
-          ),
-          if (formState.type == AccountType.card) ...[
-            const SizedBox(height: _fieldGap),
-            StatementDayPicker(
-              selected: formState.statementDay,
-              onSelected: viewModel.setStatementDay,
-              sheetPresentation: shellSheetPresentation,
-            ),
-          ],
-        ],
-        const SizedBox(height: _fieldGap),
-        AmountField(
-          controller: balanceController,
-          allowsNegative: true,
-          hintText: 'Balance',
-          onChanged: viewModel.setBalance,
-        ),
-        if (formState.showsTransferToggle) ...[
-          const SizedBox(height: _fieldGap),
-          SwitchListTile(
-            contentPadding: _fieldContentPadding,
-            title: const Text('Transfers in count as expenses'),
-            subtitle: const Text(
-              'When on, money transferred into this holder is treated as '
-              'spending in analysis.',
-            ),
-            value: formState.incomingTransfersAsExpenses,
-            onChanged: viewModel.setIncomingTransfersAsExpenses,
-          ),
-        ],
-        if (formState.isAccount)
-          SwitchListTile(
-            contentPadding: _fieldContentPadding,
-            title: const Text('Include in net worth'),
-            value: formState.includeInNetWorth,
-            onChanged: viewModel.setIncludeInNetWorth,
-          ),
-      ],
-    );
-    final fields = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        fieldRows,
-        ErrorSection(subject: 'account', error: formState.error),
-      ],
-    );
-    final saveButton = SizedBox(
-      width: double.infinity,
-      child: PrimaryButton(
-        label: 'Save',
-        onPressed: formState.canSave ? viewModel.save : null,
+    final title = formState.isAccount ? _accountTitle : _subpocketTitle;
+    final transferSwitch = SwitchListTile(
+      contentPadding: _fieldContentPadding,
+      title: const Text('Transfers in count as expenses'),
+      subtitle: const Text(
+        'When on, money transferred into this holder is treated as '
+        'spending in analysis.',
       ),
+      value: formState.incomingTransfersAsExpenses,
+      onChanged: viewModel.setIncomingTransfersAsExpenses,
+    );
+    final netWorthSwitch = SwitchListTile(
+      contentPadding: _fieldContentPadding,
+      title: const Text('Include in net worth'),
+      value: formState.includeInNetWorth,
+      onChanged: viewModel.setIncludeInNetWorth,
+    );
+    final fieldRows = AccountFieldsCard(
+      fields: formState,
+      actions: viewModel,
+      balanceHint: _balanceHint,
+      showsTypeFields: formState.isAccount,
+      extras: [
+        if (formState.showsTransferToggle) ...[
+          const SizedBox(height: accountFieldGap),
+          transferSwitch,
+        ],
+        if (formState.isAccount) netWorthSwitch,
+      ],
     );
 
-    return AppSheet(
-      header: AppPickerHeader(title: title),
-      body: fields,
-      footer: saveButton,
-      variant: AppSheetVariant.form,
+    return AccountFormFrame(
+      title: title,
+      error: formState.error,
+      onSave: formState.canSave ? viewModel.save : null,
+      children: [fieldRows],
     );
   }
 }

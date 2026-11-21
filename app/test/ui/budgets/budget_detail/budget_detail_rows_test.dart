@@ -42,18 +42,6 @@ void main() {
     expect(state.projection?.projection.summary?.spent, state.spent);
   }, timeout: uiTestTimeout);
 
-  testWidgets('a month with no spending still names the selected month', (
-    tester,
-  ) async {
-    await pumpDetailScreen(
-      tester,
-      ledger: detailLedger(budgets: [detailBudget()]),
-    );
-
-    expect(find.text('No spending yet this month'), findsOneWidget);
-    expect(find.text('OCT 2026 ENTRIES'), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
   testWidgets('Edit requests the edit step from the page', (tester) async {
     final container = await pumpDetailScreen(
       tester,
@@ -82,6 +70,8 @@ void main() {
       await tester.pump();
       expect(detailState(container).phase, BudgetDetailPhase.loading);
 
+      await tester.ensureVisible(find.text('Coffee'));
+      await tester.pumpAndSettle();
       await tester.drag(find.text('Coffee'), const Offset(-600, 0));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete'));

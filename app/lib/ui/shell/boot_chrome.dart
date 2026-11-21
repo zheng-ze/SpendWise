@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/money/money_segment.dart';
 import 'package:spendwise/ui/overview/overview_flow.dart';
@@ -40,17 +42,12 @@ Widget _buildOverviewTab(BuildContext context) => const _OverviewTabEntry();
 // MARK: - Constants
 const _bootPagePadding = EdgeInsets.all(30);
 const _bootContentGap = 14.0;
-const _bootWordmarkFontSize = 26.0;
 const _progressSize = 30.0;
 const _progressStrokeWidth = 3.0;
 const _loadingSemanticsLabel = 'Loading your data';
 const _failureTitle = "Couldn't load your data";
 const _failureMessage =
     'Something went wrong loading your data. Please try again.';
-const _retryLabel = 'Retry';
-const _failureTitleFontSize = 18.0;
-const _failureTitleWeight = FontWeight.w600;
-const _failureMessageFontSize = 12.0;
 const _retryWidth = double.infinity;
 
 // MARK: - OverviewTabEntry
@@ -124,10 +121,11 @@ class _BootLoading extends StatelessWidget {
       height: _progressSize,
       child: progress,
     );
+    final wordmark = SpendWiseWordmark(style: context.text.headline);
 
     return _BootPage(
       children: [
-        const SpendWiseWordmark(fontSize: _bootWordmarkFontSize),
+        wordmark,
         const SizedBox(height: _bootContentGap),
         sizedProgress,
       ],
@@ -150,9 +148,8 @@ class _LoadFailure extends ConsumerWidget {
 
     final title = Text(
       _failureTitle,
-      style: theme.textTheme.headlineSmall?.copyWith(
-        fontSize: _failureTitleFontSize,
-        fontWeight: _failureTitleWeight,
+      style: context.text.title.copyWith(
+        fontWeight: SpendWiseText.semibold,
         color: colors.text,
       ),
       textAlign: TextAlign.center,
@@ -160,20 +157,21 @@ class _LoadFailure extends ConsumerWidget {
     final message = Text(
       _failureMessage,
       style: theme.textTheme.bodyMedium?.copyWith(
-        fontSize: _failureMessageFontSize,
+        fontSize: context.text.body.fontSize,
         color: colors.subtext,
       ),
       textAlign: TextAlign.center,
     );
-    final retryButton = FilledButton(
+    final retryButton = PrimaryButton(
+      label: loadErrorRetryLabel,
       onPressed: () => ref.read(appBootProvider).retry(),
-      child: const Text(_retryLabel),
     );
     final retry = SizedBox(width: _retryWidth, child: retryButton);
+    final wordmark = SpendWiseWordmark(style: context.text.headline);
 
     return _BootPage(
       children: [
-        const SpendWiseWordmark(fontSize: _bootWordmarkFontSize),
+        wordmark,
         const SizedBox(height: _bootContentGap),
         title,
         const SizedBox(height: _bootContentGap),

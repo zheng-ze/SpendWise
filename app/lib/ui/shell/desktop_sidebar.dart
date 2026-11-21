@@ -12,20 +12,16 @@ const _sidebarKey = ValueKey('sidebar');
 
 const desktopSidebarWidth = 172.0;
 const _sidebarPadding = EdgeInsets.fromLTRB(8, 12, 8, 12);
-const sidebarDividerWidth = 1.0;
-const _wordmarkFontSize = 18.0;
 const _wordmarkPadding = EdgeInsets.fromLTRB(8, 0, 8, 16);
 const _sidebarItemPadding = EdgeInsets.symmetric(horizontal: 10, vertical: 9);
 const _sidebarItemGap = 2.0;
 const _sidebarItemCornerRadius = 12.0;
 const _sidebarIconSize = 20.0;
 const _sidebarLabelGap = 10.0;
-const _sidebarLabelFontSize = 13.0;
 const _sidebarAddGap = 8.0;
 const _sidebarAddVerticalPadding = 12.0;
 const _unselectedBackground = Colors.transparent;
 const _addEntryLabel = 'Add entry';
-const _syncLabelFontSize = 11.0;
 const _syncStatusPadding = EdgeInsets.fromLTRB(10, 8, 10, 0);
 
 const _loopDestinations = [
@@ -50,6 +46,13 @@ class DesktopSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final wordmarkStyle = context.text.title.copyWith(
+      fontWeight: SpendWiseText.semibold,
+    );
+    final wordmark = Padding(
+      padding: _wordmarkPadding,
+      child: SpendWiseWordmark(style: wordmarkStyle),
+    );
     return Container(
       key: _sidebarKey,
       width: desktopSidebarWidth,
@@ -59,10 +62,7 @@ class DesktopSidebar extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Padding(
-              padding: _wordmarkPadding,
-              child: SpendWiseWordmark(fontSize: _wordmarkFontSize),
-            ),
+            wordmark,
             for (final (index, destination) in _loopDestinations.indexed) ...[
               if (index > 0) const SizedBox(height: _sidebarItemGap),
               _SidebarDestination(
@@ -108,7 +108,7 @@ class _SidebarSyncStatus extends ConsumerWidget {
       padding: _syncStatusPadding,
       child: Text(
         label,
-        style: TextStyle(fontSize: _syncLabelFontSize, color: colors.subtext),
+        style: context.text.body.copyWith(color: colors.subtext),
       ),
     );
   }
@@ -172,11 +172,10 @@ class _SidebarDestination extends StatelessWidget {
               Expanded(
                 child: Text(
                   destinationLabels[destination]!,
-                  style: TextStyle(
-                    fontSize: _sidebarLabelFontSize,
+                  style: context.text.body.copyWith(
                     fontWeight: isSelected
-                        ? selectedDestinationWeight
-                        : unselectedDestinationWeight,
+                        ? SpendWiseText.semibold
+                        : SpendWiseText.medium,
                     color: isSelected ? colors.action : colors.text,
                   ),
                 ),
@@ -185,19 +184,6 @@ class _SidebarDestination extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-// MARK: - SidebarDivider
-class SidebarDivider extends StatelessWidget {
-  const SidebarDivider({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return VerticalDivider(
-      width: sidebarDividerWidth,
-      color: context.colors.edge,
     );
   }
 }

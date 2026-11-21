@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/accounts/account_fields.dart';
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
 import 'package:spendwise/ui/accounts/source_edit/source_edit_form_logic.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
@@ -11,7 +12,9 @@ import 'package:spendwise/ui/format/money_format.dart';
 
 // MARK: - SourceEditFormViewState
 class SourceEditFormViewState
-    implements HasStep<SourceEditFormViewState, AccountsStep> {
+    implements
+        HasStep<SourceEditFormViewState, AccountsStep>,
+        AccountFieldsState<SourceEditFormViewState> {
   const SourceEditFormViewState({
     required this.holderID,
     required this.isAccount,
@@ -29,9 +32,13 @@ class SourceEditFormViewState
 
   final String holderID;
   final bool isAccount;
+  @override
   final String name;
+  @override
   final AccountType type;
+  @override
   final int? statementDay;
+  @override
   final String balanceText;
   final bool incomingTransfersAsExpenses;
   final bool includeInNetWorth;
@@ -77,14 +84,27 @@ class SourceEditFormViewState
   @override
   SourceEditFormViewState withStep(AccountsStep? Function() step) =>
       copyWith(step: step);
+
+  @override
+  SourceEditFormViewState withFields({
+    String? name,
+    AccountType? type,
+    int? Function()? statementDay,
+    String? balanceText,
+  }) => copyWith(
+    name: name,
+    type: type,
+    statementDay: statementDay,
+    balanceText: balanceText,
+  );
+
+  @override
+  SourceEditFormViewState withError(LedgerError? Function() error) =>
+      copyWith(error: error);
 }
 
 // MARK: - SourceEditFormViewModel
-abstract class SourceEditFormViewModel {
-  void setName(String name);
-  void setType(AccountType type);
-  void setStatementDay(int day);
-  void setBalance(String raw);
+abstract class SourceEditFormViewModel implements AccountFieldsActions {
   void setIncomingTransfersAsExpenses(bool value);
   void setIncludeInNetWorth(bool value);
   Future<void> save();
@@ -95,7 +115,8 @@ abstract class SourceEditFormViewModel {
 class SourceEditFormNotifier extends AsyncNotifier<SourceEditFormViewState>
     with
         LedgerBackedNotifier<SourceEditFormViewState>,
-        StepEmitting<SourceEditFormViewState, AccountsStep>
+        StepEmitting<SourceEditFormViewState, AccountsStep>,
+        AccountFieldsEditing<SourceEditFormViewState>
     implements SourceEditFormViewModel {
   SourceEditFormNotifier(this._holderID);
 
@@ -137,9 +158,6 @@ class SourceEditFormNotifier extends AsyncNotifier<SourceEditFormViewState>
   }
 
   @override
-  void setName(String name) => updateState((s) => s.copyWith(name: name));
-
-  @override
   void setType(AccountType type) {
     updateState(
       (s) => s.copyWith(
@@ -152,14 +170,6 @@ class SourceEditFormNotifier extends AsyncNotifier<SourceEditFormViewState>
       ),
     );
   }
-
-  @override
-  void setStatementDay(int day) =>
-      updateState((s) => s.copyWith(statementDay: () => day));
-
-  @override
-  void setBalance(String raw) =>
-      updateState((s) => s.copyWith(balanceText: raw));
 
   @override
   void setIncomingTransfersAsExpenses(bool value) =>
@@ -223,7 +233,7 @@ class SourceEditFormNotifier extends AsyncNotifier<SourceEditFormViewState>
         ),
       );
     } on LedgerError catch (error) {
-      updateState((s) => s.copyWith(error: () => error));
+      recordError(error);
     }
   }
 }

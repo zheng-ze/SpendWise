@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: 2026-11-16
+Last reconciled: 7d891059
 
 ## Feature overview
 
@@ -48,7 +48,7 @@ widgets compute no totals.
   `OverviewSlotGrid` under the header. `OverviewScreen` takes `layoutMode` (default phone) and
   `presentation` (default full page) and passes both to the body, so direct fixtures keep the
   single-column stored-order behavior. The Recent entries tray (`overview_recent_section.dart`)
-  ends in a `TextButton` action labelled 'View History' with a chevron, shown for nonempty, empty
+  ends in the shared `AppLinkButton` (action colour, trailing chevron) labelled 'View History', shown for nonempty, empty
   and section-loading rows.
 - `app/lib/ui/overview/overview_slot_grid.dart` - `OverviewSlotGrid`, a `ConsumerWidget` that watches
   `overviewWidgets`, collects the present slots and reads the window width from `MediaQuery`. It
@@ -69,7 +69,9 @@ widgets compute no totals.
   skeleton, empty and figures states), `ThisMonthFigures` (the Spent, Income and Net rows and the
   caption), `ThisMonthCaption` and `ThisMonthFigureRow`.
 - `app/lib/ui/overview/overview_rows.dart` - `OverviewLoadError`, the failed-read message and filled
-  Retry button shared by the Today and This month trays.
+  Retry button shared by the Today and This month trays, a thin wrapper over `LoadErrorView.box`.
+  The same file holds `OverviewRowFrame` (the bottom edge between rows), `OverviewAmountText` (a
+  padded shared `AmountText`) and `OverviewEmptyCopy` (caption-role subtext copy).
 - `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) subscribing to
   `OverviewStep` once, calling its required `onHistorySelected` callback for history requests, its
   required `onBudgetsSelected` callback for budget requests and `openEditEntry` for entry requests.

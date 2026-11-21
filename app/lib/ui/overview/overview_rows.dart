@@ -1,10 +1,11 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/buttons/app_buttons.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Row Frame
@@ -21,10 +22,7 @@ class OverviewRowFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final divider = BorderSide(
-      color: context.colors.edge,
-      width: overviewRowDividerWidth,
-    );
+    final divider = edgeSide(context.colors);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: overviewRowVerticalPadding),
       decoration: isLast
@@ -51,12 +49,7 @@ class OverviewAmountText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(left: overviewRowTrailingGap),
-      child: Text(
-        formatSignedMoney(amount, kind: kind, symbol: false),
-        style: context.text.small.copyWith(
-          color: AmountStyle.of(context, kind: kind).color,
-        ),
-      ),
+      child: AmountText(amount: amount, kind: kind),
     );
   }
 }
@@ -73,26 +66,9 @@ class OverviewLoadError extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
-  static const _messageGap = 10.0;
-
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          message,
-          style: TextStyle(
-            fontSize: overviewBodyFontSize,
-            fontWeight: overviewSemiBold,
-            color: context.colors.error,
-          ),
-        ),
-        const SizedBox(height: _messageGap),
-        PrimaryButton(label: overviewRetryLabel, onPressed: onRetry),
-      ],
-    );
-  }
+  Widget build(BuildContext context) =>
+      LoadErrorView.box(message: message, onRetry: onRetry);
 }
 
 // MARK: - Empty Copy
@@ -105,9 +81,6 @@ class OverviewEmptyCopy extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     text,
-    style: TextStyle(
-      fontSize: overviewSmallFontSize,
-      color: context.colors.subtext,
-    ),
+    style: context.text.caption.copyWith(color: context.colors.subtext),
   );
 }

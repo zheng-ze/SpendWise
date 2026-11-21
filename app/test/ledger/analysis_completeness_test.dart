@@ -8,6 +8,8 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
+import 'analysis_test_support.dart';
+
 const _accountID = '11111111-1111-1111-1111-111111111111';
 const _foodID = '33333333-3333-3333-3333-333333333333';
 
@@ -127,6 +129,8 @@ LedgerState _stateWithHistory() {
 }
 
 void main() {
+  setUp(silenceDebugPrint);
+
   test('period completeness results compare their classification inputs', () {
     final window = DateRange(
       DateTime.utc(2027, 4, 1),

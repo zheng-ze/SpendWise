@@ -7,6 +7,8 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
+import 'analysis_test_support.dart';
+
 const _accountID = '11111111-1111-1111-1111-111111111111';
 const _foodID = '33333333-3333-3333-3333-333333333333';
 
@@ -78,6 +80,8 @@ void _addExpense(Ledger ledger, String id, String amount, {DateTime? date}) {
 }
 
 void main() {
+  setUp(silenceDebugPrint);
+
   test('analysis query results compare state value and revision', () {
     const ready = AnalysisQueryResult<int>(
       value: 7,

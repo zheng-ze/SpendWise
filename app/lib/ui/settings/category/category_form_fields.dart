@@ -5,6 +5,7 @@ import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
+import 'package:spendwise/ui/common/lists/section_label.dart';
 import 'package:spendwise/ui/common/pickers/symbol_picker.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category/category_form_state.dart';
@@ -218,7 +219,6 @@ class CategoryMoreOptionsSection extends StatelessWidget {
   });
 
   static const _label = 'More options';
-  static const _labelWeight = FontWeight.w600;
   static const _labelPadding = EdgeInsets.only(bottom: 8.0);
 
   final bool includeInAnalysis;
@@ -229,14 +229,7 @@ class CategoryMoreOptionsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = context.text.small.copyWith(
-      color: context.colors.subtext,
-      fontWeight: _labelWeight,
-    );
-    final label = Padding(
-      padding: _labelPadding,
-      child: Text(_label.toUpperCase(), style: labelStyle),
-    );
+    const label = SectionLabel(_label, padding: _labelPadding);
     final typeHint = isSubcategory
         ? (parentLabel == null ? null : 'Set by $parentLabel')
         : _categoryTypeHint;

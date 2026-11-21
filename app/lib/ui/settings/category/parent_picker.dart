@@ -5,6 +5,7 @@ import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
@@ -19,12 +20,8 @@ const _topLevelIcon = Icons.sell_outlined;
 const double _rowMinHeight = 48;
 const double _rowVerticalPadding = 10;
 const double _rowGap = 8;
-const double _dividerWidth = 1;
 const double _leadingSize = 28;
 const double _topLevelIconSize = 18;
-const double _labelFontSize = 12;
-const _selectedWeight = FontWeight.w600;
-const _unselectedWeight = FontWeight.w400;
 
 // MARK: - ParentChoice
 class ParentChoice {
@@ -108,12 +105,10 @@ class _ParentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final labelStyle = TextStyle(
+    final labelStyle = context.text.body.copyWith(
       color: colors.text,
-      fontSize: _labelFontSize,
-      fontWeight: selected ? _selectedWeight : _unselectedWeight,
+      fontWeight: selected ? SpendWiseText.semibold : null,
     );
-    final divider = BorderSide(color: colors.edge, width: _dividerWidth);
     final check = Icon(_selectedIcon, color: colors.action);
     final row = Row(
       spacing: _rowGap,
@@ -126,7 +121,7 @@ class _ParentRow extends StatelessWidget {
     final content = Container(
       constraints: const BoxConstraints(minHeight: _rowMinHeight),
       padding: const EdgeInsets.symmetric(vertical: _rowVerticalPadding),
-      decoration: BoxDecoration(border: Border(bottom: divider)),
+      decoration: BoxDecoration(border: bottomEdgeBorder(colors)),
       child: row,
     );
     return InkWell(

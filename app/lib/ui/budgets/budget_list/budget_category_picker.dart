@@ -4,8 +4,8 @@ import 'package:spendwise/ui/budgets/budget_list/budget_scope_options.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
-import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
 const _pickerTitle = 'Choose category';
@@ -14,7 +14,6 @@ const _budgetedSubtitle = 'Has a budget';
 const _rootCategoryIconSize = 24.0;
 const _childCategoryIconSize = 20.0;
 const _childRowIndent = 32.0;
-const _rootNameWeight = FontWeight.w600;
 const _checkIcon = Icons.check;
 
 // MARK: - Category Picker Sheet
@@ -23,10 +22,9 @@ Future<BudgetScopeChoice?> showBudgetCategoryPickerSheet({
   required List<BudgetScopeOption> options,
   required BudgetScopeChoice? selected,
 }) {
-  return showAppSheet<BudgetScopeChoice>(
+  return showPickerAppSheet<BudgetScopeChoice>(
     context,
-    presentation: shellSheetPresentation(context),
-    presentationResolver: shellSheetPresentation,
+    presentation: shellSheetPresentation,
     builder: (_) => _BudgetCategoryPicker(options: options, selected: selected),
   );
 }
@@ -73,7 +71,7 @@ class _ScopeRow extends StatelessWidget {
       option.label,
       style: isChild
           ? Theme.of(context).textTheme.bodyMedium
-          : const TextStyle(fontWeight: _rootNameWeight),
+          : const TextStyle(fontWeight: SpendWiseText.semibold),
     );
     final tile = ListTile(
       leading: leading,

@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/lists/icon_medallion.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
-
-// MARK: - Constants
-
-const _semiBoldWeight = FontWeight.w600;
 
 // MARK: - MedallionRow
 class MedallionRow extends StatelessWidget {
@@ -30,20 +27,6 @@ class MedallionRow extends StatelessWidget {
 
   final Widget? trailing;
 
-  static const _medallionSize = 30.0;
-
-  static const _medallionRadius = 9.0;
-
-  static const _medallionIconSize = 17.0;
-
-  static const _titleFontSize = 12.0;
-
-  static const _titleLineHeight = 1.25;
-
-  static const _subtitleFontSize = 10.0;
-
-  static const _subtitleLineHeight = 1.3;
-
   static const _medallionLabelGap = 9.0;
 
   @override
@@ -51,38 +34,17 @@ class MedallionRow extends StatelessWidget {
     final colors = context.colors;
     final icon = this.icon;
     final medallion =
-        leading ??
-        Container(
-          width: _medallionSize,
-          height: _medallionSize,
-          decoration: BoxDecoration(
-            color: colors.tint,
-            borderRadius: BorderRadius.circular(_medallionRadius),
-          ),
-          child: Icon(
-            icon,
-            size: _medallionIconSize,
-            color: iconColor ?? colors.action,
-          ),
-        );
+        leading ?? IconMedallion.row(icon: icon!, iconColor: iconColor);
     final subtitle = this.subtitle;
     final titleText = Text(
       title,
-      style: const TextStyle(
-        fontSize: _titleFontSize,
-        fontWeight: _semiBoldWeight,
-        height: _titleLineHeight,
-      ),
+      style: context.text.body.copyWith(fontWeight: SpendWiseText.semibold),
     );
     final labelLines = <Widget>[titleText];
     if (subtitle != null) {
       final subtitleText = Text(
         subtitle,
-        style: TextStyle(
-          fontSize: _subtitleFontSize,
-          color: colors.subtext,
-          height: _subtitleLineHeight,
-        ),
+        style: context.text.caption.copyWith(color: colors.subtext),
       );
       labelLines.add(subtitleText);
     }

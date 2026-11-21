@@ -2,10 +2,12 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/accounts/account_sections.dart';
+import 'package:spendwise/ui/common/lists/icon_medallion.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - AccountRowTile
@@ -91,9 +93,6 @@ class _AccountRowBody extends StatelessWidget {
 
   static const _rowHorizontalPadding = 8.0;
   static const _rowVerticalPadding = 10.0;
-  static const _medallionSize = 32.0;
-  static const _medallionRadius = 9.0;
-  static const _medallionIconSize = 18.0;
   static const _medallionTextGap = 10.0;
   static const _titleCaptionGap = 2.0;
 
@@ -115,20 +114,7 @@ class _AccountRowBody extends StatelessWidget {
             ),
             onPressed: onToggleExpanded,
           );
-    final medallion = Container(
-      width: _medallionSize,
-      height: _medallionSize,
-      decoration: BoxDecoration(
-        color: context.colors.tint,
-        borderRadius: BorderRadius.circular(_medallionRadius),
-      ),
-      alignment: Alignment.center,
-      child: Icon(
-        _accountIcon(row.type),
-        size: _medallionIconSize,
-        color: context.colors.action,
-      ),
-    );
+    final medallion = IconMedallion.row(icon: _accountIcon(row.type));
     final title = Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,9 +212,7 @@ class _SubRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: context.colors.edge)),
-        ),
+        decoration: BoxDecoration(border: bottomEdgeBorder(context.colors)),
         padding: const EdgeInsets.fromLTRB(
           _subRowLeftInset,
           _subRowVerticalPadding,

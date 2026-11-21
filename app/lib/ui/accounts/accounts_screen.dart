@@ -44,7 +44,6 @@ class _AccountsList extends StatelessWidget {
   static const _listPadding = EdgeInsets.all(14);
   static const _sectionGap = 10.0;
   static const _emptyTopPadding = 28.0;
-  static const _emptyTextSize = 14.0;
   @override
   Widget build(BuildContext context) {
     final netWorth = viewState.netWorth;
@@ -81,9 +80,8 @@ class _AccountsList extends StatelessWidget {
             child: Center(
               child: Text(
                 'No accounts yet',
-                style: TextStyle(
+                style: context.text.title.copyWith(
                   color: context.colors.subtext,
-                  fontSize: _emptyTextSize,
                 ),
               ),
             ),
@@ -182,76 +180,38 @@ class _SectionHeader extends StatelessWidget {
   final AccountSection section;
 
   static const _headerAmountGap = 8.0;
-  static const _headerBottomPadding = 6.0;
-  static const _titleSize = 14.0;
-  static const _titleWeight = FontWeight.w600;
   static const _compactHeaderMaxWidth = 400.0;
 
   @override
   Widget build(BuildContext context) {
     final header = section.header;
     final trailing = switch (header) {
-      SubtotalHeader(:final subtotal) => _SectionAmount(
-        amount: formatMoney(subtotal, symbol: false),
-        color: AmountStyle.of(context, signedValue: subtotal).color,
+      SubtotalHeader(:final subtotal) => AmountText.formatted(
+        text: formatMoney(subtotal, symbol: false),
+        kind: amountKindOfSign(subtotal),
       ),
       CardHeader(:final payable, :final outstanding) => Wrap(
         spacing: _headerAmountGap,
         children: [
-          _SectionAmount(
-            amount: 'Payable ${formatMoney(payable, symbol: false)}',
-            color: AmountStyle.of(context, kind: AmountKind.expense).color,
+          AmountText.formatted(
+            text: 'Payable ${formatMoney(payable, symbol: false)}',
+            kind: AmountKind.expense,
           ),
-          _SectionAmount(
-            amount: 'Outstanding ${formatMoney(outstanding, symbol: false)}',
+          AmountText.formatted(
+            text: 'Outstanding ${formatMoney(outstanding, symbol: false)}',
+            kind: AmountKind.transfer,
             color: context.colors.subtext,
           ),
         ],
       ),
     };
-    final title = Text(
-      accountTypeLabel(section.type),
-      style: TextStyle(
-        fontSize: _titleSize,
-        fontWeight: _titleWeight,
-        color: context.colors.text,
+    final title = accountTypeLabel(section.type);
+    return LayoutBuilder(
+      builder: (context, constraints) => TrayHeader(
+        title: title,
+        trailing: trailing,
+        stacked: constraints.maxWidth <= _compactHeaderMaxWidth,
       ),
     );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth <= _compactHeaderMaxWidth;
-        final content = compact
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [title, trailing],
-              )
-            : Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(child: title),
-                  trailing,
-                ],
-              );
-        return Padding(
-          padding: const EdgeInsets.only(bottom: _headerBottomPadding),
-          child: content,
-        );
-      },
-    );
   }
-}
-
-class _SectionAmount extends StatelessWidget {
-  const _SectionAmount({required this.amount, required this.color});
-
-  final String amount;
-  final Color color;
-
-  static const _amountSize = 10.0;
-
-  @override
-  Widget build(BuildContext context) => Text(
-    amount,
-    style: TextStyle(fontSize: _amountSize, color: color),
-  );
 }

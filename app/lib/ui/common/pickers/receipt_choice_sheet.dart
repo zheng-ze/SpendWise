@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/common/pickers/choice_tile.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -11,8 +12,6 @@ const _hintLabel = 'Scanning fills in a draft. You check it before saving.';
 const _scanLabel = 'Scan receipt';
 
 const _photoLabel = 'Choose photo';
-
-const _hintSize = 12.0;
 
 const _hintPadding = EdgeInsets.fromLTRB(16, 2, 16, 8);
 
@@ -27,10 +26,9 @@ Future<ReceiptChoice?> showReceiptChoiceSheet({
     title: _titleLabel,
     body: const _ReceiptChoiceBody(),
   );
-  return showAppSheet<ReceiptChoice>(
+  return showPickerAppSheet<ReceiptChoice>(
     context,
-    presentation: presentation(context),
-    presentationResolver: presentation,
+    presentation: presentation,
     onRouteCreated: onRouteCreated,
     builder: (_) => sheet,
   );
@@ -43,10 +41,9 @@ class _ReceiptChoiceBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final baseStyle =
         Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
-    final hintStyle = baseStyle.copyWith(
-      fontSize: _hintSize,
-      color: context.colors.subtext,
-    );
+    final hintStyle = baseStyle
+        .merge(context.text.body)
+        .copyWith(color: context.colors.subtext);
     final hint = Padding(
       padding: _hintPadding,
       child: Text(_hintLabel, style: hintStyle),
@@ -55,38 +52,17 @@ class _ReceiptChoiceBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         hint,
-        const _ReceiptChoiceRow(
+        const ChoiceTile<ReceiptChoice>(
           label: _scanLabel,
-          icon: Icons.camera_alt_outlined,
-          choice: ReceiptChoice.scan,
+          leading: Icons.camera_alt_outlined,
+          value: ReceiptChoice.scan,
         ),
-        const _ReceiptChoiceRow(
+        const ChoiceTile<ReceiptChoice>(
           label: _photoLabel,
-          icon: Icons.image_outlined,
-          choice: ReceiptChoice.photo,
+          leading: Icons.image_outlined,
+          value: ReceiptChoice.photo,
         ),
       ],
-    );
-  }
-}
-
-class _ReceiptChoiceRow extends StatelessWidget {
-  const _ReceiptChoiceRow({
-    required this.label,
-    required this.icon,
-    required this.choice,
-  });
-
-  final String label;
-  final IconData icon;
-  final ReceiptChoice choice;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      onTap: () => Navigator.of(context).pop(choice),
-      leading: Icon(icon),
-      title: Text(label),
     );
   }
 }

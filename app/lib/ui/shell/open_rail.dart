@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/shell/shell_destinations.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Geometry
@@ -14,13 +15,11 @@ const openRailRightInset = 9.0;
 const openRailBottomInset = 10.0;
 const openRailWidth = 54.0;
 const openRailCornerRadius = 18.0;
-const openRailBorderWidth = 1.0;
 
 const _railPadding = EdgeInsets.symmetric(vertical: 12, horizontal: 2);
 const _railItemGap = 14.0;
 const _railAddTopGap = 2.0;
 const _railIconSize = 24.0;
-const _railLabelFontSize = 8.0;
 const _railLabelGap = 4.0;
 const _railItemCornerRadius = 10.0;
 const _railMinHitSize = 48.0;
@@ -62,7 +61,7 @@ class OpenRail extends StatelessWidget {
         padding: _railPadding,
         decoration: BoxDecoration(
           color: colors.surface,
-          border: Border.all(color: colors.edge, width: openRailBorderWidth),
+          border: fullEdgeBorder(colors),
           borderRadius: BorderRadius.circular(openRailCornerRadius),
         ),
         child: SingleChildScrollView(
@@ -146,11 +145,10 @@ class _RailItem extends StatelessWidget {
               const SizedBox(height: _railLabelGap),
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: _railLabelFontSize,
+                style: context.text.caption.copyWith(
                   fontWeight: highlighted
-                      ? selectedDestinationWeight
-                      : unselectedDestinationWeight,
+                      ? SpendWiseText.semibold
+                      : SpendWiseText.medium,
                   color: filled ? colors.action : foreground,
                 ),
               ),

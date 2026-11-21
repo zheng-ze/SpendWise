@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/common/lists/section_label.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 
 // MARK: - SettingsScreen
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  static const _dividerHeight = 1.0;
   static const _screenTitle = 'Settings';
 
   @override
@@ -21,17 +22,17 @@ class SettingsScreen extends ConsumerWidget {
 
     final list = ListView(
       children: [
-        const _SectionHeader('Manage'),
+        const SectionLabel('Manage', padding: _headerPadding),
         _SettingsLink(
           icon: Icons.sell_outlined,
           label: 'Categories',
           onTap: viewModel.requestCategories,
         ),
-        const Divider(height: _dividerHeight),
-        const _SectionHeader('Hosted Sync'),
+        const Divider(height: edgeThickness),
+        const SectionLabel('Hosted Sync', padding: _headerPadding),
         const _HostedSyncSection(),
-        const Divider(height: _dividerHeight),
-        const _SectionHeader('Receipt Scanning'),
+        const Divider(height: edgeThickness),
+        const SectionLabel('Receipt Scanning', padding: _headerPadding),
         SwitchListTile(
           secondary: const Icon(Icons.document_scanner_outlined),
           title: const Text('Show scan/upload on new entry'),
@@ -41,16 +42,16 @@ class SettingsScreen extends ConsumerWidget {
             ref.invalidate(scanStripEnabledProvider);
           },
         ),
-        const Divider(height: _dividerHeight),
-        const _SectionHeader('Currency'),
+        const Divider(height: edgeThickness),
+        const SectionLabel('Currency', padding: _headerPadding),
         const ListTile(
           leading: Icon(Icons.attach_money),
           title: Text('Currency'),
           subtitle: Text('Amounts display in Singapore dollars'),
           trailing: Text('SGD'),
         ),
-        const Divider(height: _dividerHeight),
-        const _SectionHeader('Data'),
+        const Divider(height: edgeThickness),
+        const SectionLabel('Data', padding: _headerPadding),
         _SettingsLink(
           icon: Icons.delete_outline,
           label: 'Recycle Bin',
@@ -68,28 +69,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-// MARK: - SectionHeader
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title);
-
-  final String title;
-
-  static const _headerPadding = EdgeInsets.fromLTRB(16, 16, 16, 4);
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: _headerPadding,
-      child: Text(
-        title,
-        style: theme.textTheme.labelLarge?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-  }
-}
+const _headerPadding = EdgeInsets.fromLTRB(16, 16, 16, 4);
 
 // MARK: - SettingsLink
 class _SettingsLink extends StatelessWidget {

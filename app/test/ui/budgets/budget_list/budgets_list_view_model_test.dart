@@ -12,7 +12,11 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart
 import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 
+import '../../../ledger/analysis_test_support.dart';
+
 void main() {
+  setUp(silenceDebugPrint);
+
   Decimal dec(String value) => Decimal.parse(value);
 
   final account = Account(

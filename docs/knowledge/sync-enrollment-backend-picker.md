@@ -1,6 +1,6 @@
 # Sync enrollment: backend picker
 
-Last reconciled: 0d906b7
+Last reconciled: 6a34f454
 
 ## Overview
 
@@ -75,10 +75,10 @@ Source:
   `_SyncEnrollmentFlowState.buildRoot`;
   `app/lib/ui/common/base/flow_base.dart` - `FlowBaseState.showsOwnBackButton`,
   `FlowBaseState.goBack`.
-- The picker's Back arrow is an `IconButton` keyed `syncPickerBack` with a
-  `BackButtonIcon`; `onPressed` is null while `saving` is true. A `BackButton`
-  would fall back to `maybePop` with a null callback, so it cannot enforce this
-  disabled state. `BackendPickerFlow.goBack()` and `SyncEnrollmentFlow.goBack()`
+- The picker's header is a `PageHeader` keyed `syncPickerBack`. While `saving` is true the screen
+  passes no back callback and sets `disabledBack`, so the header draws an inert `IconButton` with a
+  `BackButtonIcon`; a `BackButton` would fall back to `maybePop` with a null callback, so it cannot
+  enforce this disabled state. `BackendPickerFlow.goBack()` and `SyncEnrollmentFlow.goBack()`
   also ignore back navigation while saving, including system back at the picker
   root. The save cannot be cancelled, so the Flow waits for it to settle before
   allowing exit. Back works again after a save failure clears `saving`. Source:

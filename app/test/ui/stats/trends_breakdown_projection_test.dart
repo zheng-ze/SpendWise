@@ -26,6 +26,8 @@ import 'trends_test_support.dart';
 final _today = DateTime.utc(2026, 10, 3);
 
 void main() {
+  setUp(silenceDebugPrint);
+
   test(
     'October categories preserve ranking, Decimal totals and bare signs',
     () async {

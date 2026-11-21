@@ -14,8 +14,6 @@ part 'category_map/category_map_labels.dart';
 
 // MARK: - Constants
 
-const _semiBoldWeight = FontWeight.w600;
-
 const _percentFactor = 100.0;
 
 const _emptyExtent = 0.0;
@@ -23,8 +21,6 @@ const _emptyExtent = 0.0;
 const _shareFractionDigits = 1;
 
 const _labelInset = 20.0;
-
-const _labelFontSize = 12.0;
 
 const _nameMaxLines = 2;
 

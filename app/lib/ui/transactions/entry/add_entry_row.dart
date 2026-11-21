@@ -4,10 +4,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Visual Constants
 
-const _textSize = 12.0;
-
-const _valueWeight = FontWeight.w500;
-
 const _labelValueGap = 10.0;
 
 const _stackedGap = 4.0;
@@ -26,15 +22,12 @@ const _keypadVerticalPadding = 8.0;
 
 const _restVerticalPadding = 10.0;
 
-const _dividerThickness = 1.0;
-
 // MARK: - Styles
 TextStyle addRowValueStyle(BuildContext context) {
-  return Theme.of(context).textTheme.bodyMedium!.copyWith(
-    fontSize: _textSize,
-    fontWeight: _valueWeight,
-    color: context.colors.text,
-  );
+  final body = context.text.body.copyWith(fontWeight: SpendWiseText.medium);
+  return Theme.of(context).textTheme.bodyMedium!
+      .merge(body)
+      .copyWith(color: context.colors.text);
 }
 
 // MARK: - AddEntryRow
@@ -60,7 +53,8 @@ class AddEntryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final labelStyle = Theme.of(context).textTheme.bodyMedium!
-        .copyWith(fontSize: _textSize, color: colors.subtext);
+        .merge(context.text.body)
+        .copyWith(color: colors.subtext);
     final styledValue = DefaultTextStyle.merge(
       style: addRowValueStyle(context),
       child: value,
@@ -138,19 +132,5 @@ class AddEntryRow extends StatelessWidget {
     final width = painter.width;
     painter.dispose();
     return width;
-  }
-}
-
-// MARK: - EntryRowDivider
-class EntryRowDivider extends StatelessWidget {
-  const EntryRowDivider({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Divider(
-      height: _dividerThickness,
-      thickness: _dividerThickness,
-      color: context.colors.edge,
-    );
   }
 }

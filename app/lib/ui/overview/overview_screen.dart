@@ -86,9 +86,6 @@ class _OverviewHeader extends StatelessWidget {
 
   static const _bottomPadding = 14.0;
   static const _dateGap = 2.0;
-  static const _titleFontSize = 26.0;
-  static const _titleLineHeight = 1.12;
-  static const _titleLetterSpacing = -0.7;
 
   @override
   Widget build(BuildContext context) {
@@ -100,21 +97,10 @@ class _OverviewHeader extends StatelessWidget {
         children: [
           Text(
             formatWeekdayDate(day),
-            style: TextStyle(
-              fontSize: overviewSmallFontSize,
-              color: colors.subtext,
-            ),
+            style: context.text.caption.copyWith(color: colors.subtext),
           ),
           const SizedBox(height: _dateGap),
-          const Text(
-            overviewTitle,
-            style: TextStyle(
-              fontSize: _titleFontSize,
-              fontWeight: overviewSemiBold,
-              height: _titleLineHeight,
-              letterSpacing: _titleLetterSpacing,
-            ),
-          ),
+          Text(overviewTitle, style: context.text.headline),
         ],
       ),
     );

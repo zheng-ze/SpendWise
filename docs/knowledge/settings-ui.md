@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: 8f781336
+Last reconciled: 6a34f454
 
 ## Feature overview
 
@@ -14,8 +14,10 @@ screens are mostly stateless facades over `Ledger`, with per-sheet form view mod
 
 - `app/lib/ui/settings/settings_root_view_model.dart`, `settings_root_screen.dart`,
   `settings_flow.dart` - the root list of navigation links.
-- `app/lib/ui/common/navigation/page_header.dart` - the shared large-title page header used by the
-  Settings root, the Categories list and the Recycle bin.
+- `app/lib/ui/common/navigation/page_header.dart` - the shared large-title page header. It takes an
+  optional back callback, a disabled-back flag, a subtitle and a trailing action, draws its title in
+  the headline style's own medium weight, and every screen with a back control uses it, including
+  the Settings root, the Categories list and the Recycle bin.
 - `app/lib/ui/settings/category/` - category list, form sheet, subcategories section and parent picker.
 - `app/lib/ui/common/pickers/symbol_picker.dart`, `app/lib/ui/theme/category_palette.dart` - the icon and
   colour picker and the saved-colour mapping.
@@ -56,8 +58,8 @@ counts. These counts include active and binned entries through `entriesReferenci
 
 The Settings Flow owns Settings' nested navigator; `AppShell` mounts it only while the
 `settings` destination is selected (see `ui-framework-mvvm.md`). The root screen shows the large "Settings" title with no
-back control. The Categories list and the Recycle bin use the same `PageHeader` (no AppBar) with a
-visible "Settings" back label that pops the route; the label is also the back control's semantics label. Back pops child routes and preserves the destination selection at the root. Phone/open
+back control. The Categories list and the Recycle bin use the same `PageHeader` (no AppBar) with
+Flutter's icon-only `BackButton` (accessible name "Back") that pops the route. Back pops child routes and preserves the destination selection at the root. Phone/open
 resize keeps the mounted flow and its open enrollment route in place, without re-hosting the
 enrollment flow. Selecting another destination disposes the flow and its child routes, and
 selecting Settings again builds it fresh at the root. The Categories row opens category management, whose forms open as AppSheets over it. Settings has no Recurring Plans row, request Step or Plans route.
@@ -131,15 +133,16 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 - **Currency** - a fixed row reading "Amounts display in Singapore dollars / SGD". There is no
   multi-currency support. (`app/lib/ui/settings/settings_root_screen.dart`)
 
-- **Category list** - two sections, Expense first and then Income, each a `Tray` card with an upper-case
-  label and the empty text "No categories yet". Rows are pre-ordered roots-then-children A-Z. Each row
+- **Category list** - two sections, Expense first and then Income, each a `Tray` card with a `SectionLabel` heading,
+  `EdgeDivider` lines between rows, and the empty text "No categories yet". Rows are pre-ordered roots-then-children A-Z. Each row
   is a `MedallionRow` with the category medallion in its saved colour, the name, a chevron, and a
   "N subcategories" meta line ("1 subcategory" for one, none for zero). Child rows are indented 36.
   A bar-chart badge marks a category excluded from analysis. Root rows carry an "Add subcategory"
   action that opens the Add subcategory form with that root preset. A floating "Add category" button
   opens the Add category form. Tapping a row opens its edit form, and a swipe confirms and then moves
   the category to the bin. (`app/lib/ui/settings/category/category_list_screen.dart`)
-- **Category form** - an `AppSheet` that dismisses by dragging down or tapping outside, with no Cancel
+- **Category form** - an `AppSheet` (loading and load-error states come from the shared
+  `FormSheetAsyncHost`, and its Steps from the `StepListeningState` mixin) that dismisses by dragging down or tapping outside, with no Cancel
   button and a header Save action. Add category also has a "Save category" footer; Add subcategory and
   Edit have the header Save only. A failed save shows an error alert slot above the body. The title is
   Add category, Add subcategory, Edit category or Edit subcategory. The body holds the kind
@@ -152,7 +155,7 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
   not the draft pick, so re-parenting a subcategory in the Inside row leaves the hint reading "Set by
   \<stored parent>" until the save. Defaults: symbol `tag`, blue, include on; the colour is saved as
   `#RRGGBB`. A malformed stored colour is treated as unsaved, so the form seeds the same blue default
-  as a new category (or the preset parent's colour) instead of the housing grey. Edit forms end with a body "Move to recycle bin" danger button that confirms
+  as a new category (or the preset parent's colour) instead of the housing grey. Edit forms end with a body "Move to recycle bin" destructive `SecondaryButton` (the former `CategoryDangerButton` was removed) that confirms
   through the shared destructive dialog, then archives and dismisses.
   (`app/lib/ui/settings/category/category_form.dart`, `category_form_fields.dart`,
   `category_form_state.dart`)
@@ -195,7 +198,7 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
   Cards without rows are hidden. Rows show the name (pockets use the qualified source name), a
   "Used by N entries" meta line ("Used by 1 entry" for one) and a Restore action, sorted by name
   ascending. Category rows show their medallion. A footer hint reads "Swipe right to restore or left to
-  delete permanently." When every card is empty the screen shows "Recycle bin is empty" and no hint. Leading swipe → Restore
+  delete permanently." When every card is empty the screen shows the shared `EmptyState` titled "Recycle bin is empty" and no hint. Leading swipe → Restore
   (silent no-op if the parent account is still binned - restore the account first); trailing swipe →
   purge confirmation ("\<name\> leaves the bin for good..."), which `confirmBinPurge` builds and presents
   through the shared `showDestructiveConfirmation`, a centered dialog with Cancel and a confirm action,

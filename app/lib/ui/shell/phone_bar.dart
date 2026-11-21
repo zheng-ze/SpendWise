@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/shell/shell_destinations.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
@@ -23,11 +24,8 @@ const _barPadding = EdgeInsets.fromLTRB(
   _barVerticalPadding,
 );
 const _barCornerRadius = 20.0;
-const _barBorderWidth = 1.0;
 const _barIconSize = 24.0;
-const _barLabelFontSize = 10.0;
 const _barLabelGap = 3.0;
-const _barLabelHeightFactor = 1.4;
 const _barLabelMaxLines = 1;
 const _barItemCornerRadius = 14.0;
 const _barItemVerticalPadding = 4.0;
@@ -68,7 +66,7 @@ class PhoneBar extends StatelessWidget {
       padding: _barPadding,
       decoration: BoxDecoration(
         color: colors.surface,
-        border: Border.all(color: colors.edge, width: _barBorderWidth),
+        border: fullEdgeBorder(colors),
         borderRadius: BorderRadius.circular(_barCornerRadius),
       ),
       child: Row(
@@ -164,12 +162,10 @@ class _BarDestination extends StatelessWidget {
           destinationLabels[destination]!,
           maxLines: _barLabelMaxLines,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: _barLabelFontSize,
-            height: _barLabelHeightFactor,
+          style: context.text.caption.copyWith(
             fontWeight: isSelected
-                ? selectedDestinationWeight
-                : unselectedDestinationWeight,
+                ? SpendWiseText.semibold
+                : SpendWiseText.medium,
             color: foreground,
           ),
         ),
@@ -205,10 +201,8 @@ class _BarAdd extends StatelessWidget {
           _addLabel,
           maxLines: _barLabelMaxLines,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: _barLabelFontSize,
-            height: _barLabelHeightFactor,
-            fontWeight: selectedDestinationWeight,
+          style: context.text.caption.copyWith(
+            fontWeight: SpendWiseText.semibold,
             color: colors.action,
           ),
         ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/feedback/inline_spinner.dart';
 import 'package:spendwise/ui/common/inputs/form_section_card.dart';
+import 'package:spendwise/ui/common/lists/edge_divider.dart';
 import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
@@ -13,15 +15,9 @@ import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 
 const _focusedUnderlineHeight = 2.0;
 
-const _hintSize = 10.0;
-
-const _hintLineHeight = 1.4;
-
 const _hintPadding = EdgeInsets.only(top: 5.0, bottom: 4.0);
 
 const _spinnerSize = 14.0;
-
-const _spinnerStroke = 2.0;
 
 const _switchTapTarget = MaterialTapTargetSize.shrinkWrap;
 
@@ -235,9 +231,7 @@ class NewEntryRows extends StatelessWidget {
       final above = children.isEmpty ? null : underlined[children.last];
       if (children.isNotEmpty) {
         children.add(
-          above == null
-              ? const EntryRowDivider()
-              : _FocusDivider(focusNode: above),
+          above == null ? const EdgeDivider() : _FocusDivider(focusNode: above),
         );
       }
       children.add(row);
@@ -366,10 +360,7 @@ class _ReceiptRow extends StatelessWidget {
   Widget build(BuildContext context) {
     const spinner = Align(
       alignment: AlignmentDirectional.centerEnd,
-      child: SizedBox.square(
-        dimension: _spinnerSize,
-        child: CircularProgressIndicator(strokeWidth: _spinnerStroke),
-      ),
+      child: InlineSpinner(size: _spinnerSize),
     );
     return AddEntryRow(
       label: scanning ? _readingReceiptLabel : _addReceiptLabel,
@@ -393,7 +384,7 @@ class _FocusDivider extends StatelessWidget {
     return ListenableBuilder(
       listenable: focusNode,
       builder: (context, _) {
-        if (!focusNode.hasFocus) return const EntryRowDivider();
+        if (!focusNode.hasFocus) return const EdgeDivider();
         return Container(height: _focusedUnderlineHeight, color: focusColor);
       },
     );
@@ -406,11 +397,9 @@ class _RecurringHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.bodyMedium!.copyWith(
-      fontSize: _hintSize,
-      height: _hintLineHeight,
-      color: context.colors.subtext,
-    );
+    final style = Theme.of(context).textTheme.bodyMedium!
+        .merge(context.text.caption)
+        .copyWith(color: context.colors.subtext);
     return Padding(
       padding: _hintPadding,
       child: Text(_recurringHint, style: style),

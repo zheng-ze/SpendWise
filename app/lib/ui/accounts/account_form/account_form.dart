@@ -1,21 +1,26 @@
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 
+import 'package:spendwise/ui/accounts/account_fields_card.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
+import 'package:spendwise/ui/accounts/account_form_frame.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_view_model.dart';
-import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/inputs/form_sheet_row.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
-import 'package:spendwise/ui/common/buttons/app_buttons.dart';
-import 'package:spendwise/ui/common/inputs/amount_field.dart';
-import 'package:spendwise/ui/common/feedback/error_section.dart';
-import 'package:spendwise/ui/common/pickers/account_type_picker.dart';
-import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
-import 'package:spendwise/ui/common/sheets/app_sheet.dart';
-import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
+import 'package:spendwise/ui/common/base/step_listening_state.dart';
+import 'package:spendwise/ui/common/sheets/show_form_sheet_then_invalidate.dart';
+import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
+
+// MARK: - Constants
+
+const _loadingTitle = 'New Account';
+const _loadErrorTitle = "Couldn't load the account form";
+const _accountTitle = 'New Account';
+const _subpocketTitle = 'New Subpocket';
+const _balanceHint = 'Opening balance';
 
 // MARK: - Visual Constants
 
@@ -23,19 +28,13 @@ import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 Future<void> showAccountFormSheet({
   required BuildContext context,
   required ProviderContainer container,
-}) async {
-  AppSheetRoute<void>? route;
-  await showAppSheet<void>(
-    context,
-    presentation: shellSheetPresentation(context),
-    presentationResolver: shellSheetPresentation,
-    onRouteCreated: (createdRoute) => route = createdRoute,
+}) {
+  return showFormSheetThenInvalidate(
+    context: context,
+    container: container,
+    draftProvider: accountFormViewModelProvider,
     builder: (_) => const AccountForm(),
   );
-  final completedRoute = route;
-  if (completedRoute == null) return;
-  await completedRoute.completed;
-  container.invalidate(accountFormViewModelProvider);
 }
 
 // MARK: - AccountForm
@@ -47,48 +46,27 @@ class AccountForm extends ConsumerStatefulWidget {
 }
 
 // MARK: - AccountFormState
-class _AccountFormState extends ConsumerState<AccountForm> {
-  late final TextEditingController _nameController = TextEditingController();
-  late final TextEditingController _balanceController = TextEditingController();
-
-  ProviderSubscription<AsyncValue<AccountFormViewState>>? _subscription;
+class _AccountFormState extends ConsumerState<AccountForm>
+    with StepListeningState<AccountForm, AccountFormViewState, AccountsStep> {
+  @override
+  ProviderListenable<AsyncValue<AccountFormViewState>> get stepProvider =>
+      accountFormViewModelProvider;
 
   @override
-  void initState() {
-    super.initState();
-    _subscription = ref.listenManual(
-      accountFormViewModelProvider,
-      (previous, next) => _handleStep(next.value?.step),
-    );
-  }
+  AccountsStep? stepOf(AccountFormViewState viewState) => viewState.step;
 
   @override
-  void dispose() {
-    _subscription?.close();
-    _nameController.dispose();
-    _balanceController.dispose();
-    super.dispose();
-  }
+  void clearStep() => _viewModel.clearStep();
 
   AccountFormViewModel get _viewModel =>
       ref.read(accountFormViewModelProvider.notifier);
 
-  void _handleStep(AccountsStep? step) {
-    if (step == null) return;
-    switch (step) {
-      case PickParentRequested():
-        _pickParent();
-      case AccountFormSaved():
-        if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-      case AccountFormRequested():
-      case SourceEditRequested():
-      case AccountOpened():
-      case AccountAloneOpened():
-      case PocketOpened():
-      case SourceEditFormSaved():
-        break;
+  @override
+  void handleStep(AccountsStep step) {
+    if (step is PickParentRequested) _pickParent();
+    if (step is AccountFormSaved && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
     }
-    _viewModel.clearStep();
   }
 
   Future<void> _pickParent() async {
@@ -119,49 +97,28 @@ class _AccountFormState extends ConsumerState<AccountForm> {
 
   @override
   Widget build(BuildContext context) {
-    final asyncState = ref.watch(accountFormViewModelProvider);
-
-    return asyncState.when(
-      data: (formState) => _AccountFormBody(
-        formState: formState,
-        viewModel: _viewModel,
-        nameController: _nameController,
-        balanceController: _balanceController,
-      ),
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) => Center(child: Text('$error')),
+    return FormSheetAsyncHost(
+      state: ref.watch(accountFormViewModelProvider),
+      title: _loadingTitle,
+      loadErrorMessage: _loadErrorTitle,
+      onRetry: () => ref.invalidate(accountFormViewModelProvider),
+      builder: (formState) =>
+          _AccountFormBody(formState: formState, viewModel: _viewModel),
     );
   }
 }
 
 // MARK: - AccountFormBody
 class _AccountFormBody extends StatelessWidget {
-  const _AccountFormBody({
-    required this.formState,
-    required this.viewModel,
-    required this.nameController,
-    required this.balanceController,
-  });
+  const _AccountFormBody({required this.formState, required this.viewModel});
 
   final AccountFormViewState formState;
   final AccountFormViewModel viewModel;
-  final TextEditingController nameController;
-  final TextEditingController balanceController;
-
-  static const _fieldGap = 16.0;
 
   @override
   Widget build(BuildContext context) {
-    if (nameController.text != formState.name) {
-      nameController.text = formState.name;
-    }
-    if (balanceController.text != formState.balanceText) {
-      balanceController.text = formState.balanceText;
-    }
-
-    final title = formState.effectiveKind == AccountFormKind.subpocket
-        ? 'New Subpocket'
-        : 'New Account';
+    final isAccountKind = formState.effectiveKind == AccountFormKind.account;
+    final title = isAccountKind ? _accountTitle : _subpocketTitle;
     final kindSelector = IgnorePointer(
       ignoring: formState.isLockedToAccount,
       child: SegmentedButton<AccountFormKind>(
@@ -178,66 +135,34 @@ class _AccountFormBody extends StatelessWidget {
             : (selection) => viewModel.setKind(selection.first),
       ),
     );
-    final fieldRows = FormSectionCard(
-      padding: FormSectionCard.fieldsPadding,
-      children: [
-        TextField(
-          controller: nameController,
-          decoration: const InputDecoration(hintText: 'Name'),
-          onChanged: viewModel.setName,
-        ),
-        const SizedBox(height: _fieldGap),
-        if (formState.effectiveKind == AccountFormKind.account) ...[
-          AccountTypePicker(
-            selected: formState.type,
-            onSelected: viewModel.setType,
-            sheetPresentation: shellSheetPresentation,
-          ),
-          if (formState.type == AccountType.card) ...[
-            const SizedBox(height: _fieldGap),
-            StatementDayPicker(
-              selected: formState.statementDay,
-              onSelected: viewModel.setStatementDay,
-              sheetPresentation: shellSheetPresentation,
-            ),
-          ],
-          const SizedBox(height: _fieldGap),
-          AmountField(
-            controller: balanceController,
-            allowsNegative: true,
-            hintText: 'Opening balance',
-            onChanged: viewModel.setBalance,
-          ),
-        ] else
-          FormSheetRow(
-            label: 'Account',
-            trailing: Text(_parentLabel() ?? 'Select'),
-            onTap: viewModel.requestPickParent,
-          ),
-      ],
+    final parentRow = FormSheetRow(
+      label: 'Account',
+      trailing: Text(_parentLabel() ?? 'Select'),
+      onTap: viewModel.requestPickParent,
     );
-    final fields = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        kindSelector,
-        const SizedBox(height: _fieldGap),
-        fieldRows,
-        ErrorSection(subject: 'account', error: formState.error),
+    final fieldRows = AccountFieldsCard(
+      fields: formState,
+      actions: viewModel,
+      balanceHint: _balanceHint,
+      showsTypeFields: isAccountKind,
+      showsBalance: isAccountKind,
+      extras: [
+        if (!isAccountKind) ...[
+          const SizedBox(height: accountFieldGap),
+          parentRow,
+        ],
       ],
-    );
-    final saveButton = SizedBox(
-      width: double.infinity,
-      child: PrimaryButton(
-        label: 'Save',
-        onPressed: formState.canSave ? viewModel.save : null,
-      ),
     );
 
-    return AppSheet(
-      header: AppPickerHeader(title: title),
-      body: fields,
-      footer: saveButton,
-      variant: AppSheetVariant.form,
+    return AccountFormFrame(
+      title: title,
+      error: formState.error,
+      onSave: formState.canSave ? viewModel.save : null,
+      children: [
+        kindSelector,
+        const SizedBox(height: accountFieldGap),
+        fieldRows,
+      ],
     );
   }
 

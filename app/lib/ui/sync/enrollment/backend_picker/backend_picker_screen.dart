@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/ui/common/feedback/inline_spinner.dart';
+import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 
 class BackendPickerScreen extends ConsumerStatefulWidget {
@@ -17,8 +19,6 @@ class BackendPickerScreen extends ConsumerStatefulWidget {
 class _BackendPickerScreenState extends ConsumerState<BackendPickerScreen> {
   static const _screenPadding = EdgeInsets.all(16);
   static const _continueGap = 16.0;
-  static const _progressIndicatorSize = 20.0;
-  static const _progressStrokeWidth = 2.0;
 
   late final TextEditingController _endpointController =
       TextEditingController();
@@ -38,68 +38,65 @@ class _BackendPickerScreenState extends ConsumerState<BackendPickerScreen> {
     final saveError = state.saveError;
     final isCustom = state.selectedBackend == SyncBackendKind.custom;
     final continueButton = state.saving
-        ? const SizedBox.square(
-            dimension: _progressIndicatorSize,
-            child: CircularProgressIndicator(strokeWidth: _progressStrokeWidth),
-          )
+        ? const InlineSpinner()
         : const Text('Continue');
     void selectBackend(SyncBackendKind? backend) {
       if (backend != null) viewModel.selectBackend(backend);
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Choose sync backend'),
-        // BackButton cannot be disabled (a null onPressed falls back to
-        // maybePop), so use an IconButton to hold the disabled state.
-        leading: widget.onBack == null
-            ? null
-            : IconButton(
-                key: const Key('syncPickerBack'),
-                icon: const BackButtonIcon(),
-                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-                onPressed: state.saving ? null : widget.onBack,
-              ),
-      ),
-      body: ListView(
-        padding: _screenPadding,
-        children: [
-          RadioGroup<SyncBackendKind>(
-            groupValue: state.selectedBackend,
-            onChanged: selectBackend,
-            child: Column(
-              children: [
-                _BackendOptionTile(
-                  kind: SyncBackendKind.supabase,
-                  title: 'Hosted sync',
-                  subtitle: 'Sync through the managed SpendWise backend.',
-                  enabled: !state.saving,
-                ),
-                _BackendOptionTile(
-                  kind: SyncBackendKind.custom,
-                  title: 'Custom server',
-                  subtitle: 'Sync through your own server over HTTPS.',
-                  enabled: !state.saving,
-                ),
-              ],
-            ),
-          ),
-          if (isCustom)
-            _CustomEndpointField(
-              controller: _endpointController,
-              errorText: state.endpointError,
-              onChanged: viewModel.updateEndpoint,
-              enabled: !state.saving,
-            ),
-          if (saveError != null) _PickerSaveError(message: saveError),
-          const SizedBox(height: _continueGap),
-          FilledButton(
-            onPressed: state.saving ? null : viewModel.continueWithSelection,
-            child: continueButton,
-          ),
-        ],
-      ),
+    final onBack = state.saving ? null : widget.onBack;
+    final header = PageHeader(
+      key: const Key('syncPickerBack'),
+      title: 'Choose sync backend',
+      onBack: onBack,
+      disabledBack: widget.onBack != null && state.saving,
     );
+    final content = ListView(
+      padding: _screenPadding,
+      children: [
+        RadioGroup<SyncBackendKind>(
+          groupValue: state.selectedBackend,
+          onChanged: selectBackend,
+          child: Column(
+            children: [
+              _BackendOptionTile(
+                kind: SyncBackendKind.supabase,
+                title: 'Hosted sync',
+                subtitle: 'Sync through the managed SpendWise backend.',
+                enabled: !state.saving,
+              ),
+              _BackendOptionTile(
+                kind: SyncBackendKind.custom,
+                title: 'Custom server',
+                subtitle: 'Sync through your own server over HTTPS.',
+                enabled: !state.saving,
+              ),
+            ],
+          ),
+        ),
+        if (isCustom)
+          _CustomEndpointField(
+            controller: _endpointController,
+            errorText: state.endpointError,
+            onChanged: viewModel.updateEndpoint,
+            enabled: !state.saving,
+          ),
+        if (saveError != null) _PickerSaveError(message: saveError),
+        const SizedBox(height: _continueGap),
+        FilledButton(
+          onPressed: state.saving ? null : viewModel.continueWithSelection,
+          child: continueButton,
+        ),
+      ],
+    );
+    final page = Column(
+      children: [
+        header,
+        Expanded(child: content),
+      ],
+    );
+
+    return Scaffold(body: SafeArea(child: page));
   }
 }
 

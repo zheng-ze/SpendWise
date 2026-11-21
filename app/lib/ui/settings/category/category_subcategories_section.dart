@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/common/inputs/form_section_card.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/lists/medallion_row.dart';
+import 'package:spendwise/ui/common/lists/section_label.dart';
 import 'package:spendwise/ui/theme/category_palette.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Subcategories Section
@@ -19,17 +21,13 @@ class CategorySubcategoriesSection extends StatelessWidget {
 
   static const _label = 'Subcategories';
   static const _addLabel = 'Add subcategory';
-  static const _labelWeight = FontWeight.w600;
   static const _labelPadding = EdgeInsets.only(bottom: 10.0);
   static const _rowPadding = EdgeInsets.symmetric(vertical: 7.0);
   static const _addPadding = EdgeInsets.symmetric(vertical: 4.0);
   static const _iconSize = 30.0;
   static const _chevronSize = 13.0;
-  static const _dividerHeight = 1.0;
   static const _addVerticalPadding = 6.0;
   static const _addHorizontalPadding = 0.0;
-  static const _addFontSize = 12.0;
-  static const _addFontWeight = FontWeight.w600;
   static const _addIconSize = 18.0;
   static const _chevronIcon = Icons.chevron_right;
   static const _addIcon = Icons.add;
@@ -41,15 +39,8 @@ class CategorySubcategoriesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final labelStyle = context.text.small.copyWith(
-      color: colors.subtext,
-      fontWeight: _labelWeight,
-    );
-    final label = Padding(
-      padding: _labelPadding,
-      child: Text(_label.toUpperCase(), style: labelStyle),
-    );
-    final divider = Container(height: _dividerHeight, color: colors.edge);
+    const label = SectionLabel(_label, padding: _labelPadding);
+    final divider = Container(height: edgeThickness, color: colors.edge);
     final rows = [
       for (final subcategory in subcategories) ...[
         _SubcategoryRow(
@@ -69,10 +60,7 @@ class CategorySubcategoriesSection extends StatelessWidget {
         horizontal: _addHorizontalPadding,
         vertical: _addVerticalPadding,
       ),
-      textStyle: const TextStyle(
-        fontSize: _addFontSize,
-        fontWeight: _addFontWeight,
-      ),
+      textStyle: context.text.body.copyWith(fontWeight: SpendWiseText.semibold),
     );
     final addButton = TextButton.icon(
       style: addStyle,

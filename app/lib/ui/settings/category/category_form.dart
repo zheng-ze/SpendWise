@@ -4,7 +4,9 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 
+import 'package:spendwise/ui/common/base/step_listening_state.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/inputs/form_section_card.dart';
@@ -14,7 +16,6 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/form_sheet_load_states.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/common/sheets/sheet_session.dart';
-import 'package:spendwise/ui/settings/category/category_danger_button.dart';
 import 'package:spendwise/ui/settings/category/category_form_fields.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
 import 'package:spendwise/ui/settings/category/category_subcategories_section.dart';
@@ -26,7 +27,6 @@ import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 
 const _loadingTitle = 'Category';
 const _saveLabel = 'Save';
-const _retryLabel = 'Try again';
 const _loadErrorTitle = "Couldn't load this category";
 const _saveErrorTitle = 'Could not save category';
 const _addFooterLabel = 'Save category';
@@ -65,10 +65,14 @@ class CategoryForm extends ConsumerStatefulWidget {
 
 // MARK: - Form State
 
-class _CategoryFormState extends ConsumerState<CategoryForm> {
+class _CategoryFormState extends ConsumerState<CategoryForm>
+    with
+        StepListeningState<
+          CategoryForm,
+          CategoryFormViewState,
+          CategoryFormStep
+        > {
   late final TextEditingController _nameController = TextEditingController();
-
-  ProviderSubscription<AsyncValue<CategoryFormViewState>>? _subscription;
 
   ModalRoute<Object?>? _route;
   final List<ModalRoute<dynamic>> _pickerRoutes = [];
@@ -80,13 +84,14 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   );
 
   @override
-  void initState() {
-    super.initState();
-    _subscription = ref.listenManual(
-      categoryFormViewModelProvider(_args),
-      (previous, next) => _handleStep(next.value?.step),
-    );
-  }
+  ProviderListenable<AsyncValue<CategoryFormViewState>> get stepProvider =>
+      categoryFormViewModelProvider(_args);
+
+  @override
+  CategoryFormStep? stepOf(CategoryFormViewState viewState) => viewState.step;
+
+  @override
+  void clearStep() => _viewModel.clearStep();
 
   @override
   void didChangeDependencies() {
@@ -97,7 +102,6 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   @override
   void dispose() {
     _closePickers();
-    _subscription?.close();
     _nameController.dispose();
     super.dispose();
   }
@@ -118,8 +122,8 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   CategoryFormViewModel get _viewModel =>
       ref.read(categoryFormViewModelProvider(_args).notifier);
 
-  void _handleStep(CategoryFormStep? step) {
-    if (step == null) return;
+  @override
+  void handleStep(CategoryFormStep step) {
     switch (step) {
       case PickParentRequested():
         _pickParent();
@@ -130,7 +134,6 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
       case CategoryFormSaved():
         dismissSheetRoute(_route);
     }
-    _viewModel.clearStep();
   }
 
   Future<void> _pickSymbol() async {
@@ -205,32 +208,20 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
 
   @override
   Widget build(BuildContext context) {
-    final asyncState = ref.watch(categoryFormViewModelProvider(_args));
+    final provider = categoryFormViewModelProvider(_args);
 
-    final formState = asyncState.value;
-    if (formState != null) {
-      return _CategoryFormBody(
+    return FormSheetAsyncHost(
+      state: ref.watch(provider),
+      title: _loadingTitle,
+      loadErrorMessage: _loadErrorTitle,
+      onRetry: () => ref.invalidate(provider),
+      builder: (formState) => _CategoryFormBody(
         formState: formState,
         viewModel: _viewModel,
         nameController: _nameController,
         onSubcategoryTap: _openSubcategory,
         onAddSubcategory: _addSubcategory,
-      );
-    }
-    final error = asyncState.error;
-    if (error == null) return const FormSheetLoading(title: _loadingTitle);
-    final retry = SizedBox(
-      width: _footerWidth,
-      child: PrimaryButton(
-        label: _retryLabel,
-        onPressed: () => ref.invalidate(categoryFormViewModelProvider(_args)),
       ),
-    );
-    return FormSheetLoadError(
-      title: _loadingTitle,
-      message: _loadErrorTitle,
-      error: error,
-      footer: retry,
     );
   }
 }
@@ -316,8 +307,9 @@ class _CategoryFormBody extends StatelessWidget {
       onSubcategoryTap: onSubcategoryTap,
       onAddSubcategory: onAddSubcategory,
     );
-    final moveToBin = CategoryDangerButton(
+    final moveToBin = SecondaryButton(
       label: _moveToBinLabel,
+      destructive: true,
       onPressed: viewModel.requestDelete,
     );
     final body = formState.isEditing

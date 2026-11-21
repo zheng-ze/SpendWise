@@ -15,18 +15,6 @@ const _idleUnderlineHeight = 1.0;
 
 const _focusedUnderlineHeight = 2.0;
 
-const _phoneAmountSize = 32.0;
-
-const _desktopAmountSize = 34.0;
-
-const _amountLetterSpacing = -1.0;
-
-const _amountLineHeight = 1.2;
-
-const _labelSize = 10.0;
-
-const _labelWeight = FontWeight.w400;
-
 const _caretWidth = 1.5;
 
 const _caretHeightFactor = 1.05;
@@ -82,18 +70,8 @@ class AddAmountBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final size = systemKeyboard ? _desktopAmountSize : _phoneAmountSize;
-    final style = context.text.hero.copyWith(
-      color: _tone(colors),
-      fontSize: size,
-      letterSpacing: _amountLetterSpacing,
-      height: _amountLineHeight,
-    );
-    final labelStyle = context.text.small.copyWith(
-      color: colors.subtext,
-      fontSize: _labelSize,
-      fontWeight: _labelWeight,
-    );
+    final style = context.text.hero.copyWith(color: _tone(colors));
+    final labelStyle = context.text.caption.copyWith(color: colors.subtext);
     final label = Text(_amountLabel, style: labelStyle);
     final field = TextField(
       controller: controller,
@@ -108,7 +86,7 @@ class AddAmountBlock extends StatelessWidget {
       style: style,
       cursorColor: colors.focus,
       cursorWidth: _caretWidth,
-      cursorHeight: size * _caretHeightFactor,
+      cursorHeight: style.fontSize! * _caretHeightFactor,
       decoration: const InputDecoration.collapsed(hintText: _amountHint),
     );
     final sign = Text(_sign, style: style);

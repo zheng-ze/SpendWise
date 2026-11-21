@@ -18,7 +18,7 @@ import '../../../support/ui_test_timeout.dart';
 const _loadAlert = SheetAlertData(
   message: "Couldn't load the entry form",
   severity: SheetAlertSeverity.error,
-  actionLabel: 'Retry',
+  actionLabel: 'Try again',
 );
 
 class _PaneForm extends ConsumerWidget {
@@ -59,7 +59,7 @@ void main() {
     );
 
     await pumpApp(tester, _inOpenPane(form), settle: false);
-    await tester.tap(find.text('Retry'));
+    await tester.tap(find.text('Try again'));
 
     expect(tester.takeException(), isNull);
     expect(find.byType(AppSheet), findsNothing);

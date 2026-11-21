@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'document_crop_execution.dart';
 import 'document_crop_geometry.dart';
 
+import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Corner
@@ -87,24 +88,30 @@ class _DocumentCropScreenState extends State<DocumentCropScreen> {
   Widget build(BuildContext context) {
     final image = _image;
     final corners = _corners;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Crop receipt'),
-        actions: [
-          IconButton(
-            onPressed: corners == null ? null : _confirm,
-            icon: const Icon(Icons.check),
-          ),
-        ],
-      ),
-      body: image == null || corners == null
-          ? const Center(child: CircularProgressIndicator())
-          : _CropCanvas(
-              image: image,
-              corners: corners,
-              onDragCorner: _moveCorner,
-            ),
+    final confirm = IconButton(
+      onPressed: corners == null ? null : _confirm,
+      icon: const Icon(Icons.check),
     );
+    final header = PageHeader(
+      title: 'Crop receipt',
+      onBack: () => Navigator.of(context).maybePop(),
+      trailing: confirm,
+    );
+    final content = image == null || corners == null
+        ? const Center(child: CircularProgressIndicator())
+        : _CropCanvas(
+            image: image,
+            corners: corners,
+            onDragCorner: _moveCorner,
+          );
+    final page = Column(
+      children: [
+        header,
+        Expanded(child: content),
+      ],
+    );
+
+    return Scaffold(body: SafeArea(child: page));
   }
 }
 

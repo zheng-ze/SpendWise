@@ -109,6 +109,8 @@ void main() {
     final history = await _pumpOpenHistory(tester);
     await _openPane(tester, history);
 
+    await tester.ensureVisible(find.byKey(_deleteKey));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(_deleteKey));
     await tester.pumpAndSettle();
 

@@ -3,21 +3,15 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _summaryRadius = 14.0;
-const _summaryBorderWidth = 1.0;
 const _summaryHorizontalPadding = 12.0;
 const _summaryVerticalPadding = 10.0;
 const _summaryColumnGap = 6.0;
 const _summaryStackGap = 4.0;
-const _summaryLabelFontSize = 10.0;
 const _summaryLabelAmountGap = 2.0;
-const _summaryAmountFontSize = 12.0;
-const _summaryAmountWeight = FontWeight.w600;
-const _summaryPrimaryFontSize = 18.0;
-const _summaryPrimaryWeight = FontWeight.w500;
-const _summaryPrimaryLetterSpacing = -0.3;
 const _summaryFlexScale = 100.0;
 const _summaryMetricCount = 3;
 
@@ -52,10 +46,7 @@ class ResponsiveSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final decoration = BoxDecoration(
       color: context.colors.surface,
-      border: Border.all(
-        color: context.colors.edge,
-        width: _summaryBorderWidth,
-      ),
+      border: fullEdgeBorder(context.colors),
       borderRadius: BorderRadius.circular(_summaryRadius),
     );
     const padding = EdgeInsets.symmetric(
@@ -72,7 +63,7 @@ class ResponsiveSummaryCard extends StatelessWidget {
         final availableWidth =
             constraints.maxWidth -
             (_summaryHorizontalPadding * 2) -
-            (_summaryBorderWidth * 2);
+            (edgeThickness * 2);
         final widths = metrics
             .map((metric) => _metricRequiredWidth(context, metric))
             .toList();
@@ -100,14 +91,18 @@ class ResponsiveSummaryCard extends StatelessWidget {
   }
 }
 
+TextStyle _metricTextStyle(BuildContext context, bool primary) {
+  if (!primary) {
+    return context.text.body.copyWith(fontWeight: SpendWiseText.semibold);
+  }
+  return context.text.row;
+}
+
 typedef _SummaryMetricData = ({String label, String value, TextStyle style});
 
 _SummaryMetricData _summaryMetric(BuildContext context, SummaryMetric metric) {
   final primary = metric.emphasis == SummaryMetricEmphasis.primary;
-  final style = TextStyle(
-    fontSize: primary ? _summaryPrimaryFontSize : _summaryAmountFontSize,
-    fontWeight: primary ? _summaryPrimaryWeight : _summaryAmountWeight,
-    letterSpacing: primary ? _summaryPrimaryLetterSpacing : null,
+  final style = _metricTextStyle(context, primary).copyWith(
     color: AmountStyle.of(
       context,
       kind: metric.kind,
@@ -130,10 +125,7 @@ class _SummaryMetricView extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = Text(
       metric.label,
-      style: TextStyle(
-        fontSize: _summaryLabelFontSize,
-        color: context.colors.subtext,
-      ),
+      style: context.text.caption.copyWith(color: context.colors.subtext),
     );
     final value = SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -209,15 +201,11 @@ Widget _summaryContent(
 
 double _metricRequiredWidth(BuildContext context, SummaryMetric metric) {
   final primary = metric.emphasis == SummaryMetricEmphasis.primary;
-  final style = TextStyle(
-    fontSize: primary ? _summaryPrimaryFontSize : _summaryAmountFontSize,
-    fontWeight: primary ? _summaryPrimaryWeight : _summaryAmountWeight,
-    letterSpacing: primary ? _summaryPrimaryLetterSpacing : null,
-  );
+  final style = _metricTextStyle(context, primary);
   final labelWidth = _textWidth(
     context,
     metric.label,
-    TextStyle(fontSize: _summaryLabelFontSize, color: context.colors.subtext),
+    context.text.caption.copyWith(color: context.colors.subtext),
   );
   final valueWidth = _textWidth(
     context,

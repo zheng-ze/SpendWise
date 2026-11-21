@@ -9,7 +9,11 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_detail_presentation.da
 
 import 'budget_detail_test_support.dart';
 
+import '../../../ledger/analysis_test_support.dart';
+
 void main() {
+  setUp(silenceDebugPrint);
+
   final october = DateTime.utc(2026, 10, 28);
 
   Entry expense(DateTime date, {String amount = '-10'}) => Entry(

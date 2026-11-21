@@ -6,6 +6,8 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
+import 'analysis_test_support.dart';
+
 Account _account({String name = 'acc'}) =>
     Account(name: name, type: AccountType.savings);
 
@@ -70,6 +72,8 @@ class _ManualRunner {
 }
 
 void main() {
+  setUp(silenceDebugPrint);
+
   test('sourceStampStartsUncomputedWithNoFailure', () {
     final cache = AnalysisCache();
 

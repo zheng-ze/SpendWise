@@ -20,10 +20,14 @@ import 'package:spendwise/ui/transactions/top_categories_view_model.dart';
 import 'package:spendwise/ui/transactions/top_categories_view_state.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
+import '../../ledger/analysis_test_support.dart';
+
 const _readyTimeout = Duration(seconds: 5);
 const _pollInterval = Duration(milliseconds: 1);
 
 void main() {
+  setUp(silenceDebugPrint);
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('history key normalizes by named calendar period and mode', () {

@@ -13,6 +13,7 @@ import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
+import '../../../ledger/analysis_test_support.dart';
 import '../../../support/pump_app.dart';
 import '../../../support/ui_test_timeout.dart';
 import '../../../support/phone_shell.dart';
@@ -96,8 +97,10 @@ void main() {
     addTearDown(container.dispose);
     final app = MaterialApp(home: phoneShell(const BudgetsRoot()));
     final scope = UncontrolledProviderScope(container: container, child: app);
-    await tester.pumpWidget(scope);
-    await tester.pumpAndSettle();
+    await withSilencedDebugPrint(() async {
+      await tester.pumpWidget(scope);
+      await tester.pumpAndSettle();
+    });
     final owner = container.read(budgetsListViewModelProvider.notifier);
     fail = false;
     await tester.tap(find.text('Try again'));

@@ -4,7 +4,11 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
 
-const _semiBoldWeight = FontWeight.w600;
+const _actionMinHeight = 48.0;
+
+final appActionLabelStyle = SpendWiseText.standard.body.copyWith(
+  fontWeight: SpendWiseText.medium,
+);
 
 final _shape = RoundedRectangleBorder(
   borderRadius: BorderRadius.circular(_cornerRadius),
@@ -21,13 +25,10 @@ const _horizontalPadding = 12.0;
 
 const _verticalPadding = 10.0;
 
-const _labelFontSize = 12.0;
-
 TextStyle _labelStyle(BuildContext context) {
-  final base = Theme.of(context).textTheme.labelLarge
-      ?.copyWith(fontSize: _labelFontSize, fontWeight: _semiBoldWeight);
-  return base ??
-      const TextStyle(fontSize: _labelFontSize, fontWeight: _semiBoldWeight);
+  final body = context.text.body;
+  final base = Theme.of(context).textTheme.labelLarge?.merge(body);
+  return (base ?? body).copyWith(fontWeight: SpendWiseText.semibold);
 }
 
 // MARK: - PrimaryButton
@@ -66,6 +67,7 @@ class SecondaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.outlined = false,
+    this.destructive = false,
   });
 
   final String label;
@@ -73,6 +75,8 @@ class SecondaryButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   final bool outlined;
+
+  final bool destructive;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +94,14 @@ class SecondaryButton extends StatelessWidget {
         onPressed: onPressed,
         child: Text(label),
       );
+    }
+    if (destructive) {
+      final style = TextButton.styleFrom(
+        foregroundColor: colors.error,
+        minimumSize: const Size.fromHeight(_actionMinHeight),
+        textStyle: appActionLabelStyle,
+      );
+      return TextButton(style: style, onPressed: onPressed, child: Text(label));
     }
     final style = TextButton.styleFrom(
       shape: _shape,

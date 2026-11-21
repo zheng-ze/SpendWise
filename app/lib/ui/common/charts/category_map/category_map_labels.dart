@@ -67,8 +67,6 @@ class _AdjacentLabelRow extends StatelessWidget {
 
   static const _swatchRadius = 3.0;
 
-  static const _captionFontSize = 10.0;
-
   static const _captionMaxLines = 3;
 
   static const _swatchLabelGap = 5.0;
@@ -86,7 +84,7 @@ class _AdjacentLabelRow extends StatelessWidget {
     );
     final labelText = Text(
       '${label.tile.label} ${_shareText(label.tile.share)}',
-      style: TextStyle(fontSize: _captionFontSize, color: colors.subtext),
+      style: context.text.caption.copyWith(color: colors.subtext),
       maxLines: _captionMaxLines,
       overflow: TextOverflow.ellipsis,
     );

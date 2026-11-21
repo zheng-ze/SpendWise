@@ -74,6 +74,8 @@ AnalysisQueryResult<CategoryDetailSpread> readSpread(
 }
 
 void main() {
+  setUp(silenceDebugPrint);
+
   test('mixed reads load, publish coherent revisions and retain only same identities', () async {
     final setup = setupAnalysis(today: today);
     seed(setup.ledger);

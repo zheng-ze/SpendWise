@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
@@ -7,8 +8,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 const _keyHeight = 48.0;
 
 const _padRadius = 10.0;
-
-const _padBorderWidth = 1.0;
 
 const _backspaceIconSize = 20.0;
 
@@ -67,7 +66,7 @@ class NumberPad extends StatelessWidget {
     final decoration = BoxDecoration(
       color: colors.surface,
       borderRadius: BorderRadius.circular(_padRadius),
-      border: Border.all(color: colors.edge, width: _padBorderWidth),
+      border: fullEdgeBorder(colors),
     );
 
     return DecoratedBox(

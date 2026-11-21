@@ -6,18 +6,20 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
+import 'package:spendwise/ui/transactions/daily_list/register_insets.dart';
 
 // MARK: - Constants
 const double dayHeaderHeight = 56;
 const double registerDayHeaderHeight = 46;
 
 double _registerDayHeaderExtent(TextScaler textScaler) {
-  final scaledDateFontSize = textScaler.scale(_RegisterDayHeader._dateFontSize);
+  final scaledDateFontSize = textScaler.scale(SpendWiseText.bodySize);
   final twoLineContentHeight =
       _RegisterDayHeader._topInset +
       _RegisterDayHeader._bottomInset +
-      2 * _RegisterDayHeader._borderWidth +
+      2 * edgeThickness +
       2 * scaledDateFontSize;
   return math.max(registerDayHeaderHeight, twoLineContentHeight);
 }
@@ -45,12 +47,7 @@ class DayHeader extends StatelessWidget {
     if (registerStyle) {
       return _RegisterDayHeader(day: day, net: net);
     }
-    final dayNumber = Text(
-      label.dayNumber,
-      style: theme.textTheme.headlineSmall?.copyWith(
-        fontWeight: FontWeight.w700,
-      ),
-    );
+    final dayNumber = Text(label.dayNumber, style: context.text.headline);
     final caption = Text(
       label.caption,
       softWrap: true,
@@ -67,12 +64,10 @@ class DayHeader extends StatelessWidget {
       ],
     );
     final dateLabelFlex = Expanded(child: dateLabel);
-    final netText = Text(
-      formatMoney(net, symbol: false),
-      style: theme.textTheme.titleSmall?.copyWith(
-        color: AmountStyle.of(context, signedValue: net).color,
-        fontWeight: FontWeight.w600,
-      ),
+    final netText = AmountText.formatted(
+      text: formatMoney(net, symbol: false),
+      kind: amountKindOfSign(net),
+      size: AmountTextSize.row,
     );
     final content = Row(
       children: [
@@ -97,57 +92,44 @@ class _RegisterDayHeader extends StatelessWidget {
   final DateTime day;
   final Decimal net;
 
-  static const _horizontalInset = 14.0;
   static const _topInset = 10.0;
   static const _bottomInset = 8.0;
-  static const _dateFontSize = 12.0;
-  static const _dateFontWeight = FontWeight.w600;
-  static const _amountFontSize = 12.0;
-  static const _amountFontWeight = FontWeight.w600;
-  static const _borderWidth = 1.0;
   static const _cornerRadius = 14.0;
   static const _labelGap = 8.0;
-  static const _pageInset = 14.0;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final netColor = AmountStyle.of(context, signedValue: net).color;
     final decoration = BoxDecoration(
       color: colors.surface,
-      border: Border.all(color: colors.edge, width: _borderWidth),
+      border: fullEdgeBorder(colors),
       borderRadius: const BorderRadius.vertical(
         top: Radius.circular(_cornerRadius),
       ),
     );
     final date = Text(
       formatWeekdayDate(day),
-      style: TextStyle(
-        fontSize: _dateFontSize,
-        fontWeight: _dateFontWeight,
+      style: context.text.body.copyWith(
+        fontWeight: SpendWiseText.semibold,
         color: colors.text,
       ),
     );
-    final amount = Text(
-      formatMoney(net, symbol: false),
-      style: TextStyle(
-        fontSize: _amountFontSize,
-        fontWeight: _amountFontWeight,
-        color: netColor,
-      ),
+    final amount = AmountText.formatted(
+      text: formatMoney(net, symbol: false),
+      kind: amountKindOfSign(net),
     );
 
     return ColoredBox(
       color: colors.base,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: _pageInset),
+        padding: const EdgeInsets.symmetric(horizontal: registerPageMargin),
         child: Container(
           height: _registerDayHeaderExtent(MediaQuery.textScalerOf(context)),
           decoration: decoration,
           padding: const EdgeInsetsDirectional.fromSTEB(
-            _horizontalInset,
+            registerInnerHorizontalInset,
             _topInset,
-            _horizontalInset,
+            registerInnerHorizontalInset,
             _bottomInset,
           ),
           child: Row(

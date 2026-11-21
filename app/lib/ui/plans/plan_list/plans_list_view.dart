@@ -19,8 +19,6 @@ const _contentPadding = EdgeInsets.all(12);
 const _rowPadding = EdgeInsets.symmetric(vertical: 7);
 const _amountGap = 9.0;
 const _helperTopGap = 10.0;
-const _countFontSize = 11.0;
-const _endedFontSize = 10.0;
 const _endedWidth = 30.0;
 const _trayTitle = 'Next up';
 const _endedLabel = 'Ended';
@@ -78,10 +76,7 @@ class PlansListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final countStyle = TextStyle(
-      fontSize: _countFontSize,
-      color: colors.subtext,
-    );
+    final countStyle = context.text.body.copyWith(color: colors.subtext);
     final helperStyle = Theme.of(context).textTheme.bodySmall;
     final rows = [
       for (final row in viewState.rows)
@@ -130,7 +125,7 @@ class _PlanRow extends StatelessWidget {
             child: Text(
               _endedLabel,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: _endedFontSize, color: colors.subtext),
+              style: context.text.caption.copyWith(color: colors.subtext),
             ),
           )
         : DateBadge(day: nextDate.day, month: nextDate.month);

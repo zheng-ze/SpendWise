@@ -2,21 +2,25 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 
+import 'package:spendwise/ui/common/base/step_listening_state.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/transactions/entry/edit_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_chrome.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_step_handlers.dart';
+import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 // MARK: - Constants
 const _loadAlert = SheetAlertData(
   message: "Couldn't load the entry form",
   severity: SheetAlertSeverity.error,
-  actionLabel: 'Retry',
+  actionLabel: loadErrorRetryLabel,
 );
 
 // MARK: - EditEntryHost
@@ -38,10 +42,15 @@ class EditEntryHost extends ConsumerStatefulWidget {
   ConsumerState<EditEntryHost> createState() => _EditEntryHostState();
 }
 
-class _EditEntryHostState extends ConsumerState<EditEntryHost> {
+class _EditEntryHostState extends ConsumerState<EditEntryHost>
+    with
+        StepListeningState<
+          EditEntryHost,
+          EntryFormViewState,
+          TransactionsStep
+        > {
   late final EditEntryPresentationController _controller;
   late final Object _token;
-  late final ProviderSubscription<AsyncValue<EntryFormViewState>> _form;
   final _pickerRoutes = <ModalRoute<dynamic>>[];
   bool _dismissScheduled = false;
 
@@ -54,16 +63,11 @@ class _EditEntryHostState extends ConsumerState<EditEntryHost> {
     super.initState();
     _controller = ref.read(editEntryPresentationControllerProvider);
     _token = _controller.claim(_entryId);
-    _form = ref.listenManual(
-      entryFormViewModelProvider(_entryId),
-      (_, _) => _consume(),
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _consume());
   }
 
   @override
   void dispose() {
-    _form.close();
     _controller.release(_entryId, _token);
     final opened = List<ModalRoute<dynamic>>.of(_pickerRoutes);
     scheduleMicrotask(() => _removeActive(opened));
@@ -78,15 +82,28 @@ class _EditEntryHostState extends ConsumerState<EditEntryHost> {
     }
   }
 
+  @override
+  ProviderListenable<AsyncValue<EntryFormViewState>> get stepProvider =>
+      entryFormViewModelProvider(_entryId);
+
+  @override
+  TransactionsStep? stepOf(EntryFormViewState viewState) => viewState.step;
+
+  @override
+  void clearStep() =>
+      ref.read(entryFormViewModelProvider(_entryId).notifier).clearStep();
+
   void _consume() {
     if (!_active) return;
-    final provider = entryFormViewModelProvider(_entryId);
-    final state = ref.read(provider).value;
-    if (state == null) return;
-    final notifier = ref.read(provider.notifier);
-    final step = state.step;
+    final state = ref.read(entryFormViewModelProvider(_entryId)).value;
+    final step = state?.step;
     if (step == null) return;
-    notifier.clearStep();
+    clearStep();
+    handleStep(step);
+  }
+
+  @override
+  void handleStep(TransactionsStep step) {
     if (!_active) return;
     dispatchEntryFormStep(
       context,

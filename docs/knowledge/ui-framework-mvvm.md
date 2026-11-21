@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: d11dea56
+Last reconciled: 6a34f454
 
 ## Feature overview
 
@@ -32,8 +32,12 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   desktop.
 - `app/lib/ui/symbol_map.dart` - symbol-to-IconData mapping.
 - `app/lib/ui/theme/` - `spendwise_colors.dart` (`SpendWiseColors` ThemeExtension with the
-  Harbour glass light/dark tokens), `spendwise_text.dart` (`SpendWiseText` amount roles plus the
-  `context.colors` / `context.text` accessors), `spendwise_theme.dart`
+  Harbour glass light/dark tokens), `spendwise_text.dart` (`SpendWiseText` with the amount roles `hero`, `headline`, `row` and `small`
+  and the plain roles `caption` (10), `body` (12) and `title` (14), the `semibold` and `medium` weight
+  constants, the single `SpendWiseText.standard` instance that replaced the former light and dark
+  instances, and the `context.colors` / `context.text` accessors), `edge_border.dart` (`edgeThickness`
+  plus the `edgeSide`, `bottomEdgeBorder`, `topEdgeBorder` and `fullEdgeBorder` helpers that draw every
+  hairline in the `edge` colour), `spendwise_theme.dart`
   (`buildSpendWiseTheme(Brightness)`), `category_palette.dart` (`CategoryPalette`, see Category
   palette below).
 - `app/lib/ui/format/` - `money_format.dart`, `amount_style.dart`, `amount_input.dart`,
@@ -221,7 +225,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   History, Money, an Add entry button, flexible separation and
   Settings at the bottom. Overview hosts `OverviewFlow`, Money hosts
   `MoneyFlow`, History hosts the unscoped `TransactionsFlow`, Settings hosts
-  `SettingsFlow`. History has no back label and no phone back-to-Overview
+  `SettingsFlow`. History's root has no back control and no phone back-to-Overview
   control; its Navigator and selected date survive phone and open resizes while
   History is selected, and reset when another destination is selected and
   History is unmounted. Overview's View History selects History
@@ -250,7 +254,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   `resolveShellPaneGeometry` is shared by shell and root sheets. Open splits at the physical window
   midpoint, translates the left column through the left safe inset and reserves the 72 dp rail
   gutter once. Desktop splits the safe content remaining after `desktopSidebarWidth` and
-  `sidebarDividerWidth` equally, ends at the right safe inset and reserves no rail gutter. The
+  the `edgeThickness` sidebar divider equally, ends at the right safe inset and reserves no rail gutter. The
   desktop sidebar remains mounted. (`app/lib/ui/shell/shell_pane_geometry.dart`,
   `app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/desktop_sidebar.dart`)
 
@@ -280,7 +284,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
    (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_providers.dart`,
    `app/lib/ui/shell/boot_chrome.dart`)
 - **Settings hosting** - `BootChrome` supplies `SettingsFlow` in the Settings slot, built without
-  `backLabel` or `onEnded`, so its root screen shows no back control. `AppShell` mounts Settings
+  `onEnded`, so its root screen shows no back control. `AppShell` mounts Settings
   only while `ShellDestination.settings` is selected. Selecting Settings only writes
   `selectedDestinationProvider`. Back pops Settings child routes; at the root it preserves the
   selection. Leaving Settings disposes the Flow, its child routes and any open enrollment route, and
@@ -347,7 +351,10 @@ value, which then overwrites it. (issue #38)
   or negative uses the expense token, transfer or zero uses the text token. There is no category or
   colour parameter, so an amount is never coloured by its category. A negative `signedValue` takes
   the expense token even when `kind` is income, so a negative is never shown in the income colour.
-  (`app/lib/ui/format/amount_style.dart`)
+  `AmountText` (same file) is the shared signed-amount `Text`: `AmountText(amount:, kind:)` formats a
+  `Decimal` through `formatSignedMoney` without the symbol, `AmountText.formatted` takes a preformatted
+  string, and `AmountTextSize.small` or `row` picks the `SpendWiseText.small` or `row` role, coloured
+  through `AmountStyle`. (`app/lib/ui/format/amount_style.dart`)
 - **Amount input** - sanitizer strips to digits and one `.`, max 2 fraction digits, dropped not
   rounded; only the balance field allows a leading `-`.
 - **colorHex** - parses `#RRGGBB` or `RRGGBB`; malformed falls back to gray; writing back emits
@@ -400,7 +407,42 @@ under the confirmation helper.
   column, used by Overview's Coming up rows and by Plans rows.
 - **`FormSheetLoading` and `FormSheetLoadError`** (`app/lib/ui/common/sheets/form_sheet_load_states.dart`)
   are the loading and load-error states of a form AppSheet. The caller supplies the title, message and
-  footer. Budget form, budget limit editor and Plan edit use them.
+  footer. `FormSheetAsyncHost<T>` in the same file composes them from an `AsyncValue<T>`: it calls its
+  `builder` when a value exists, shows `FormSheetLoading` while there is neither a value nor an error,
+  and otherwise shows `FormSheetLoadError` with a `PrimaryButton` labelled `loadErrorRetryLabel`
+  ('Try again', defined in `load_error_view.dart`) that calls `onRetry`. The budget form, budget limit
+  editor, Plan form, account form, source edit form and category form use `FormSheetAsyncHost`.
+- **`showFormSheetThenInvalidate`** (`app/lib/ui/common/sheets/show_form_sheet_then_invalidate.dart`)
+  opens a form AppSheet with `shellSheetPresentation`, waits for the route's `completed` future and then
+  invalidates the given draft provider on the supplied `ProviderContainer`, so a dismissed sheet never
+  leaves a stale draft. `showAccountFormSheet` and `showSourceEditFormSheet` use it.
+- **`IconMedallion`** (`app/lib/ui/common/lists/icon_medallion.dart`) is the tinted rounded square that
+  holds an icon. `IconMedallion.row` is 30 dp for list rows and `IconMedallion.empty` is 44 dp for empty
+  states; the icon takes `colors.action` unless `iconColor` is given. `MedallionRow` (default leading),
+  `EmptyState`, `AccountRow` and `TransactionCell` use it.
+- **`BreakdownRow`** (`app/lib/ui/common/lists/breakdown_row.dart`) is the category breakdown row: a
+  colour swatch, a name over a caption, an `AmountText.formatted` amount, an optional bottom edge when
+  `divided` and a chevron with an `InkWell` when `onTap` is set. Trends' breakdown and the category
+  detail breakdown use it.
+- **`SectionLabel`** (`app/lib/ui/common/lists/section_label.dart`) is the small subtext
+  label above a group, with optional padding. Settings, the category list and form, the symbol picker
+  and Budget detail use it.
+- **`EdgeDivider`** (`app/lib/ui/common/lists/edge_divider.dart`) is a one-pixel `edge`-colour line,
+  horizontal by default or vertical with `axis: Axis.vertical`. The shell's sidebar boundary, the
+  Settings category list, the recycle bin sections and the entry form rows use it.
+- **`PageHeader`** (`app/lib/ui/common/navigation/page_header.dart`) is the one header for every screen with a back control: Trends, Category detail, Budget detail, Plan detail, History, the sync enrollment screens, the backend picker, document crop, the Categories list and the Recycle bin. No screen draws its own `AppBar`. It takes a title, an optional back callback (`BackButton` when set), a `disabledBack` flag that draws an inert back arrow, an optional subtitle and an optional trailing action, and sets the title in the headline style's medium weight.
+- **`PeriodStepper`** (`app/lib/ui/common/navigation/period_stepper.dart`) is the previous and next
+  arrow pair around a centred label. A disabled arrow draws a dashed outline. The daily list and the
+  Trends controls use it.
+- **`ChoiceTile`** (`app/lib/ui/common/pickers/choice_tile.dart`) is a `ListTile` that pops its `value`
+  from the enclosing route when tapped, with an optional leading icon and a check mark when `selected`.
+  The recurrence, ends, receipt and budget edit action sheets use it.
+- **`InlineSpinner`** (`app/lib/ui/common/feedback/inline_spinner.dart`) is a 20 dp
+  `CircularProgressIndicator` with a 2 dp stroke, used inside buttons while the Hosted Sync enrollment
+  and backend picker screens work.
+- **`AppLinkButton`** (`app/lib/ui/common/buttons/app_link_button.dart`) is a text button with a
+  trailing chevron and a caller-supplied colour. Overview's Recent section and the Trends detail action
+  use it.
 - **`SheetSession`** (`app/lib/ui/common/sheets/sheet_session.dart`) holds one sheet's route, Step
   subscription and retired flag. It provides `retire` (idempotent, closes the subscription and removes
   the route after the frame), `dismiss` (delegates to the top-level `dismissSheetRoute`, which pops when
@@ -499,11 +541,18 @@ under the confirmation helper.
   is a live region; its action appears only with both a label and callback.
   (`app/lib/ui/common/sheets/app_sheet.dart`, `app/lib/ui/common/sheets/sheet_alert.dart`)
 - **Actions** (`app/lib/ui/common/buttons/app_buttons.dart`): `PrimaryButton` is filled, with
-  `destructive: true` using error/on-action tokens; `SecondaryButton` defaults to text and
-  uses the control outline when `outlined: true`. A null callback disables either button.
+  `destructive: true` using error/on-action tokens; `SecondaryButton` defaults to text,
+  uses the control outline when `outlined: true`, and with `destructive: true` draws a full-height text
+  button in the error colour. A null callback disables either button.
 - **Surfaces** (`app/lib/ui/common/`): `Tray`, `MedallionRow`, `SummaryBand` (signed amounts
   coloured through `AmountStyle`), `SegmentedControl`, `CompactLabelledFab` with `FabReserveSpace`,
-  `NoticeCard`, `EmptyState`, `LoadingTrays` and `ErrorSection` with an optional filled retry.
+  `NoticeCard`, `EmptyState` (built on `IconMedallion.empty`; the daily list, the recycle bin, Plans,
+  Budgets and Trends use it), `LoadingTrays` and `ErrorSection` with an optional filled retry.
+  `Tray` exposes the static `shape` and `fillColor` helpers (used by `FormSectionCard`), a
+  `crossAxisAlignment` parameter, and a `TrayHeader` with `stacked` (trailing below the title) and
+  `bottomPadding` options. `LoadErrorView.box` is the compact error box in the error colours, with an
+  optional title and optional retry; `ErrorSection`, the Overview rows, Trends and the category detail
+  use it.
 - **Selection** - `SegmentedControl` and the selectable charts report choices through
   callbacks; the caller supplies the selected value/index on rebuild. `MonthBarChart` (baseline, `MonthBars` and the month axis cells, used by `TrendsChart` and
   `BudgetDetailChart`) and `DonutChart` use `selectedMark` fill with no selection stroke. Gap and blank
@@ -537,11 +586,6 @@ under the confirmation helper.
 
 ## Gotchas and invariants
 
-- Legacy pickers still call `showModalBottomSheet`; using the kit does not imply that all
-  sheets have migrated. (`app/lib/ui/common/inputs/statement_day_picker.dart`,
-  `app/lib/ui/common/pickers/two_column_picker_sheet.dart`,
-  `app/lib/ui/common/pickers/recurrence_picker.dart`,
-  `app/lib/ui/common/pickers/account_type_picker.dart`)
 - "The View never decides what an input means" is a documented convention reviewed like any other
   convention violation, not tool-enforced.
 - The `updateState()` dispose guard is what a picker callback needs when its result arrives after the
@@ -558,3 +602,9 @@ under the confirmation helper.
   navigates.
 - `Step` is sealed plain data, single-shot consumed and cleared by the Flow.
 - ViewModels backed by `Ledger` use the `LedgerBackedNotifier` mixin. (`ledger_backed_notifier.dart`)
+
+Sheet forms (account, source edit, category, plan) and the edit-entry host consume their one-shot Step through the
+`StepListeningState` mixin (`app/lib/ui/common/base/step_listening_state.dart`): it subscribes with
+`listenManual`, clears the Step, then passes it to `handleStep`. `showPickerAppSheet` (`app/lib/ui/common/pickers/app_picker_sheet.dart`)
+takes an optional `onRouteCreated` callback that receives the new `AppSheetRoute<T>`, which callers use
+to track the picker route.

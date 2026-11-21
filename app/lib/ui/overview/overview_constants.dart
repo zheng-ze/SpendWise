@@ -22,19 +22,9 @@ const overviewDesktopWideWindowWidth = 1250.0;
 
 const overviewMinimumColumnWidth = 220.0;
 
-// MARK: - Type
-
-const overviewSmallFontSize = 10.0;
-
-const overviewBodyFontSize = 12.0;
-
-const overviewSemiBold = FontWeight.w600;
-
 // MARK: - Rows
 
 const overviewRowVerticalPadding = 7.0;
-
-const overviewRowDividerWidth = 1.0;
 
 const overviewRowTrailingGap = 9.0;
 
@@ -65,8 +55,6 @@ const overviewComingUpEmpty = 'No known dates in the next six weeks.';
 const overviewTodayCaption = 'Today / ';
 
 const overviewTodayErrorTitle = "Couldn't load today's spending";
-
-const overviewRetryLabel = 'Retry';
 
 const overviewNothingToday = 'Nothing recorded today';
 

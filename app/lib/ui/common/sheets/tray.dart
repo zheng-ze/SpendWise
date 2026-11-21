@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/theme/edge_border.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Tray
@@ -9,6 +10,7 @@ class Tray extends StatelessWidget {
     this.title,
     this.trailing,
     this.selected = false,
+    this.crossAxisAlignment = CrossAxisAlignment.start,
     required this.child,
   });
 
@@ -18,25 +20,42 @@ class Tray extends StatelessWidget {
 
   final bool selected;
 
+  final CrossAxisAlignment crossAxisAlignment;
+
   final Widget child;
 
   static const cornerRadius = 14.0;
 
   static const contentPadding = 12.0;
 
-  static const semiBoldWeight = FontWeight.w600;
+  static Color fillColor(BuildContext context, {bool selected = false}) {
+    final colors = context.colors;
+    return selected ? colors.tint : colors.surface;
+  }
 
-  static const borderWidth = 1.0;
+  static BorderSide _edgeSide(BuildContext context, {bool selected = false}) {
+    final colors = context.colors;
+    if (!selected) return edgeSide(colors);
+    return BorderSide(color: colors.action, width: edgeThickness);
+  }
+
+  static RoundedRectangleBorder shape(
+    BuildContext context, {
+    bool selected = false,
+  }) {
+    return RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(cornerRadius),
+      side: _edgeSide(context, selected: selected),
+    );
+  }
 
   static BoxDecoration decoration(
     BuildContext context, {
     bool selected = false,
   }) {
-    final colors = context.colors;
-    final borderColor = selected ? colors.action : colors.edge;
     return BoxDecoration(
-      color: selected ? colors.tint : colors.surface,
-      border: Border.all(color: borderColor, width: borderWidth),
+      color: fillColor(context, selected: selected),
+      border: Border.fromBorderSide(_edgeSide(context, selected: selected)),
       borderRadius: BorderRadius.circular(cornerRadius),
     );
   }
@@ -56,7 +75,7 @@ class Tray extends StatelessWidget {
       padding: const EdgeInsets.all(contentPadding),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: crossAxisAlignment,
         children: content,
       ),
     );
@@ -65,31 +84,38 @@ class Tray extends StatelessWidget {
 
 // MARK: - TrayHeader
 class TrayHeader extends StatelessWidget {
-  const TrayHeader({super.key, required this.title, this.trailing});
+  const TrayHeader({
+    super.key,
+    required this.title,
+    this.trailing,
+    this.stacked = false,
+    this.bottomPadding = defaultBottomPadding,
+  });
 
   final String title;
 
   final Widget? trailing;
 
-  static const _titleFontSize = 14.0;
+  final bool stacked;
 
-  static const _titleLineHeight = 1.25;
+  final double bottomPadding;
 
-  static const _headerBottomPadding = 6.0;
+  static const defaultBottomPadding = 6.0;
 
   @override
   Widget build(BuildContext context) {
     final titleText = Text(
       title,
-      style: const TextStyle(
-        fontSize: _titleFontSize,
-        fontWeight: Tray.semiBoldWeight,
-        height: _titleLineHeight,
-      ),
+      style: context.text.title.copyWith(fontWeight: SpendWiseText.semibold),
     );
     final trailing = this.trailing;
     Widget content = titleText;
-    if (trailing != null) {
+    if (trailing != null && stacked) {
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [titleText, trailing],
+      );
+    } else if (trailing != null) {
       content = Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -101,7 +127,7 @@ class TrayHeader extends StatelessWidget {
       );
     }
     return Padding(
-      padding: const EdgeInsets.only(bottom: _headerBottomPadding),
+      padding: EdgeInsets.only(bottom: bottomPadding),
       child: content,
     );
   }

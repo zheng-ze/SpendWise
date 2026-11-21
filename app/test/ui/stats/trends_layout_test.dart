@@ -169,7 +169,7 @@ Future<void> _selectMonthScope(WidgetTester tester) async {
 
 Future<void> _tapCategoryDetailBack(WidgetTester tester) async {
   final detail = find.byType(CategoryDetailScreen);
-  final back = find.descendant(of: detail, matching: find.text('Trends'));
+  final back = find.descendant(of: detail, matching: find.byTooltip('Back'));
   await tester.tap(back);
   await tester.pumpAndSettle();
 }
@@ -194,9 +194,9 @@ void main() {
       _expectKindAndModeControls(tester);
 
       setup.runner.pending.last.completeError(StateError('compute failed'));
-      await tester.pumpAndSettle();
+      await withSilencedDebugPrint(tester.pumpAndSettle);
       expect(find.text("Couldn't load your spending"), findsOneWidget);
-      expect(find.text('Retry'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
       _expectKindAndModeControls(tester);
     },
     timeout: uiTestTimeout,
@@ -371,9 +371,9 @@ void main() {
     expect(stale, findsNothing);
 
     setup.runner.pending.last.completeError(StateError('compute failed'));
-    await tester.pumpAndSettle();
+    await withSilencedDebugPrint(tester.pumpAndSettle);
     expect(stale, findsNothing);
-    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
     _expectKindAndModeControls(tester);
     expect(container.read(trendsIntentProvider).selected, selected);
     expect(
@@ -381,13 +381,13 @@ void main() {
       TrendsBreakdownScope.selectedPeriod,
     );
 
-    await tester.tap(find.text('Retry'));
+    await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
     await tester.runAsync(() => settle(setup.runner, setup.ledger));
     await tester.pumpAndSettle();
     expect(stale, findsNothing);
     expect(refreshed, findsWidgets);
-    expect(find.text('Retry'), findsNothing);
+    expect(find.text('Try again'), findsNothing);
     expect(container.read(trendsIntentProvider).selected, selected);
     expect(
       container.read(trendsBreakdownScopeProvider),

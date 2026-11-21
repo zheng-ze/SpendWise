@@ -24,8 +24,6 @@ Future<bool> showDeleteConfirmation(
 
 // MARK: - Constants
 
-const _semiBoldWeight = FontWeight.w600;
-
 const _dialogMaxWidth = 440.0;
 
 // MARK: - DeleteDialog
@@ -74,18 +72,13 @@ class _DeleteDialog extends StatelessWidget {
 class _DeleteTitle extends StatelessWidget {
   const _DeleteTitle({required this.itemName});
 
-  static const _titleFontSize = 18.0;
-
   final String itemName;
 
   @override
   Widget build(BuildContext context) {
     return Text(
       'Delete $itemName?',
-      style: const TextStyle(
-        fontSize: _titleFontSize,
-        fontWeight: _semiBoldWeight,
-      ),
+      style: context.text.title.copyWith(fontWeight: SpendWiseText.semibold),
     );
   }
 }

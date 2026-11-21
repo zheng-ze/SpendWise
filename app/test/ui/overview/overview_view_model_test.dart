@@ -8,6 +8,8 @@ import 'package:spendwise/ui/overview/overview_view_model.dart';
 
 import 'overview_fixture.dart';
 
+import '../../ledger/analysis_test_support.dart';
+
 Future<ProviderContainer> _keptContainer(Ledger ledger) async {
   final container = overviewContainer(ledger);
   container.listen(overviewViewModelProvider, (_, _) {});
@@ -16,6 +18,8 @@ Future<ProviderContainer> _keptContainer(Ledger ledger) async {
 }
 
 void main() {
+  setUp(silenceDebugPrint);
+
   test(
     'failed Today and This month reads are flagged and Retry recomputes',
     () async {

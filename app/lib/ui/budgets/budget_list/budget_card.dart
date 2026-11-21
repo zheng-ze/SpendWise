@@ -31,8 +31,6 @@ class BudgetCard extends StatelessWidget {
   static const _padding = EdgeInsets.symmetric(vertical: 7);
   static const _gap = 5.0;
   static const _headerGap = 8.0;
-  static const _fontSize = 12.0;
-  static const _labelWeight = FontWeight.w600;
   static const _barHeight = 7.0;
   static const _barRadius = 4.0;
   static const _fullWidth = double.infinity;
@@ -44,7 +42,7 @@ class BudgetCard extends StatelessWidget {
     final colors = context.colors;
     final label = Text(
       name,
-      style: const TextStyle(fontSize: _fontSize, fontWeight: _labelWeight),
+      style: context.text.body.copyWith(fontWeight: SpendWiseText.semibold),
     );
     final amount = Text(amounts, style: context.text.small);
     final labels = Wrap(

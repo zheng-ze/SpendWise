@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
+import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown_scope.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown_section.dart';
@@ -13,8 +13,7 @@ import 'package:spendwise/ui/stats/trends/trends_state_views.dart';
 import 'package:spendwise/ui/stats/trends/trends_view_model.dart';
 
 const _trendsTitle = 'Trends';
-const _historyBackLabel = 'History';
-const _pagePadding = EdgeInsets.fromLTRB(14, 12, 14, 14);
+const _pagePadding = EdgeInsets.fromLTRB(14, 0, 14, 14);
 
 class TrendsScreen extends ConsumerWidget {
   const TrendsScreen({
@@ -39,12 +38,6 @@ class TrendsScreen extends ConsumerWidget {
       AsyncLoading() => const TrendsLoadingBody(),
     };
     final onBackPressed = this.onBackPressed;
-    final leading = onBackPressed == null
-        ? null
-        : LabelledBackButton(
-            onPressed: onBackPressed,
-            label: _historyBackLabel,
-          );
     final showStandaloneKindControl =
         !useOpenComposition || body is! TrendsReadyBody;
     final kindControl = showStandaloneKindControl
@@ -65,15 +58,17 @@ class TrendsScreen extends ConsumerWidget {
       ],
     );
 
+    final header = PageHeader(title: _trendsTitle, onBack: onBackPressed);
+    final scroller = Expanded(
+      child: SingleChildScrollView(padding: _pagePadding, child: content),
+    );
+
     return Scaffold(
-      appBar: AppBar(
-        leading: leading,
-        title: const Text(_trendsTitle),
-        centerTitle: false,
-        automaticallyImplyLeading: false,
-      ),
       body: SafeArea(
-        child: SingleChildScrollView(padding: _pagePadding, child: content),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [header, scroller],
+        ),
       ),
     );
   }

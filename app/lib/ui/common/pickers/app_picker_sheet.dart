@@ -23,7 +23,7 @@ Future<T?> showPickerAppSheet<T>(
   BuildContext context, {
   AppSheetPresentation Function(BuildContext)? presentation,
   required WidgetBuilder builder,
-  PickerRouteCallback? onRouteCreated,
+  void Function(AppSheetRoute<T>)? onRouteCreated,
 }) {
   final resolver = presentation ?? _phonePresentation;
   return showAppSheet<T>(

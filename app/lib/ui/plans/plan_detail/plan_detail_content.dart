@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
-import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/plans/plan_detail/plan_detail_view_model.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -14,7 +13,6 @@ const _frequencyGap = 2.0;
 const _rowsTopGap = 6.0;
 const _buttonsTopGap = 12.0;
 const _rowPadding = EdgeInsets.symmetric(vertical: 4);
-const _rowValueWeight = FontWeight.w600;
 const _labelValueGap = 12.0;
 const _nextLabel = 'Next';
 const _accountLabel = 'Account';
@@ -44,10 +42,11 @@ class PlanDetailContent extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final amountColor = AmountStyle.of(context, kind: viewState.kind).color;
-    final amount = Text(
-      formatSignedMoney(viewState.amount, kind: viewState.kind),
-      style: context.text.headline.copyWith(color: amountColor),
+    final amount = AmountText(
+      amount: viewState.amount,
+      kind: viewState.kind,
+      size: AmountTextSize.headline,
+      showSymbol: true,
     );
     final frequency = Text(
       viewState.frequencyLabel,
@@ -65,7 +64,7 @@ class PlanDetailContent extends StatelessWidget {
       _DetailRow(label: _endsLabel, value: viewState.ends),
     ];
     final editButton = PrimaryButton(label: _editLabel, onPressed: onEdit);
-    final deleteButton = PrimaryButton(
+    final deleteButton = SecondaryButton(
       label: _deleteLabel,
       destructive: true,
       onPressed: onDelete,
@@ -108,7 +107,7 @@ class _DetailRow extends StatelessWidget {
     final valueText = Text(
       value,
       textAlign: TextAlign.end,
-      style: const TextStyle(fontWeight: _rowValueWeight),
+      style: const TextStyle(fontWeight: SpendWiseText.semibold),
     );
 
     return Padding(

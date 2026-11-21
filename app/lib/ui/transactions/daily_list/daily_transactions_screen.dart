@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/feedback/async_value_view.dart';
+import 'package:spendwise/ui/common/feedback/empty_state.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
-import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
+import 'package:spendwise/ui/common/navigation/page_header.dart';
+import 'package:spendwise/ui/common/navigation/period_stepper.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';
-import 'package:spendwise/ui/transactions/daily_list/empty_state.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_cell.dart';
 import 'package:spendwise/ui/transactions/daily_list/transactions_summary.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
@@ -19,21 +19,8 @@ import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 const _headerHeightFactor = 2.0;
 const _pageHorizontalInset = 14.0;
-const _headerTopInset = 12.0;
-const _headingPeriodGap = 14.0;
 const _periodSummaryGap = 4.0;
 const _summaryRegisterGap = 16.0;
-const _headingFontFamily = 'InstrumentSans';
-const _headingFontSize = 26.0;
-const _headingWeight = FontWeight.w600;
-const _headingLetterSpacing = -0.7;
-const _periodHitExtent = 48.0;
-const _periodArrowExtent = 28.0;
-const _periodArrowRadius = 8.0;
-const _periodArrowElevation = 1.0;
-const _periodArrowIconSize = 18.0;
-const _periodLabelFontSize = 12.0;
-const _periodLabelWeight = FontWeight.w600;
 const _previousMonthLabel = 'Previous month';
 const _nextMonthLabel = 'Next month';
 
@@ -43,15 +30,12 @@ class TransactionsScreen extends ConsumerWidget {
     super.key,
     this.scope,
     this.onBackPressed,
-    this.backLabel,
     this.presentation = ShellPagePresentation.fullPage,
   });
 
   final TransactionsScope? scope;
 
   final VoidCallback? onBackPressed;
-
-  final String? backLabel;
 
   final ShellPagePresentation presentation;
 
@@ -71,7 +55,6 @@ class TransactionsScreen extends ConsumerWidget {
         state: state,
         viewModel: viewModel,
         onBackPressed: onBackPressed,
-        backLabel: backLabel,
         showsTrendsAction: scope == null,
         wideComposition: wideComposition,
       ),
@@ -87,13 +70,11 @@ class _TransactionsScreenBody extends StatelessWidget {
     required this.showsTrendsAction,
     required this.wideComposition,
     this.onBackPressed,
-    this.backLabel,
   });
 
   final TransactionsViewState state;
   final TransactionsViewModel viewModel;
   final VoidCallback? onBackPressed;
-  final String? backLabel;
   final bool showsTrendsAction;
   final bool wideComposition;
 
@@ -105,7 +86,6 @@ class _TransactionsScreenBody extends StatelessWidget {
       selectedDate: state.selectedDate,
       viewModel: viewModel,
       onBackPressed: onBackPressed,
-      backLabel: backLabel,
     );
     final trendsAction = showsTrendsAction
         ? TrendsDetailAction(onPressed: viewModel.requestTrends)
@@ -182,67 +162,34 @@ class _TransactionsHeader extends StatelessWidget {
     required this.selectedDate,
     required this.viewModel,
     this.onBackPressed,
-    this.backLabel,
   });
 
   final String title;
   final DateTime selectedDate;
   final TransactionsViewModel viewModel;
   final VoidCallback? onBackPressed;
-  final String? backLabel;
 
   @override
   Widget build(BuildContext context) {
-    final titleStyle = TextStyle(
-      fontFamily: _headingFontFamily,
-      fontSize: _headingFontSize,
-      fontWeight: _headingWeight,
-      letterSpacing: _headingLetterSpacing,
-      color: context.colors.text,
-    );
-    final heading = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _pageHorizontalInset),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(title, style: titleStyle),
-      ),
-    );
-    final back = onBackPressed;
-    final backRow = back == null
-        ? null
-        : Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: _pageHorizontalInset,
-            ),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: LabelledBackButton(onPressed: back, label: backLabel),
-            ),
-          );
+    final heading = PageHeader(title: title, onBack: onBackPressed);
     final period = _PeriodRow(
       selectedDate: selectedDate,
       onPrevious: viewModel.previousMonth,
       onNext: viewModel.nextMonth,
     );
 
-    return Padding(
-      padding: const EdgeInsets.only(top: _headerTopInset),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ?backRow,
-          heading,
-          SizedBox(height: _headingPeriodGap),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: _pageHorizontalInset,
-            ),
-            child: period,
-          ),
-          SizedBox(height: _periodSummaryGap),
-        ],
-      ),
+    final paddedPeriod = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _pageHorizontalInset),
+      child: period,
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        heading,
+        paddedPeriod,
+        SizedBox(height: _periodSummaryGap),
+      ],
     );
   }
 }
@@ -260,62 +207,12 @@ class _PeriodRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = TextStyle(
-      fontSize: _periodLabelFontSize,
-      fontWeight: _periodLabelWeight,
-      color: context.colors.text,
-    );
-    final monthLabel = Text(formatMonthLabel(selectedDate), style: labelStyle);
-    return Row(
-      children: [
-        _PeriodArrow(
-          label: _previousMonthLabel,
-          icon: Icons.chevron_left,
-          onPressed: onPrevious,
-        ),
-        Expanded(child: Center(child: monthLabel)),
-        _PeriodArrow(
-          label: _nextMonthLabel,
-          icon: Icons.chevron_right,
-          onPressed: onNext,
-        ),
-      ],
-    );
-  }
-}
-
-class _PeriodArrow extends StatelessWidget {
-  const _PeriodArrow({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return IconButton(
-      tooltip: label,
-      onPressed: onPressed,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(
-        minWidth: _periodHitExtent,
-        minHeight: _periodHitExtent,
-      ),
-      icon: Material(
-        color: colors.surface,
-        elevation: _periodArrowElevation,
-        borderRadius: BorderRadius.circular(_periodArrowRadius),
-        child: SizedBox(
-          width: _periodArrowExtent,
-          height: _periodArrowExtent,
-          child: Icon(icon, size: _periodArrowIconSize, color: colors.action),
-        ),
-      ),
+    return PeriodStepper(
+      label: formatMonthLabel(selectedDate),
+      previousLabel: _previousMonthLabel,
+      nextLabel: _nextMonthLabel,
+      onPrevious: onPrevious,
+      onNext: onNext,
     );
   }
 }
@@ -330,7 +227,7 @@ class _DailyContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sections = state.daySections;
-    if (sections.isEmpty) return const TransactionsEmptyState();
+    if (sections.isEmpty) return const _NoTransactions();
 
     final sectionSlivers = <Widget>[];
     for (var index = 0; index < sections.length; index++) {
@@ -387,6 +284,20 @@ class _DaySliverList extends StatelessWidget {
           child: cell,
         );
       },
+    );
+  }
+}
+
+class _NoTransactions extends StatelessWidget {
+  const _NoTransactions();
+
+  static const _icon = Icons.inbox_outlined;
+  static const _title = 'No transactions';
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: EmptyState(icon: _icon, title: _title),
     );
   }
 }

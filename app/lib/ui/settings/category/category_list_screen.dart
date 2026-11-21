@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
+import 'package:spendwise/ui/common/lists/edge_divider.dart';
 import 'package:spendwise/ui/common/lists/medallion_row.dart';
+import 'package:spendwise/ui/common/lists/section_label.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/common/navigation/compact_labelled_fab.dart';
 import 'package:spendwise/ui/common/navigation/page_header.dart';
@@ -16,7 +18,6 @@ import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/settings/category/category_form.dart';
 import 'package:spendwise/ui/settings/category/category_list_view_model.dart';
 import 'package:spendwise/ui/theme/category_palette.dart';
-import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - CategoryListScreen
@@ -120,7 +121,6 @@ class _CategoryListScreenBody extends StatelessWidget {
   final CategoryListViewModel viewModel;
 
   static const _screenTitle = 'Categories';
-  static const _backLabel = 'Settings';
   static const _contentPadding = EdgeInsets.all(12);
   static const _sectionGap = 10.0;
   static const _addLabel = 'Add category';
@@ -130,7 +130,6 @@ class _CategoryListScreenBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final header = PageHeader(
       title: _screenTitle,
-      backLabel: _backLabel,
       onBack: Navigator.of(context).maybePop,
     );
     final expense = _CategorySection(
@@ -193,20 +192,13 @@ class _CategorySection extends StatelessWidget {
   final void Function(TransactionCategory parent) onAddSubcategory;
 
   static const _emptyText = 'No categories yet';
-  static const _labelWeight = FontWeight.w600;
   static const _labelGap = 10.0;
   static const _emptyPadding = EdgeInsets.symmetric(vertical: 8);
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final label = Text(
-      title.toUpperCase(),
-      style: context.text.small.copyWith(
-        color: colors.subtext,
-        fontWeight: _labelWeight,
-      ),
-    );
+    final label = SectionLabel(title);
     final rows = categories.isEmpty
         ? [
             Padding(
@@ -214,7 +206,7 @@ class _CategorySection extends StatelessWidget {
               child: Text(_emptyText, style: TextStyle(color: colors.subtext)),
             ),
           ]
-        : _rows(colors);
+        : _rows();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -226,7 +218,7 @@ class _CategorySection extends StatelessWidget {
     );
   }
 
-  List<Widget> _rows(SpendWiseColors colors) {
+  List<Widget> _rows() {
     final childCounts = <String, int>{};
     for (final category in categories) {
       final parentID = category.parentID;
@@ -236,7 +228,7 @@ class _CategorySection extends StatelessWidget {
     }
     final rows = <Widget>[];
     for (final (index, category) in categories.indexed) {
-      if (index > 0) rows.add(_RowDivider(color: colors.edge));
+      if (index > 0) rows.add(const EdgeDivider());
       rows.add(
         SwipeRow(
           itemKey: ValueKey('category-${category.id}'),
@@ -255,19 +247,6 @@ class _CategorySection extends StatelessWidget {
     }
     return rows;
   }
-}
-
-// MARK: - RowDivider
-class _RowDivider extends StatelessWidget {
-  const _RowDivider({required this.color});
-
-  final Color color;
-
-  static const _height = 1.0;
-
-  @override
-  Widget build(BuildContext context) =>
-      Container(height: _height, color: color);
 }
 
 // MARK: - CategoryRow

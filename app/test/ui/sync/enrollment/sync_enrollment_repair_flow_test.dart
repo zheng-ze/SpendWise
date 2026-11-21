@@ -193,6 +193,26 @@ void main() {
       expect(harness.opener.openCalls, 2);
     }, timeout: uiTestTimeout);
 
+    testWidgets('the completion header back dismisses the repair flow '
+        'like Done', (tester) async {
+      final harness = _Harness();
+      await harness.pumpRepairFlow(
+        tester,
+        seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+      await driveToOtpEntry(tester, harness.opener.session);
+      await tester.enterText(find.byKey(_otpField), '482916');
+      await tester.pump();
+      await tester.tap(find.byKey(_otpSubmit));
+      await pumpRepairFrames(tester);
+      expect(find.text('Device access restored'), findsOneWidget);
+
+      await tester.tap(find.byType(BackButton));
+      await pumpRepairFrames(tester);
+
+      expect(harness.endedCalls, 1);
+    }, timeout: uiTestTimeout);
+
     testWidgets('back during a pending replacement exits the flow '
         'and cancels the session open', (tester) async {
       final harness = _Harness();
