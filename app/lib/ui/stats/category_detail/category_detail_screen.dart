@@ -4,14 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/feedback/load_error_view.dart';
+import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_sections.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_trend.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _pagePadding = EdgeInsets.fromLTRB(14, 12, 14, 14);
 const _sectionGap = 12.0;
-const _headerGap = 2.0;
 const _statusPadding = EdgeInsets.all(24);
 const _errorMessage = 'Could not load category details';
 
@@ -37,24 +36,11 @@ class CategoryDetailScreen extends ConsumerWidget {
         ? body.title
         : category?.name ?? 'Uncategorized';
     final subtitle = viewState?.subtitle ?? '';
-    final titleText = Text(title);
-    final subtitleText = Text(
-      subtitle,
-      style: context.text.body.copyWith(color: context.colors.subtext),
+    final header = PageHeader(
+      title: title,
+      subtitle: subtitle,
+      onBack: onBackPressed,
     );
-    final heading = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        titleText,
-        const SizedBox(height: _headerGap),
-        subtitleText,
-      ],
-    );
-    final backAction = onBackPressed;
-    final leading = backAction == null
-        ? null
-        : BackButton(onPressed: backAction);
-    final appBar = AppBar(leading: leading, title: heading, centerTitle: false);
     final content = switch (body) {
       CategoryDetailReadyBody() when ledger != null => _CategoryDetailReadyView(
         body: body,
@@ -66,10 +52,8 @@ class CategoryDetailScreen extends ConsumerWidget {
       ),
       _ => const Center(child: CircularProgressIndicator()),
     };
-    return Scaffold(
-      appBar: appBar,
-      body: SafeArea(child: content),
-    );
+    final page = Column(children: [header, Expanded(child: content)]);
+    return Scaffold(body: SafeArea(child: page));
   }
 }
 
