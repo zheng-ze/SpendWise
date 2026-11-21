@@ -42,10 +42,7 @@ class PageHeader extends StatelessWidget {
               children: [?(hasBack ? back : null), const Spacer(), ?trailing],
             ),
           );
-    final titleStyle = context.text.headline.copyWith(
-      fontWeight: SpendWiseText.semibold,
-      color: colors.text,
-    );
+    final titleStyle = context.text.headline.copyWith(color: colors.text);
     final heading = Semantics(
       header: true,
       child: Text(title, style: titleStyle),
