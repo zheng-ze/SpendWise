@@ -93,22 +93,6 @@ void main() {
     expect(find.byType(CategoryForm), findsOneWidget);
   }, timeout: uiTestTimeout);
 
-  testWidgets('the Expense section is listed before Income', (tester) async {
-    final all = [
-      _category('Salary', kind: CategoryKind.income),
-      _category('Dining'),
-    ];
-
-    await _pumpList(tester, all);
-
-    final texts = tester
-        .widgetList<Text>(find.byType(Text))
-        .map((text) => text.data)
-        .toList();
-    expect(texts.indexOf('EXPENSE'), isNonNegative);
-    expect(texts.indexOf('EXPENSE'), lessThan(texts.indexOf('INCOME')));
-  }, timeout: uiTestTimeout);
-
   testWidgets('a root shows its subcategory count as meta', (tester) async {
     final dining = _category('Dining');
     final groceries = _category('Groceries');

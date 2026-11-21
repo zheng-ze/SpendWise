@@ -19,7 +19,7 @@ class SectionLabel extends StatelessWidget {
     );
     return Padding(
       padding: padding,
-      child: Text(text.toUpperCase(), style: style),
+      child: Text(text, style: style),
     );
   }
 }
