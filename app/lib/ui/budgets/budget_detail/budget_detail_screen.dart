@@ -67,7 +67,12 @@ class _BudgetDetailPage extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Column(children: [header, Expanded(child: scroller)]),
+        child: Column(
+          children: [
+            header,
+            Expanded(child: scroller),
+          ],
+        ),
       ),
     );
   }

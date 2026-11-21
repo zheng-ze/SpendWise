@@ -52,7 +52,12 @@ class CategoryDetailScreen extends ConsumerWidget {
       ),
       _ => const Center(child: CircularProgressIndicator()),
     };
-    final page = Column(children: [header, Expanded(child: content)]);
+    final page = Column(
+      children: [
+        header,
+        Expanded(child: content),
+      ],
+    );
     return Scaffold(body: SafeArea(child: page));
   }
 }

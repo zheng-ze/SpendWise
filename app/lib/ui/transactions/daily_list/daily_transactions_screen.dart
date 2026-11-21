@@ -185,7 +185,11 @@ class _TransactionsHeader extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [heading, paddedPeriod, SizedBox(height: _periodSummaryGap)],
+      children: [
+        heading,
+        paddedPeriod,
+        SizedBox(height: _periodSummaryGap),
+      ],
     );
   }
 }
