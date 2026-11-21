@@ -4,11 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/common/feedback/empty_state.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
+import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/ui/common/navigation/period_stepper.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_cell.dart';
@@ -19,8 +19,6 @@ import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 const _headerHeightFactor = 2.0;
 const _pageHorizontalInset = 14.0;
-const _headerTopInset = 12.0;
-const _headingPeriodGap = 14.0;
 const _periodSummaryGap = 4.0;
 const _summaryRegisterGap = 16.0;
 const _previousMonthLabel = 'Previous month';
@@ -173,52 +171,21 @@ class _TransactionsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleStyle = context.text.headline.copyWith(
-      color: context.colors.text,
-    );
-    final heading = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _pageHorizontalInset),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(title, style: titleStyle),
-      ),
-    );
-    final back = onBackPressed;
-    final backRow = back == null
-        ? null
-        : Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: _pageHorizontalInset,
-            ),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: BackButton(onPressed: back, color: context.colors.text),
-            ),
-          );
+    final heading = PageHeader(title: title, onBack: onBackPressed);
     final period = _PeriodRow(
       selectedDate: selectedDate,
       onPrevious: viewModel.previousMonth,
       onNext: viewModel.nextMonth,
     );
 
-    return Padding(
-      padding: const EdgeInsets.only(top: _headerTopInset),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ?backRow,
-          heading,
-          SizedBox(height: _headingPeriodGap),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: _pageHorizontalInset,
-            ),
-            child: period,
-          ),
-          SizedBox(height: _periodSummaryGap),
-        ],
-      ),
+    final paddedPeriod = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _pageHorizontalInset),
+      child: period,
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [heading, paddedPeriod, SizedBox(height: _periodSummaryGap)],
     );
   }
 }
