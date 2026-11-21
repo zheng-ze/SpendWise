@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/stats/trends/trends_period_card.dart';
 import 'package:spendwise/ui/stats/trends/trends_whole_period.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _headingText = 'Insights';
-const _headingSize = 14.0;
 const _titleSize = 10.0;
 const _valueSize = 12.0;
 const _semiBold = FontWeight.w600;
 const _sectionGap = 12.0;
-const _headingGap = 8.0;
 const _titleGap = 2.0;
 const _rowGap = 8.0;
 
@@ -22,10 +21,7 @@ class TrendsInsightsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    const heading = Text(
-      _headingText,
-      style: TextStyle(fontSize: _headingSize, fontWeight: _semiBold),
-    );
+    const heading = TrayHeader(title: _headingText);
     final emptyMessage = insights.emptyMessage;
     final empty = emptyMessage == null
         ? null
@@ -37,14 +33,7 @@ class TrendsInsightsCard extends StatelessWidget {
       for (final insight in insights.observations)
         _InsightRow(insight: insight),
     ];
-    final card = TrendsCard(
-      children: [
-        heading,
-        const SizedBox(height: _headingGap),
-        ...observations,
-        ?empty,
-      ],
-    );
+    final card = TrendsCard(children: [heading, ...observations, ?empty]);
     return Padding(
       padding: const EdgeInsets.only(top: _sectionGap),
       child: card,

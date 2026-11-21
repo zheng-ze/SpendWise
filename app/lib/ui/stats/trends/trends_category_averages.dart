@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
@@ -11,12 +12,10 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const trendsCategoryAveragesStackedWidth = 300.0;
 const _sectionGap = 12.0;
-const _headingGap = 8.0;
 const _rowGap = 8.0;
 const _rowPadding = EdgeInsets.symmetric(vertical: 7);
 const _captionGap = 2.0;
 const _dividerWidth = 1.0;
-const _headingSize = 14.0;
 const _nameSize = 12.0;
 const _captionSize = 10.0;
 const _amountColumnWidth = 72.0;
@@ -86,23 +85,13 @@ class _CategoryAveragesTable extends StatelessWidget {
               : () => onOpenCategory(index),
         ),
     ];
-    final title = const Text(
-      _categoryAveragesTitle,
-      style: TextStyle(fontSize: _headingSize, fontWeight: _semiBold),
-    );
+    const title = TrayHeader(title: _categoryAveragesTitle);
     final header = _CategoryAveragesHeader(
       period: _periodLabel(breakdown.mode, breakdown.period),
       average: averageComparison.header,
       stacked: stacked,
     );
-    final card = TrendsCard(
-      children: [
-        title,
-        const SizedBox(height: _headingGap),
-        header,
-        ...rows,
-      ],
-    );
+    final card = TrendsCard(children: [title, header, ...rows]);
     return Padding(
       padding: const EdgeInsets.only(top: _sectionGap),
       child: card,

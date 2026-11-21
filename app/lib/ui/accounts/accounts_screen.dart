@@ -182,9 +182,6 @@ class _SectionHeader extends StatelessWidget {
   final AccountSection section;
 
   static const _headerAmountGap = 8.0;
-  static const _headerBottomPadding = 6.0;
-  static const _titleSize = 14.0;
-  static const _titleWeight = FontWeight.w600;
   static const _compactHeaderMaxWidth = 400.0;
 
   @override
@@ -209,34 +206,13 @@ class _SectionHeader extends StatelessWidget {
         ],
       ),
     };
-    final title = Text(
-      accountTypeLabel(section.type),
-      style: TextStyle(
-        fontSize: _titleSize,
-        fontWeight: _titleWeight,
-        color: context.colors.text,
-      ),
-    );
+    final title = accountTypeLabel(section.type);
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth <= _compactHeaderMaxWidth;
-        final content = compact
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [title, trailing],
-              )
-            : Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(child: title),
-                  trailing,
-                ],
-              );
-        return Padding(
-          padding: const EdgeInsets.only(bottom: _headerBottomPadding),
-          child: content,
-        );
-      },
+      builder: (context, constraints) => TrayHeader(
+        title: title,
+        trailing: trailing,
+        stacked: constraints.maxWidth <= _compactHeaderMaxWidth,
+      ),
     );
   }
 }

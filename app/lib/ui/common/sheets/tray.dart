@@ -87,17 +87,27 @@ class Tray extends StatelessWidget {
 
 // MARK: - TrayHeader
 class TrayHeader extends StatelessWidget {
-  const TrayHeader({super.key, required this.title, this.trailing});
+  const TrayHeader({
+    super.key,
+    required this.title,
+    this.trailing,
+    this.stacked = false,
+    this.bottomPadding = defaultBottomPadding,
+  });
 
   final String title;
 
   final Widget? trailing;
 
+  final bool stacked;
+
+  final double bottomPadding;
+
+  static const defaultBottomPadding = 6.0;
+
   static const _titleFontSize = 14.0;
 
   static const _titleLineHeight = 1.25;
-
-  static const _headerBottomPadding = 6.0;
 
   @override
   Widget build(BuildContext context) {
@@ -111,7 +121,12 @@ class TrayHeader extends StatelessWidget {
     );
     final trailing = this.trailing;
     Widget content = titleText;
-    if (trailing != null) {
+    if (trailing != null && stacked) {
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [titleText, trailing],
+      );
+    } else if (trailing != null) {
       content = Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -123,7 +138,7 @@ class TrayHeader extends StatelessWidget {
       );
     }
     return Padding(
-      padding: const EdgeInsets.only(bottom: _headerBottomPadding),
+      padding: EdgeInsets.only(bottom: bottomPadding),
       child: content,
     );
   }

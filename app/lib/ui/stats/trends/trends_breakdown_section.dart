@@ -5,6 +5,7 @@ import 'package:spendwise/ui/common/charts/category_map.dart';
 import 'package:spendwise/ui/common/charts/donut_chart.dart';
 import 'package:spendwise/ui/common/lists/breakdown_row.dart';
 import 'package:spendwise/ui/common/feedback/empty_state.dart';
+import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown.dart';
@@ -19,6 +20,7 @@ const _captionSize = 10.0;
 const _semiBold = FontWeight.w600;
 const _sectionGap = 12.0;
 const _headingGap = 4.0;
+const _headingPadding = 0.0;
 const _chartPadding = EdgeInsets.only(top: 4, bottom: 6);
 const _rowGap = 8.0;
 const _emptyIcon = Icons.attach_money;
@@ -153,10 +155,7 @@ class _BreakdownHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final heading = Text(
-      title,
-      style: const TextStyle(fontSize: _headingSize, fontWeight: _semiBold),
-    );
+    final heading = TrayHeader(title: title, bottomPadding: _headingPadding);
     final caption = Text(
       subtitle,
       style: TextStyle(fontSize: _captionSize, color: context.colors.subtext),
