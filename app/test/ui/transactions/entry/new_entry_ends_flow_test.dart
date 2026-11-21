@@ -3,22 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/common/pickers/date_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
+import '../../../support/row_tap.dart';
 import '../../../support/ui_test_timeout.dart';
 import 'new_entry_session_harness.dart';
 
 const _everyMonth = 'Every month';
 const _chooseDate = 'Choose date';
 
-Future<void> _tapRow(WidgetTester tester, String key) async {
-  final row = find.byKey(ValueKey('new-entry-$key'));
-  await tester.ensureVisible(row);
-  await tester.pumpAndSettle();
-  await tester.tap(row);
-  await tester.pumpAndSettle();
-}
+Finder _entryRow(String key) => find.byKey(ValueKey('new-entry-$key'));
 
 Future<void> _makeRecurring(WidgetTester tester) async {
-  await _tapRow(tester, 'repeat');
+  await tapRow(tester, _entryRow('repeat'), scrollIntoView: true);
   await tester.tap(find.text(_everyMonth));
   await tester.pumpAndSettle();
 }
@@ -30,7 +25,7 @@ void main() {
     final harness = await pumpShell(tester);
     await openAdd(tester, harness);
     await _makeRecurring(tester);
-    await _tapRow(tester, 'ends');
+    await tapRow(tester, _entryRow('ends'), scrollIntoView: true);
 
     addDismiss(tester)();
     await tester.pumpAndSettle();

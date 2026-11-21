@@ -26,11 +26,7 @@ class TopCategoriesKey {
     required TransactionsScreenMode mode,
   }) => TopCategoriesKey._(
     period: switch (mode) {
-      TransactionsScreenMode.daily => DateTime.utc(
-        selectedDate.year,
-        selectedDate.month,
-        1,
-      ),
+      TransactionsScreenMode.daily => startOfMonthUtc(selectedDate),
       TransactionsScreenMode.monthly => DateTime.utc(selectedDate.year, 1, 1),
     },
     mode: mode,

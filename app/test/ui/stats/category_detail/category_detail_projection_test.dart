@@ -10,6 +10,8 @@ import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.da
 import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 
+import '../../../support/ledger_fixtures.dart';
+
 const _mainID = 'abcdefab-0000-4000-8000-000000000001';
 const _firstID = 'abcdefab-0000-4000-8000-000000000002';
 const _secondID = 'abcdefab-0000-4000-8000-000000000003';
@@ -238,17 +240,14 @@ TransactionCategory _category(
   String name, {
   String? parent,
   CategoryKind kind = CategoryKind.expense,
-}) {
-  return TransactionCategory(
-    id: id,
-    name: name,
-    kind: kind,
-    colorHex: '#00AA00',
-    includeInAnalysis: true,
-    parentID: parent,
-    symbol: 'restaurant',
-  );
-}
+}) => testCategory(
+  id: id,
+  name: name,
+  kind: kind,
+  colorHex: '#00AA00',
+  parentID: parent,
+  symbol: 'restaurant',
+);
 
 LedgerState _state({CategoryKind kind = CategoryKind.expense}) {
   final state = LedgerState();

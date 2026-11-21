@@ -2,7 +2,6 @@ import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/budgets/budget_spend.dart';
-import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 import 'package:spendwise/ledger/analysis/insights/usual_baseline.dart';
 
 // MARK: - Results
@@ -118,7 +117,7 @@ MonthPace monthPace({
 }) {
   final day = startOfDayUtc(today);
   final month = monthWindow(day).start;
-  final daysInMonth = DateTime.utc(month.year, month.month + 1, 0).day;
+  final monthDays = daysInMonth(month);
   final baselineMonths = usualBaselineMonths(
     firstRecordMonth: firstRecordMonth,
     today: day,
@@ -132,7 +131,7 @@ MonthPace monthPace({
   final usual = _usualPace(
     baselineTotal: baselineTotal,
     monthCount: baselineMonths.length,
-    daysInMonth: daysInMonth,
+    daysInMonth: monthDays,
     dayOfMonth: day.day,
     spentSoFar: spentSoFar,
   );
@@ -140,8 +139,8 @@ MonthPace monthPace({
   return MonthPace(
     month: month,
     today: day,
-    daysInMonth: daysInMonth,
-    daysAfterToday: daysInMonth - day.day,
+    daysInMonth: monthDays,
+    daysAfterToday: monthDays - day.day,
     cumulativeSpend: _cumulativeSpend(month, day.day, elapsedItems),
     spentSoFar: spentSoFar,
     completeMonthCount: baselineMonths.length,

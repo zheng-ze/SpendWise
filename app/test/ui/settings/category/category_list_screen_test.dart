@@ -9,6 +9,7 @@ import 'package:spendwise/ui/settings/category/category_form.dart';
 import 'package:spendwise/ui/settings/category/category_list_screen.dart';
 import 'package:spendwise/ui/settings/category/category_list_view_model.dart';
 
+import '../../../support/ledger_fixtures.dart';
 import '../../../support/pump_app.dart';
 import '../../../support/ui_test_timeout.dart';
 
@@ -41,13 +42,12 @@ TransactionCategory _category(
   CategoryKind kind = CategoryKind.expense,
   String? parentID,
   bool includeInAnalysis = true,
-}) => TransactionCategory(
+}) => testCategory(
   name: name,
   kind: kind,
   colorHex: '#FF0000',
   includeInAnalysis: includeInAnalysis,
   parentID: parentID,
-  symbol: 'tag',
 );
 
 Ledger _ledgerOf(List<TransactionCategory> categories) => Ledger(

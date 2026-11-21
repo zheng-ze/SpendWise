@@ -11,7 +11,6 @@ import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/stats/helpers/windows.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
 // MARK: - Constants

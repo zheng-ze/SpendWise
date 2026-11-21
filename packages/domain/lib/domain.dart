@@ -31,5 +31,6 @@ export 'src/plans/plan_resolution.dart';
 export 'src/plans/plan_scheduling.dart';
 export 'src/plans/recurring_plan.dart';
 export 'src/time/calendar_day.dart';
+export 'src/time/calendar_month.dart';
 export 'src/time/date_range.dart';
 export 'src/time/year_month.dart';

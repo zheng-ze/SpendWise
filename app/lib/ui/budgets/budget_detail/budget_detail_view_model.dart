@@ -59,14 +59,14 @@ class BudgetDetailContextNotifier extends Notifier<BudgetDetailContext> {
     final month = ref.read(budgetsMonthProvider);
     return (
       displayedYear: DateTime.utc(month.year),
-      selectedMonth: DateTime.utc(month.year, month.month),
+      selectedMonth: startOfMonthUtc(month),
     );
   }
 
   void selectMonth(DateTime month) {
     state = (
       displayedYear: state.displayedYear,
-      selectedMonth: DateTime.utc(month.year, month.month),
+      selectedMonth: startOfMonthUtc(month),
     );
   }
 

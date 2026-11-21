@@ -7,10 +7,9 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger_session.dart';
 import 'package:spendwise/persistence/store/ledger_store.dart';
 
+import '../support/boot_ready.dart';
 import '../support/in_memory_ledger_store.dart';
-
-Account _account({String name = 'acc'}) =>
-    Account(name: name, type: AccountType.savings);
+import '../support/ledger_fixtures.dart';
 
 ProviderContainer _containerFor(InMemoryLedgerStore store) {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -24,14 +23,6 @@ ProviderContainer _containerFor(InMemoryLedgerStore store) {
   );
   addTearDown(container.dispose);
   return container;
-}
-
-Future<Ready> _readyPhase(ProviderContainer container) async {
-  final boot = container.read(appBootProvider);
-  while (boot.phase is! Ready) {
-    await Future<void>.delayed(Duration.zero);
-  }
-  return boot.phase as Ready;
 }
 
 LedgerSession _readySession(ProviderContainer container) {
@@ -54,7 +45,7 @@ void main() {
   test('overridingTheStoreLetsBootReachReady', () async {
     final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
 
-    final ready = await _readyPhase(container);
+    final ready = await readyPhase(container);
 
     expect(ready, isA<Ready>());
   });
@@ -65,7 +56,7 @@ void main() {
     expect(container.read(ledgerProvider), isNull);
     expect(container.read(ledgerSessionProvider), isNull);
 
-    await _readyPhase(container);
+    await readyPhase(container);
 
     expect(container.read(ledgerSessionProvider), isNotNull);
   });
@@ -73,11 +64,11 @@ void main() {
   test('analysisCacheHasJoinedTheBusByTheTimeLedgerIsFirstReachable', () async {
     final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
 
-    final ready = await _readyPhase(container);
+    final ready = await readyPhase(container);
     final cache = _readySession(container).analysisCache;
     final revisionBeforeMutate = cache.revision;
 
-    ready.ledger.addAccount(_account());
+    ready.ledger.addAccount(testAccount());
 
     expect(
       _readySession(container).analysisCache.revision,
@@ -88,7 +79,7 @@ void main() {
   test('analysisCacheFollowsTheBusOntoARetriedRuntime', () async {
     final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
     final boot = container.read(appBootProvider);
-    await _readyPhase(container);
+    await readyPhase(container);
     final oldCache = _readySession(container).analysisCache;
 
     await boot.retry();
@@ -96,7 +87,7 @@ void main() {
     expect(identical(cache, oldCache), isFalse);
     final revisionBeforeMutate = cache.revision;
 
-    (boot.phase as Ready).ledger.addAccount(_account());
+    (boot.phase as Ready).ledger.addAccount(testAccount());
 
     expect(cache.revision, revisionBeforeMutate + 1);
   });
@@ -104,7 +95,7 @@ void main() {
   test('bannerStateReceivesASaveStateFromTheStore', () async {
     final store = InMemoryLedgerStore(hasSeeded: true);
     final container = _containerFor(store);
-    await _readyPhase(container);
+    await readyPhase(container);
 
     store.errorHandler!(SaveBannerState.retrying);
 
@@ -116,7 +107,7 @@ void main() {
 
   test('bannerStateReceivesAPlanErrorFromTheLedger', () async {
     final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
-    final ready = await _readyPhase(container);
+    final ready = await readyPhase(container);
 
     ready.ledger.onPlanError!([
       PlanFailure(
@@ -134,7 +125,7 @@ void main() {
 
   test('disposingTheContainerDisposesWhatTheProvidersOwn', () async {
     final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
-    final ready = await _readyPhase(container);
+    final ready = await readyPhase(container);
     final banner = container.read(bannerStateProvider);
     final cache = _readySession(container).analysisCache;
 
@@ -143,6 +134,6 @@ void main() {
 
     expect(() => banner.addListener(() {}), throwsFlutterError);
     expect(() => cache.addListener(() {}), throwsFlutterError);
-    expect(() => ready.ledger.addAccount(_account()), throwsFlutterError);
+    expect(() => ready.ledger.addAccount(testAccount()), throwsFlutterError);
   });
 }

@@ -14,7 +14,7 @@ List<DateTime> trendMonths(DateTime detailDate, {required bool isYearRange}) {
     ];
   }
 
-  final selectedMonth = DateTime.utc(detailDate.year, detailDate.month);
+  final selectedMonth = startOfMonthUtc(detailDate);
   return [
     for (var offset = _monthRangeSpan - 1; offset >= 0; offset--)
       shiftMonthThenClampDayUtc(selectedMonth, -offset, day: 1),
@@ -22,13 +22,8 @@ List<DateTime> trendMonths(DateTime detailDate, {required bool isYearRange}) {
 }
 
 Decimal monthTotal(List<AnalysisItem> items, DateTime monthStart) {
-  final interval = _monthInterval(monthStart);
+  final interval = monthWindow(monthStart);
   return items
       .where((item) => interval.contains(item.date))
       .fold(Decimal.zero, (sum, item) => sum + item.amount);
-}
-
-DateRange _monthInterval(DateTime monthStart) {
-  final end = shiftMonthThenClampDayUtc(monthStart, 1, day: 1);
-  return DateRange(monthStart, end);
 }

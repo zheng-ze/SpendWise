@@ -6,6 +6,8 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
 
+import '../../../support/ledger_fixtures.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -14,13 +16,12 @@ void main() {
     String name, {
     LifecycleState lifecycle = LifecycleState.archived,
     Set<String> subPocketIDs = const {},
-  }) => Account(
+  }) => testAccount(
     id: id,
     name: name,
     type: AccountType.checking,
     lifecycle: lifecycle,
-    subPocketIDs: subPocketIDs,
-  );
+  ).withSubPockets(subPocketIDs);
 
   SubPocket pocket(
     String id,
@@ -32,14 +33,10 @@ void main() {
     String id,
     String name, {
     LifecycleState lifecycle = LifecycleState.archived,
-  }) => TransactionCategory(
+  }) => testCategory(
     id: id,
     name: name,
-    kind: CategoryKind.expense,
     colorHex: '#FF0000',
-    includeInAnalysis: true,
-    parentID: null,
-    symbol: 'tag',
     lifecycle: lifecycle,
   );
 
@@ -289,7 +286,7 @@ void main() {
       'Bank',
       lifecycle: LifecycleState.active,
     );
-    final entry = Entry(amount: dec('5'), name: 'Coffee', sourceID: acc.id);
+    final entry = testEntry(amount: dec('5'), name: 'Coffee', sourceID: acc.id);
     final container = buildContainer(
       buildLedger(
         moneySources: {acc.id: MoneySource.account(acc)},
@@ -309,7 +306,7 @@ void main() {
 
   test('a row shows how many entries reference it', () {
     final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
-    final entry = Entry(amount: dec('5'), name: 'x', sourceID: acc.id);
+    final entry = testEntry(amount: dec('5'), name: 'x', sourceID: acc.id);
     final container = buildContainer(
       buildLedger(
         moneySources: {acc.id: MoneySource.account(acc)},

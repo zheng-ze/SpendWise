@@ -45,7 +45,7 @@ List<MonthSummary> monthSummaries(
   DateTime? now,
 }) {
   final today = startOfDayUtc(now ?? DateTime.now());
-  final currentMonthStart = DateTime.utc(today.year, today.month);
+  final currentMonthStart = startOfMonthUtc(today);
   final currentWeekStart = _weekStart(today);
 
   final yearStart = DateTime.utc(year.year);

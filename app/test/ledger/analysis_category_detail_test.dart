@@ -4,6 +4,8 @@ import 'package:spendwise/ledger/analysis/breakdowns/analysis_category_scope.dar
 import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
 import 'package:spendwise/ledger/analysis/category_detail/category_detail.dart';
 
+import '../support/ledger_fixtures.dart';
+
 const mainID = 'abcdefab-0000-4000-8000-000000000001';
 const childID = 'abcdefab-0000-4000-8000-000000000002';
 const emptyID = 'abcdefab-0000-4000-8000-000000000003';
@@ -16,14 +18,13 @@ TransactionCategory category(
   bool included = true,
   CategoryKind kind = CategoryKind.expense,
 }) {
-  return TransactionCategory(
+  return testCategory(
     id: id,
     name: id,
     kind: kind,
     colorHex: '#123456',
     includeInAnalysis: included,
     parentID: parent,
-    symbol: 'tag',
   );
 }
 

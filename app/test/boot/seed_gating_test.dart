@@ -4,15 +4,13 @@ import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/app_phase.dart';
 
 import '../support/in_memory_ledger_store.dart';
+import '../support/ledger_fixtures.dart';
 import '../support/recording_ledger_store.dart';
-
-Account _account({String name = 'seeded'}) =>
-    Account(name: name, type: AccountType.savings);
 
 void main() {
   test('firstLaunchSeedsAndFlushesBeforeLoad', () async {
     final store = RecordingLedgerStore();
-    final account = _account();
+    final account = testAccount(name: 'seeded');
 
     await AppBoot(
       createStore: () async => store,
@@ -32,7 +30,7 @@ void main() {
 
   test('seedIsNotRepeatedOnASecondLaunch', () async {
     final store = InMemoryLedgerStore();
-    final account = _account();
+    final account = testAccount(name: 'seeded');
     List<LedgerChange> seed() => [UpsertAccount(account)];
 
     await AppBoot(createStore: () async => store, seedChanges: seed).start();
@@ -45,7 +43,7 @@ void main() {
 
   test('anEmptiedLedgerIsNotReseeded', () async {
     final store = InMemoryLedgerStore();
-    final account = _account();
+    final account = testAccount(name: 'seeded');
     List<LedgerChange> seed() => [UpsertAccount(account)];
 
     final first = AppBoot(createStore: () async => store, seedChanges: seed);
@@ -72,7 +70,7 @@ void main() {
       createStore: () async => store,
       seedChanges: () {
         built += 1;
-        return [UpsertAccount(_account())];
+        return [UpsertAccount(testAccount(name: 'seeded'))];
       },
     ).start();
 

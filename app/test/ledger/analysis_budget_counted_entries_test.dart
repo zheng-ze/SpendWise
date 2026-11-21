@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_counted_entries.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_spend.dart';
 
+import '../support/ledger_fixtures.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -12,16 +14,13 @@ void main() {
   const month = YearMonth(2026, 7);
   DateTime day(int d) => DateTime.utc(2026, 7, d);
 
-  TransactionCategory category(String id, {String? parentID}) =>
-      TransactionCategory(
-        id: id,
-        name: id,
-        kind: CategoryKind.expense,
-        colorHex: '#FF0000',
-        includeInAnalysis: true,
-        parentID: parentID,
-        symbol: 'restaurant',
-      );
+  TransactionCategory category(String id, {String? parentID}) => testCategory(
+    id: id,
+    name: id,
+    colorHex: '#FF0000',
+    parentID: parentID,
+    symbol: 'restaurant',
+  );
 
   Account account(String id, {bool flagged = false}) => Account(
     id: id,

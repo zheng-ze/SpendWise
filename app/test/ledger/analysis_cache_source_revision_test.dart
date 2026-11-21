@@ -6,25 +6,14 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
+import '../support/ledger_fixtures.dart';
 import 'analysis_test_support.dart';
-
-Account _account({String name = 'acc'}) =>
-    Account(name: name, type: AccountType.savings);
-
-TransactionCategory _category({String name = 'food'}) => TransactionCategory(
-  name: name,
-  kind: CategoryKind.expense,
-  colorHex: '#000000',
-  includeInAnalysis: true,
-  parentID: null,
-  symbol: 'tag',
-);
 
 LedgerState _fullState() {
   final state = LedgerState();
-  final account = _account();
+  final account = testAccount();
   state.addAccount(account);
-  final category = _category();
+  final category = testCategory(name: 'food');
   state.addCategory(category);
   state.addEntry(
     Entry(
@@ -139,7 +128,7 @@ void main() {
 
   test('legacyRefreshDuringPublicationStampsTheNewRevision', () async {
     final ledger = Ledger();
-    final account = _account();
+    final account = testAccount();
     ledger.addAccount(account);
     final runner = _ManualRunner();
     final cache = AnalysisCache(runner: runner.call)
@@ -165,8 +154,8 @@ void main() {
     final state = _fullState();
 
     cache.refresh(state);
-    state.addAccount(_account(name: 'late'));
-    state.addCategory(_category(name: 'late'));
+    state.addAccount(testAccount(name: 'late'));
+    state.addCategory(testCategory(name: 'late'));
     runner.pending.single.complete(const []);
     await pumpEventQueue();
 
@@ -185,7 +174,7 @@ void main() {
     final state = _fullState();
 
     cache.refresh(state);
-    bus.publish([UpsertAccount(_account(name: 'b'))]);
+    bus.publish([UpsertAccount(testAccount(name: 'b'))]);
     cache.refresh(state);
 
     runner.pending[1].complete(_items(2));
@@ -233,7 +222,7 @@ void main() {
     final state = _fullState();
 
     cache.refresh(state);
-    bus.publish([UpsertAccount(_account(name: 'b'))]);
+    bus.publish([UpsertAccount(testAccount(name: 'b'))]);
     cache.refresh(state);
 
     runner.pending[1].complete(_items(2));
@@ -255,7 +244,7 @@ void main() {
 
     cache.refresh(_fullState());
     final disposing = cache.dispose();
-    bus.publish([UpsertAccount(_account(name: 'late'))]);
+    bus.publish([UpsertAccount(testAccount(name: 'late'))]);
     runner.pending.single.complete(_items(10));
     await pumpEventQueue();
     await disposing;

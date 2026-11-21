@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_screen.dart';
 
+import '../../../support/ledger_fixtures.dart';
 import '../../../support/pump_app.dart';
 import '../../../support/ui_test_timeout.dart';
 
@@ -28,13 +29,13 @@ class _BinLauncher extends StatelessWidget {
   }
 }
 
-Account _account(String name, {LifecycleState? lifecycle}) => Account(
+Account _account(String name, {LifecycleState? lifecycle}) => testAccount(
   name: name,
   type: AccountType.checking,
   lifecycle: lifecycle ?? LifecycleState.active,
 );
 
-Entry _entry(String name, String sourceID) => Entry(
+Entry _entry(String name, String sourceID) => testEntry(
   amount: Decimal.parse('-5'),
   name: name,
   sourceID: sourceID,
@@ -42,13 +43,9 @@ Entry _entry(String name, String sourceID) => Entry(
 );
 
 TransactionCategory _category(String name, {LifecycleState? lifecycle}) =>
-    TransactionCategory(
+    testCategory(
       name: name,
-      kind: CategoryKind.expense,
       colorHex: '#FF0000',
-      includeInAnalysis: true,
-      parentID: null,
-      symbol: 'tag',
       lifecycle: lifecycle ?? LifecycleState.active,
     );
 

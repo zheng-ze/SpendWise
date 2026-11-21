@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart';
 
+import '../support/ledger_fixtures.dart';
 import 'analysis_test_support.dart';
 
 final _main = testId(1);
@@ -34,14 +35,12 @@ TransactionCategory _category(
   CategoryKind kind = CategoryKind.expense,
   LifecycleState lifecycle = LifecycleState.active,
   bool includeInAnalysis = true,
-}) => TransactionCategory(
+}) => testCategory(
   id: id,
   name: name ?? id,
   kind: kind,
-  colorHex: '#000000',
   includeInAnalysis: includeInAnalysis,
   parentID: parent,
-  symbol: 'tag',
   lifecycle: lifecycle,
 );
 
@@ -68,15 +67,12 @@ LedgerState _state({
     String? categoryID,
     String? destinationID,
     DateTime? date,
-  }) => Entry(
-    id: null,
+  }) => testEntry(
     amount: Decimal.fromInt(amount),
-    name: 'entry',
     sourceID: _checking,
     destinationID: destinationID,
     categoryID: categoryID,
     date: date ?? _day,
-    includeInAnalysis: true,
   );
   for (final booking in bookings) {
     state.addEntry(

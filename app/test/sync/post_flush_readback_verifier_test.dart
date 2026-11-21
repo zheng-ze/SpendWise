@@ -9,20 +9,12 @@ import 'package:spendwise/sync/post_flush_readback_verifier.dart';
 import 'package:spendwise/sync/row_readback_outcome.dart';
 import 'package:sync/sync.dart';
 
+import '../support/ledger_fixtures.dart';
+
 const _rowA = '11111111-1111-1111-1111-111111111111';
 const _rowB = '22222222-2222-2222-2222-222222222222';
 const _rowC = '33333333-3333-3333-3333-333333333333';
 const _rowD = '44444444-4444-4444-4444-444444444444';
-
-Account _account(String id) => Account(
-  id: id,
-  name: 'Checking',
-  type: AccountType.checking,
-  subPocketIDs: const {},
-  incomingTransfersAsExpenses: false,
-  includeInNetWorth: true,
-  statementDay: null,
-);
 
 void main() {
   late LedgerDatabase db;
@@ -35,8 +27,14 @@ void main() {
 
   tearDown(() => db.close());
 
-  Future<void> storeAccount(String id, VersionVector version) =>
-      db.into(db.accounts).insert(accountToRow(_account(id), version));
+  Future<void> storeAccount(String id, VersionVector version) => db
+      .into(db.accounts)
+      .insert(
+        accountToRow(
+          testAccount(id: id, name: 'Checking', type: AccountType.checking),
+          version,
+        ),
+      );
 
   test('an exact stored stamp passes as equal', () async {
     final stamp = VersionVector({'device-a': 1});

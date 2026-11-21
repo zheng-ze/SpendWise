@@ -2,29 +2,23 @@ import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'in_memory_ledger_store.dart';
+import 'ledger_fixtures.dart';
 
 Account _account(String id, String name) =>
-    Account(id: id, name: name, type: AccountType.cash);
+    testAccount(id: id, name: name, type: AccountType.cash);
 
-SubPocket _pocket(String id, String name) => SubPocket(id: id, name: name);
+TransactionCategory _category(String id, String name) =>
+    testCategory(id: id, name: name, colorHex: '#ff0000', symbol: 'fork');
 
-TransactionCategory _category(String id, String name) => TransactionCategory(
+Entry _entry(String id, String amount) => testEntry(
   id: id,
-  name: name,
-  kind: CategoryKind.expense,
-  colorHex: '#ff0000',
-  includeInAnalysis: true,
-  parentID: null,
-  symbol: 'fork',
-);
-
-Entry _entry(String id, String amount) => Entry(
-  id: id,
-  date: DateTime.utc(2026, 3, 14),
+  sourceID: 'a1',
   amount: Decimal.parse(amount),
   name: 'e-$id',
-  sourceID: 'a1',
+  date: DateTime.utc(2026, 3, 14),
 );
+
+SubPocket _pocket(String id, String name) => SubPocket(id: id, name: name);
 
 RecurringPlan _plan(String id) => RecurringPlan(
   id: id,

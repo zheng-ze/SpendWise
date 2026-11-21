@@ -8,14 +8,10 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_scope_options.dart';
 
-TransactionCategory _category(String name) => TransactionCategory(
-  name: name,
-  kind: CategoryKind.expense,
-  colorHex: '#00AA00',
-  includeInAnalysis: true,
-  parentID: null,
-  symbol: 'restaurant',
-);
+import '../../../support/ledger_fixtures.dart';
+
+TransactionCategory _category(String name) =>
+    testCategory(name: name, colorHex: '#00AA00', symbol: 'restaurant');
 
 typedef _Fixture = ({
   ProviderContainer container,

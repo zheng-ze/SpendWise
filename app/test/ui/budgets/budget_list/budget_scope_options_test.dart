@@ -3,16 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ui/budgets/budget_list/budget_scope_options.dart';
 
+import '../../../support/ledger_fixtures.dart';
+
 TransactionCategory _category(
   String name, {
   String? parentID,
   CategoryKind kind = CategoryKind.expense,
   LifecycleState lifecycle = LifecycleState.active,
-}) => TransactionCategory(
+}) => testCategory(
   name: name,
   kind: kind,
   colorHex: '#00AA00',
-  includeInAnalysis: true,
   parentID: parentID,
   symbol: 'restaurant',
   lifecycle: lifecycle,

@@ -1,7 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/stats/helpers/slices.dart';
-import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 import 'package:spendwise/ui/transactions/monthly/month_summaries.dart';
 
 void main() {

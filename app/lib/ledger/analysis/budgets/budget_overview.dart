@@ -192,9 +192,7 @@ Decimal? _dailyAllowance(
   if (cap == null) return null;
   final day = startOfDayUtc(today);
   if (day.year != month.year || day.month != month.month) return null;
-  final nextMonthStart = DateTime.utc(month.year, month.month + 1);
-  final firstFutureDay = day.add(const Duration(days: 1));
-  final daysAfterToday = nextMonthStart.difference(firstFutureDay).inDays;
+  final daysAfterToday = daysInMonth(day) - day.day;
   if (daysAfterToday <= 0) return null;
   final remaining = cap - spent;
   final allowance = remaining > Decimal.zero ? remaining : Decimal.zero;

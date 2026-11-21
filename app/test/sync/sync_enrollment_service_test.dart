@@ -17,16 +17,8 @@ import 'package:spendwise/sync/sync_repair_gate.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:sync/sync.dart';
 
+import '../support/sync_fixtures.dart';
 import 'in_memory_secret_store.dart';
-
-String credentialPayload(String device, String bearer) => base64Url.encode(
-  utf8.encode(
-    jsonEncode({
-      'deviceID': device,
-      'bearerToken': base64Url.encode(utf8.encode(bearer)),
-    }),
-  ),
-);
 
 InMemorySyncBackend emptySnapshotBackend({
   PullHandler? onPull,

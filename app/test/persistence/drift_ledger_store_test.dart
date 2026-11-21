@@ -11,6 +11,8 @@ import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/persistence/mappers/mappers.dart';
 import 'package:sync/sync.dart';
 
+import '../support/ledger_fixtures.dart';
+
 class ManualClock {
   final List<_Armed> _armed = [];
 
@@ -100,27 +102,25 @@ void main() {
   });
 
   domain.Account account(String id, String name) =>
-      domain.Account(id: id, name: name, type: AccountType.cash);
+      testAccount(id: id, name: name, type: AccountType.cash);
 
   domain.Entry entry(String id, String amount, {String source = 'a'}) =>
-      domain.Entry(
+      testEntry(
         id: id,
-        date: DateTime.utc(2026, 3, 14),
+        sourceID: source,
         amount: Decimal.parse(amount),
         name: 'e-$id',
-        sourceID: source,
+        date: DateTime.utc(2026, 3, 14),
       );
 
   domain.TransactionCategory category(
     String id,
     String name, {
     required String? parentID,
-  }) => domain.TransactionCategory(
+  }) => testCategory(
     id: id,
     name: name,
-    kind: CategoryKind.expense,
     colorHex: '#ff0000',
-    includeInAnalysis: true,
     parentID: parentID,
     symbol: 'fork',
   );

@@ -60,7 +60,7 @@ TodaySummary todaySummary({
 
 Decimal? _dailyGuide(Decimal? limit, DateTime day) {
   if (limit == null) return null;
-  final days = DateTime.utc(day.year, day.month + 1, 0).day;
+  final days = daysInMonth(day);
   final padded = limit + Decimal.parse('0.5') * Decimal.fromInt(days);
   return Decimal.fromBigInt(padded ~/ Decimal.fromInt(days));
 }

@@ -64,7 +64,7 @@ CategoryDetailViewState categoryDetailUnreadyState(
 }) {
   final date = args.isYearRange
       ? DateTime.utc(args.initialDate.year)
-      : DateTime.utc(args.initialDate.year, args.initialDate.month);
+      : startOfMonthUtc(args.initialDate);
   return CategoryDetailViewState(
     detailDate: date,
     scope: scope,

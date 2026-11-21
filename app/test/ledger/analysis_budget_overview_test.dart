@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/analysis/budgets/budget_overview.dart';
 
+import '../support/ledger_fixtures.dart';
+
 const _foodID = 'a0000000-0000-0000-0000-00000000000f';
 const _hawkerID = 'a0000000-0000-0000-0000-0000000000a1';
 const _transportID = 'a0000000-0000-0000-0000-0000000000b2';
@@ -14,12 +16,10 @@ final _october3 = DateTime.utc(2026, 10, 3);
 Decimal dec(String value) => Decimal.parse(value);
 
 TransactionCategory category(String id, String name, {String? parentID}) =>
-    TransactionCategory(
+    testCategory(
       id: id,
       name: name,
-      kind: CategoryKind.expense,
       colorHex: '#00AA00',
-      includeInAnalysis: true,
       parentID: parentID,
       symbol: 'restaurant',
     );

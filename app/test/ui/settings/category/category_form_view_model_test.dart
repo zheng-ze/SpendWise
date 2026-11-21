@@ -8,6 +8,8 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
 
+import '../../../support/ledger_fixtures.dart';
+
 class ListenerCountingLedger extends Ledger {
   int listenerCount = 0;
 
@@ -50,14 +52,12 @@ void main() {
     required String name,
     CategoryKind kind = CategoryKind.expense,
     String? parentID,
-  }) => TransactionCategory(
+  }) => testCategory(
     id: id,
     name: name,
     kind: kind,
     colorHex: '#FF0000',
-    includeInAnalysis: true,
     parentID: parentID,
-    symbol: 'tag',
   );
 
   group('isKindLocked', () {

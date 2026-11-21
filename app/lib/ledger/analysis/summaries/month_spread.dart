@@ -1,8 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:spendwise/ledger/analysis/insights/completeness.dart';
-
 // MARK: - Slots
 
 @immutable
@@ -89,11 +87,8 @@ MonthSpread monthSpread({
   final end = monthWindow(endMonth).start;
   final day = startOfDayUtc(today);
   final currentMonth = monthWindow(day).start;
-  final first = firstRecordMonth == null
-      ? null
-      : DateTime.utc(firstRecordMonth.year, firstRecordMonth.month, 1);
   final earliestSpreadEndMonth = _earliestEnd(
-    firstRecordMonth: first,
+    firstRecordMonth: firstRecordMonth,
     currentMonth: currentMonth,
   );
   final ofKind = items.where((item) => item.kind == kind).toList();

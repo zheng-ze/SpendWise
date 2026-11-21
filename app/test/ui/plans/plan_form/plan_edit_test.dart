@@ -11,6 +11,7 @@ import 'package:spendwise/ui/plans/plan_list/plan_selection.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
+import '../../../support/row_tap.dart';
 import '../../../support/ui_test_timeout.dart';
 import '../plans_shell_test_support.dart';
 
@@ -52,11 +53,6 @@ Future<ProviderContainer> _pumpEdit(
   return container;
 }
 
-Future<void> _tapRow(WidgetTester tester, String label) async {
-  await tester.tap(find.widgetWithText(ListTile, label));
-  await tester.pumpAndSettle();
-}
-
 Future<void> _choose(WidgetTester tester, String label) async {
   await tester.tap(find.text(label));
   await tester.pumpAndSettle();
@@ -70,7 +66,7 @@ void main() {
     testWidgets('$label locked Account row opens nothing', (tester) async {
       await _pumpEdit(tester, mode, brightness, buildPlansShellLedger());
 
-      await _tapRow(tester, _accountLabel);
+      await tapRow(tester, find.widgetWithText(ListTile, _accountLabel));
 
       expect(find.byType(AppPickerSheet), findsNothing);
       expect(_form, findsOneWidget);
@@ -82,7 +78,7 @@ void main() {
 
       await tester.enterText(_nameField, _newName);
       await tester.enterText(_amountField, _newAmount);
-      await _tapRow(tester, _repeatLabel);
+      await tapRow(tester, find.widgetWithText(ListTile, _repeatLabel));
       await _choose(tester, _quarterlyLabel);
       await _choose(tester, _saveLabel);
 
@@ -168,7 +164,7 @@ void main() {
       Brightness.light,
       buildPlansShellLedger(),
     );
-    await _tapRow(tester, _repeatLabel);
+    await tapRow(tester, find.widgetWithText(ListTile, _repeatLabel));
     expect(find.byType(AppPickerSheet), findsOneWidget);
 
     container.read(plansShellLedgerFixture.notifier).state =

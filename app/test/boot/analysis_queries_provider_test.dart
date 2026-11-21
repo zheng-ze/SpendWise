@@ -4,12 +4,12 @@ import 'package:domain/domain.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 
+import '../support/boot_ready.dart';
 import '../support/in_memory_ledger_store.dart';
 
 const _accountID = '11111111-1111-1111-1111-111111111111';
@@ -77,14 +77,6 @@ class _ManualRunner {
   return (container: container, store: store);
 }
 
-Future<Ready> _readyPhase(ProviderContainer container) async {
-  final boot = container.read(appBootProvider);
-  while (boot.phase is! Ready) {
-    await Future<void>.delayed(Duration.zero);
-  }
-  return boot.phase as Ready;
-}
-
 Future<void> _accept(ProviderContainer container) async {
   for (var i = 0; i < 100; i++) {
     final queries = container.read(analysisQueriesProvider);
@@ -118,7 +110,7 @@ void main() {
     expect(container.read(analysisQueriesProvider), isNull);
     expect(runner.pending, isEmpty);
 
-    await _readyPhase(container);
+    await readyPhase(container);
 
     final queries = container.read(analysisQueriesProvider);
     expect(queries, isNotNull);
@@ -146,7 +138,7 @@ void main() {
       );
       final container = bundle.container;
       final boot = container.read(appBootProvider);
-      await _readyPhase(container);
+      await readyPhase(container);
 
       final subscription = container.listen<AnalysisQueries?>(
         analysisQueriesProvider,
@@ -174,7 +166,7 @@ void main() {
       );
 
       await boot.retry();
-      await _readyPhase(container);
+      await readyPhase(container);
       subscription.resume();
 
       final queries = container.read(analysisQueriesProvider)!;
@@ -210,7 +202,7 @@ void main() {
       clock: () => DateTime(2027, 4, 7, 12),
     );
     final container = bundle.container;
-    await _readyPhase(container);
+    await readyPhase(container);
 
     final subscription = container.listen<AnalysisQueries?>(
       analysisQueriesProvider,
