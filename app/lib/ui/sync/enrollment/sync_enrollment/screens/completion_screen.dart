@@ -15,7 +15,9 @@ class SyncEnrollmentCompletionScreen extends ConsumerWidget {
     );
     final header = PageHeader(
       title: state.repairMode ? 'Repair Device Access' : 'Sync enrolled',
-      onBack: () => Navigator.of(context).maybePop(),
+      onBack: state.repairMode
+          ? viewModel.dismissRepairFlow
+          : viewModel.dismissFlow,
     );
     final freshContent = Padding(
       padding: _screenPadding,

@@ -257,6 +257,26 @@ void main() {
     expect(find.byType(BackendPickerScreen), findsNothing);
   }, timeout: uiTestTimeout);
 
+  testWidgets('the completion header back dismisses the flow like Done', (
+    tester,
+  ) async {
+    var endedCalls = 0;
+    final harness = await pumpEnrollmentFlow(
+      tester,
+      onEnded: () => endedCalls++,
+    );
+    await continueWithHosted(tester);
+    harness.opener.session.onEnroll = () async {};
+    await submitIdentifier(tester, 'user@example.com');
+    await pumpFlowFrames(tester);
+    expect(find.text('Sync enrollment complete'), findsOneWidget);
+
+    await tester.tap(find.byType(BackButton));
+    await pumpFlowFrames(tester);
+
+    expect(endedCalls, 1);
+  }, timeout: uiTestTimeout);
+
   testWidgets('picker Back is inert while a backend selection save is '
       'in flight', (tester) async {
     var endedCalls = 0;
