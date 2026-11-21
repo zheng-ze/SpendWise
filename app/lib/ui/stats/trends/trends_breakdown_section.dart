@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/ui/common/charts/category_map.dart';
 import 'package:spendwise/ui/common/charts/donut_chart.dart';
+import 'package:spendwise/ui/common/lists/breakdown_row.dart';
 import 'package:spendwise/ui/common/feedback/empty_state.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
@@ -14,22 +15,13 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _captionSeparator = ' / ';
 const _headingSize = 14.0;
-const _nameSize = 12.0;
 const _captionSize = 10.0;
 const _semiBold = FontWeight.w600;
 const _sectionGap = 12.0;
 const _headingGap = 4.0;
 const _chartPadding = EdgeInsets.only(top: 4, bottom: 6);
-const _rowPadding = EdgeInsets.symmetric(vertical: 7);
 const _rowGap = 8.0;
-const _captionGap = 2.0;
-const _swatchSize = 10.0;
-const _swatchRadius = 3.0;
-const _dividerWidth = 1.0;
 const _emptyIcon = Icons.attach_money;
-const _chevron = Icons.chevron_right;
-const _chevronSize = 14.0;
-const _chevronPadding = EdgeInsets.only(left: 4);
 const _percentFactor = 100;
 const _regularDonutSize = 132.0;
 const _totalLineAlignment = TextAlign.end;
@@ -100,8 +92,8 @@ class _BreakdownCard extends StatelessWidget {
     );
     final rowWidgets = [
       for (var index = 0; index < rows.length; index++)
-        _BreakdownRow(
-          entry: rows[index],
+        _breakdownRow(
+          rows[index],
           amountKind: amountKind,
           divided: index < rows.length - 1,
           onTap: _opener(rows[index].row, index, onOpenCategory),
@@ -277,85 +269,26 @@ class _BreakdownChart extends StatelessWidget {
   }
 }
 
-class _BreakdownRow extends StatelessWidget {
-  const _BreakdownRow({
-    required this.entry,
-    required this.amountKind,
-    required this.divided,
-    required this.onTap,
-  });
-
-  final _ColoredRow entry;
-  final AmountKind amountKind;
-  final bool divided;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final row = entry.row;
-    final colors = context.colors;
-    final parent = row.parentContext;
-    final caption = parent == null
-        ? row.formattedShare
-        : '${row.formattedShare}$_captionSeparator$parent';
-    final swatch = Container(
-      width: _swatchSize,
-      height: _swatchSize,
-      decoration: BoxDecoration(
-        color: entry.color,
-        borderRadius: BorderRadius.circular(_swatchRadius),
-      ),
-    );
-    final captionStyle = TextStyle(
-      fontSize: _captionSize,
-      color: colors.subtext,
-    );
-    final label = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          row.name,
-          style: const TextStyle(fontSize: _nameSize, fontWeight: _semiBold),
-        ),
-        const SizedBox(height: _captionGap),
-        Text(caption, style: captionStyle),
-      ],
-    );
-    final amountText = Text(
-      row.formattedAmount,
-      textAlign: TextAlign.end,
-      style: context.text.small.copyWith(
-        color: AmountStyle.of(context, kind: amountKind).color,
-      ),
-    );
-    final chevron = onTap == null
-        ? null
-        : Padding(
-            padding: _chevronPadding,
-            child: Icon(_chevron, size: _chevronSize, color: colors.subtext),
-          );
-    final content = Row(
-      children: [
-        swatch,
-        const SizedBox(width: _rowGap),
-        Expanded(child: label),
-        const SizedBox(width: _rowGap),
-        amountText,
-        ?chevron,
-      ],
-    );
-    final border = divided
-        ? Border(
-            bottom: BorderSide(color: colors.edge, width: _dividerWidth),
-          )
-        : null;
-    final surface = Container(
-      padding: _rowPadding,
-      decoration: BoxDecoration(border: border),
-      child: content,
-    );
-    return onTap == null ? surface : InkWell(onTap: onTap, child: surface);
-  }
+BreakdownRow _breakdownRow(
+  _ColoredRow entry, {
+  required AmountKind amountKind,
+  required bool divided,
+  required VoidCallback? onTap,
+}) {
+  final row = entry.row;
+  final parent = row.parentContext;
+  final caption = parent == null
+      ? row.formattedShare
+      : '${row.formattedShare}$_captionSeparator$parent';
+  return BreakdownRow(
+    swatchColor: entry.color,
+    name: row.name,
+    caption: caption,
+    amount: row.formattedAmount,
+    amountKind: amountKind,
+    divided: divided,
+    onTap: onTap,
+  );
 }
 
 class _EmptyBreakdown extends StatelessWidget {
