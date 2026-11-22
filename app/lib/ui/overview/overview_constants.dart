@@ -100,3 +100,24 @@ const overviewThisMonthSpentLabel = 'Spent';
 const overviewThisMonthIncomeLabel = 'Income';
 
 const overviewThisMonthNetLabel = 'Net';
+
+const overviewEditAction = 'Edit Overview';
+
+const overviewEditDone = 'Done';
+
+const overviewEditIntro =
+    'Choose what belongs on your home. Notices stay visible when needed.';
+
+const overviewEditShownLabel = 'Shown on Overview';
+
+const overviewEditAddLabel = 'Add widgets';
+
+const overviewEditHide = 'Hide';
+
+const overviewEditAdd = '+ Add';
+
+const overviewEditAdded = 'Added';
+
+const overviewEditSeeAll = 'See all widgets';
+
+const overviewEditRestore = 'Restore default';
