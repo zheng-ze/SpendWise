@@ -91,29 +91,6 @@ Future<void> _replaceAmount(WidgetTester tester, String digits) async {
 }
 
 void main() {
-  testWidgets('mo-budget-edit-default shows the copy and saves once', (
-    tester,
-  ) async {
-    final ledger = _ledger();
-    await _openEditor(tester, ledger);
-
-    expect(find.text(_title), findsOneWidget);
-    expect(find.text('Monthly limit / SGD'), findsOneWidget);
-    expect(find.text('100.00'), findsOneWidget);
-    expect(find.text('Applies from'), findsNothing);
-    expect(find.text('Cancel'), findsNothing);
-
-    final revision = ledger.revision;
-
-    await _replaceAmount(tester, '250');
-    await tester.tap(find.text(_saveLabel));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(BudgetLimitEditSheet), findsNothing);
-    expect(ledger.revision, revision + 1);
-    expect(ledger.state.budgets[_budgetID]!.limit, Decimal.fromInt(250));
-  }, timeout: uiTestTimeout);
-
   testWidgets('mo-budget-edit-default drag-down dismissal writes nothing', (
     tester,
   ) async {

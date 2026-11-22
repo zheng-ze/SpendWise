@@ -150,17 +150,16 @@ amounts against monthly or yearly averages and includes Compared with usual only
 it does not change shell mode. The reserved composition boundary remains zero-content. One page
 `SingleChildScrollView` contains the entire composition. Phone keeps its own controls, period card,
 headline, month-only usual row and selected-period breakdown (`trends_open_layout.dart`,
-`trends_screen.dart`, `trends_flow.dart`, `trends_layout_test.dart`,
-`trends_open_layout_test.dart`).
+`trends_screen.dart`, `trends_flow.dart`, `trends_layout_test.dart`).
 
 The shared breakdown card switches between whole-period and selected-period rows. Its separate
 auto-dispose `trendsBreakdownScopeProvider` defaults to `wholePeriod`; the typed ViewModel action
 changes it within the Trends route lifetime. `resolveTrendsScopedPresentation` selects the matching
 breakdown, header and `TrendsCategoryDetailSource` together. The control labels the selected scope
 `Selected month` or `Selected year` according to mode. The shared card draws the saved donut or
-category map and ranked rows; Category averages draws no chart. Scope, helper and widget behavior
-are covered by `trends_breakdown_scope_test.dart`, `trends_scoped_presentation_test.dart`,
-`trends_shared_breakdown_card_test.dart` and `trends_category_averages_test.dart`.
+category map and ranked rows; Category averages draws no chart. Scope state, scoped presentation and
+average comparison logic are covered by `trends_breakdown_scope_test.dart`, `trends_scoped_presentation_test.dart` and
+`trends_average_comparison_test.dart`.
 
 The selected-period category breakdown uses the selected period, kind and level. The projection explicitly maps the
 settings `BreakdownLevel` to the analysis `BreakdownLevel`. A failed breakdown read gives the error

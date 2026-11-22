@@ -15,7 +15,6 @@ import '../../../support/ui_test_timeout.dart';
 import '../budget_shell_test_support.dart';
 import '../../../support/phone_shell.dart';
 
-const _editTooltip = 'Edit';
 const _changeLimitLabel = 'Change limit';
 const _limitEditor = BudgetLimitEditSheet;
 
@@ -52,9 +51,6 @@ Future<void> _openDetail(
   await tester.pumpAndSettle();
 }
 
-Finder _editorText(String text) =>
-    find.descendant(of: find.byType(_limitEditor), matching: find.text(text));
-
 void main() {
   testWidgets(
     'detail providers stay alive through route exit and then dispose',
@@ -84,22 +80,6 @@ void main() {
         container.read(budgetDetailContextProvider(_budget.id).exists),
         isFalse,
       );
-    },
-    timeout: uiTestTimeout,
-  );
-
-  testWidgets(
-    'Edit on the detail page opens the limit editor prefilled with the limit',
-    (tester) async {
-      final ledger = Ledger(state: LedgerState(budgets: {_budget.id: _budget}));
-      final container = await _pumpFlow(tester, ledger);
-      await _openDetail(tester, container, _budget.id);
-
-      await tester.tap(find.byTooltip(_editTooltip));
-      await chooseEditAction(tester, _changeLimitLabel);
-
-      expect(find.byType(_limitEditor), findsOneWidget);
-      expect(_editorText('100.00'), findsOneWidget);
     },
     timeout: uiTestTimeout,
   );

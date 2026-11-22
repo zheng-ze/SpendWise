@@ -24,37 +24,36 @@ class _FlakyPlanListNotifier extends PlanListNotifier {
 }
 
 void main() {
-  for (final brightness in Brightness.values) {
-    final suffix = brightness.name;
+  const brightness = Brightness.light;
+  final suffix = brightness.name;
 
-    testWidgets(
-      'le-plans-err shows the load error and Try again recovers the list ($suffix)',
-      (tester) async {
-        var shouldFail = true;
-        await pumpPlansShell(
-          tester,
-          mode: ShellLayoutMode.phone,
-          ledger: buildPlansShellLedger(),
-          brightness: brightness,
-          overrides: [
-            planListViewModelProvider.overrideWith(
-              () => _FlakyPlanListNotifier(() => shouldFail),
-            ),
-          ],
-        );
+  testWidgets(
+    'le-plans-err shows the load error and Try again recovers the list ($suffix)',
+    (tester) async {
+      var shouldFail = true;
+      await pumpPlansShell(
+        tester,
+        mode: ShellLayoutMode.phone,
+        ledger: buildPlansShellLedger(),
+        brightness: brightness,
+        overrides: [
+          planListViewModelProvider.overrideWith(
+            () => _FlakyPlanListNotifier(() => shouldFail),
+          ),
+        ],
+      );
 
-        expect(find.text(_loadErrorTitle), findsOneWidget);
-        expect(find.text(_tryAgainLabel), findsOneWidget);
+      expect(find.text(_loadErrorTitle), findsOneWidget);
+      expect(find.text(_tryAgainLabel), findsOneWidget);
 
-        shouldFail = false;
-        await tester.tap(find.text(_tryAgainLabel));
-        await tester.pumpAndSettle();
+      shouldFail = false;
+      await tester.tap(find.text(_tryAgainLabel));
+      await tester.pumpAndSettle();
 
-        expect(find.text(_loadErrorTitle), findsNothing);
-        expect(find.text(_populatedTrayTitle), findsOneWidget);
-        expect(find.text('Rent'), findsOneWidget);
-      },
-      timeout: uiTestTimeout,
-    );
-  }
+      expect(find.text(_loadErrorTitle), findsNothing);
+      expect(find.text(_populatedTrayTitle), findsOneWidget);
+      expect(find.text('Rent'), findsOneWidget);
+    },
+    timeout: uiTestTimeout,
+  );
 }

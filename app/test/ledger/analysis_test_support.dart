@@ -76,13 +76,3 @@ void silenceDebugPrint() {
   debugPrint = (String? message, {int? wrapWidth}) {};
   addTearDown(() => debugPrint = original);
 }
-
-Future<void> withSilencedDebugPrint(Future<void> Function() body) async {
-  final original = debugPrint;
-  debugPrint = (String? message, {int? wrapWidth}) {};
-  try {
-    await body();
-  } finally {
-    debugPrint = original;
-  }
-}

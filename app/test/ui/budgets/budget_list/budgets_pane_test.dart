@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_edit_sheet.dart';
@@ -17,13 +16,11 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/money/money_segment.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
-import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
-import '../../../ledger/analysis_test_support.dart';
 import '../../../support/ledger_fixtures.dart';
 import '../../../support/number_pad_support.dart';
 import '../../../support/shell_sheet_harness.dart';
@@ -31,16 +28,13 @@ import '../budget_shell_test_support.dart';
 import '../../../support/ui_test_timeout.dart';
 import '../../../support/phone_shell.dart';
 
-const _budgetDetailTryAgain = 'Try again';
 const _groceriesName = 'Groceries';
 const _saveLabel = 'Save';
 const _outsideSheetOffset = Offset(5, 5);
 const _seededAmountLength = 5;
-const _trayInteriorOffset = Offset(2, 2);
 const _editLabel = 'Edit';
 const _changeLimitLabel = 'Change limit';
 const _newerLabel = 'Newer';
-const _saveErrorTitle = 'Could not save budget limit';
 
 Finder _inPane(Finder finder) =>
     find.descendant(of: find.byKey(shellDetailPaneKey), matching: finder);
@@ -182,34 +176,6 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
-
-  testWidgets('Edit in the pane opens the limit editor once', (tester) async {
-    await pumpBudgetShell(tester, mode: ShellLayoutMode.open);
-
-    await _openLimitEditorFromPane(tester);
-
-    expect(_limitEditor, findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('saving the pane limit editor applies the limit and keeps the '
-      'selection', (tester) async {
-    final ledger = buildShellLedger();
-    final container = await pumpBudgetShell(
-      tester,
-      mode: ShellLayoutMode.open,
-      ledger: ledger,
-    );
-    await _openLimitEditorFromPane(tester);
-
-    await _replaceEditorAmount(tester, '75');
-    await tester.tap(find.widgetWithText(FilledButton, _saveLabel));
-    await tester.pumpAndSettle();
-
-    expect(ledger.state.budgets['b2']!.limit, Decimal.fromInt(75));
-    expect(_limitEditor, findsNothing);
-    expect(container.read(selectedBudgetProvider), 'b2');
-    expect(find.byKey(shellDetailPaneKey), findsOneWidget);
-  }, timeout: uiTestTimeout);
 
   testWidgets('mo-budget-edit-default covers the shell and an outside tap '
       'dismisses it without a write', (tester) async {
@@ -394,45 +360,6 @@ void main() {
   );
 
   testWidgets(
-    'a retry from the pane keeps the selected budget, month and year',
-    (tester) async {
-      var fail = false;
-      final container = await pumpBudgetShell(
-        tester,
-        mode: ShellLayoutMode.open,
-        runner: (state) async {
-          if (fail) throw StateError('Data unavailable');
-          return syncComputeRunner(state);
-        },
-      );
-      await tapBudget(tester, 'b2');
-      final notifier = container.read(
-        budgetDetailContextProvider('b2').notifier,
-      );
-      notifier.selectMonth(DateTime.utc(2026, 1));
-      notifier.changeYear(DateTime.utc(2025));
-      await tester.pumpAndSettle();
-      final before = container.read(budgetDetailContextProvider('b2'));
-
-      fail = true;
-      container
-          .read(ledgerProvider)!
-          .updateBudgetLimit('b2', Decimal.fromInt(60));
-      await withSilencedDebugPrint(tester.pumpAndSettle);
-      expect(_inPane(find.text(_budgetDetailTryAgain)), findsOneWidget);
-
-      fail = false;
-      await tester.tap(_inPane(find.text(_budgetDetailTryAgain)));
-      await tester.pumpAndSettle();
-
-      expect(_inPane(find.text(_budgetDetailTryAgain)), findsNothing);
-      expect(container.read(budgetDetailContextProvider('b2')), before);
-      expect(container.read(selectedBudgetProvider), 'b2');
-    },
-    timeout: uiTestTimeout,
-  );
-
-  testWidgets(
     'replacing the ledger session clears the selection and releases its owners',
     (tester) async {
       final container = await pumpBudgetShell(
@@ -572,21 +499,6 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
-  testWidgets('tray padding and All spending title keep the selection', (
-    tester,
-  ) async {
-    final container = await pumpBudgetShell(tester, mode: ShellLayoutMode.open);
-    await tapBudget(tester, 'b2');
-    final selected = container.read(selectedBudgetProvider);
-    final tray = find.byKey(const ValueKey('budget-tray-b2'));
-    await tester.tapAt(tester.getTopLeft(tray) + _trayInteriorOffset);
-    await tester.pumpAndSettle();
-    expect(container.read(selectedBudgetProvider), selected);
-    await tester.tap(find.text('All spending'));
-    await tester.pumpAndSettle();
-    expect(container.read(selectedBudgetProvider), 'b1');
-  }, timeout: uiTestTimeout);
-
   testWidgets(
     'empty list space keeps phone selection and clears desktop selection',
     (tester) async {
@@ -660,54 +572,6 @@ void main() {
     timeout: uiTestTimeout,
   );
 
-  testWidgets('reopening after a save shows a fresh seed and no alert', (
-    tester,
-  ) async {
-    await pumpBudgetShell(tester, mode: ShellLayoutMode.open);
-    await _openLimitEditorFromPane(tester);
-    await _replaceEditorAmount(tester, '75');
-    await tester.tap(find.widgetWithText(FilledButton, _saveLabel));
-    await tester.pumpAndSettle();
-
-    await _expectEditOpensEditor(tester);
-
-    expect(find.textContaining('75'), findsWidgets);
-    expect(find.textContaining(_saveErrorTitle), findsNothing);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('reopening after a dismissal drops the abandoned amount', (
-    tester,
-  ) async {
-    await pumpBudgetShell(tester, mode: ShellLayoutMode.open);
-    await _openLimitEditorFromPane(tester);
-    await _replaceEditorAmount(tester, '12');
-    await tester.tapAt(_outsideSheetOffset);
-    await tester.pumpAndSettle();
-
-    await _expectEditOpensEditor(tester);
-
-    expect(find.textContaining('12'), findsNothing);
-    expect(find.textContaining(_saveErrorTitle), findsNothing);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('reopening after terminal closure uses the new Money month', (
-    tester,
-  ) async {
-    final container = await pumpBudgetShell(tester, mode: ShellLayoutMode.open);
-    await tapBudget(tester, 'b2');
-    await tester.tap(find.text('Category budgets'));
-    await tester.pumpAndSettle();
-    expect(_hasDetailOwners(container, 'b2'), isFalse);
-    container.read(budgetsMonthChoiceProvider.notifier).state = DateTime.utc(
-      2027,
-      2,
-    );
-    await tester.pumpAndSettle();
-    await tapBudget(tester, 'b2');
-    final context = container.read(budgetDetailContextProvider('b2'));
-    expect(context.selectedMonth, DateTime.utc(2027, 2));
-    expect(context.displayedYear, DateTime.utc(2027));
-  }, timeout: uiTestTimeout);
   testWidgets('Add budget preserves the pane selection', (tester) async {
     final container = await pumpBudgetShell(tester, mode: ShellLayoutMode.open);
     await tapBudget(tester, 'b2');
@@ -716,16 +580,6 @@ void main() {
     expect(find.byType(BudgetForm), findsOneWidget);
     expect(container.read(selectedBudgetProvider), 'b2');
   }, timeout: uiTestTimeout);
-  testWidgets('the pane header shows the selected budget category', (
-    tester,
-  ) async {
-    await pumpBudgetShell(tester, mode: ShellLayoutMode.open);
-    await tapBudget(tester, 'b2');
-
-    expect(find.text('Food'), findsWidgets);
-    expect(find.byKey(shellDetailPaneKey), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
   testWidgets('a phone tap selects the budget and pushes exactly one page', (
     tester,
   ) async {

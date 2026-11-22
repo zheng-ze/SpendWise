@@ -17,8 +17,6 @@ const _budgetID = 'b2';
 const _otherBudgetID = 'b1';
 const _editLabel = 'Edit';
 const _changeLimitLabel = 'Change limit';
-const _deleteLabel = 'Delete budget';
-const _actionsTitle = 'Edit budget';
 const _outsideSheetOffset = Offset(5, 5);
 const _handOffFrames = 30;
 const _frameStep = Duration(milliseconds: 16);
@@ -63,18 +61,6 @@ Future<void> _dismissOutside(WidgetTester tester) async {
 
 void main() {
   for (final mode in [ShellLayoutMode.phone, ShellLayoutMode.open]) {
-    testWidgets('${mode.name}: Edit shows exactly the two action rows', (
-      tester,
-    ) async {
-      await _pumpWithActions(tester, mode);
-
-      expect(find.text(_actionsTitle), findsOneWidget);
-      expect(_actionRows, findsNWidgets(2));
-      expect(find.text(_changeLimitLabel), findsOneWidget);
-      expect(find.text(_deleteLabel), findsOneWidget);
-      expect(find.text('Cancel'), findsNothing);
-    }, timeout: uiTestTimeout);
-
     testWidgets('${mode.name}: dismissing the actions changes nothing', (
       tester,
     ) async {

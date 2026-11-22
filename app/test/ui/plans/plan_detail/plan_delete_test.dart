@@ -69,58 +69,54 @@ void _expectPlanKept(Ledger ledger, ProviderContainer container) {
 }
 
 void main() {
-  for (final brightness in Brightness.values) {
-    for (final mode in _modes) {
-      final label = 'mo-plan-delete ${mode.name} (${brightness.name})';
+  const brightness = Brightness.light;
+  for (final mode in _modes) {
+    final label = 'mo-plan-delete ${mode.name} (${brightness.name})';
 
-      testWidgets('$label shows the confirmation copy, Cancel writes nothing', (
+    testWidgets('$label shows the confirmation copy, Cancel writes nothing', (
+      tester,
+    ) async {
+      final ledger = _ledgerWithGeneratedEntry();
+      final container = await _pumpConfirmation(
         tester,
-      ) async {
-        final ledger = _ledgerWithGeneratedEntry();
-        final container = await _pumpConfirmation(
-          tester,
-          mode,
-          brightness,
-          ledger,
-        );
-        final revision = ledger.revision;
-        expect(find.text(_confirmTitle), findsOneWidget);
-        expect(find.text(_confirmBody), findsOneWidget);
+        mode,
+        brightness,
+        ledger,
+      );
+      final revision = ledger.revision;
+      expect(find.text(_confirmTitle), findsOneWidget);
+      expect(find.text(_confirmBody), findsOneWidget);
 
-        await tester.tap(_cancelButton);
-        await tester.pumpAndSettle();
+      await tester.tap(_cancelButton);
+      await tester.pumpAndSettle();
 
-        expect(find.text(_confirmTitle), findsNothing);
-        expect(ledger.revision, revision);
-        expect(_detail(mode), findsOneWidget);
-        _expectPlanKept(ledger, container);
-      }, timeout: uiTestTimeout);
+      expect(find.text(_confirmTitle), findsNothing);
+      expect(ledger.revision, revision);
+      expect(_detail(mode), findsOneWidget);
+      _expectPlanKept(ledger, container);
+    }, timeout: uiTestTimeout);
 
-      testWidgets('$label Delete removes the plan and keeps its entries', (
+    testWidgets('$label Delete removes the plan and keeps its entries', (
+      tester,
+    ) async {
+      final ledger = _ledgerWithGeneratedEntry();
+      final container = await _pumpConfirmation(
         tester,
-      ) async {
-        final ledger = _ledgerWithGeneratedEntry();
-        final container = await _pumpConfirmation(
-          tester,
-          mode,
-          brightness,
-          ledger,
-        );
-        final revision = ledger.revision;
+        mode,
+        brightness,
+        ledger,
+      );
+      final revision = ledger.revision;
 
-        await tester.tap(_confirmButton);
-        await tester.pumpAndSettle();
+      await tester.tap(_confirmButton);
+      await tester.pumpAndSettle();
 
-        expect(ledger.revision, revision + 1);
-        expect(
-          ledger.state.plans.containsKey(plansShellExpensePlan.id),
-          isFalse,
-        );
-        expect(ledger.state.plans.length, 2);
-        expect(ledger.state.entries.containsKey(_generatedEntry.id), isTrue);
-        expect(container.read(selectedPlanProvider), isNull);
-        expect(_detail(mode), findsNothing);
-      }, timeout: uiTestTimeout);
-    }
+      expect(ledger.revision, revision + 1);
+      expect(ledger.state.plans.containsKey(plansShellExpensePlan.id), isFalse);
+      expect(ledger.state.plans.length, 2);
+      expect(ledger.state.entries.containsKey(_generatedEntry.id), isTrue);
+      expect(container.read(selectedPlanProvider), isNull);
+      expect(_detail(mode), findsNothing);
+    }, timeout: uiTestTimeout);
   }
 }

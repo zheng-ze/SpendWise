@@ -431,8 +431,7 @@ a failed lazy connection. Source: `app/lib/boot/providers.dart` - provider defin
 button that resets phase to `loading` and re-runs the whole boot). The Loading and Failed states
 use the theme background, mount no shell navigation or destination Flows, and keep raw errors out
 of the UI. The Failed content scrolls on short windows. `BootChrome` logs the raw error through
-`debugPrint` for diagnostics (`app/lib/ui/shell/boot_chrome.dart`,
-`app/test/ui/shell/boot_chrome_test.dart`).
+`debugPrint` for diagnostics (`app/lib/ui/shell/boot_chrome.dart`).
 
 ## Lifecycle hooks
 

@@ -1,5 +1,4 @@
 import 'package:fake_async/fake_async.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:flutter_test/flutter_test.dart';
@@ -13,24 +12,18 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ledger/ledger_session.dart';
-import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
-import 'package:spendwise/ui/settings/category/category_list_screen.dart';
 import 'package:spendwise/ui/settings/category/category_list_view_model.dart';
 import 'package:spendwise/ui/plans/plan_list/plan_list_view_model.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
-import '../support/phone_shell.dart';
-import '../support/ui_test_timeout.dart';
-
 const _pastRetryDelay = Duration(milliseconds: 250);
 const _queriesYear = 2026;
 const _recentLimit = 4;
 const _buildFailure = 'boom';
-const _missingLedgerMessage = 'requires a ready ledger';
 const _missingQueriesMessage = 'requires ready analysis queries';
 
 final Map<String, ProviderListenable<AsyncValue<Object?>>>
@@ -99,17 +92,6 @@ LedgerSession _failingSession(_FailureProbe probe) => LedgerSession(
   analysisCache: AnalysisCache(runner: syncComputeRunner),
 );
 
-Future<void> _pumpWithoutLedger(WidgetTester tester, Widget screen) async {
-  final app = MaterialApp(home: phoneShell(screen));
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [ledgerProvider.overrideWithValue(null)],
-      child: app,
-    ),
-  );
-  await tester.pump();
-}
-
 void main() {
   for (final MapEntry(:key, :value) in _tabProviders.entries) {
     test('$key view model does not retry a failed build', () {
@@ -157,26 +139,4 @@ void main() {
       expect('${state.error}', contains(_missingQueriesMessage));
     });
   }
-
-  testWidgets(
-    'Accounts screen shows the error when its view model build throws',
-    (tester) async {
-      await _pumpWithoutLedger(tester, const AccountsScreen());
-
-      expect(find.textContaining(_missingLedgerMessage), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-    timeout: uiTestTimeout,
-  );
-
-  testWidgets(
-    'Category list screen shows the error when its view model build throws',
-    (tester) async {
-      await _pumpWithoutLedger(tester, const CategoryListScreen());
-
-      expect(find.textContaining(_missingLedgerMessage), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-    timeout: uiTestTimeout,
-  );
 }

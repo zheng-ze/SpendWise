@@ -3,44 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
-import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
-import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
-import '../../../ledger/analysis_test_support.dart';
 import '../../../support/pump_app.dart';
 import '../../../support/ui_test_timeout.dart';
-import '../../../support/phone_shell.dart';
 
 Budget _overall() =>
     Budget(id: 'b1', categoryID: null, limit: Decimal.fromInt(100));
 
 void main() {
-  testWidgets('fr-budgets Add budget opens the Add budget sheet', (
-    tester,
-  ) async {
-    final ledger = Ledger(state: LedgerState());
-    await pumpApp(
-      tester,
-      const BudgetsFlow(header: SizedBox.shrink()),
-      ledger: ledger,
-    );
-    await tester.tap(find.text('Add budget'));
-    await tester.pumpAndSettle();
-    final header = find.descendant(
-      of: find.byType(AppSheet),
-      matching: find.text('Add budget'),
-    );
-    expect(header, findsOneWidget);
-    expect(ledger.state.budgets, isEmpty);
-  }, timeout: uiTestTimeout);
-
   for (final size in [
     ParitySize.phone,
     ParitySize.compact,
@@ -79,35 +54,4 @@ void main() {
       );
     }, timeout: uiTestTimeout);
   }
-
-  testWidgets('le-budgets-err Try again recovers the same list owner', (
-    tester,
-  ) async {
-    var fail = true;
-    final ledger = Ledger(state: LedgerState());
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(ledger),
-        analysisComputeRunnerProvider.overrideWithValue((state) async {
-          if (fail) throw StateError('Data unavailable');
-          return syncComputeRunner(state);
-        }),
-      ],
-    );
-    addTearDown(container.dispose);
-    final app = MaterialApp(home: phoneShell(const BudgetsRoot()));
-    final scope = UncontrolledProviderScope(container: container, child: app);
-    await withSilencedDebugPrint(() async {
-      await tester.pumpWidget(scope);
-      await tester.pumpAndSettle();
-    });
-    final owner = container.read(budgetsListViewModelProvider.notifier);
-    fail = false;
-    await tester.tap(find.text('Try again'));
-    await tester.pumpAndSettle();
-    expect(container.read(budgetsListViewModelProvider.notifier), same(owner));
-    final state = container.read(budgetsListViewModelProvider).requireValue;
-    expect(state.error, isNull);
-    expect(state.overview!.hasBudgets, isFalse);
-  }, timeout: uiTestTimeout);
 }

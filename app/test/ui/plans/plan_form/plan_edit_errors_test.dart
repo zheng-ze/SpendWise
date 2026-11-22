@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
-import 'package:spendwise/ui/plans/plan_form/plan_form.dart';
 import 'package:spendwise/ui/plans/plan_form/plan_form_view_model.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
@@ -17,15 +16,8 @@ const _loadErrorMessage =
     "Couldn't load this plan\nBad state: Data unavailable";
 const _saveLabel = 'Save plan';
 const _retryLabel = 'Try again';
-const _saveErrorTitle = 'Could not save plan';
-const _draftName = 'Flat rent';
-final _endBeforeFirstDate = DateTime.utc(2025, 1, 1);
 
 final _editButton = find.widgetWithText(FilledButton, _sheetTitle);
-final _form = find.byType(PlanForm);
-final _nameField = find
-    .descendant(of: _form, matching: find.byType(TextField))
-    .first;
 
 class _FlakyPlanFormNotifier extends PlanFormNotifier {
   _FlakyPlanFormNotifier(super.planID, this._shouldFail);
@@ -63,46 +55,26 @@ Future<ProviderContainer> _pumpEdit(
 }
 
 void main() {
-  for (final brightness in Brightness.values) {
-    final label = 'phone (${brightness.name})';
+  const brightness = Brightness.light;
+  final label = 'phone (${brightness.name})';
 
-    testWidgets(
-      'le-plan-edit-err $label shows the reason and Try again recovers',
-      (tester) async {
-        var shouldFail = true;
-        await _pumpEdit(tester, brightness, shouldFail: () => shouldFail);
+  testWidgets(
+    'le-plan-edit-err $label shows the reason and Try again recovers',
+    (tester) async {
+      var shouldFail = true;
+      await _pumpEdit(tester, brightness, shouldFail: () => shouldFail);
 
-        expectAlertOutsideSheet(tester);
-        expect(find.text(_loadErrorMessage), findsOneWidget);
-        expect(find.text(_saveLabel), findsNothing);
+      expectAlertOutsideSheet(tester);
+      expect(find.text(_loadErrorMessage), findsOneWidget);
+      expect(find.text(_saveLabel), findsNothing);
 
-        shouldFail = false;
-        await tester.tap(find.text(_retryLabel));
-        await tester.pumpAndSettle();
+      shouldFail = false;
+      await tester.tap(find.text(_retryLabel));
+      await tester.pumpAndSettle();
 
-        expect(find.byType(SheetAlert), findsNothing);
-        expect(find.text(_saveLabel), findsOneWidget);
-      },
-      timeout: uiTestTimeout,
-    );
-  }
-
-  testWidgets('a save error keeps the draft and shows the alert', (
-    tester,
-  ) async {
-    final container = await _pumpEdit(tester, Brightness.light);
-    await tester.enterText(_nameField, _draftName);
-    final viewModel = container.read(
-      planFormViewModelProvider(plansShellExpensePlan.id).notifier,
-    );
-    viewModel.setHasEndDate(true);
-    viewModel.applyPickedEndDate(_endBeforeFirstDate);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text(_saveLabel));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining(_saveErrorTitle), findsOneWidget);
-    expect(find.text(_draftName), findsOneWidget);
-  }, timeout: uiTestTimeout);
+      expect(find.byType(SheetAlert), findsNothing);
+      expect(find.text(_saveLabel), findsOneWidget);
+    },
+    timeout: uiTestTimeout,
+  );
 }

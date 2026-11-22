@@ -157,7 +157,7 @@ for that entry id (the Edit entry sheet) and a swipe that deletes through the li
 exists in the live state is skipped. The shared `EntryRow` is not involved. Rows use the original
 transaction presentation, so a transfer can display its original positive amount while contributing
 to a negative expense day total. (`budget_counted_entry_list.dart`,
-`app/test/ui/budgets/budget_detail/budget_detail_rows_test.dart`)
+`app/test/ui/budgets/budget_detail/budget_detail_view_model_test.dart`)
 
 ## Provider and subscription lifetime
 

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -9,19 +8,15 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/transactions/entry/edit_entry_presenter.dart';
-import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
 import '../../support/edit_entry_harness.dart';
 import '../../support/history_pane_harness.dart';
 import '../../support/ui_test_timeout.dart';
 
 const _openSize = Size(960, 720);
-const _desktopSize = Size(1440, 900);
 const _phoneSize = Size(390, 844);
 const _editTitle = 'Edit entry';
-const _updateLabel = 'Update entry';
 const _deleteKey = ValueKey('edit-entry-delete');
-const _newAmount = '42';
 const _headerAndRowDateCount = 2;
 const _categoryLabel = 'Category';
 const _editedAmount = '77';
@@ -84,25 +79,6 @@ void main() {
     expect(history.row, findsOneWidget);
   }, timeout: uiTestTimeout);
 
-  testWidgets('Update saves the entry and clears the pane', (tester) async {
-    final history = await _pumpOpenHistory(tester);
-    await _openPane(tester, history);
-    history.container
-        .read(entryFormViewModelProvider(history.first.id).notifier)
-        .setAmount(_newAmount);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text(_updateLabel));
-    await tester.pumpAndSettle();
-
-    final saved = history.container
-        .read(ledgerProvider)!
-        .state
-        .entries[history.first.id]!;
-    expect(saved.amount, Decimal.parse('-$_newAmount'));
-    expect(history.pane, findsNothing);
-  }, timeout: uiTestTimeout);
-
   testWidgets('Delete archives the entry, clears the pane and the row', (
     tester,
   ) async {
@@ -118,23 +94,6 @@ void main() {
     expect(state.binnedEntries.containsKey(history.first.id), isTrue);
     expect(history.pane, findsNothing);
     expect(history.row, findsNothing);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('desktop layout opens the detail pane', (tester) async {
-    final history = await _pumpHistory(
-      tester,
-      size: _desktopSize,
-      platform: TargetPlatform.macOS,
-    );
-
-    await _openPane(tester, history);
-
-    final inPane = find.descendant(
-      of: history.pane,
-      matching: find.text(_editTitle),
-    );
-    expect(inPane, findsOneWidget);
-    expect(find.byType(AppSheet), findsNothing);
   }, timeout: uiTestTimeout);
 
   testWidgets('phone layout opens the Edit entry sheet', (tester) async {

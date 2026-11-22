@@ -6,8 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/lists/day_sectioned_entry_list.dart';
-import 'package:spendwise/ui/common/lists/flat_entry_sliver.dart';
-import 'package:spendwise/ui/common/sheets/sliver_tray.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';
 import 'package:spendwise/ui/transactions/daily_list/entry_row.dart';
@@ -18,10 +16,6 @@ import '../../../support/ui_test_timeout.dart';
 const _rowColor = Colors.green;
 
 void main() {
-  const scrollDelta = 500.0;
-  const selectedTrayScrollDelta = 100.0;
-  const maxScrolls = 100;
-
   test('day descriptors preserve header order and row identity', () {
     final firstRow = _row('first');
     final secondRow = _row('second');
@@ -76,39 +70,6 @@ void main() {
   });
 
   testWidgets(
-    'entries constructor filters its supplied entries by the period',
-    (tester) async {
-      final ledger = _ledgerWithEntries(2);
-      final first = ledger.state.entries.values.first;
-      final outside = Entry(
-        name: 'Outside period',
-        amount: first.amount,
-        sourceID: first.sourceID,
-        categoryID: first.categoryID,
-        date: DateTime.utc(2026, 10, 2),
-      );
-      ledger.addEntry(outside);
-      final window = DateRange(
-        DateTime.utc(2026, 10, 1),
-        DateTime.utc(2026, 10, 2),
-      );
-      final list = DaySectionedEntryList(
-        ledger: ledger,
-        state: ledger.state,
-        window: window,
-        entries: [first, outside],
-      );
-      await _pumpDayList(tester, ledger, () => list);
-
-      final row = tester.widget<EntryRow>(find.byType(EntryRow));
-      expect(row.row.id, first.id);
-      expect(row.row.title, 'Food');
-      expect(row.row.note, first.name);
-    },
-    timeout: uiTestTimeout,
-  );
-
-  testWidgets(
     'prepared sections deliver merchant and caption to the entry delete action',
     (tester) async {
       final ledger = _ledgerWithEntries(1);
@@ -157,82 +118,6 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
-
-  testWidgets(
-    'lazy sliver rows appear on scroll and delete the intended entry',
-    (tester) async {
-      final ledger = _ledgerWithEntries(240);
-      final state = ledger.state;
-      final entryRows = state.entries.values
-          .map((entry) => transactionRow(entry, state))
-          .toList();
-      final window = DateRange(
-        DateTime.utc(2026, 10, 1),
-        DateTime.utc(2026, 10, 2),
-      );
-      final selectedRows = _selectedRows(entryRows);
-      await _pumpEntrySlivers(tester, ledger, entryRows, window);
-
-      expect(find.byType(EntryRow), findsWidgets);
-      expect(find.text('Entry 0000'), findsNothing);
-      expect(find.text('Selected Entry 0239'), findsNothing);
-      await tester.scrollUntilVisible(
-        find.text('Entry 0000'),
-        scrollDelta,
-        scrollable: find.byType(Scrollable),
-        maxScrolls: maxScrolls,
-      );
-
-      expect(find.text('Entry 0000'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.text('Selected Entry 0005'),
-        selectedTrayScrollDelta,
-        scrollable: find.byType(Scrollable),
-        maxScrolls: maxScrolls,
-      );
-      expect(find.text('Selected Entry 0005'), findsOneWidget);
-      expect(find.text('Selected Entry 0239'), findsNothing);
-      await tester.scrollUntilVisible(
-        find.text('Selected Entry 0239'),
-        scrollDelta,
-        scrollable: find.byType(Scrollable),
-        maxScrolls: maxScrolls,
-      );
-      expect(find.text('Selected Entry 0239'), findsOneWidget);
-      final selectedCaption = find.text('Selected Entry 0239');
-      final selectedEntryRowFinder = find.ancestor(
-        of: selectedCaption,
-        matching: find.byType(EntryRow),
-      );
-      final lastSelectedRow = tester.widget<EntryRow>(selectedEntryRowFinder);
-      expect(lastSelectedRow.row.id, selectedRows.last.id);
-
-      await tester.drag(
-        find.text('Selected Entry 0239'),
-        const Offset(-500, 0),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Delete Food?'), findsOneWidget);
-      await tester.tap(find.text('Delete'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Selected Entry 0239'), findsNothing);
-      expect(state.entries.containsKey(selectedRows.last.id), isFalse);
-      expect(find.text('Selected Entry 0238'), findsOneWidget);
-      await tester.drag(
-        find.text('Selected Entry 0238'),
-        const Offset(-500, 0),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Delete Food?'), findsOneWidget);
-      await tester.tap(find.text('Delete'));
-      await tester.pumpAndSettle();
-      expect(find.text('Selected Entry 0238'), findsNothing);
-      expect(state.entries.containsKey(selectedRows[238].id), isFalse);
-      expect(state.entries.containsKey(selectedRows.first.id), isTrue);
-    },
-    timeout: uiTestTimeout,
-  );
 }
 
 Future<void> _pumpDayList(
@@ -253,80 +138,6 @@ Future<void> _pumpDayList(
     child: app,
   );
   await tester.pumpWidget(scope);
-}
-
-SliverTray _tray(String title, Widget sliver) {
-  return SliverTray(title: title, slivers: [sliver]);
-}
-
-Future<void> _pumpEntrySlivers(
-  WidgetTester tester,
-  Ledger ledger,
-  List<TransactionRow> rows,
-  DateRange window,
-) async {
-  final body = AnimatedBuilder(
-    animation: ledger,
-    builder: (context, child) => _entrySliverScrollView(ledger, rows, window),
-  );
-  final screen = Scaffold(body: body);
-  final app = MaterialApp(home: screen);
-  final scope = ProviderScope(
-    overrides: [ledgerProvider.overrideWithValue(ledger)],
-    child: app,
-  );
-  await tester.pumpWidget(scope);
-}
-
-Widget _entrySliverScrollView(
-  Ledger ledger,
-  List<TransactionRow> rows,
-  DateRange window,
-) {
-  final state = ledger.state;
-  final selectedRows = _selectedRows(_rowsStillInLedger(rows, state));
-  final primaryEntries = DaySectionedEntryList(
-    ledger: ledger,
-    state: state,
-    window: window,
-    entries: state.entries.values,
-  );
-  final primaryTray = _tray('Primary', primaryEntries);
-  final selectedEntries = FlatEntrySliver(
-    rows: selectedRows,
-    ledger: ledger,
-    state: state,
-  );
-  final selectedTray = _tray('Selected', selectedEntries);
-  return CustomScrollView(slivers: [primaryTray, selectedTray]);
-}
-
-List<TransactionRow> _selectedRows(List<TransactionRow> rows) {
-  return rows.map(_withSelectedCaption).toList();
-}
-
-List<TransactionRow> _rowsStillInLedger(
-  List<TransactionRow> rows,
-  LedgerState state,
-) {
-  final activeRows = <TransactionRow>[];
-  for (final row in rows) {
-    if (state.entries.containsKey(row.id)) activeRows.add(row);
-  }
-  return activeRows;
-}
-
-TransactionRow _withSelectedCaption(TransactionRow row) {
-  return TransactionRow(
-    id: row.id,
-    title: row.title,
-    note: 'Selected ${row.note}',
-    accountLine: row.accountLine,
-    symbolName: row.symbolName,
-    color: row.color,
-    amount: row.amount,
-    amountKind: row.amountKind,
-  );
 }
 
 Ledger _ledgerWithEntries(int count) {

@@ -35,14 +35,6 @@ Entry editableEntry() => Entry(
   categoryID: editGroceries.id,
 );
 
-Entry openingBalanceEntry() => Entry(
-  amount: Decimal.parse('250'),
-  name: 'Opening balance',
-  sourceID: editChecking.id,
-  includeInAnalysis: false,
-  systemKind: SystemEntryKind.openingBalance,
-);
-
 Ledger editLedger(List<Entry> entries) => Ledger(
   state: LedgerState(
     moneySources: {editChecking.id: MoneySource.account(editChecking)},

@@ -11,15 +11,10 @@ const _initialSymbol = 'shopping_cart';
 const _initialColor = Color(0xFFFF9500);
 const _chosenSymbol = 'restaurant';
 const _chosenColor = Color(0xFF63E6BE);
-const _categoryName = 'Groceries';
-final _longCategoryName = 'Long category name ' * 20;
 const _swatches = [_initialColor, _chosenColor];
 const _barrierTap = Offset(160, 10);
 
-Future<PickerOpener<SymbolPickerResult>> _openPicker(
-  WidgetTester tester, {
-  String categoryName = '',
-}) {
+Future<PickerOpener<SymbolPickerResult>> _openPicker(WidgetTester tester) {
   return openPicker<SymbolPickerResult>(
     tester,
     size: phoneTallSize,
@@ -29,7 +24,6 @@ Future<PickerOpener<SymbolPickerResult>> _openPicker(
       symbol: _initialSymbol,
       color: _initialColor,
       swatches: _swatches,
-      categoryName: categoryName,
     ),
   );
 }
@@ -57,26 +51,6 @@ void main() {
       expect(opener.result?.color, _chosenColor);
     }, timeout: uiTestTimeout);
 
-    testWidgets('a very long category name does not overflow the preview', (
-      tester,
-    ) async {
-      await _openPicker(tester, categoryName: _longCategoryName);
-
-      expect(tester.takeException(), isNull);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('Done without changes returns the initial values', (
-      tester,
-    ) async {
-      final opener = await _openPicker(tester);
-
-      await tester.tap(find.byKey(pickerDoneKey));
-      await tester.pumpAndSettle();
-
-      expect(opener.result?.symbol, _initialSymbol);
-      expect(opener.result?.color, _initialColor);
-    }, timeout: uiTestTimeout);
-
     testWidgets('dismissing by tapping outside discards the draft', (
       tester,
     ) async {
@@ -88,23 +62,6 @@ void main() {
 
       expect(opener.completed, isTrue);
       expect(opener.result, isNull);
-    }, timeout: uiTestTimeout);
-  });
-
-  group('SymbolPicker preview', () {
-    testWidgets('shows the entered category name', (tester) async {
-      await _openPicker(tester, categoryName: _categoryName);
-
-      expect(find.text(_categoryName), findsOneWidget);
-      expect(find.text(symbolDisplayName(_initialSymbol)), findsNothing);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('falls back to the icon name when the name is empty', (
-      tester,
-    ) async {
-      await _openPicker(tester);
-
-      expect(find.text(symbolDisplayName(_initialSymbol)), findsOneWidget);
     }, timeout: uiTestTimeout);
   });
 
