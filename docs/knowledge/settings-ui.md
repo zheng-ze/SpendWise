@@ -71,12 +71,21 @@ colours, the insight switches, dismissed insights and the savings pocket id
 persist in SharedPreferences under the `display.v1.*` keys and stay device-local.
 `DisplayPreferences` is immutable with stable string codes, and
 decoding is total: an unknown code falls back to its default, and unknown or
-duplicate widget codes are dropped. An absent widget key loads the default
-Today, Recent entries and Coming up set, while an empty value loads an empty
-set. The snapshot loads before the first frame through
+duplicate widget codes are dropped. An absent widget key loads the four-kind
+default (`DisplayPreferences.defaults.overviewWidgets`: Today, This month,
+Recent entries and Coming up), while an empty value loads an empty list. The
+store does not replace that empty list at load. Overview and the Edit Overview
+sheet treat any stored list with no card kind (an empty list, or one holding
+only kinds without a card) as the defaults, through `overviewWidgetsOrDefault`
+in `app/lib/ui/overview/overview_slots.dart`. The snapshot loads before the
+first frame through
 `initialDisplayPreferencesProvider`; a failed read boots with defaults.
 `displayPreferencesProvider` updates state first and writes through, keeping
-the in-memory value when a write fails. `MaterialApp.themeMode` follows the
+the in-memory value when a write fails. The Edit Overview sheet, opened from the
+Overview header (`app/lib/ui/overview/overview_edit_sheet.dart`), is the writer
+of `overviewWidgets`: its Done calls `displayPreferencesProvider.replace` and is
+disabled while no card is shown, while drag-down, tap-outside and system back
+dismissal write nothing. `MaterialApp.themeMode` follows the
 stored appearance, so Dark overrides a light platform and System follows the
 platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 `app/lib/settings/display_preferences.dart`,

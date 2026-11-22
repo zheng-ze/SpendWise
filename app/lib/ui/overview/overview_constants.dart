@@ -40,6 +40,17 @@ const overviewLinkChevron = Icons.chevron_right;
 
 const overviewTitle = 'Overview';
 
+const overviewTodayTitle = 'Today';
+
+const overviewTodaySubtitle = 'Spending and daily guide';
+
+const overviewThisMonthSubtitle = 'Spent, income and net so far';
+
+const overviewRecentSubtitle = 'Your latest entries';
+
+const overviewComingUpSubtitle =
+    'Plans, entries dated ahead and statement cuts';
+
 const overviewRecentTitle = 'Recent entries';
 
 const overviewRecentEmpty = 'Your entries will appear here.';
@@ -81,3 +92,20 @@ const overviewThisMonthSpentLabel = 'Spent';
 const overviewThisMonthIncomeLabel = 'Income';
 
 const overviewThisMonthNetLabel = 'Net';
+
+const overviewEditAction = 'Edit Overview';
+
+const overviewEditDone = 'Done';
+
+const overviewEditIntro =
+    'Choose what belongs on your home. Notices stay visible when needed.';
+
+const overviewEditShownLabel = 'Shown on Overview';
+
+const overviewEditHiddenLabel = 'Hidden';
+
+const overviewEditShownHint = 'Drag a widget here to show it.';
+
+const overviewEditHiddenHint = 'Drag a widget here to hide it.';
+
+const overviewEditRestore = 'Restore default';

@@ -12,6 +12,7 @@ final _darkCustom = DisplayPreferences(
     OverviewWidgetKind.comingUp,
     OverviewWidgetKind.today,
     OverviewWidgetKind.recentEntries,
+    OverviewWidgetKind.topCategories,
   ],
 );
 
@@ -56,6 +57,7 @@ void main() {
       OverviewWidgetKind.comingUp,
       OverviewWidgetKind.today,
       OverviewWidgetKind.recentEntries,
+      OverviewWidgetKind.topCategories,
     ]);
   });
 

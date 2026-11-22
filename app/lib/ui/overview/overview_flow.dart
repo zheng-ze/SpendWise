@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/overview/overview_edit_sheet.dart';
 import 'package:spendwise/ui/overview/overview_screen.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
@@ -45,6 +46,8 @@ class _OverviewFlowState extends FlowBaseState<OverviewStep, OverviewFlow> {
         widget.onBudgetsSelected();
       case OverviewEntryRequested(:final entryId):
         unawaited(openEditEntry(context: context, ref: ref, entryId: entryId));
+      case OverviewEditOverviewRequested():
+        unawaited(openEditOverview(context));
     }
     ref.read(overviewViewModelProvider.notifier).clearStep();
   }

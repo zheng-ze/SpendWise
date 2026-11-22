@@ -6,7 +6,7 @@ Last reconciled: 2026-11-22
 
 The Overview screen renders `DisplayPreferences.overviewWidgets` in stored order, one slot per
 `OverviewWidgetKind`, below the header. `OverviewSlotGrid` reads the list through
-`displayPreferencesProvider` and lays the slots that map to a card out as a waterfall (masonry) in a
+`displayPreferencesProvider`, passes it through `overviewWidgetsOrDefault` and lays the slots that map to a card out as a waterfall (masonry) in a
 column grid. Columns, and cards stacked within a column, are separated by the named 10 dp tray gap
 (`overviewTrayGap`). The grid has one column on phone and three
 columns on open. On desktop it has three columns when the window is 1250 dp wide or more
@@ -25,10 +25,23 @@ taken in stored order. `placeOverviewCard` puts each card at the top of the shor
 two-column card takes the adjacent column pair that wastes the least space under the shorter column,
 then the lower top, then the leftmost pair. With one column every card stacks in stored order. With
 two columns each spanning card takes both columns. Only kinds that map to a card take part in
-placement. The default list is Today, This month, Recent entries and Coming up. `overviewSlotFor`
-(`overview_slots.dart`) is the single kind-to-widget mapping, an exhaustive switch with no default.
-Only `today`, `thisMonth`, `recentEntries` and `comingUp` map to a card; the other eight kinds map to
-null and render nothing, with no placeholder. A card ticket adds a kind by replacing its null arm. The screen has no edit mode or widget catalogue. With the default list no
+placement. The default list is Today, This month, Recent entries and Coming up.
+`overviewCardFor` (`overview_slots.dart`) is the single kind-to-card mapping, an exhaustive switch
+with no default. Each `OverviewCard` carries a `title`, a `subtitle` and the `build`
+function that creates the widget. Only `today`, `thisMonth`, `recentEntries` and `comingUp` map to a
+card; the other eight kinds map to null and render nothing, with no placeholder. A card ticket adds a
+kind by replacing its null arm. `overviewSlotFor` is a thin wrapper over `overviewCardFor` that returns
+the built widget, and `overviewCardKinds` lists the kinds that have a card in enum declaration order
+as the Edit Overview catalogue.
+
+Overview never renders empty. When the stored list holds no card kind, either because it is empty or
+because it holds only kinds without a card, `overviewWidgetsOrDefault` returns
+`DisplayPreferences.defaults.overviewWidgets` and the grid renders that list. A stored list with at
+least one card kind passes through unchanged, kinds without a card included. The stored value is not
+rewritten when the screen renders; it changes only when the user taps Done in Edit Overview.
+
+The header carries an 'Edit Overview' action that opens the Edit Overview sheet, described in its own
+section below. With the default list no
 section is ever blank: each section renders its own copy for an empty ledger, and a section whose
 read has not settled renders a `LoadingSkeleton`. The screen reads only through `AnalysisQueries`;
 widgets compute no totals.
@@ -41,10 +54,11 @@ widgets compute no totals.
   `OverviewThisMonth` (caption and optional figures) and `OverviewMonthFigures` (signed value strings
   and `netKind`). The view state carries an
   `OverviewStep` (`HasStep`/`StepEmitting`); `requestHistory` emits `OverviewHistoryRequested`,
-  `requestBudgets` emits `OverviewBudgetsRequested`, `openEntry` emits `OverviewEntryRequested` and
-  `clearStep` clears it. `OverviewEntryRow.entryId`
+  `requestBudgets` emits `OverviewBudgetsRequested`, `requestEditOverview` emits
+  `OverviewEditOverviewRequested`, `openEntry` emits `OverviewEntryRequested` and `clearStep` clears it. `OverviewEntryRow.entryId`
   identifies the entry a Recent row opens. Rebuilds preserve a pending step.
-- `app/lib/ui/overview/overview_screen.dart` - `OverviewScreen` and its header; the body places
+- `app/lib/ui/overview/overview_screen.dart` - `OverviewScreen` and its header, which holds the 'Edit
+  Overview' action wired to `requestEditOverview`; the body places
   `OverviewSlotGrid` under the header. `OverviewScreen` takes `layoutMode` (default phone) and
   `presentation` (default full page) and passes both to the body, so direct fixtures keep the
   single-column stored-order behavior. The Recent entries tray (`overview_recent_section.dart`)
@@ -63,8 +77,26 @@ widgets compute no totals.
   bookkeeping. Their named constants
   (column counts, spans, the 1250 dp desktop threshold and the 220 dp column floor) are in the Layout
   section of `overview_constants.dart`.
-- `app/lib/ui/overview/overview_slots.dart` - `overviewSlotFor`, the kind-to-widget switch. `thisMonth`
-  maps to `ThisMonthTray`.
+- `app/lib/ui/overview/overview_slots.dart` - `OverviewCard`, `overviewCardFor` (the single
+  kind-to-card switch carrying title, subtitle and builder), `overviewSlotFor` (a thin wrapper
+  over it), `overviewCardKinds` (the editor catalogue) and `overviewWidgetsOrDefault` (the seeding
+  rule). `thisMonth` maps to `ThisMonthTray`.
+- `app/lib/ui/overview/overview_edit_draft.dart` - `OverviewEditDraft`, the pure value class behind
+  Edit Overview, with no Flutter imports: `kinds`, `cardKinds`, `shown`, `hidden`, `canApply`,
+  `move(from, to)`, `restoreDefault` and `applyTo`.
+- `app/lib/ui/overview/overview_edit_sheet.dart` - `openEditOverview` (the presenter) and
+  `EditOverviewSheet`, which holds the draft, builds the intro, the one reorderable list and the
+  Restore default button, and applies the draft on Done. The private `_EditLayout` maps rendered
+  list indices to `OverviewEditDraft.move` indices and `_EditList` builds the flattened rendered
+  list.
+- `app/lib/ui/overview/overview_edit_rows.dart` - `OverviewEditRow` (the 48 dp grip wrapped in
+  `ReorderableDragStartListener`, the card title and the card subtitle), `OverviewEditHeading` (a
+  section heading), `OverviewEditHiddenHint` (the empty-section hint row, used for both the Shown and
+  the Hidden hint) and `OverviewEditSectionItem` with `OverviewEditSlot` (first, middle, last), which
+  draws the tray surface and the joined border around each item of a section.
+- `app/lib/ui/overview/overview_constants.dart` - the Edit Overview copy: `overviewEditShownLabel`,
+  `overviewEditHiddenLabel`, `overviewEditShownHint`, `overviewEditHiddenHint`, `overviewEditIntro`,
+  `overviewEditRestore` and `overviewEditDone`.
 - `app/lib/ui/overview/overview_this_month_section.dart` - `ThisMonthTray` (the card, with the failed,
   skeleton, empty and figures states), `ThisMonthFigures` (the Spent, Income and Net rows and the
   caption), `ThisMonthCaption` and `ThisMonthFigureRow`.
@@ -74,7 +106,8 @@ widgets compute no totals.
   padded shared `AmountText`) and `OverviewEmptyCopy` (caption-role subtext copy).
 - `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) subscribing to
   `OverviewStep` once, calling its required `onHistorySelected` callback for history requests, its
-  required `onBudgetsSelected` callback for budget requests and `openEditEntry` for entry requests.
+  required `onBudgetsSelected` callback for budget requests, `openEditOverview` for Edit Overview
+  requests and `openEditEntry` for entry requests.
   `BootChrome` supplies both callbacks (`app/lib/ui/shell/boot_chrome.dart`). It supplies its page
   through `ShellPaneHost`. Its page builder
   passes the layout mode from `ShellPaneScope` and the page presentation to `OverviewScreen`.
@@ -83,7 +116,77 @@ widgets compute no totals.
 - `app/lib/ui/transactions/daily_list/transaction_row.dart` - `transactionRow` supplies titles,
   account lines, symbols and amount kinds for entries and projected plan occurrences.
 - `app/test/ui/overview/` - view model tests, the `overview_screen_test.dart` button-to-step tests
-  (320x760), `overview_grid_placement_test.dart` and the shared fixture.
+  (320x760), `overview_grid_placement_test.dart`, `overview_slots_test.dart` (card kinds and the
+  seeding rule), `overview_edit_draft_test.dart` (the draft), `overview_edit_sheet_test.dart` (the
+  sheet's two widget cases) and the shared fixture.
+
+## Edit Overview
+
+The header's 'Edit Overview' action calls `OverviewViewModel.requestEditOverview`, which emits
+`OverviewEditOverviewRequested`. `OverviewFlow` consumes the step once, clears it and calls
+`openEditOverview` (`overview_edit_sheet.dart`). That function calls `showAppSheet` with
+`shellSheetPresentation`, so the sheet is a bottom sheet on phone and docked on open and desktop. It
+is the only entry point. The view state and the notifier do not read the widget list. While the sheet
+is up, the existing sheet occupancy shows Overview as one column behind the docked sheet, and Overview
+does not preview the draft: the grid changes only after Done.
+
+`EditOverviewSheet` holds an `OverviewEditDraft` seeded once from `overviewWidgetsOrDefault` applied
+to the stored `overviewWidgets`, so the sheet always opens with at least one shown card. Every edit
+changes only the draft. Done reads the live `displayPreferencesProvider` value, calls
+`displayPreferencesProvider.notifier.replace(draft.applyTo(current))` and closes the sheet, so other
+display preferences are never overwritten with a stale snapshot. Dragging the sheet down, tapping
+outside it and system back close it without calling `replace`, and the draft is discarded with the
+route. The header has no Cancel and no leading action. Done is a filled button that is disabled
+while the draft has no shown card (`canApply`).
+
+The draft rules:
+
+- `shown` is the part of `kinds` that has a card, in stored order. `hidden` is every card kind not
+  in `kinds`, in catalogue order (`overviewCardKinds`, enum declaration order). Hidden is not
+  reorderable.
+- `move(from, to)` takes indexes into the flattened sheet list: the shown rows, then the Hidden
+  header at index `shown.length`, then the hidden rows. `to` is the final index after removal, as
+  `ReorderableListView.onReorderItem` reports it. A move within the shown rows reorders them. A
+  shown row dropped at or past the Hidden header becomes hidden. A hidden row dropped at or above
+  the header becomes shown and lands at the drop position. Moving the header, hidden to hidden,
+  an out-of-range index and a drop where the row started change nothing.
+- Stored kinds without a card keep their exact index when shown cards are reordered: a reorder
+  writes the reordered shown subsequence back into the positions that card kinds hold. Hiding a
+  card removes it from the stored list and showing a card inserts it, so a kind without a card that
+  sits after that point shifts by one. Their relative order never changes.
+- `canApply` is true while at least one kind is shown. A saved list without a card kind would
+  render as the defaults, so Done is disabled instead of saving it. The last shown card may still be
+  dragged into Hidden.
+- Restore default sets `kinds` to `DisplayPreferences.defaults.overviewWidgets`, the four-kind
+  default, with no confirmation. It replaces the whole list, so stored kinds without a card are
+  dropped.
+
+The sheet body shows an intro, two visually distinct sections and a 'Restore default' button. Each
+section has its own heading ('Shown on Overview' and 'Hidden') and its own tray surface, and a gap
+separates the two. Each row shows a grip, the card title and the card subtitle. The Hidden section
+lists every card kind that is not shown, in fixed catalogue order. Each section has an empty-state
+hint row: 'Drag a widget here to show it.' in Shown when nothing is shown, and 'Drag a widget here to
+hide it.' in Hidden when nothing is hidden. There is no Hide action, no '+ Add' action, no 'See all
+widgets' link, no Add widgets view and no Added marker.
+
+A card is hidden or shown only by dragging its grip between the sections, and it lands at the drop
+position. The sheet is still one `ReorderableListView.builder` over one flattened rendered list:
+the Shown heading, the shown rows or the Shown hint, a spacer, the Hidden heading, then the hidden
+rows or the Hidden hint. It uses `buildDefaultDragHandles: false`, non-scrolling physics and
+shrink-wrapping. Headings, hints and the spacer are plain items that carry no drag listener, so they
+are not draggable. Each item sits in an `OverviewEditSectionItem`, whose slot decides which corners
+are rounded, so the items of one section read as one tray. The private `_EditLayout` in
+`overview_edit_sheet.dart` converts rendered indices to the draft indices described above. An item
+that is not a row (a heading, a hint or the spacer) maps to nothing, so dragging it changes
+nothing. A drop past the Hidden heading maps to the Hidden boundary, so the card becomes hidden. A
+drop onto or around the Shown hint shows the card at position 0. The draft API (`shown`, `hidden`,
+`canApply`, `move`, `restoreDefault`, `applyTo`) is unchanged by this mapping.
+
+Only the 48 dp grip target of each row is wrapped in `ReorderableDragStartListener`. A drag on the
+grip wins the gesture arena, so the sheet's drag-to-dismiss does not start, while a drag anywhere
+else on the row still reaches the sheet's dismiss physics. The drag proxy is a `Material` with the
+sheet fill (`context.colors.raised`) and a small elevation and radius. There are no Move up or Move
+down buttons.
 
 ## Module interactions
 
@@ -188,8 +291,7 @@ Overview tab and does not change the shell selection.
 - The This month card is in the default list. A stored `overviewWidgets` list without `thisMonth` hides it.
 - Very large figures (7-8 digits) can overflow at the narrowest 220 dp column with 2x text. Recent
   entries rows can overflow the same way.
-- The screen has no header actions. The gear and 'Edit Overview' of the reference frame are not
-  rendered.
+- The header has the 'Edit Overview' action. The gear of the reference frame is still not rendered.
 - Notices above the sections (save retry, plan attention) are not part of this screen. The
   shell's `StatusBanner` owns notice display.
 - The fresh-install framing of the reference ('Start with an account' tray, 'Add your first entry'
@@ -204,10 +306,24 @@ Overview tab and does not change the shell selection.
   (`app/lib/ui/common/lists/date_badge.dart`), built in `UpcomingRowContent`
   (`app/lib/ui/overview/overview_coming_up_section.dart`). Plans rows use the same badge.
 
+- The Edit Overview index mapping lives in the private `_EditLayout`, so it has no unit test. Only
+  the draft's own `move` is unit tested. Hint rows are real drop targets, but in practice a drag
+  must travel past the edge of the neighbouring section before the list reports a drop on a hint, so
+  a short drag from the last row of one section toward the other can leave the card where it was.
+- `OverviewEditHiddenHint` serves both sections, so its name describes only the Hidden use.
+
 ## Requirements
 
-- Section order is the stored `overviewWidgets` order. An empty list, or a list holding only kinds
-  without a card, shows the header only. Neither has a widget test.
+- Section order is the stored `overviewWidgets` order. A stored list with no card kind, either empty
+  or holding only kinds without a card, renders as `DisplayPreferences.defaults.overviewWidgets`
+  through `overviewWidgetsOrDefault`, so Overview never renders empty. A list with at least one card
+  kind is returned unchanged, kinds without a card included
+  (`app/test/ui/overview/overview_slots_test.dart`: 'an empty list becomes the defaults', 'a list with
+  only cardless kinds becomes the defaults', 'a list with a card kind is returned unchanged'). The
+  grid's use of the function has no widget test.
+- `overviewCardKinds` lists the kinds with a card in declaration order
+  (`app/test/ui/overview/overview_slots_test.dart`: 'overviewCardKinds lists the card kinds in
+  declaration order').
 - Recent entries never exceeds 4 and sorts newest first
   (`app/test/ui/overview/overview_view_model_test.dart`).
 - 'View History' is shown for nonempty, empty and section-loading Recent entries, and requests the
@@ -253,3 +369,33 @@ Overview tab and does not change the shell selection.
 - A stored `thisMonth` renders once in stored order, and a replaced list without it removes the card.
   This has no widget test.
 - AC6, the This month card is untappable, has no test. The owner skipped it.
+- The Edit Overview draft derives `shown` and `hidden`, moves a card within shown, hides a card by
+  moving it past the Hidden header, shows a card at its drop position, keeps kinds without a card at
+  their exact index when shown cards are reordered (and in their relative order when a card is
+  hidden or shown), reports `canApply` false when nothing is shown, restores the
+  four-kind default and applies itself to the other display preferences unchanged
+  (`app/test/ui/overview/overview_edit_draft_test.dart`, groups 'shown and hidden', 'move within
+  shown', 'move shown to hidden', 'move hidden to shown', 'moves that change nothing',
+  'restoreDefault and applyTo'). An injected fifth card kind appears in `hidden` ('an injected fifth
+  card kind appears in hidden'), which proves that a future card shows up in the editor with no
+  other edit.
+- `requestEditOverview` emits `OverviewEditOverviewRequested`, and `clearStep` clears it
+  (`app/test/ui/overview/overview_view_model_test.dart`: 'requestEditOverview emits an edit-overview
+  request that clearStep clears').
+- On phone, dragging a grip reorders the list without dismissing the sheet, and Done saves the new
+  order to `overviewWidgets`
+  (`app/test/ui/overview/overview_edit_sheet_test.dart`: 'grip drag reorders without dismissing and
+  Done saves'). Dragging a card into Hidden and then tapping outside discards the draft and leaves
+  `overviewWidgets` unchanged (same file: 'dragging a card into Hidden then tapping outside
+  discards'). Both cases assert preference values and the presence of the sheet only.
+- The sheet shows Shown and Hidden as two separate sections, each with a heading, a tray surface and
+  an empty-state hint row that is a drop target (`overviewEditShownHint`, `overviewEditHiddenHint`).
+  The rendered-to-draft index mapping in `_EditLayout`, including a drop past the Hidden heading
+  and a drop onto the Shown hint, has no unit test because the class is private.
+- These behaviors have no widget test: the docked presentation on open and desktop, the 'Edit
+  Overview' header action opening the sheet, Done disabled while nothing is shown, Restore default
+  in the sheet, the two sections and their headings and hint rows, a drag from Hidden into Shown, a
+  drag onto either hint, and the visual separation of the sections. The draft rules behind them are
+  covered by the unit tests above. Restart persistence rests on
+  `displayPreferencesProvider.notifier.replace` and the preferences store round trip
+  (`app/test/settings/display_preferences_provider_test.dart`).
