@@ -150,9 +150,10 @@ The draft rules:
   shown row dropped at or past the Hidden header becomes hidden. A hidden row dropped at or above
   the header becomes shown and lands at the drop position. Moving the header, hidden to hidden,
   an out-of-range index and a drop where the row started change nothing.
-- Stored kinds without a card keep their exact index through every move. A reorder writes the
-  reordered shown subsequence back into the positions that card kinds hold, and a shown kind
-  appears or disappears without shifting them.
+- Stored kinds without a card keep their exact index when shown cards are reordered: a reorder
+  writes the reordered shown subsequence back into the positions that card kinds hold. Hiding a
+  card removes it from the stored list and showing a card inserts it, so a kind without a card that
+  sits after that point shifts by one. Their relative order never changes.
 - `canApply` is true while at least one kind is shown. A saved list without a card kind would
   render as the defaults, so Done is disabled instead of saving it. The last shown card may still be
   dragged into Hidden.
@@ -370,7 +371,8 @@ Overview tab and does not change the shell selection.
 - AC6, the This month card is untappable, has no test. The owner skipped it.
 - The Edit Overview draft derives `shown` and `hidden`, moves a card within shown, hides a card by
   moving it past the Hidden header, shows a card at its drop position, keeps kinds without a card at
-  their exact index through every move, reports `canApply` false when nothing is shown, restores the
+  their exact index when shown cards are reordered (and in their relative order when a card is
+  hidden or shown), reports `canApply` false when nothing is shown, restores the
   four-kind default and applies itself to the other display preferences unchanged
   (`app/test/ui/overview/overview_edit_draft_test.dart`, groups 'shown and hidden', 'move within
   shown', 'move shown to hidden', 'move hidden to shown', 'moves that change nothing',
