@@ -44,20 +44,12 @@ const overviewTodayTitle = 'Today';
 
 const overviewTodaySubtitle = 'Spending and daily guide';
 
-const overviewTodayQuestion = 'What have I spent today?';
-
 const overviewThisMonthSubtitle = 'Spent, income and net so far';
-
-const overviewThisMonthQuestion = 'How does this month add up?';
 
 const overviewRecentSubtitle = 'Your latest entries';
 
-const overviewRecentQuestion = 'Did I record the right things?';
-
 const overviewComingUpSubtitle =
     'Plans, entries dated ahead and statement cuts';
-
-const overviewComingUpQuestion = 'What money dates are ahead?';
 
 const overviewRecentTitle = 'Recent entries';
 

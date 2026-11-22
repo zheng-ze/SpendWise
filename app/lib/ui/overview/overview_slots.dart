@@ -17,13 +17,11 @@ class OverviewCard {
   const OverviewCard({
     required this.title,
     required this.subtitle,
-    required this.question,
     required this.build,
   });
 
   final String title;
   final String subtitle;
-  final String question;
   final OverviewSlotBuilder build;
 }
 
@@ -31,27 +29,23 @@ OverviewCard? overviewCardFor(OverviewWidgetKind kind) => switch (kind) {
   OverviewWidgetKind.today => OverviewCard(
     title: overviewTodayTitle,
     subtitle: overviewTodaySubtitle,
-    question: overviewTodayQuestion,
     build: (viewState, viewModel) =>
         TodayTray(viewState: viewState, viewModel: viewModel),
   ),
   OverviewWidgetKind.recentEntries => OverviewCard(
     title: overviewRecentTitle,
     subtitle: overviewRecentSubtitle,
-    question: overviewRecentQuestion,
     build: (viewState, viewModel) =>
         RecentTray(rows: viewState.recent, viewModel: viewModel),
   ),
   OverviewWidgetKind.comingUp => OverviewCard(
     title: overviewComingUpTitle,
     subtitle: overviewComingUpSubtitle,
-    question: overviewComingUpQuestion,
     build: (viewState, viewModel) => ComingUpTray(rows: viewState.upcoming),
   ),
   OverviewWidgetKind.thisMonth => OverviewCard(
     title: overviewThisMonthTitle,
     subtitle: overviewThisMonthSubtitle,
-    question: overviewThisMonthQuestion,
     build: (viewState, viewModel) => ThisMonthTray(
       month: viewState.thisMonth,
       failed: viewState.thisMonthFailed,
