@@ -330,8 +330,8 @@ instance change clears selection first), and on disposal.
 
 ## Shown budget disappears
 
-When the shown budget disappears from the ledger (a purged category, a remote replay, another
-screen or device), `BudgetDetailNotifier` returns `BudgetDetailPhase.deleted`, which renders
+When the shown budget disappears from the ledger (a purged category or another
+screen), `BudgetDetailNotifier` returns `BudgetDetailPhase.deleted`, which renders
 nothing. The Flow listener on `budgetDetailViewModelProvider` sees that phase for the shown budget
 and clears the selection, so the phone page is removed and the open pane closes. No deleted page
 exists. A local delete ends the same way: `showDestructiveConfirmation` returns only after the

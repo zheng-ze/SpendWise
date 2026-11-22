@@ -123,7 +123,7 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
   when none exist or when the edited root already has children. A preset parent shows a read-only
   Inside row. The form's ledger listener clears a newly picked draft parent when it is binned or the edited
   root gains a child, and keeps the edited subcategory's unchanged stored parent even when it is
-  binned. Known limitation: if a preset parent is binned remotely while an Add
+  binned. Known limitation: if a preset parent is binned elsewhere while an Add
   subcategory form is open, Inside shows Top level but save still files the category under the binned
   parent. (`category_form_state.dart`: `eligibleParents`, `hasStaleParent`;
   `category_form_view_model.dart`: `_onLedgerChanged`)

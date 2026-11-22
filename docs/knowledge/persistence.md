@@ -34,7 +34,7 @@ Lives in `app/lib/persistence/`.
 
 ## Module interactions
 
-`PersistenceProcessor` subscribes to the `EventBus` and forwards each `LedgerPublication` to
+`PersistenceProcessor` subscribes to the `EventBus` and forwards each `List<LedgerChange>` batch to
 `store.enqueue` with the same batch boundaries and no filtering. `Ledger` publishes through the bus;
 UI never touches it. `load()` rebuilds `LedgerState` via `LedgerState.replaying(changes)`, which
 bypasses validation by design: it never calls the domain mutators, so no `LedgerError`, no invariant

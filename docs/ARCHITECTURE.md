@@ -206,7 +206,7 @@ separator input is a recorded non-goal until localization work begins.
 - `Ledger` is a `ChangeNotifier` exposed by a provider, with a public mutation API. `mutate` runs
   the corresponding domain method, checks invariants in debug builds, publishes the resulting changes
   on the event bus, then notifies listeners.
-- `EventBus` is the synchronous broadcast carrying `LedgerPublication` batches; see
+- `EventBus` is the synchronous broadcast carrying `LedgerChange` batches; see
   `docs/knowledge/ledger-runtime.md` for the contract. A cascade delete's changes still land as
   one atomic batch.
 - `AnalysisCache` is a provider that subscribes to the bus and recomputes `analysisItems` via

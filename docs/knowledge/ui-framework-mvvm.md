@@ -288,9 +288,9 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   mounted, only that destination's Flow handles Back. A Flow that must refuse Back wraps `super.build`
   in its own `PopScope`. `FlowBase` reads no shell
   providers. Add drafts are scoped to their sheet, as described in [budgets.md](budgets.md).
-- **Settings teardown** - `SettingsFlow.dispose` performs terminal cleanup only through one
-  disposal-safe microtask using the captured `ProviderContainer` and guard controller: it clears any
-  pending navigation step and never reopens a route. (`app/lib/ui/settings/settings_flow.dart`)
+- **Settings teardown** - the pending navigation step is dropped when Settings unmounts, because
+  `settingsRootViewModelProvider` is `NotifierProvider.autoDispose`.
+  (`app/lib/ui/settings/settings_root_view_model.dart`)
 
 ## Notifier conventions
 
