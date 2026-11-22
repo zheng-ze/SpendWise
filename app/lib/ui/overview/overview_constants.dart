@@ -104,6 +104,8 @@ const overviewEditShownLabel = 'Shown on Overview';
 
 const overviewEditHiddenLabel = 'Hidden';
 
+const overviewEditShownHint = 'Drag a widget here to show it.';
+
 const overviewEditHiddenHint = 'Drag a widget here to hide it.';
 
 const overviewEditRestore = 'Restore default';

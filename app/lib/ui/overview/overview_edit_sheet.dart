@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/settings/display_preferences_providers.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
-import 'package:spendwise/ui/common/lists/section_label.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
@@ -28,7 +28,13 @@ const _dragElevation = 6.0;
 
 const _dragRadius = BorderRadius.all(Radius.circular(12));
 
-const _hiddenHeaderKey = ValueKey('overview-edit-hidden-header');
+const _shownHeadingKey = ValueKey('overview-edit-shown-heading');
+
+const _shownHintKey = ValueKey('overview-edit-shown-hint');
+
+const _spacerKey = ValueKey('overview-edit-section-spacer');
+
+const _hiddenHeadingKey = ValueKey('overview-edit-hidden-heading');
 
 const _hiddenHintKey = ValueKey('overview-edit-hidden-hint');
 
@@ -117,12 +123,53 @@ class _EditBody extends StatelessWidget {
         children: [
           intro,
           const SizedBox(height: _sectionGap),
-          const SectionLabel(overviewEditShownLabel),
           _EditList(draft: draft, onChanged: onChanged),
+          const SizedBox(height: _sectionGap),
           restore,
         ],
       ),
     );
+  }
+}
+
+// MARK: - Edit Layout
+
+class _EditLayout {
+  _EditLayout(this.draft) : shown = draft.shown, hidden = draft.hidden;
+
+  final OverviewEditDraft draft;
+  final List<OverviewWidgetKind> shown;
+  final List<OverviewWidgetKind> hidden;
+
+  int get shownSlots => max(shown.length, 1);
+  int get spacerIndex => 1 + shownSlots;
+  int get hiddenHeadingIndex => spacerIndex + 1;
+  int get hiddenStart => hiddenHeadingIndex + 1;
+  int get itemCount => hiddenStart + max(hidden.length, 1);
+
+  bool isShownRow(int index) => index >= 1 && index <= shown.length;
+
+  bool isHiddenRow(int index) =>
+      index >= hiddenStart && index < hiddenStart + hidden.length;
+
+  OverviewEditDraft move(int from, int to) {
+    final draftFrom = _draftFrom(from);
+    if (draftFrom == null) return draft;
+    return draft.move(draftFrom, _draftTo(from, to));
+  }
+
+  int? _draftFrom(int from) {
+    if (isShownRow(from)) return from - 1;
+    if (isHiddenRow(from)) return shown.length + 1 + from - hiddenStart;
+    return null;
+  }
+
+  int _draftTo(int from, int to) {
+    final headingAfterRemoval =
+        hiddenHeadingIndex - (from < hiddenHeadingIndex ? 1 : 0);
+    if (to > headingAfterRemoval) return shown.length + 1;
+    final shownAfterRemoval = shown.length - (isShownRow(from) ? 1 : 0);
+    return (to - 1).clamp(0, shownAfterRemoval);
   }
 }
 
@@ -136,45 +183,54 @@ class _EditList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shown = draft.shown;
-    final hidden = draft.hidden;
-    final headerIndex = shown.length;
-    final hintIndex = headerIndex + 1;
-    final itemCount = hintIndex + (hidden.isEmpty ? 1 : hidden.length);
+    final layout = _EditLayout(draft);
 
-    Widget rowFor(OverviewWidgetKind kind, int index) {
-      return OverviewEditRow(
-        key: ValueKey(kind),
-        index: index,
-        card: overviewCardFor(kind)!,
-      );
+    Widget slotted(Key key, OverviewEditSlot slot, Widget child) {
+      return OverviewEditSectionItem(key: key, slot: slot, child: child);
+    }
+
+    Widget rowItem(OverviewWidgetKind kind, int index, bool isLast) {
+      final slot = isLast ? OverviewEditSlot.last : OverviewEditSlot.middle;
+      final row = OverviewEditRow(index: index, card: overviewCardFor(kind)!);
+      return slotted(ValueKey(kind), slot, row);
     }
 
     Widget itemAt(BuildContext context, int index) {
-      if (index < headerIndex) return rowFor(shown[index], index);
-      if (index == headerIndex) {
-        return const SectionLabel(
-          overviewEditHiddenLabel,
-          key: _hiddenHeaderKey,
-        );
+      if (index == 0) {
+        const heading = OverviewEditHeading(text: overviewEditShownLabel);
+        return slotted(_shownHeadingKey, OverviewEditSlot.first, heading);
       }
-      if (hidden.isEmpty) {
-        return const OverviewEditHiddenHint(
-          key: _hiddenHintKey,
-          text: overviewEditHiddenHint,
-        );
+      if (index < layout.spacerIndex) {
+        if (layout.shown.isEmpty) {
+          const hint = OverviewEditHiddenHint(text: overviewEditShownHint);
+          return slotted(_shownHintKey, OverviewEditSlot.last, hint);
+        }
+        final isLast = index == layout.shownSlots;
+        return rowItem(layout.shown[index - 1], index, isLast);
       }
-      return rowFor(hidden[index - hintIndex], index);
+      if (index == layout.spacerIndex) {
+        return const SizedBox(key: _spacerKey, height: _sectionGap);
+      }
+      if (index == layout.hiddenHeadingIndex) {
+        const heading = OverviewEditHeading(text: overviewEditHiddenLabel);
+        return slotted(_hiddenHeadingKey, OverviewEditSlot.first, heading);
+      }
+      if (layout.hidden.isEmpty) {
+        const hint = OverviewEditHiddenHint(text: overviewEditHiddenHint);
+        return slotted(_hiddenHintKey, OverviewEditSlot.last, hint);
+      }
+      final isLast = index == layout.itemCount - 1;
+      return rowItem(layout.hidden[index - layout.hiddenStart], index, isLast);
     }
 
     return ReorderableListView.builder(
       buildDefaultDragHandles: false,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: itemCount,
+      itemCount: layout.itemCount,
       itemBuilder: itemAt,
       proxyDecorator: (child, _, _) => _DragProxy(child: child),
-      onReorderItem: (from, to) => onChanged(draft.move(from, to)),
+      onReorderItem: (from, to) => onChanged(layout.move(from, to)),
     );
   }
 }
