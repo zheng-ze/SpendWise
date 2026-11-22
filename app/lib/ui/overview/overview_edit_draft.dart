@@ -15,42 +15,30 @@ class OverviewEditDraft {
       if (cardKinds.contains(kind)) kind,
   ];
 
-  bool get canHide => shown.length > 1;
-
-  List<OverviewWidgetKind> get addable => [
+  List<OverviewWidgetKind> get hidden => [
     for (final kind in cardKinds)
       if (!kinds.contains(kind)) kind,
   ];
 
-  bool isAdded(OverviewWidgetKind kind) => kinds.contains(kind);
+  bool get canApply => shown.isNotEmpty;
 
-  OverviewEditDraft hide(OverviewWidgetKind kind) {
-    if (!canHide) return this;
-    return _withKinds([
-      for (final existing in kinds)
-        if (existing != kind) existing,
-    ]);
-  }
+  /// Indexes address the flattened sheet list: shown rows, the Hidden header
+  /// at index `shown.length`, then hidden rows. [to] is the final index after
+  /// removal, as `ReorderableListView.onReorderItem` reports it.
+  OverviewEditDraft move(int from, int to) {
+    final shownCards = shown;
+    final headerIndex = shownCards.length;
+    final total = headerIndex + 1 + hidden.length;
+    final fromRange = from >= 0 && from < total;
+    if (!fromRange || from == headerIndex || to < 0 || from == to) return this;
 
-  OverviewEditDraft add(OverviewWidgetKind kind) {
-    if (!cardKinds.contains(kind) || kinds.contains(kind)) return this;
-    return _withKinds([...kinds, kind]);
-  }
-
-  /// [to] is the final index, as `ReorderableListView.onReorderItem` reports
-  /// it. Cardless kinds keep their exact index in [kinds].
-  OverviewEditDraft moveShown(int from, int to) {
-    final reordered = shown;
-    final inRange = from >= 0 && from < reordered.length;
-    if (!inRange || to < 0 || to >= reordered.length) return this;
-    reordered.insert(to, reordered.removeAt(from));
-
-    final next = [...kinds];
-    var slot = 0;
-    for (var index = 0; index < next.length; index++) {
-      if (cardKinds.contains(next[index])) next[index] = reordered[slot++];
+    if (from < headerIndex) {
+      return to < headerIndex
+          ? _reorderShown(shownCards, from, to)
+          : _withKinds([...kinds]..remove(shownCards[from]));
     }
-    return _withKinds(next);
+    if (to > headerIndex) return this;
+    return _show(hidden[from - headerIndex - 1], shownCards, to);
   }
 
   OverviewEditDraft restoreDefault() =>
@@ -58,6 +46,35 @@ class OverviewEditDraft {
 
   DisplayPreferences applyTo(DisplayPreferences current) =>
       current.copyWith(overviewWidgets: kinds);
+
+  OverviewEditDraft _reorderShown(
+    List<OverviewWidgetKind> shownCards,
+    int from,
+    int to,
+  ) {
+    shownCards.insert(to, shownCards.removeAt(from));
+    final next = [...kinds];
+    var slot = 0;
+    for (var index = 0; index < next.length; index++) {
+      if (cardKinds.contains(next[index])) next[index] = shownCards[slot++];
+    }
+    return _withKinds(next);
+  }
+
+  OverviewEditDraft _show(
+    OverviewWidgetKind kind,
+    List<OverviewWidgetKind> shownCards,
+    int to,
+  ) {
+    final next = [...kinds];
+    final insertAt = to > 0
+        ? kinds.indexOf(shownCards[to - 1]) + 1
+        : shownCards.isEmpty
+        ? kinds.length
+        : kinds.indexOf(shownCards.first);
+    next.insert(insertAt, kind);
+    return _withKinds(next);
+  }
 
   OverviewEditDraft _withKinds(List<OverviewWidgetKind> next) =>
       OverviewEditDraft(kinds: next, cardKinds: cardKinds);
