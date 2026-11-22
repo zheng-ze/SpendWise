@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/async_value_view.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
@@ -62,7 +63,10 @@ class _OverviewBody extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _OverviewHeader(day: viewState.day),
+              _OverviewHeader(
+                day: viewState.day,
+                onEditOverview: viewModel.requestEditOverview,
+              ),
               OverviewSlotGrid(
                 layoutMode: layoutMode,
                 presentation: presentation,
@@ -80,9 +84,10 @@ class _OverviewBody extends StatelessWidget {
 // MARK: - Header
 
 class _OverviewHeader extends StatelessWidget {
-  const _OverviewHeader({required this.day});
+  const _OverviewHeader({required this.day, required this.onEditOverview});
 
   final DateTime day;
+  final VoidCallback onEditOverview;
 
   static const _bottomPadding = 14.0;
   static const _dateGap = 2.0;
@@ -90,11 +95,18 @@ class _OverviewHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final actionRow = Row(
+      children: [
+        const Spacer(),
+        SecondaryButton(label: overviewEditAction, onPressed: onEditOverview),
+      ],
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: _bottomPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          actionRow,
           Text(
             formatWeekdayDate(day),
             style: context.text.caption.copyWith(color: colors.subtext),
