@@ -27,9 +27,11 @@ class OverviewSlotGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kinds = ref.watch(
-      displayPreferencesProvider.select(
-        (preferences) => preferences.overviewWidgets,
+    final kinds = overviewWidgetsOrDefault(
+      ref.watch(
+        displayPreferencesProvider.select(
+          (preferences) => preferences.overviewWidgets,
+        ),
       ),
     );
     final slots = <OverviewWidgetKind, Widget>{};
