@@ -86,10 +86,17 @@ widgets compute no totals.
   `move(from, to)`, `restoreDefault` and `applyTo`.
 - `app/lib/ui/overview/overview_edit_sheet.dart` - `openEditOverview` (the presenter) and
   `EditOverviewSheet`, which holds the draft, builds the intro, the one reorderable list and the
-  Restore default button, and applies the draft on Done.
+  Restore default button, and applies the draft on Done. The private `_EditLayout` maps rendered
+  list indices to `OverviewEditDraft.move` indices and `_EditList` builds the flattened rendered
+  list.
 - `app/lib/ui/overview/overview_edit_rows.dart` - `OverviewEditRow` (the 48 dp grip wrapped in
-  `ReorderableDragStartListener`, the card title and the card subtitle) and `OverviewEditHiddenHint`
-  (the empty-Hidden hint row).
+  `ReorderableDragStartListener`, the card title and the card subtitle), `OverviewEditHeading` (a
+  section heading), `OverviewEditHiddenHint` (the empty-section hint row, used for both the Shown and
+  the Hidden hint) and `OverviewEditSectionItem` with `OverviewEditSlot` (first, middle, last), which
+  draws the tray surface and the joined border around each item of a section.
+- `app/lib/ui/overview/overview_constants.dart` - the Edit Overview copy: `overviewEditShownLabel`,
+  `overviewEditHiddenLabel`, `overviewEditShownHint`, `overviewEditHiddenHint`, `overviewEditIntro`,
+  `overviewEditRestore` and `overviewEditDone`.
 - `app/lib/ui/overview/overview_this_month_section.dart` - `ThisMonthTray` (the card, with the failed,
   skeleton, empty and figures states), `ThisMonthFigures` (the Spent, Income and Net rows and the
   caption), `ThisMonthCaption` and `ThisMonthFigureRow`.
@@ -153,22 +160,32 @@ The draft rules:
   default, with no confirmation. It replaces the whole list, so stored kinds without a card are
   dropped.
 
-The sheet is one list. The body shows an intro, a 'Shown on Overview' section with one row per
-shown card, an always-visible 'Hidden' section and a 'Restore default' button. Each row shows a
-grip, the card title and the card subtitle. The Hidden section lists every card kind that is not
-shown, in fixed catalogue order. When it is empty, a hint row reads 'Drag a widget here to hide it.'
-There is no Hide action, no '+ Add' action, no 'See all widgets' link, no Add widgets view and no
-Added marker.
+The sheet body shows an intro, two visually distinct sections and a 'Restore default' button. Each
+section has its own heading ('Shown on Overview' and 'Hidden') and its own tray surface, and a gap
+separates the two. Each row shows a grip, the card title and the card subtitle. The Hidden section
+lists every card kind that is not shown, in fixed catalogue order. Each section has an empty-state
+hint row: 'Drag a widget here to show it.' in Shown when nothing is shown, and 'Drag a widget here to
+hide it.' in Hidden when nothing is hidden. There is no Hide action, no '+ Add' action, no 'See all
+widgets' link, no Add widgets view and no Added marker.
 
-A card is hidden or shown only by dragging its grip across the Hidden header, and it lands at the
-drop position. The list is one `ReorderableListView.builder` over the flattened list, with
-`buildDefaultDragHandles: false`, non-scrolling physics and shrink-wrapping. The Hidden header and
-the hint row are plain items that carry no drag listener, so they are not draggable. Only the 48 dp
-grip target of each row is wrapped in `ReorderableDragStartListener`. A drag on the grip wins the
-gesture arena, so the sheet's drag-to-dismiss does not start, while a drag anywhere else on the row
-still reaches the sheet's dismiss physics. The drag proxy is a `Material` with the sheet fill
-(`context.colors.raised`) and a small elevation and radius. There are no Move up or Move down
-buttons.
+A card is hidden or shown only by dragging its grip between the sections, and it lands at the drop
+position. The sheet is still one `ReorderableListView.builder` over one flattened rendered list:
+the Shown heading, the shown rows or the Shown hint, a spacer, the Hidden heading, then the hidden
+rows or the Hidden hint. It uses `buildDefaultDragHandles: false`, non-scrolling physics and
+shrink-wrapping. Headings, hints and the spacer are plain items that carry no drag listener, so they
+are not draggable. Each item sits in an `OverviewEditSectionItem`, whose slot decides which corners
+are rounded, so the items of one section read as one tray. The private `_EditLayout` in
+`overview_edit_sheet.dart` converts rendered indices to the draft indices described above. An item
+that is not a row (a heading, a hint or the spacer) maps to nothing, so dragging it changes
+nothing. A drop past the Hidden heading maps to the Hidden boundary, so the card becomes hidden. A
+drop onto or around the Shown hint shows the card at position 0. The draft API (`shown`, `hidden`,
+`canApply`, `move`, `restoreDefault`, `applyTo`) is unchanged by this mapping.
+
+Only the 48 dp grip target of each row is wrapped in `ReorderableDragStartListener`. A drag on the
+grip wins the gesture arena, so the sheet's drag-to-dismiss does not start, while a drag anywhere
+else on the row still reaches the sheet's dismiss physics. The drag proxy is a `Material` with the
+sheet fill (`context.colors.raised`) and a small elevation and radius. There are no Move up or Move
+down buttons.
 
 ## Module interactions
 
@@ -288,6 +305,12 @@ Overview tab and does not change the shell selection.
   (`app/lib/ui/common/lists/date_badge.dart`), built in `UpcomingRowContent`
   (`app/lib/ui/overview/overview_coming_up_section.dart`). Plans rows use the same badge.
 
+- The Edit Overview index mapping lives in the private `_EditLayout`, so it has no unit test. Only
+  the draft's own `move` is unit tested. Hint rows are real drop targets, but in practice a drag
+  must travel past the edge of the neighbouring section before the list reports a drop on a hint, so
+  a short drag from the last row of one section toward the other can leave the card where it was.
+- `OverviewEditHiddenHint` serves both sections, so its name describes only the Hidden use.
+
 ## Requirements
 
 - Section order is the stored `overviewWidgets` order. A stored list with no card kind, either empty
@@ -363,9 +386,14 @@ Overview tab and does not change the shell selection.
   Done saves'). Dragging a card into Hidden and then tapping outside discards the draft and leaves
   `overviewWidgets` unchanged (same file: 'dragging a card into Hidden then tapping outside
   discards'). Both cases assert preference values and the presence of the sheet only.
+- The sheet shows Shown and Hidden as two separate sections, each with a heading, a tray surface and
+  an empty-state hint row that is a drop target (`overviewEditShownHint`, `overviewEditHiddenHint`).
+  The rendered-to-draft index mapping in `_EditLayout`, including a drop past the Hidden heading
+  and a drop onto the Shown hint, has no unit test because the class is private.
 - These behaviors have no widget test: the docked presentation on open and desktop, the 'Edit
   Overview' header action opening the sheet, Done disabled while nothing is shown, Restore default
-  in the sheet, the Hidden section and its hint row, and a drag from Hidden into Shown. The draft
-  rules behind them are covered by the unit tests above. Restart persistence rests on
+  in the sheet, the two sections and their headings and hint rows, a drag from Hidden into Shown, a
+  drag onto either hint, and the visual separation of the sections. The draft rules behind them are
+  covered by the unit tests above. Restart persistence rests on
   `displayPreferencesProvider.notifier.replace` and the preferences store round trip
   (`app/test/settings/display_preferences_provider_test.dart`).
