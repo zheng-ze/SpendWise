@@ -83,8 +83,9 @@ first frame through
 `displayPreferencesProvider` updates state first and writes through, keeping
 the in-memory value when a write fails. The Edit Overview sheet, opened from the
 Overview header (`app/lib/ui/overview/overview_edit_sheet.dart`), is the writer
-of `overviewWidgets`: its Done calls `displayPreferencesProvider.replace`, while
-drag-down and tap-outside dismissal write nothing. `MaterialApp.themeMode` follows the
+of `overviewWidgets`: its Done calls `displayPreferencesProvider.replace` and is
+disabled while no card is shown, while drag-down, tap-outside and system back
+dismissal write nothing. `MaterialApp.themeMode` follows the
 stored appearance, so Dark overrides a light platform and System follows the
 platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 `app/lib/settings/display_preferences.dart`,
