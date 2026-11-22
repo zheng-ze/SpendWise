@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:domain/domain.dart';
 import 'package:spendwise/persistence/store/ledger_store.dart';
-import 'package:sync/sync.dart';
 
 class InMemoryLedgerStore implements LedgerStore {
   InMemoryLedgerStore({LedgerState? state, bool hasSeeded = false})
@@ -21,8 +20,6 @@ class InMemoryLedgerStore implements LedgerStore {
 
   final List<List<LedgerChange>> _enqueued = [];
 
-  final List<Map<SyncRowID, VersionVector>?> _receivedStamps = [];
-
   bool _started = false;
 
   bool get isStarted => _started;
@@ -31,9 +28,6 @@ class InMemoryLedgerStore implements LedgerStore {
 
   List<List<LedgerChange>> get enqueuedBatches =>
       List.unmodifiable(_enqueued.map(List<LedgerChange>.unmodifiable));
-
-  List<Map<SyncRowID, VersionVector>?> get enqueuedStamps =>
-      List.unmodifiable(_receivedStamps);
 
   @override
   Future<LedgerState> load() async => _state;
@@ -57,22 +51,6 @@ class InMemoryLedgerStore implements LedgerStore {
     if (changes.isEmpty) return;
     _enqueued.add(List<LedgerChange>.of(changes));
     _pending.add(List<LedgerChange>.of(changes));
-    _receivedStamps.add(null);
-  }
-
-  @override
-  void enqueueStamped(
-    List<LedgerChange> changes,
-    Map<SyncRowID, VersionVector> stamps,
-  ) {
-    if (changes.isEmpty) return;
-    _enqueued.add(List<LedgerChange>.of(changes));
-    _pending.add(List<LedgerChange>.of(changes));
-    _receivedStamps.add(
-      Map<SyncRowID, VersionVector>.unmodifiable(
-        Map<SyncRowID, VersionVector>.of(stamps),
-      ),
-    );
   }
 
   @override

@@ -4,11 +4,9 @@ import 'dart:collection';
 import 'package:domain/domain.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:spendwise/persistence/store/device_identity.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart' as rows;
 import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/persistence/mappers/mappers.dart';
-import 'package:sync/sync.dart';
 
 // MARK: - Parts
 
@@ -35,7 +33,7 @@ class DriftLedgerStore implements LedgerStore {
 
   final Queue<Object> _ingest = Queue();
 
-  final List<_StampedChange> _pending = [];
+  final List<LedgerChange> _pending = [];
 
   SaveErrorHandler? _handler;
 
@@ -72,23 +70,7 @@ class DriftLedgerStore implements LedgerStore {
   @override
   void enqueue(List<LedgerChange> changes) {
     if (changes.isEmpty) return;
-    _ingest.add([for (final change in changes) _StampedChange(change)]);
-    if (_started) _drain();
-  }
-
-  @override
-  void enqueueStamped(
-    List<LedgerChange> changes,
-    Map<SyncRowID, VersionVector> stamps,
-  ) {
-    if (changes.isEmpty) return;
-    _ingest.add([
-      for (final change in changes)
-        _StampedChange(
-          change,
-          stamps[SyncRowID.of(collectionFor(change), change.targetID)],
-        ),
-    ]);
+    _ingest.add(List<LedgerChange>.of(changes));
     if (_started) _drain();
   }
 

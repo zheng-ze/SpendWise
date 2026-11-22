@@ -33,7 +33,7 @@ class AnalysisCache extends ChangeNotifier {
 
   final ComputeRunner _runner;
 
-  StreamSubscription<LedgerPublication>? _subscription;
+  StreamSubscription<List<LedgerChange>>? _subscription;
 
   EventBus? _bus;
 

@@ -3,13 +3,11 @@ import 'package:domain/domain.dart' as domain;
 import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/persistence/store/device_identity.dart';
 import 'package:spendwise/persistence/store/drift_ledger_store.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart' as rows;
 import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/persistence/mappers/mappers.dart';
-import 'package:sync/sync.dart';
 
 import '../support/ledger_fixtures.dart';
 
@@ -137,31 +135,6 @@ void main() {
     await settle();
   }
 
-  Future<int> versionBumpsOnAccount(String id) async {
-    final row = await (db.select(
-      db.accounts,
-    )..where((row) => row.id.equals(id))).getSingle();
-    return versionFromRow(row.versionData).counters.values.single;
-  }
-
-  Future<Map<String, VersionVector>> orphanVectors(
-    SyncCollection collection,
-  ) async {
-    final found = await db
-        .customSelect(
-          'SELECT row_id, version_data FROM sync_orphan_tombstones '
-          'WHERE collection = ?',
-          variables: [Variable<String>(collection.wireName)],
-        )
-        .get();
-    return {
-      for (final row in found)
-        row.read<String>('row_id'): versionFromRow(
-          row.read<Uint8List>('version_data'),
-        ),
-    };
-  }
-
   group('ordered ingest and debounce', () {
     test('enqueue buffers synchronously in arrival order', () async {
       store
@@ -214,10 +187,7 @@ void main() {
 
       await debouncedSave();
 
-      final row = await db.select(db.entries).getSingle();
-      expect(row.lifecycle, LifecycleState.tombstoned.code);
-
-      expect(row.amount, '10');
+      expect(await db.select(db.entries).get(), isEmpty);
     });
 
     test('a budget upsert followed by a delete of the same id applies only the delete', () async {
@@ -236,10 +206,7 @@ void main() {
 
       await debouncedSave();
 
-      final row = await db.select(db.budgets).getSingle();
-      expect(row.lifecycle, LifecycleState.tombstoned.code);
-
-      expect(row.limitAmount, '10');
+      expect(await db.select(db.budgets).get(), isEmpty);
     });
 
     test('deleteThenUpsertInOneWindowAppliesOnlyUpsert', () async {
@@ -289,16 +256,35 @@ void main() {
       );
     });
 
-    test('a coalesced row is bumped exactly once per save', () async {
+    test('a pocket upsert followed by delete money source coalesces to one '
+        'deletion', () async {
+      store.enqueue([
+        UpsertPocket(domain.SubPocket(id: 'p1', name: 'original')),
+      ]);
+      await debouncedSave();
+
       store
-        ..enqueue([UpsertAccount(account('a1', 'v1'))])
-        ..enqueue([UpsertAccount(account('a1', 'v2'))])
-        ..enqueue([UpsertAccount(account('a1', 'v3'))]);
+        ..enqueue([
+          UpsertPocket(domain.SubPocket(id: 'p1', name: 'replacement')),
+        ])
+        ..enqueue([const DeleteMoneySource('p1')]);
 
       await debouncedSave();
 
-      final row = await db.select(db.accounts).getSingle();
-      expect(versionFromRow(row.versionData).counters.values.single, 1);
+      expect(await db.select(db.accounts).get(), isEmpty);
+      expect(await db.select(db.subPockets).get(), isEmpty);
+    });
+
+    test('identical ids in different collections stay independent', () async {
+      store.enqueue([
+        UpsertAccount(account('shared', 'wallet')),
+        UpsertEntry(entry('shared', '10')),
+      ]);
+
+      await debouncedSave();
+
+      expect((await db.select(db.accounts).getSingle()).name, 'wallet');
+      expect((await db.select(db.entries).getSingle()).amount, '10');
     });
   });
 
@@ -330,8 +316,7 @@ void main() {
       await store.flushNow();
       expect(flaky.transactionAttempts, attemptsAfterRetry);
 
-      final row = await db.select(db.accounts).getSingle();
-      expect(versionFromRow(row.versionData).counters.values.single, 1);
+      expect((await db.select(db.accounts).getSingle()).name, 'v1');
     });
 
     test('a cycle retries twice before giving up', () async {
@@ -445,7 +430,7 @@ void main() {
       await store.flushNow();
 
       expect(flaky.transactionAttempts, 1);
-      expect(await versionBumpsOnAccount('a1'), 1);
+      expect((await db.select(db.accounts).getSingle()).name, 'v3');
     });
 
     test('saves are serialized behind one in-flight future', () async {
@@ -457,82 +442,8 @@ void main() {
       await Future.wait([first, second]);
       await settle();
 
-      final row = await db.select(db.accounts).getSingle();
-      expect(versionFromRow(row.versionData).counters.values.single, 1);
+      expect((await db.select(db.accounts).getSingle()).name, 'v1');
       expect(flaky.transactionAttempts, 1);
-    });
-  });
-
-  group('terminal save failure', () {
-    Future<void> corruptVersion(String id) => db.customUpdate(
-      'UPDATE accounts SET version_data = ? WHERE id = ?',
-      variables: [
-        Variable<Uint8List>(Uint8List.fromList([0xff, 0xfe])),
-        Variable<String>(id),
-      ],
-      updates: {db.accounts},
-    );
-
-    test('a corrupt version vector reports the terminal state once', () async {
-      store.enqueue([UpsertAccount(account('a1', 'wallet'))]);
-      await debouncedSave();
-      expect((await db.select(db.accounts).getSingle()).name, 'wallet');
-
-      await corruptVersion('a1');
-      reported.clear();
-
-      store.enqueue([UpsertAccount(account('a1', 'changed name'))]);
-      await debouncedSave();
-
-      expect(reported, [SaveBannerState.permanentlyFailed]);
-
-      for (var i = 0; i < 10; i++) {
-        expect(clock.armedCount, 0);
-        clock.fire();
-        await settle();
-      }
-      expect(reported, [SaveBannerState.permanentlyFailed]);
-
-      expect((await db.select(db.accounts).getSingle()).name, 'wallet');
-    });
-
-    test('the terminal save never drains the pending batch', () async {
-      store.enqueue([UpsertAccount(account('a1', 'wallet'))]);
-      await debouncedSave();
-
-      await corruptVersion('a1');
-      reported.clear();
-
-      store.enqueue([UpsertAccount(account('a1', 'changed name'))]);
-      final flush = expectLater(
-        store.flushNow(),
-        throwsA(
-          isA<PersistenceBarrierFailure>()
-              .having(
-                (error) => error.cause,
-                'cause',
-                isA<PermanentSaveError>(),
-              )
-              .having(
-                (error) => error.stackTrace != null,
-                'has stackTrace',
-                isTrue,
-              ),
-        ),
-      );
-
-      for (var i = 0; i < 10; i++) {
-        await settle();
-        clock.fire();
-      }
-      await settle();
-
-      await flush;
-
-      expect(reported.last, SaveBannerState.permanentlyFailed);
-      expect(store.pendingCount, 1);
-
-      expect((await db.select(db.accounts).getSingle()).name, 'wallet');
     });
   });
 
@@ -581,7 +492,7 @@ void main() {
       expect((await db.select(db.accounts).getSingle()).name, 'v1');
 
       await store.flushNow();
-      expect(await versionBumpsOnAccount('a1'), 1);
+      expect(flaky.transactionAttempts, 1);
     });
 
     test('debouncedFlushPersistsWithoutAnExplicitFlush', () async {
@@ -735,20 +646,16 @@ void main() {
 
       final row = await db.select(db.accounts).getSingle();
       expect(row.name, 'v2');
-      expect(versionFromRow(row.versionData).counters.values.single, 2);
     });
 
-    test('deleteMoneySource tombstones an account', () async {
+    test('deleteMoneySource removes an account', () async {
       store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await debouncedSave();
 
       store.enqueue([const DeleteMoneySource('a1')]);
       await debouncedSave();
 
-      expect(
-        (await db.select(db.accounts).getSingle()).lifecycle,
-        LifecycleState.tombstoned.code,
-      );
+      expect(await db.select(db.accounts).get(), isEmpty);
     });
 
     test('deleteMoneySource falls through to pockets', () async {
@@ -758,10 +665,7 @@ void main() {
       store.enqueue([const DeleteMoneySource('p1')]);
       await debouncedSave();
 
-      expect(
-        (await db.select(db.subPockets).getSingle()).lifecycle,
-        LifecycleState.tombstoned.code,
-      );
+      expect(await db.select(db.subPockets).get(), isEmpty);
     });
 
     test('a delete for an absent id is a silent no-op', () async {
@@ -797,7 +701,7 @@ void main() {
     });
 
     test(
-      'a plan upsert stores an active row and a delete tombstones',
+      'a plan upsert stores an active row and a delete removes it',
       () async {
         final plan = RecurringPlan(
           id: 'pl1',
@@ -821,15 +725,12 @@ void main() {
         store.enqueue([const DeletePlan('pl1')]);
         await debouncedSave();
 
-        expect(
-          (await db.select(db.plans).getSingle()).lifecycle,
-          LifecycleState.tombstoned.code,
-        );
+        expect(await db.select(db.plans).get(), isEmpty);
       },
     );
 
     test(
-      'a budget upsert stores an active row and a delete tombstones',
+      'a budget upsert stores an active row and a delete removes it',
       () async {
         final budget = domain.Budget(
           id: 'b1',
@@ -847,10 +748,7 @@ void main() {
         store.enqueue([const DeleteBudget('b1')]);
         await debouncedSave();
 
-        expect(
-          (await db.select(db.budgets).getSingle()).lifecycle,
-          LifecycleState.tombstoned.code,
-        );
+        expect(await db.select(db.budgets).get(), isEmpty);
       },
     );
   });
@@ -934,7 +832,7 @@ void main() {
       expect(state.entries.keys.toSet(), {'e1'});
     });
 
-    test('purgingAnArchivedEntryWritesTheTombstone', () async {
+    test('purgingAnArchivedEntryRemovesTheRow', () async {
       store.enqueue([
         UpsertAccount(account('a', 'wallet')),
         UpsertEntry(
@@ -946,27 +844,10 @@ void main() {
       store.enqueue([const DeleteEntry('e1')]);
       await store.flushNow();
 
-      final row = await db.select(db.entries).getSingle();
-      expect(row.lifecycle, LifecycleState.tombstoned.code);
+      expect(await db.select(db.entries).get(), isEmpty);
       final state = await store.load();
       expect(state.binnedEntries, isEmpty);
       expect(state.entries, isEmpty);
-    });
-
-    test('archivingAnEntryBumpsItsVersionVector', () async {
-      final active = entry('e1', '12.34');
-      store.enqueue([UpsertEntry(active)]);
-      await store.flushNow();
-      final before = (await db.select(db.entries).getSingle()).versionData;
-
-      store.enqueue([
-        UpsertEntry(active.settingLifecycle(LifecycleState.archived)),
-      ]);
-      await store.flushNow();
-
-      final after = (await db.select(db.entries).getSingle()).versionData;
-      expect(versionFromRow(after).dominates(versionFromRow(before)), isTrue);
-      expect(after, isNot(before));
     });
 
     test('deleteChangeRemovesFromLoadedState', () async {
@@ -983,9 +864,7 @@ void main() {
 
       expect(state.entries, isEmpty);
       expect(state.moneySources.keys.toSet(), {'a1'});
-
-      final row = await db.select(db.entries).getSingle();
-      expect(row.lifecycle, LifecycleState.tombstoned.code);
+      expect(await db.select(db.entries).get(), isEmpty);
     });
 
     test('enqueuedChangesPersistAcrossLoad', () async {
@@ -1001,7 +880,7 @@ void main() {
       expect(state.entries['e1']!.amount, Decimal.parse('12.34'));
     });
 
-    test('deleteTombstonesRowButHidesItFromLoad', () async {
+    test('deleteRemovesRowAndHidesItFromLoad', () async {
       store.enqueue([UpsertEntry(entry('e1', '12.34'))]);
       await store.flushNow();
 
@@ -1009,15 +888,7 @@ void main() {
       await store.flushNow();
 
       expect((await store.load()).entries, isEmpty);
-
-      final row = await db
-          .customSelect('SELECT lifecycle, version_data FROM entries')
-          .getSingle();
-      expect(row.read<int>('lifecycle'), LifecycleState.tombstoned.code);
-
-      final counters = versionFromRow(row.read<Uint8List>('version_data'))
-          .counters;
-      expect(counters.values.fold(0, (sum, count) => sum + count), 2);
+      expect(await db.select(db.entries).get(), isEmpty);
     });
 
     test('coalescedUpsertsWriteLatestValue', () async {
@@ -1030,7 +901,7 @@ void main() {
       expect(flaky.transactionAttempts, 1);
     });
 
-    test('planPersistsAndTombstonesAcrossLoad', () async {
+    test('planPersistsAndDeletesAcrossLoad', () async {
       store.enqueue([
         UpsertAccount(account('a1', 'wallet')),
         UpsertPlan(plan('pl1')),
@@ -1043,13 +914,10 @@ void main() {
       await store.flushNow();
 
       expect((await store.load()).plans, isEmpty);
-      expect(
-        (await db.select(db.plans).getSingle()).lifecycle,
-        LifecycleState.tombstoned.code,
-      );
+      expect(await db.select(db.plans).get(), isEmpty);
     });
 
-    test('budgetPersistsAndTombstonesAcrossLoad', () async {
+    test('budgetPersistsAndDeletesAcrossLoad', () async {
       store.enqueue([
         UpsertCategory(category('c1', 'food', parentID: null)),
         UpsertBudget(budget('b1')),
@@ -1062,10 +930,7 @@ void main() {
       await store.flushNow();
 
       expect((await store.load()).budgets, isEmpty);
-      expect(
-        (await db.select(db.budgets).getSingle()).lifecycle,
-        LifecycleState.tombstoned.code,
-      );
+      expect(await db.select(db.budgets).get(), isEmpty);
     });
 
     test(
@@ -1094,23 +959,15 @@ void main() {
       },
     );
 
-    test('a corrupt version vector does not fail the load', () async {
-      store.enqueue([UpsertAccount(account('a1', 'wallet'))]);
-      await store.flushNow();
-
-      await db.customUpdate(
-        'UPDATE accounts SET version_data = ? WHERE id = ?',
-        variables: [
-          Variable<Uint8List>(Uint8List.fromList([0xff, 0xfe])),
-          const Variable<String>('a1'),
-        ],
-        updates: {db.accounts},
+    test('a stored tombstoned account makes load fail', () async {
+      await db.customStatement(
+        'INSERT INTO accounts (id, name, type, sub_pocket_ids, '
+        'incoming_transfers_as_expenses, include_in_net_worth, lifecycle) '
+        "VALUES ('a1', 'wallet', 0, '[]', 0, 1, 3)",
       );
 
-      final state = await store.load();
-      expect(state.moneySources.keys.toSet(), {'a1'});
+      await expectLater(store.load(), throwsA(anything));
     });
-
     test('a storage error propagates out of load', () async {
       await db.customStatement('DROP TABLE entries');
 
@@ -1183,573 +1040,6 @@ void main() {
     });
   });
 
-  group('stamped ingestion', () {
-    Map<SyncRowID, VersionVector> stampsFor(
-      LedgerChange change,
-      VersionVector stamp,
-    ) => {SyncRowID.of(collectionFor(change), change.targetID): stamp};
-
-    Future<VersionVector> accountVersion(String id) async => versionFromRow(
-      (await (db.select(
-        db.accounts,
-      )..where((row) => row.id.equals(id))).getSingle()).versionData,
-    );
-
-    test(
-      'a stamped upsert persists its stamp verbatim without a local bump',
-      () async {
-        final stamp = VersionVector({'remote-a': 3});
-        final change = UpsertAccount(account('a1', 'remote'));
-        store.enqueueStamped([change], stampsFor(change, stamp));
-
-        await debouncedSave();
-
-        final row = await db.select(db.accounts).getSingle();
-        expect(row.name, 'remote');
-        expect(versionFromRow(row.versionData), stamp);
-      },
-    );
-
-    test('stamped batches flattened by the drain keep their stamps', () async {
-      final first = UpsertAccount(account('a1', 'remote-a1'));
-      final second = UpsertAccount(account('a2', 'remote-a2'));
-      final firstStamp = VersionVector({'remote-a': 1});
-      final secondStamp = VersionVector({'remote-b': 2});
-      store.enqueueStamped([first], stampsFor(first, firstStamp));
-      store.enqueueStamped([second], stampsFor(second, secondStamp));
-
-      await store.flushNow();
-
-      expect(await accountVersion('a1'), firstStamp);
-      expect(await accountVersion('a2'), secondStamp);
-    });
-
-    test('a stamped remote then local edit stores local content with a '
-        'dominating vector', () async {
-      final remote = UpsertEntry(entry('e1', '10'));
-      final stamp = VersionVector({'remote-a': 2});
-      store.enqueueStamped([remote], stampsFor(remote, stamp));
-      store.enqueue([UpsertEntry(entry('e1', '42'))]);
-
-      await debouncedSave();
-
-      final row = await db.select(db.entries).getSingle();
-      expect(row.amount, '42');
-      expect(
-        versionFromRow(row.versionData),
-        VersionVector({'remote-a': 2, await deviceID(db): 1}),
-      );
-    });
-
-    test('a local edit then stamped remote stores remote content with its '
-        'stamp verbatim', () async {
-      store.enqueue([UpsertEntry(entry('e1', '10'))]);
-      final remote = UpsertEntry(entry('e1', '99'));
-      final stamp = VersionVector({'remote-a': 5});
-      store.enqueueStamped([remote], stampsFor(remote, stamp));
-
-      await debouncedSave();
-
-      final row = await db.select(db.entries).getSingle();
-      expect(row.amount, '99');
-      expect(versionFromRow(row.versionData), stamp);
-    });
-
-    test(
-      'every observed stamp contributes to the carried maximum independently '
-      'of last arrival',
-      () async {
-        final first = UpsertAccount(account('a1', 'remote-v1'));
-        final second = UpsertAccount(account('a1', 'remote-v2'));
-        store.enqueueStamped([
-          first,
-        ], stampsFor(first, VersionVector({'remote-a': 1})));
-        store.enqueueStamped([
-          second,
-        ], stampsFor(second, VersionVector({'remote-b': 1})));
-        store.enqueue([UpsertAccount(account('a1', 'local'))]);
-
-        await debouncedSave();
-
-        final row = await db.select(db.accounts).getSingle();
-        expect(row.name, 'local');
-        expect(
-          versionFromRow(row.versionData),
-          VersionVector({'remote-a': 1, 'remote-b': 1, await deviceID(db): 1}),
-        );
-      },
-    );
-
-    test('a stamped survivor keeps its own stamp verbatim', () async {
-      final first = UpsertAccount(account('a1', 'remote-v1'));
-      final second = UpsertAccount(account('a1', 'remote-v2'));
-      store.enqueueStamped([
-        first,
-      ], stampsFor(first, VersionVector({'remote-a': 1})));
-      final survivorStamp = VersionVector({'remote-b': 1});
-      store.enqueueStamped([second], stampsFor(second, survivorStamp));
-
-      await debouncedSave();
-
-      final row = await db.select(db.accounts).getSingle();
-      expect(row.name, 'remote-v2');
-      expect(versionFromRow(row.versionData), survivorStamp);
-    });
-
-    test(
-      'a stamp survives a failed attempt and lands verbatim on retry',
-      () async {
-        flaky.failures = 1;
-        final change = UpsertAccount(account('a1', 'remote'));
-        final stamp = VersionVector({'remote-a': 4});
-        store.enqueueStamped([change], stampsFor(change, stamp));
-
-        await debouncedSave();
-        expect(reported, [SaveBannerState.retrying]);
-        expect(await db.select(db.accounts).get(), isEmpty);
-
-        clock.fire();
-        await settle();
-
-        final row = await db.select(db.accounts).getSingle();
-        expect(row.name, 'remote');
-        expect(versionFromRow(row.versionData), stamp);
-        expect(reported.last, SaveBannerState.clear);
-      },
-    );
-
-    test(
-      'a local edit buffered mid-save still dominates the stamped prefix',
-      () async {
-        final remote = UpsertAccount(account('a1', 'remote'));
-        final stamp = VersionVector({'remote-a': 2});
-        store.enqueueStamped([remote], stampsFor(remote, stamp));
-        await settle();
-
-        flaky.onTransactionBegin = () {
-          store.enqueue([UpsertAccount(account('a1', 'local'))]);
-        };
-
-        await store.flushNow();
-
-        final row = await db.select(db.accounts).getSingle();
-        expect(row.name, 'local');
-        expect(
-          versionFromRow(row.versionData),
-          VersionVector({'remote-a': 2, await deviceID(db): 1}),
-        );
-      },
-    );
-
-    test('an upsert pocket followed by delete money source coalesces to one '
-        'deletion', () async {
-      store.enqueue([
-        UpsertPocket(domain.SubPocket(id: 'p1', name: 'original')),
-      ]);
-      await debouncedSave();
-
-      store
-        ..enqueue([
-          UpsertPocket(domain.SubPocket(id: 'p1', name: 'replacement')),
-        ])
-        ..enqueue([const DeleteMoneySource('p1')]);
-
-      await debouncedSave();
-
-      expect(await db.select(db.accounts).get(), isEmpty);
-      final pocket = await db.select(db.subPockets).getSingle();
-      expect(pocket.lifecycle, LifecycleState.tombstoned.code);
-      expect(pocket.name, 'original');
-    });
-
-    test(
-      'a stamped pocket and delete coalesce to one stamped deletion',
-      () async {
-        store.enqueue([
-          UpsertPocket(domain.SubPocket(id: 'p1', name: 'original')),
-        ]);
-        await debouncedSave();
-
-        final pocket = UpsertPocket(
-          domain.SubPocket(id: 'p1', name: 'replacement'),
-        );
-        store.enqueueStamped([
-          pocket,
-        ], stampsFor(pocket, VersionVector({'remote-a': 1})));
-        const deletion = DeleteMoneySource('p1');
-        final deleteStamp = VersionVector({'remote-a': 2});
-        store.enqueueStamped([deletion], stampsFor(deletion, deleteStamp));
-
-        await debouncedSave();
-
-        expect(await db.select(db.accounts).get(), isEmpty);
-        final row = await db.select(db.subPockets).getSingle();
-        expect(row.lifecycle, LifecycleState.tombstoned.code);
-        expect(row.name, 'original');
-        expect(versionFromRow(row.versionData), deleteStamp);
-      },
-    );
-
-    test('identical ids in different collections stay independent', () async {
-      final accountChange = UpsertAccount(account('shared', 'wallet'));
-      final entryChange = UpsertEntry(entry('shared', '10'));
-      final accountStamp = VersionVector({'remote-a': 1});
-      final entryStamp = VersionVector({'remote-b': 2});
-      store.enqueueStamped(
-        [accountChange, entryChange],
-        {
-          ...stampsFor(accountChange, accountStamp),
-          ...stampsFor(entryChange, entryStamp),
-        },
-      );
-
-      await debouncedSave();
-
-      expect((await db.select(db.accounts).getSingle()).name, 'wallet');
-      expect((await db.select(db.entries).getSingle()).amount, '10');
-      expect(await accountVersion('shared'), accountStamp);
-      expect(
-        versionFromRow((await db.select(db.entries).getSingle()).versionData),
-        entryStamp,
-      );
-    });
-
-    test('an empty stamps map keeps the local bump path', () async {
-      store.enqueueStamped([UpsertAccount(account('a1', 'v1'))], {});
-
-      await debouncedSave();
-
-      expect(await versionBumpsOnAccount('a1'), 1);
-    });
-
-    test(
-      'a stamped delete persists its stamp verbatim on the tombstone',
-      () async {
-        store.enqueue([UpsertEntry(entry('e1', '10'))]);
-        await debouncedSave();
-
-        const deletion = DeleteEntry('e1');
-        final stamp = VersionVector({'remote-a': 7});
-        store.enqueueStamped([deletion], stampsFor(deletion, stamp));
-
-        await debouncedSave();
-
-        final row = await db.select(db.entries).getSingle();
-        expect(row.lifecycle, LifecycleState.tombstoned.code);
-        expect(versionFromRow(row.versionData), stamp);
-      },
-    );
-
-    test(
-      'a stamped delete for an absent id persists an orphan tombstone',
-      () async {
-        const deletion = DeleteEntry('ghost');
-        final stamp = VersionVector({'remote-a': 1});
-        store.enqueueStamped([deletion], stampsFor(deletion, stamp));
-
-        await debouncedSave();
-
-        expect(reported, isEmpty);
-        expect(await db.select(db.entries).get(), isEmpty);
-        expect(await orphanVectors(SyncCollection.entries), {'ghost': stamp});
-      },
-    );
-  });
-
-  group('orphan tombstones', () {
-    Map<SyncRowID, VersionVector> stampsFor(
-      LedgerChange change,
-      VersionVector stamp,
-    ) => {SyncRowID.of(collectionFor(change), change.targetID): stamp};
-
-    Future<VersionVector> contentVersion(String table, String id) async {
-      final row = await db
-          .customSelect(
-            'SELECT version_data FROM $table WHERE id = ?',
-            variables: [Variable<String>(id)],
-          )
-          .getSingle();
-      return versionFromRow(row.read<Uint8List>('version_data'));
-    }
-
-    test('a stamped money-source delete absent from both tables writes an '
-        'orphan', () async {
-      const deletion = DeleteMoneySource('ghost');
-      final stamp = VersionVector({'remote-a': 2});
-      store.enqueueStamped([deletion], stampsFor(deletion, stamp));
-
-      await debouncedSave();
-
-      expect(await db.select(db.accounts).get(), isEmpty);
-      expect(await db.select(db.subPockets).get(), isEmpty);
-      expect(await orphanVectors(SyncCollection.moneySources), {
-        'ghost': stamp,
-      });
-    });
-
-    test(
-      'a stamped money-source delete hitting accounts writes no orphan',
-      () async {
-        store.enqueue([UpsertAccount(account('a1', 'wallet'))]);
-        await debouncedSave();
-
-        const deletion = DeleteMoneySource('a1');
-        final stamp = VersionVector({'remote-a': 2});
-        store.enqueueStamped([deletion], stampsFor(deletion, stamp));
-
-        await debouncedSave();
-
-        expect(
-          (await db.select(db.accounts).getSingle()).lifecycle,
-          LifecycleState.tombstoned.code,
-        );
-        expect(await orphanVectors(SyncCollection.moneySources), isEmpty);
-      },
-    );
-
-    test(
-      'a stamped money-source delete hitting pockets writes no orphan',
-      () async {
-        store.enqueue([
-          UpsertPocket(domain.SubPocket(id: 'p1', name: 'envelope')),
-        ]);
-        await debouncedSave();
-
-        const deletion = DeleteMoneySource('p1');
-        final stamp = VersionVector({'remote-a': 2});
-        store.enqueueStamped([deletion], stampsFor(deletion, stamp));
-
-        await debouncedSave();
-
-        expect(
-          (await db.select(db.subPockets).getSingle()).lifecycle,
-          LifecycleState.tombstoned.code,
-        );
-        expect(await orphanVectors(SyncCollection.moneySources), isEmpty);
-      },
-    );
-
-    test('an unstamped delete for an absent id writes no orphan', () async {
-      store.enqueue([
-        const DeleteMoneySource('ghost'),
-        const DeleteCategory('ghost'),
-        const DeleteEntry('ghost'),
-        const DeletePlan('ghost'),
-        const DeleteBudget('ghost'),
-      ]);
-
-      await debouncedSave();
-
-      expect(reported, isEmpty);
-      for (final collection in SyncCollection.values) {
-        expect(await orphanVectors(collection), isEmpty);
-      }
-    });
-
-    test('duplicate delivery of the same stamp is idempotent', () async {
-      const deletion = DeleteEntry('ghost');
-      final stamp = VersionVector({'remote-a': 1});
-      store.enqueueStamped([deletion], stampsFor(deletion, stamp));
-      await debouncedSave();
-
-      store.enqueueStamped([deletion], stampsFor(deletion, stamp));
-      await debouncedSave();
-
-      expect(await orphanVectors(SyncCollection.entries), {'ghost': stamp});
-    });
-
-    test('a later different stamp replaces the stored orphan vector', () async {
-      const deletion = DeleteEntry('ghost');
-      store.enqueueStamped([
-        deletion,
-      ], stampsFor(deletion, VersionVector({'remote-a': 1})));
-      await debouncedSave();
-
-      final replacement = VersionVector({'remote-a': 2, 'remote-b': 1});
-      store.enqueueStamped([deletion], stampsFor(deletion, replacement));
-      await debouncedSave();
-
-      expect(await orphanVectors(SyncCollection.entries), {
-        'ghost': replacement,
-      });
-    });
-
-    test('an uppercase-id stamped deletion stores its orphan under the '
-        'lowercase key', () async {
-      const deletion = DeleteEntry('GHOST-ROW');
-      final stamp = VersionVector({'remote-a': 1});
-      store.enqueueStamped([deletion], stampsFor(deletion, stamp));
-
-      await debouncedSave();
-
-      expect(await orphanVectors(SyncCollection.entries), {'ghost-row': stamp});
-    });
-
-    test('a stamped upsert absorbs its orphan and clears it', () async {
-      const deletion = DeleteEntry('e1');
-      final orphan = VersionVector({'remote-o': 5});
-      store.enqueueStamped([deletion], stampsFor(deletion, orphan));
-      await debouncedSave();
-
-      final stamp = VersionVector({'remote-s': 1});
-      final upsert = UpsertEntry(entry('e1', '10'));
-      store.enqueueStamped([upsert], stampsFor(upsert, stamp));
-      await debouncedSave();
-
-      expect(await orphanVectors(SyncCollection.entries), isEmpty);
-      expect(
-        await contentVersion('entries', 'e1'),
-        VersionVector({'remote-o': 5, 'remote-s': 1}),
-      );
-    });
-
-    test(
-      'an unstamped upsert absorbs its orphan under a device bump',
-      () async {
-        const deletion = DeleteEntry('e1');
-        store.enqueueStamped([
-          deletion,
-        ], stampsFor(deletion, VersionVector({'remote-o': 3})));
-        await debouncedSave();
-
-        store.enqueue([UpsertEntry(entry('e1', '10'))]);
-        await debouncedSave();
-
-        expect(await orphanVectors(SyncCollection.entries), isEmpty);
-        expect(
-          await contentVersion('entries', 'e1'),
-          VersionVector({'remote-o': 3, await deviceID(db): 1}),
-        );
-      },
-    );
-
-    test('a stamped survivor ignores stamps carried from discarded '
-        'occurrences', () async {
-      const deletion = DeleteEntry('e9');
-      store.enqueueStamped([
-        deletion,
-      ], stampsFor(deletion, VersionVector({'remote-o': 2})));
-      await debouncedSave();
-
-      final first = UpsertEntry(entry('e9', '10'));
-      final second = UpsertEntry(entry('e9', '99'));
-      store.enqueueStamped([
-        first,
-      ], stampsFor(first, VersionVector({'remote-a': 1})));
-      store.enqueueStamped([
-        second,
-      ], stampsFor(second, VersionVector({'remote-b': 1})));
-      await debouncedSave();
-
-      final row = await db.select(db.entries).getSingle();
-      expect(row.amount, '99');
-      expect(
-        versionFromRow(row.versionData),
-        VersionVector({'remote-o': 2, 'remote-b': 1}),
-      );
-      expect(await orphanVectors(SyncCollection.entries), isEmpty);
-    });
-
-    test(
-      'an unstamped survivor folds the orphan into its carried floor',
-      () async {
-        const deletion = DeleteEntry('e8');
-        store.enqueueStamped([
-          deletion,
-        ], stampsFor(deletion, VersionVector({'remote-o': 3})));
-        await debouncedSave();
-
-        final first = UpsertEntry(entry('e8', '10'));
-        store.enqueueStamped([
-          first,
-        ], stampsFor(first, VersionVector({'remote-c': 1})));
-        store.enqueue([UpsertEntry(entry('e8', '42'))]);
-        await debouncedSave();
-
-        final row = await db.select(db.entries).getSingle();
-        expect(row.amount, '42');
-        expect(
-          versionFromRow(row.versionData),
-          VersionVector({'remote-o': 3, 'remote-c': 1, await deviceID(db): 1}),
-        );
-        expect(await orphanVectors(SyncCollection.entries), isEmpty);
-      },
-    );
-
-    test('a lowercase upsert absorbs an orphan stored from an uppercase '
-        'delete', () async {
-      const deletion = DeleteEntry('ABSORB-ME');
-      store.enqueueStamped([
-        deletion,
-      ], stampsFor(deletion, VersionVector({'remote-o': 1})));
-      await debouncedSave();
-      expect(
-        await orphanVectors(SyncCollection.entries),
-        contains('absorb-me'),
-      );
-
-      store.enqueue([UpsertEntry(entry('absorb-me', '10'))]);
-      await debouncedSave();
-
-      expect(await orphanVectors(SyncCollection.entries), isEmpty);
-      expect((await db.select(db.entries).getSingle()).amount, '10');
-    });
-
-    test('orphan X, live sub-pocket X, delete X, reload leaves X absent with '
-        'a vector descending from the orphan', () async {
-      final orphan = VersionVector({'remote-o': 4});
-      store.enqueueStamped([
-        const DeleteMoneySource('ac2x'),
-      ], stampsFor(const DeleteMoneySource('ac2x'), orphan));
-      await debouncedSave();
-
-      store.enqueue([
-        UpsertPocket(domain.SubPocket(id: 'ac2x', name: 'envelope')),
-      ]);
-      await debouncedSave();
-
-      store.enqueue([const DeleteMoneySource('ac2x')]);
-      await debouncedSave();
-
-      final state = await store.load();
-      expect(state.moneySources, isEmpty);
-
-      final row = await db.select(db.subPockets).getSingle();
-      expect(row.lifecycle, LifecycleState.tombstoned.code);
-      expect(versionFromRow(row.versionData).dominates(orphan), isTrue);
-      expect(await orphanVectors(SyncCollection.moneySources), isEmpty);
-    });
-
-    test('a corrupt orphan vector reports the terminal state once', () async {
-      await db.customStatement(
-        "INSERT INTO sync_orphan_tombstones (collection, row_id, version_data) "
-        "VALUES ('entries', 'e1', X'FFFE')",
-      );
-      reported.clear();
-
-      store.enqueue([UpsertEntry(entry('e1', '10'))]);
-      await debouncedSave();
-
-      expect(reported, [SaveBannerState.permanentlyFailed]);
-
-      for (var i = 0; i < 10; i++) {
-        expect(clock.armedCount, 0);
-        clock.fire();
-        await settle();
-      }
-      expect(reported, [SaveBannerState.permanentlyFailed]);
-
-      final orphans = await db
-          .customSelect(
-            'SELECT row_id FROM sync_orphan_tombstones '
-            "WHERE collection = 'entries'",
-          )
-          .get();
-      expect([for (final row in orphans) row.read<String>('row_id')], ['e1']);
-      expect(await db.select(db.entries).get(), isEmpty);
-    });
-  });
-
   group('entry note persistence', () {
     domain.Entry buildNotedEntry(
       String id, {
@@ -1783,23 +1073,8 @@ void main() {
       await store.flushNow();
     }
 
-    Map<SyncRowID, VersionVector> entryStamps(
-      LedgerChange change,
-      VersionVector stamp,
-    ) => {SyncRowID.of(collectionFor(change), change.targetID): stamp};
-
-    Future<void> writeEntryChange(
-      domain.Entry entryValue, {
-      required bool stamped,
-    }) async {
-      final change = UpsertEntry(entryValue);
-      if (stamped) {
-        store.enqueueStamped([
-          change,
-        ], entryStamps(change, VersionVector({'remote': 2})));
-      } else {
-        store.enqueue([change]);
-      }
+    Future<void> writeEntryChange(domain.Entry entryValue) async {
+      store.enqueue([UpsertEntry(entryValue)]);
       await store.flushNow();
     }
 
@@ -1830,7 +1105,7 @@ void main() {
     test('aLegacyNullNoteLoadsWithEveryFieldUnchanged', () async {
       await seedLedgerHolders();
       final legacy = buildNotedEntry('e1', categoryID: 'c1');
-      await db.into(db.entries).insert(entryToRow(legacy, VersionVector.empty));
+      await db.into(db.entries).insert(entryToRow(legacy));
 
       final state = await store.load();
 
@@ -1846,38 +1121,26 @@ void main() {
       'replacingACategorizedExpenseWithATransferClearsTheCategory',
       () async {
         await seedLedgerHolders();
-        for (final stamped in [false, true]) {
-          final id = stamped ? 'e-s' : 'e-u';
-          await writeEntryChange(
-            buildNotedEntry(id, categoryID: 'c1', note: 'keep'),
-            stamped: false,
-          );
-          final before = versionFromRow((await selectEntryRow(id)).versionData);
+        await writeEntryChange(
+          buildNotedEntry('e-u', categoryID: 'c1', note: 'keep'),
+        );
 
-          await writeEntryChange(
-            buildNotedEntry(
-              id,
-              amount: '20',
-              sourceID: 'a',
-              destinationID: 'b',
-            ),
-            stamped: stamped,
-          );
+        await writeEntryChange(
+          buildNotedEntry(
+            'e-u',
+            amount: '20',
+            sourceID: 'a',
+            destinationID: 'b',
+          ),
+        );
 
-          final row = await selectEntryRow(id);
-          expect(row.categoryId, isNull);
-          expect(row.destinationId, 'b');
-          final after = versionFromRow(row.versionData);
-          if (stamped) {
-            expect(after, VersionVector({'remote': 2}));
-          } else {
-            expect(after.dominates(before), isTrue);
-          }
-          final state = await store.load();
-          expect(state.entries[id]!.categoryID, isNull);
-          expect(state.entries[id]!.destinationID, 'b');
-          expect(state.entries[id]!.note, isNull);
-        }
+        final row = await selectEntryRow('e-u');
+        expect(row.categoryId, isNull);
+        expect(row.destinationId, 'b');
+        final state = await store.load();
+        expect(state.entries['e-u']!.categoryID, isNull);
+        expect(state.entries['e-u']!.destinationID, 'b');
+        expect(state.entries['e-u']!.note, isNull);
       },
     );
 
@@ -1885,83 +1148,64 @@ void main() {
       'replacingATransferWithACategorizedExpenseClearsTheDestination',
       () async {
         await seedLedgerHolders();
-        for (final stamped in [false, true]) {
-          final id = stamped ? 'e-s' : 'e-u';
-          await writeEntryChange(
-            buildNotedEntry(id, amount: '20', destinationID: 'b', note: 'keep'),
-            stamped: false,
-          );
+        await writeEntryChange(
+          buildNotedEntry(
+            'e-u',
+            amount: '20',
+            destinationID: 'b',
+            note: 'keep',
+          ),
+        );
 
-          await writeEntryChange(
-            buildNotedEntry(id, categoryID: 'c1'),
-            stamped: stamped,
-          );
+        await writeEntryChange(buildNotedEntry('e-u', categoryID: 'c1'));
 
-          final row = await selectEntryRow(id);
-          expect(row.destinationId, isNull);
-          expect(row.categoryId, 'c1');
-          final state = await store.load();
-          expect(state.entries[id]!.destinationID, isNull);
-          expect(state.entries[id]!.categoryID, 'c1');
-          expect(state.entries[id]!.note, isNull);
-        }
+        final row = await selectEntryRow('e-u');
+        expect(row.destinationId, isNull);
+        expect(row.categoryId, 'c1');
+        final state = await store.load();
+        expect(state.entries['e-u']!.destinationID, isNull);
+        expect(state.entries['e-u']!.categoryID, 'c1');
+        expect(state.entries['e-u']!.note, isNull);
       },
     );
 
     test('replacingANoteWithBlankOrNullClearsTheColumn', () async {
       await seedLedgerHolders();
-      for (final stamped in [false, true]) {
-        final suffix = stamped ? 's' : 'u';
-        await writeEntryChange(
-          buildNotedEntry('e-w$suffix', note: 'memo'),
-          stamped: stamped,
-        );
-        await writeEntryChange(
-          buildNotedEntry('e-w$suffix', note: '   '),
-          stamped: stamped,
-        );
-        expect((await selectEntryRow('e-w$suffix')).note, isNull);
-        expect((await store.load()).entries['e-w$suffix']!.note, isNull);
+      await writeEntryChange(buildNotedEntry('e-w', note: 'memo'));
+      await writeEntryChange(buildNotedEntry('e-w', note: '   '));
+      expect((await selectEntryRow('e-w')).note, isNull);
+      expect((await store.load()).entries['e-w']!.note, isNull);
 
-        await writeEntryChange(
-          buildNotedEntry('e-n$suffix', note: 'memo'),
-          stamped: stamped,
-        );
-        await writeEntryChange(buildNotedEntry('e-n$suffix'), stamped: stamped);
-        expect((await selectEntryRow('e-n$suffix')).note, isNull);
-        expect((await store.load()).entries['e-n$suffix']!.note, isNull);
-      }
+      await writeEntryChange(buildNotedEntry('e-n', note: 'memo'));
+      await writeEntryChange(buildNotedEntry('e-n'));
+      expect((await selectEntryRow('e-n')).note, isNull);
+      expect((await store.load()).entries['e-n']!.note, isNull);
     });
 
     test('replacingASystemEntryWithAPlainEntryClearsTheKind', () async {
       await seedLedgerHolders();
-      for (final stamped in [false, true]) {
-        final id = stamped ? 'e-s' : 'e-u';
-        await writeEntryChange(
-          buildNotedEntry(
-            id,
-            amount: '250',
-            name: 'Opening balance',
-            includeInAnalysis: false,
-            systemKind: domain.SystemEntryKind.openingBalance,
-          ),
-          stamped: false,
-        );
+      await writeEntryChange(
+        buildNotedEntry(
+          'e-u',
+          amount: '250',
+          name: 'Opening balance',
+          includeInAnalysis: false,
+          systemKind: domain.SystemEntryKind.openingBalance,
+        ),
+      );
 
-        await writeEntryChange(
-          buildNotedEntry(
-            id,
-            amount: '250',
-            name: 'Opening balance',
-            includeInAnalysis: false,
-          ),
-          stamped: stamped,
-        );
+      await writeEntryChange(
+        buildNotedEntry(
+          'e-u',
+          amount: '250',
+          name: 'Opening balance',
+          includeInAnalysis: false,
+        ),
+      );
 
-        final row = await selectEntryRow(id);
-        expect(row.systemKind, isNull);
-        expect((await store.load()).entries[id]!.systemKind, isNull);
-      }
+      final row = await selectEntryRow('e-u');
+      expect(row.systemKind, isNull);
+      expect((await store.load()).entries['e-u']!.systemKind, isNull);
     });
 
     test(
@@ -2019,23 +1263,8 @@ void main() {
       await store.flushNow();
     }
 
-    Map<SyncRowID, VersionVector> planStamps(
-      LedgerChange change,
-      VersionVector stamp,
-    ) => {SyncRowID.of(collectionFor(change), change.targetID): stamp};
-
-    Future<void> writePlanChange(
-      domain.RecurringPlan planValue, {
-      required bool stamped,
-    }) async {
-      final change = UpsertPlan(planValue);
-      if (stamped) {
-        store.enqueueStamped([
-          change,
-        ], planStamps(change, VersionVector({'remote': 2})));
-      } else {
-        store.enqueue([change]);
-      }
+    Future<void> writePlanChange(domain.RecurringPlan planValue) async {
+      store.enqueue([UpsertPlan(planValue)]);
       await store.flushNow();
     }
 
@@ -2057,7 +1286,7 @@ void main() {
     test('aLegacyNullNoteLoadsWithEveryFieldUnchanged', () async {
       await seedPlanHolders();
       final legacy = buildNotedPlan('p1', endDate: DateTime.utc(2027, 1, 5));
-      await db.into(db.plans).insert(planToRow(legacy, VersionVector.empty));
+      await db.into(db.plans).insert(planToRow(legacy));
 
       final state = await store.load();
 
@@ -2070,41 +1299,19 @@ void main() {
 
     test('replacingANoteWithBlankOrNullClearsTheColumn', () async {
       await seedPlanHolders();
-      for (final stamped in [false, true]) {
-        final suffix = stamped ? 's' : 'u';
-        final end = DateTime.utc(2027, 1, 5);
-        await writePlanChange(
-          buildNotedPlan('p-w$suffix', note: 'memo', endDate: end),
-          stamped: false,
-        );
-        final before = versionFromRow(
-          (await selectPlanRow('p-w$suffix')).versionData,
-        );
+      final end = DateTime.utc(2027, 1, 5);
+      await writePlanChange(buildNotedPlan('p-w', note: 'memo', endDate: end));
 
-        await writePlanChange(
-          buildNotedPlan('p-w$suffix', note: '   ', endDate: end),
-          stamped: stamped,
-        );
-        final cleared = await selectPlanRow('p-w$suffix');
-        expect(cleared.templateNote, isNull);
-        expect(cleared.endDate, millisFromDay(end));
-        expect((await store.load()).plans['p-w$suffix']!.template.note, isNull);
+      await writePlanChange(buildNotedPlan('p-w', note: '   ', endDate: end));
+      final cleared = await selectPlanRow('p-w');
+      expect(cleared.templateNote, isNull);
+      expect(cleared.endDate, millisFromDay(end));
+      expect((await store.load()).plans['p-w']!.template.note, isNull);
 
-        final after = versionFromRow(cleared.versionData);
-        if (stamped) {
-          expect(after, VersionVector({'remote': 2}));
-        } else {
-          expect(after.dominates(before), isTrue);
-        }
-
-        await writePlanChange(
-          buildNotedPlan('p-n$suffix', note: 'memo'),
-          stamped: false,
-        );
-        await writePlanChange(buildNotedPlan('p-n$suffix'), stamped: stamped);
-        expect((await selectPlanRow('p-n$suffix')).templateNote, isNull);
-        expect((await store.load()).plans['p-n$suffix']!.template.note, isNull);
-      }
+      await writePlanChange(buildNotedPlan('p-n', note: 'memo'));
+      await writePlanChange(buildNotedPlan('p-n'));
+      expect((await selectPlanRow('p-n')).templateNote, isNull);
+      expect((await store.load()).plans['p-n']!.template.note, isNull);
     });
 
     test('resolvingFromAReloadedNotedPlanGeneratesNotedOccurrences', () async {
@@ -2124,33 +1331,13 @@ void main() {
 
     test('coalescingKeepsTheFinalClearedNote', () async {
       await seedPlanHolders();
-      final device = await deviceID(db);
-      for (final stamped in [false, true]) {
-        final id = stamped ? 'p-cs' : 'p-cu';
-        final noted = UpsertPlan(buildNotedPlan(id, note: 'memo'));
-        final cleared = UpsertPlan(buildNotedPlan(id));
-        if (stamped) {
-          store.enqueueStamped([
-            noted,
-          ], planStamps(noted, VersionVector({'remote': 1})));
-          store.enqueueStamped([
-            cleared,
-          ], planStamps(cleared, VersionVector({'remote': 2})));
-        } else {
-          store.enqueue([noted, cleared]);
-        }
-        await store.flushNow();
+      final noted = UpsertPlan(buildNotedPlan('p-cu', note: 'memo'));
+      final cleared = UpsertPlan(buildNotedPlan('p-cu'));
+      store.enqueue([noted, cleared]);
+      await store.flushNow();
 
-        final row = await selectPlanRow(id);
-        expect(row.templateNote, isNull);
-        final version = versionFromRow(row.versionData);
-        if (stamped) {
-          expect(version, VersionVector({'remote': 2}));
-        } else {
-          expect(version.counters[device], 1);
-        }
-        expect((await store.load()).plans[id]!.template.note, isNull);
-      }
+      expect((await selectPlanRow('p-cu')).templateNote, isNull);
+      expect((await store.load()).plans['p-cu']!.template.note, isNull);
     });
   });
 }

@@ -16,18 +16,16 @@ Account accountFromRow(rows.Account row) => Account(
   lifecycle: _lifecycle(row.lifecycle),
 );
 
-rows.Account accountToRow(Account account, VersionVector version) =>
-    rows.Account(
-      versionData: _versionToBlob(version),
-      lifecycle: account.lifecycle.code,
-      id: account.id,
-      name: account.name,
-      type: account.type.code,
-      subPocketIds: json.encode(account.subPocketIDs.toList()),
-      incomingTransfersAsExpenses: account.incomingTransfersAsExpenses,
-      includeInNetWorth: account.includeInNetWorth,
-      statementDay: account.statementDay,
-    );
+rows.Account accountToRow(Account account) => rows.Account(
+  lifecycle: account.lifecycle.code,
+  id: account.id,
+  name: account.name,
+  type: account.type.code,
+  subPocketIds: json.encode(account.subPocketIDs.toList()),
+  incomingTransfersAsExpenses: account.incomingTransfersAsExpenses,
+  includeInNetWorth: account.includeInNetWorth,
+  statementDay: account.statementDay,
+);
 
 // MARK: - Pockets
 
@@ -38,11 +36,9 @@ SubPocket pocketFromRow(rows.SubPocket row) => SubPocket(
   lifecycle: _lifecycle(row.lifecycle),
 );
 
-rows.SubPocket pocketToRow(SubPocket pocket, VersionVector version) =>
-    rows.SubPocket(
-      versionData: _versionToBlob(version),
-      lifecycle: pocket.lifecycle.code,
-      id: pocket.id,
-      name: pocket.name,
-      incomingTransfersAsExpenses: pocket.incomingTransfersAsExpenses,
-    );
+rows.SubPocket pocketToRow(SubPocket pocket) => rows.SubPocket(
+  lifecycle: pocket.lifecycle.code,
+  id: pocket.id,
+  name: pocket.name,
+  incomingTransfersAsExpenses: pocket.incomingTransfersAsExpenses,
+);

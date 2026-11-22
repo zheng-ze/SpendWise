@@ -25,16 +25,10 @@ void main() {
   test('budgets hold one limit and no limit history columns', () async {
     final columns = await columnTypes('budgets');
 
-    expect(columns.keys, {
-      'id',
-      'category_id',
-      'limit_amount',
-      'version_data',
-      'lifecycle',
-    });
+    expect(columns.keys, {'id', 'category_id', 'limit_amount', 'lifecycle'});
   });
 
-  test('every synced table carries a version vector and a lifecycle', () async {
+  test('every ledger table carries a lifecycle and no version data', () async {
     for (final table in [
       'accounts',
       'sub_pockets',
@@ -44,15 +38,14 @@ void main() {
       'budgets',
     ]) {
       final columns = await columnTypes(table);
-      expect(columns['version_data'], 'BLOB', reason: table);
       expect(columns['lifecycle'], 'INTEGER', reason: table);
+      expect(columns.containsKey('version_data'), isFalse, reason: table);
     }
   });
 
-  test('store_meta is device-local, so it has neither', () async {
+  test('store_meta holds only its id and the seeded flag', () async {
     final columns = await columnTypes('store_meta');
-    expect(columns.containsKey('version_data'), isFalse);
-    expect(columns.containsKey('lifecycle'), isFalse);
+    expect(columns.keys, {'id', 'has_seeded'});
   });
 
   test('reserved entry columns exist and are nullable', () async {
@@ -90,11 +83,11 @@ void main() {
 
   test('store_meta rejects a second row', () async {
     await db.customStatement(
-      "INSERT INTO store_meta (id, device_id, has_seeded) VALUES (0, 'a', 0)",
+      "INSERT INTO store_meta (id, has_seeded) VALUES (0, 0)",
     );
     await expectLater(
       db.customStatement(
-        "INSERT INTO store_meta (id, device_id, has_seeded) VALUES (1, 'b', 0)",
+        "INSERT INTO store_meta (id, has_seeded) VALUES (1, 0)",
       ),
       throwsA(isA<SqliteException>()),
     );

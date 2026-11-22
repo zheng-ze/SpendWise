@@ -25,7 +25,6 @@ class BannerState extends ChangeNotifier {
     SaveBannerState.retrying => "Couldn't save changes, retrying",
     SaveBannerState.failedWillRetry =>
       "Couldn't save changes, will retry shortly",
-    SaveBannerState.permanentlyFailed => "Couldn't save changes",
   };
 
   // MARK: - Save State

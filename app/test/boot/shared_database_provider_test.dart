@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/persistence/store/drift_ledger_store.dart';
-import 'package:spendwise/sync/sync_metadata_store.dart';
 
 class _CloseCountingExecutor extends QueryExecutor {
   _CloseCountingExecutor(this._inner);
@@ -102,18 +101,6 @@ ProviderContainer _containerWith({
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('ledgerStoreAndSyncMetadataShareTheOneBootDatabase', () async {
-    final executor = _CloseCountingExecutor(NativeDatabase.memory());
-    final container = _containerWith(connection: (ref) async => executor);
-
-    final database = container.read(ledgerDatabaseProvider);
-    final store = container.read(storeProvider) as DriftLedgerStore;
-    final syncStore = container.read(syncMetadataStoreProvider);
-
-    expect(identical(store.db, database), isTrue);
-    expect(identical(syncStore.database, database), isTrue);
-  });
-
   test('tearingDownTheContainerClosesOneExecutorAndOneDatabase', () async {
     final executor = _CloseCountingExecutor(NativeDatabase.memory());
     final observer = _DatabaseDisposeCounter();
@@ -124,7 +111,6 @@ void main() {
 
     final store = container.read(storeProvider) as DriftLedgerStore;
     await store.load();
-    await container.read(syncMetadataStoreProvider).snapshot();
 
     container.dispose();
     await executor.closed;

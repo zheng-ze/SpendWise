@@ -8,18 +8,6 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $AccountsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _versionDataMeta = const VerificationMeta(
-    'versionData',
-  );
-  @override
-  late final GeneratedColumn<Uint8List> versionData =
-      GeneratedColumn<Uint8List>(
-        'version_data',
-        aliasedName,
-        false,
-        type: DriftSqlType.blob,
-        requiredDuringInsert: true,
-      );
   static const VerificationMeta _lifecycleMeta = const VerificationMeta(
     'lifecycle',
   );
@@ -110,7 +98,6 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
   );
   @override
   List<GeneratedColumn> get $columns => [
-    versionData,
     lifecycle,
     id,
     name,
@@ -132,17 +119,6 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('version_data')) {
-      context.handle(
-        _versionDataMeta,
-        versionData.isAcceptableOrUnknown(
-          data['version_data']!,
-          _versionDataMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_versionDataMeta);
-    }
     if (data.containsKey('lifecycle')) {
       context.handle(
         _lifecycleMeta,
@@ -223,10 +199,6 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
   Account map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Account(
-      versionData: attachedDatabase.typeMapping.read(
-        DriftSqlType.blob,
-        data['${effectivePrefix}version_data'],
-      )!,
       lifecycle: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}lifecycle'],
@@ -269,7 +241,6 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
 }
 
 class Account extends DataClass implements Insertable<Account> {
-  final Uint8List versionData;
   final int lifecycle;
   final String id;
   final String name;
@@ -281,7 +252,6 @@ class Account extends DataClass implements Insertable<Account> {
   final bool includeInNetWorth;
   final int? statementDay;
   const Account({
-    required this.versionData,
     required this.lifecycle,
     required this.id,
     required this.name,
@@ -294,7 +264,6 @@ class Account extends DataClass implements Insertable<Account> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['version_data'] = Variable<Uint8List>(versionData);
     map['lifecycle'] = Variable<int>(lifecycle);
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
@@ -312,7 +281,6 @@ class Account extends DataClass implements Insertable<Account> {
 
   AccountsCompanion toCompanion(bool nullToAbsent) {
     return AccountsCompanion(
-      versionData: Value(versionData),
       lifecycle: Value(lifecycle),
       id: Value(id),
       name: Value(name),
@@ -332,7 +300,6 @@ class Account extends DataClass implements Insertable<Account> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Account(
-      versionData: serializer.fromJson<Uint8List>(json['versionData']),
       lifecycle: serializer.fromJson<int>(json['lifecycle']),
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
@@ -349,7 +316,6 @@ class Account extends DataClass implements Insertable<Account> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'versionData': serializer.toJson<Uint8List>(versionData),
       'lifecycle': serializer.toJson<int>(lifecycle),
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
@@ -364,7 +330,6 @@ class Account extends DataClass implements Insertable<Account> {
   }
 
   Account copyWith({
-    Uint8List? versionData,
     int? lifecycle,
     String? id,
     String? name,
@@ -374,7 +339,6 @@ class Account extends DataClass implements Insertable<Account> {
     bool? includeInNetWorth,
     Value<int?> statementDay = const Value.absent(),
   }) => Account(
-    versionData: versionData ?? this.versionData,
     lifecycle: lifecycle ?? this.lifecycle,
     id: id ?? this.id,
     name: name ?? this.name,
@@ -387,9 +351,6 @@ class Account extends DataClass implements Insertable<Account> {
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
-      versionData: data.versionData.present
-          ? data.versionData.value
-          : this.versionData,
       lifecycle: data.lifecycle.present ? data.lifecycle.value : this.lifecycle,
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
@@ -412,7 +373,6 @@ class Account extends DataClass implements Insertable<Account> {
   @override
   String toString() {
     return (StringBuffer('Account(')
-          ..write('versionData: $versionData, ')
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
@@ -427,7 +387,6 @@ class Account extends DataClass implements Insertable<Account> {
 
   @override
   int get hashCode => Object.hash(
-    $driftBlobEquality.hash(versionData),
     lifecycle,
     id,
     name,
@@ -441,7 +400,6 @@ class Account extends DataClass implements Insertable<Account> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Account &&
-          $driftBlobEquality.equals(other.versionData, this.versionData) &&
           other.lifecycle == this.lifecycle &&
           other.id == this.id &&
           other.name == this.name &&
@@ -454,7 +412,6 @@ class Account extends DataClass implements Insertable<Account> {
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
-  final Value<Uint8List> versionData;
   final Value<int> lifecycle;
   final Value<String> id;
   final Value<String> name;
@@ -465,7 +422,6 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<int?> statementDay;
   final Value<int> rowid;
   const AccountsCompanion({
-    this.versionData = const Value.absent(),
     this.lifecycle = const Value.absent(),
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -477,7 +433,6 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.rowid = const Value.absent(),
   });
   AccountsCompanion.insert({
-    required Uint8List versionData,
     required int lifecycle,
     required String id,
     required String name,
@@ -487,8 +442,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     required bool includeInNetWorth,
     this.statementDay = const Value.absent(),
     this.rowid = const Value.absent(),
-  }) : versionData = Value(versionData),
-       lifecycle = Value(lifecycle),
+  }) : lifecycle = Value(lifecycle),
        id = Value(id),
        name = Value(name),
        type = Value(type),
@@ -496,7 +450,6 @@ class AccountsCompanion extends UpdateCompanion<Account> {
        incomingTransfersAsExpenses = Value(incomingTransfersAsExpenses),
        includeInNetWorth = Value(includeInNetWorth);
   static Insertable<Account> custom({
-    Expression<Uint8List>? versionData,
     Expression<int>? lifecycle,
     Expression<String>? id,
     Expression<String>? name,
@@ -508,7 +461,6 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
-      if (versionData != null) 'version_data': versionData,
       if (lifecycle != null) 'lifecycle': lifecycle,
       if (id != null) 'id': id,
       if (name != null) 'name': name,
@@ -523,7 +475,6 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   }
 
   AccountsCompanion copyWith({
-    Value<Uint8List>? versionData,
     Value<int>? lifecycle,
     Value<String>? id,
     Value<String>? name,
@@ -535,7 +486,6 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<int>? rowid,
   }) {
     return AccountsCompanion(
-      versionData: versionData ?? this.versionData,
       lifecycle: lifecycle ?? this.lifecycle,
       id: id ?? this.id,
       name: name ?? this.name,
@@ -552,9 +502,6 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (versionData.present) {
-      map['version_data'] = Variable<Uint8List>(versionData.value);
-    }
     if (lifecycle.present) {
       map['lifecycle'] = Variable<int>(lifecycle.value);
     }
@@ -590,7 +537,6 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   @override
   String toString() {
     return (StringBuffer('AccountsCompanion(')
-          ..write('versionData: $versionData, ')
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
@@ -611,18 +557,6 @@ class $SubPocketsTable extends SubPockets
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $SubPocketsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _versionDataMeta = const VerificationMeta(
-    'versionData',
-  );
-  @override
-  late final GeneratedColumn<Uint8List> versionData =
-      GeneratedColumn<Uint8List>(
-        'version_data',
-        aliasedName,
-        false,
-        type: DriftSqlType.blob,
-        requiredDuringInsert: true,
-      );
   static const VerificationMeta _lifecycleMeta = const VerificationMeta(
     'lifecycle',
   );
@@ -668,7 +602,6 @@ class $SubPocketsTable extends SubPockets
       );
   @override
   List<GeneratedColumn> get $columns => [
-    versionData,
     lifecycle,
     id,
     name,
@@ -686,17 +619,6 @@ class $SubPocketsTable extends SubPockets
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('version_data')) {
-      context.handle(
-        _versionDataMeta,
-        versionData.isAcceptableOrUnknown(
-          data['version_data']!,
-          _versionDataMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_versionDataMeta);
-    }
     if (data.containsKey('lifecycle')) {
       context.handle(
         _lifecycleMeta,
@@ -738,10 +660,6 @@ class $SubPocketsTable extends SubPockets
   SubPocket map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return SubPocket(
-      versionData: attachedDatabase.typeMapping.read(
-        DriftSqlType.blob,
-        data['${effectivePrefix}version_data'],
-      )!,
       lifecycle: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}lifecycle'],
@@ -768,13 +686,11 @@ class $SubPocketsTable extends SubPockets
 }
 
 class SubPocket extends DataClass implements Insertable<SubPocket> {
-  final Uint8List versionData;
   final int lifecycle;
   final String id;
   final String name;
   final bool incomingTransfersAsExpenses;
   const SubPocket({
-    required this.versionData,
     required this.lifecycle,
     required this.id,
     required this.name,
@@ -783,7 +699,6 @@ class SubPocket extends DataClass implements Insertable<SubPocket> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['version_data'] = Variable<Uint8List>(versionData);
     map['lifecycle'] = Variable<int>(lifecycle);
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
@@ -795,7 +710,6 @@ class SubPocket extends DataClass implements Insertable<SubPocket> {
 
   SubPocketsCompanion toCompanion(bool nullToAbsent) {
     return SubPocketsCompanion(
-      versionData: Value(versionData),
       lifecycle: Value(lifecycle),
       id: Value(id),
       name: Value(name),
@@ -809,7 +723,6 @@ class SubPocket extends DataClass implements Insertable<SubPocket> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return SubPocket(
-      versionData: serializer.fromJson<Uint8List>(json['versionData']),
       lifecycle: serializer.fromJson<int>(json['lifecycle']),
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
@@ -822,7 +735,6 @@ class SubPocket extends DataClass implements Insertable<SubPocket> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'versionData': serializer.toJson<Uint8List>(versionData),
       'lifecycle': serializer.toJson<int>(lifecycle),
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
@@ -833,13 +745,11 @@ class SubPocket extends DataClass implements Insertable<SubPocket> {
   }
 
   SubPocket copyWith({
-    Uint8List? versionData,
     int? lifecycle,
     String? id,
     String? name,
     bool? incomingTransfersAsExpenses,
   }) => SubPocket(
-    versionData: versionData ?? this.versionData,
     lifecycle: lifecycle ?? this.lifecycle,
     id: id ?? this.id,
     name: name ?? this.name,
@@ -848,9 +758,6 @@ class SubPocket extends DataClass implements Insertable<SubPocket> {
   );
   SubPocket copyWithCompanion(SubPocketsCompanion data) {
     return SubPocket(
-      versionData: data.versionData.present
-          ? data.versionData.value
-          : this.versionData,
       lifecycle: data.lifecycle.present ? data.lifecycle.value : this.lifecycle,
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
@@ -863,7 +770,6 @@ class SubPocket extends DataClass implements Insertable<SubPocket> {
   @override
   String toString() {
     return (StringBuffer('SubPocket(')
-          ..write('versionData: $versionData, ')
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
@@ -873,18 +779,12 @@ class SubPocket extends DataClass implements Insertable<SubPocket> {
   }
 
   @override
-  int get hashCode => Object.hash(
-    $driftBlobEquality.hash(versionData),
-    lifecycle,
-    id,
-    name,
-    incomingTransfersAsExpenses,
-  );
+  int get hashCode =>
+      Object.hash(lifecycle, id, name, incomingTransfersAsExpenses);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is SubPocket &&
-          $driftBlobEquality.equals(other.versionData, this.versionData) &&
           other.lifecycle == this.lifecycle &&
           other.id == this.id &&
           other.name == this.name &&
@@ -893,14 +793,12 @@ class SubPocket extends DataClass implements Insertable<SubPocket> {
 }
 
 class SubPocketsCompanion extends UpdateCompanion<SubPocket> {
-  final Value<Uint8List> versionData;
   final Value<int> lifecycle;
   final Value<String> id;
   final Value<String> name;
   final Value<bool> incomingTransfersAsExpenses;
   final Value<int> rowid;
   const SubPocketsCompanion({
-    this.versionData = const Value.absent(),
     this.lifecycle = const Value.absent(),
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -908,19 +806,16 @@ class SubPocketsCompanion extends UpdateCompanion<SubPocket> {
     this.rowid = const Value.absent(),
   });
   SubPocketsCompanion.insert({
-    required Uint8List versionData,
     required int lifecycle,
     required String id,
     required String name,
     required bool incomingTransfersAsExpenses,
     this.rowid = const Value.absent(),
-  }) : versionData = Value(versionData),
-       lifecycle = Value(lifecycle),
+  }) : lifecycle = Value(lifecycle),
        id = Value(id),
        name = Value(name),
        incomingTransfersAsExpenses = Value(incomingTransfersAsExpenses);
   static Insertable<SubPocket> custom({
-    Expression<Uint8List>? versionData,
     Expression<int>? lifecycle,
     Expression<String>? id,
     Expression<String>? name,
@@ -928,7 +823,6 @@ class SubPocketsCompanion extends UpdateCompanion<SubPocket> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
-      if (versionData != null) 'version_data': versionData,
       if (lifecycle != null) 'lifecycle': lifecycle,
       if (id != null) 'id': id,
       if (name != null) 'name': name,
@@ -939,7 +833,6 @@ class SubPocketsCompanion extends UpdateCompanion<SubPocket> {
   }
 
   SubPocketsCompanion copyWith({
-    Value<Uint8List>? versionData,
     Value<int>? lifecycle,
     Value<String>? id,
     Value<String>? name,
@@ -947,7 +840,6 @@ class SubPocketsCompanion extends UpdateCompanion<SubPocket> {
     Value<int>? rowid,
   }) {
     return SubPocketsCompanion(
-      versionData: versionData ?? this.versionData,
       lifecycle: lifecycle ?? this.lifecycle,
       id: id ?? this.id,
       name: name ?? this.name,
@@ -960,9 +852,6 @@ class SubPocketsCompanion extends UpdateCompanion<SubPocket> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (versionData.present) {
-      map['version_data'] = Variable<Uint8List>(versionData.value);
-    }
     if (lifecycle.present) {
       map['lifecycle'] = Variable<int>(lifecycle.value);
     }
@@ -986,7 +875,6 @@ class SubPocketsCompanion extends UpdateCompanion<SubPocket> {
   @override
   String toString() {
     return (StringBuffer('SubPocketsCompanion(')
-          ..write('versionData: $versionData, ')
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
@@ -1003,18 +891,6 @@ class $CategoriesTable extends Categories
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $CategoriesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _versionDataMeta = const VerificationMeta(
-    'versionData',
-  );
-  @override
-  late final GeneratedColumn<Uint8List> versionData =
-      GeneratedColumn<Uint8List>(
-        'version_data',
-        aliasedName,
-        false,
-        type: DriftSqlType.blob,
-        requiredDuringInsert: true,
-      );
   static const VerificationMeta _lifecycleMeta = const VerificationMeta(
     'lifecycle',
   );
@@ -1100,7 +976,6 @@ class $CategoriesTable extends Categories
   );
   @override
   List<GeneratedColumn> get $columns => [
-    versionData,
     lifecycle,
     id,
     name,
@@ -1122,17 +997,6 @@ class $CategoriesTable extends Categories
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('version_data')) {
-      context.handle(
-        _versionDataMeta,
-        versionData.isAcceptableOrUnknown(
-          data['version_data']!,
-          _versionDataMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_versionDataMeta);
-    }
     if (data.containsKey('lifecycle')) {
       context.handle(
         _lifecycleMeta,
@@ -1204,10 +1068,6 @@ class $CategoriesTable extends Categories
   Category map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Category(
-      versionData: attachedDatabase.typeMapping.read(
-        DriftSqlType.blob,
-        data['${effectivePrefix}version_data'],
-      )!,
       lifecycle: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}lifecycle'],
@@ -1250,7 +1110,6 @@ class $CategoriesTable extends Categories
 }
 
 class Category extends DataClass implements Insertable<Category> {
-  final Uint8List versionData;
   final int lifecycle;
   final String id;
   final String name;
@@ -1262,7 +1121,6 @@ class Category extends DataClass implements Insertable<Category> {
   final String? parentId;
   final String symbol;
   const Category({
-    required this.versionData,
     required this.lifecycle,
     required this.id,
     required this.name,
@@ -1275,7 +1133,6 @@ class Category extends DataClass implements Insertable<Category> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['version_data'] = Variable<Uint8List>(versionData);
     map['lifecycle'] = Variable<int>(lifecycle);
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
@@ -1291,7 +1148,6 @@ class Category extends DataClass implements Insertable<Category> {
 
   CategoriesCompanion toCompanion(bool nullToAbsent) {
     return CategoriesCompanion(
-      versionData: Value(versionData),
       lifecycle: Value(lifecycle),
       id: Value(id),
       name: Value(name),
@@ -1311,7 +1167,6 @@ class Category extends DataClass implements Insertable<Category> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Category(
-      versionData: serializer.fromJson<Uint8List>(json['versionData']),
       lifecycle: serializer.fromJson<int>(json['lifecycle']),
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
@@ -1326,7 +1181,6 @@ class Category extends DataClass implements Insertable<Category> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'versionData': serializer.toJson<Uint8List>(versionData),
       'lifecycle': serializer.toJson<int>(lifecycle),
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
@@ -1339,7 +1193,6 @@ class Category extends DataClass implements Insertable<Category> {
   }
 
   Category copyWith({
-    Uint8List? versionData,
     int? lifecycle,
     String? id,
     String? name,
@@ -1349,7 +1202,6 @@ class Category extends DataClass implements Insertable<Category> {
     Value<String?> parentId = const Value.absent(),
     String? symbol,
   }) => Category(
-    versionData: versionData ?? this.versionData,
     lifecycle: lifecycle ?? this.lifecycle,
     id: id ?? this.id,
     name: name ?? this.name,
@@ -1361,9 +1213,6 @@ class Category extends DataClass implements Insertable<Category> {
   );
   Category copyWithCompanion(CategoriesCompanion data) {
     return Category(
-      versionData: data.versionData.present
-          ? data.versionData.value
-          : this.versionData,
       lifecycle: data.lifecycle.present ? data.lifecycle.value : this.lifecycle,
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
@@ -1380,7 +1229,6 @@ class Category extends DataClass implements Insertable<Category> {
   @override
   String toString() {
     return (StringBuffer('Category(')
-          ..write('versionData: $versionData, ')
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
@@ -1395,7 +1243,6 @@ class Category extends DataClass implements Insertable<Category> {
 
   @override
   int get hashCode => Object.hash(
-    $driftBlobEquality.hash(versionData),
     lifecycle,
     id,
     name,
@@ -1409,7 +1256,6 @@ class Category extends DataClass implements Insertable<Category> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Category &&
-          $driftBlobEquality.equals(other.versionData, this.versionData) &&
           other.lifecycle == this.lifecycle &&
           other.id == this.id &&
           other.name == this.name &&
@@ -1421,7 +1267,6 @@ class Category extends DataClass implements Insertable<Category> {
 }
 
 class CategoriesCompanion extends UpdateCompanion<Category> {
-  final Value<Uint8List> versionData;
   final Value<int> lifecycle;
   final Value<String> id;
   final Value<String> name;
@@ -1432,7 +1277,6 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<String> symbol;
   final Value<int> rowid;
   const CategoriesCompanion({
-    this.versionData = const Value.absent(),
     this.lifecycle = const Value.absent(),
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -1444,7 +1288,6 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.rowid = const Value.absent(),
   });
   CategoriesCompanion.insert({
-    required Uint8List versionData,
     required int lifecycle,
     required String id,
     required String name,
@@ -1454,8 +1297,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.parentId = const Value.absent(),
     required String symbol,
     this.rowid = const Value.absent(),
-  }) : versionData = Value(versionData),
-       lifecycle = Value(lifecycle),
+  }) : lifecycle = Value(lifecycle),
        id = Value(id),
        name = Value(name),
        kind = Value(kind),
@@ -1463,7 +1305,6 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
        includeInAnalysis = Value(includeInAnalysis),
        symbol = Value(symbol);
   static Insertable<Category> custom({
-    Expression<Uint8List>? versionData,
     Expression<int>? lifecycle,
     Expression<String>? id,
     Expression<String>? name,
@@ -1475,7 +1316,6 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
-      if (versionData != null) 'version_data': versionData,
       if (lifecycle != null) 'lifecycle': lifecycle,
       if (id != null) 'id': id,
       if (name != null) 'name': name,
@@ -1489,7 +1329,6 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   }
 
   CategoriesCompanion copyWith({
-    Value<Uint8List>? versionData,
     Value<int>? lifecycle,
     Value<String>? id,
     Value<String>? name,
@@ -1501,7 +1340,6 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Value<int>? rowid,
   }) {
     return CategoriesCompanion(
-      versionData: versionData ?? this.versionData,
       lifecycle: lifecycle ?? this.lifecycle,
       id: id ?? this.id,
       name: name ?? this.name,
@@ -1517,9 +1355,6 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (versionData.present) {
-      map['version_data'] = Variable<Uint8List>(versionData.value);
-    }
     if (lifecycle.present) {
       map['lifecycle'] = Variable<int>(lifecycle.value);
     }
@@ -1553,7 +1388,6 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   @override
   String toString() {
     return (StringBuffer('CategoriesCompanion(')
-          ..write('versionData: $versionData, ')
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
@@ -1573,18 +1407,6 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $EntriesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _versionDataMeta = const VerificationMeta(
-    'versionData',
-  );
-  @override
-  late final GeneratedColumn<Uint8List> versionData =
-      GeneratedColumn<Uint8List>(
-        'version_data',
-        aliasedName,
-        false,
-        type: DriftSqlType.blob,
-        requiredDuringInsert: true,
-      );
   static const VerificationMeta _lifecycleMeta = const VerificationMeta(
     'lifecycle',
   );
@@ -1701,7 +1523,6 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
   );
   @override
   List<GeneratedColumn> get $columns => [
-    versionData,
     lifecycle,
     id,
     date,
@@ -1726,17 +1547,6 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('version_data')) {
-      context.handle(
-        _versionDataMeta,
-        versionData.isAcceptableOrUnknown(
-          data['version_data']!,
-          _versionDataMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_versionDataMeta);
-    }
     if (data.containsKey('lifecycle')) {
       context.handle(
         _lifecycleMeta,
@@ -1829,10 +1639,6 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
   Entry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Entry(
-      versionData: attachedDatabase.typeMapping.read(
-        DriftSqlType.blob,
-        data['${effectivePrefix}version_data'],
-      )!,
       lifecycle: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}lifecycle'],
@@ -1887,7 +1693,6 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
 }
 
 class Entry extends DataClass implements Insertable<Entry> {
-  final Uint8List versionData;
   final int lifecycle;
   final String id;
   final int date;
@@ -1902,7 +1707,6 @@ class Entry extends DataClass implements Insertable<Entry> {
   final String? note;
   final int? systemKind;
   const Entry({
-    required this.versionData,
     required this.lifecycle,
     required this.id,
     required this.date,
@@ -1918,7 +1722,6 @@ class Entry extends DataClass implements Insertable<Entry> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['version_data'] = Variable<Uint8List>(versionData);
     map['lifecycle'] = Variable<int>(lifecycle);
     map['id'] = Variable<String>(id);
     map['date'] = Variable<int>(date);
@@ -1943,7 +1746,6 @@ class Entry extends DataClass implements Insertable<Entry> {
 
   EntriesCompanion toCompanion(bool nullToAbsent) {
     return EntriesCompanion(
-      versionData: Value(versionData),
       lifecycle: Value(lifecycle),
       id: Value(id),
       date: Value(date),
@@ -1970,7 +1772,6 @@ class Entry extends DataClass implements Insertable<Entry> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Entry(
-      versionData: serializer.fromJson<Uint8List>(json['versionData']),
       lifecycle: serializer.fromJson<int>(json['lifecycle']),
       id: serializer.fromJson<String>(json['id']),
       date: serializer.fromJson<int>(json['date']),
@@ -1988,7 +1789,6 @@ class Entry extends DataClass implements Insertable<Entry> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'versionData': serializer.toJson<Uint8List>(versionData),
       'lifecycle': serializer.toJson<int>(lifecycle),
       'id': serializer.toJson<String>(id),
       'date': serializer.toJson<int>(date),
@@ -2004,7 +1804,6 @@ class Entry extends DataClass implements Insertable<Entry> {
   }
 
   Entry copyWith({
-    Uint8List? versionData,
     int? lifecycle,
     String? id,
     int? date,
@@ -2017,7 +1816,6 @@ class Entry extends DataClass implements Insertable<Entry> {
     Value<String?> note = const Value.absent(),
     Value<int?> systemKind = const Value.absent(),
   }) => Entry(
-    versionData: versionData ?? this.versionData,
     lifecycle: lifecycle ?? this.lifecycle,
     id: id ?? this.id,
     date: date ?? this.date,
@@ -2034,9 +1832,6 @@ class Entry extends DataClass implements Insertable<Entry> {
   );
   Entry copyWithCompanion(EntriesCompanion data) {
     return Entry(
-      versionData: data.versionData.present
-          ? data.versionData.value
-          : this.versionData,
       lifecycle: data.lifecycle.present ? data.lifecycle.value : this.lifecycle,
       id: data.id.present ? data.id.value : this.id,
       date: data.date.present ? data.date.value : this.date,
@@ -2062,7 +1857,6 @@ class Entry extends DataClass implements Insertable<Entry> {
   @override
   String toString() {
     return (StringBuffer('Entry(')
-          ..write('versionData: $versionData, ')
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('date: $date, ')
@@ -2080,7 +1874,6 @@ class Entry extends DataClass implements Insertable<Entry> {
 
   @override
   int get hashCode => Object.hash(
-    $driftBlobEquality.hash(versionData),
     lifecycle,
     id,
     date,
@@ -2097,7 +1890,6 @@ class Entry extends DataClass implements Insertable<Entry> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Entry &&
-          $driftBlobEquality.equals(other.versionData, this.versionData) &&
           other.lifecycle == this.lifecycle &&
           other.id == this.id &&
           other.date == this.date &&
@@ -2112,7 +1904,6 @@ class Entry extends DataClass implements Insertable<Entry> {
 }
 
 class EntriesCompanion extends UpdateCompanion<Entry> {
-  final Value<Uint8List> versionData;
   final Value<int> lifecycle;
   final Value<String> id;
   final Value<int> date;
@@ -2126,7 +1917,6 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
   final Value<int?> systemKind;
   final Value<int> rowid;
   const EntriesCompanion({
-    this.versionData = const Value.absent(),
     this.lifecycle = const Value.absent(),
     this.id = const Value.absent(),
     this.date = const Value.absent(),
@@ -2141,7 +1931,6 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     this.rowid = const Value.absent(),
   });
   EntriesCompanion.insert({
-    required Uint8List versionData,
     required int lifecycle,
     required String id,
     required int date,
@@ -2154,8 +1943,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     this.note = const Value.absent(),
     this.systemKind = const Value.absent(),
     this.rowid = const Value.absent(),
-  }) : versionData = Value(versionData),
-       lifecycle = Value(lifecycle),
+  }) : lifecycle = Value(lifecycle),
        id = Value(id),
        date = Value(date),
        amount = Value(amount),
@@ -2163,7 +1951,6 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
        sourceId = Value(sourceId),
        includeInAnalysis = Value(includeInAnalysis);
   static Insertable<Entry> custom({
-    Expression<Uint8List>? versionData,
     Expression<int>? lifecycle,
     Expression<String>? id,
     Expression<int>? date,
@@ -2178,7 +1965,6 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
-      if (versionData != null) 'version_data': versionData,
       if (lifecycle != null) 'lifecycle': lifecycle,
       if (id != null) 'id': id,
       if (date != null) 'date': date,
@@ -2195,7 +1981,6 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
   }
 
   EntriesCompanion copyWith({
-    Value<Uint8List>? versionData,
     Value<int>? lifecycle,
     Value<String>? id,
     Value<int>? date,
@@ -2210,7 +1995,6 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     Value<int>? rowid,
   }) {
     return EntriesCompanion(
-      versionData: versionData ?? this.versionData,
       lifecycle: lifecycle ?? this.lifecycle,
       id: id ?? this.id,
       date: date ?? this.date,
@@ -2229,9 +2013,6 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (versionData.present) {
-      map['version_data'] = Variable<Uint8List>(versionData.value);
-    }
     if (lifecycle.present) {
       map['lifecycle'] = Variable<int>(lifecycle.value);
     }
@@ -2274,7 +2055,6 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
   @override
   String toString() {
     return (StringBuffer('EntriesCompanion(')
-          ..write('versionData: $versionData, ')
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('date: $date, ')
@@ -2297,18 +2077,6 @@ class $PlansTable extends Plans with TableInfo<$PlansTable, Plan> {
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $PlansTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _versionDataMeta = const VerificationMeta(
-    'versionData',
-  );
-  @override
-  late final GeneratedColumn<Uint8List> versionData =
-      GeneratedColumn<Uint8List>(
-        'version_data',
-        aliasedName,
-        false,
-        type: DriftSqlType.blob,
-        requiredDuringInsert: true,
-      );
   static const VerificationMeta _lifecycleMeta = const VerificationMeta(
     'lifecycle',
   );
@@ -2453,7 +2221,6 @@ class $PlansTable extends Plans with TableInfo<$PlansTable, Plan> {
   );
   @override
   List<GeneratedColumn> get $columns => [
-    versionData,
     lifecycle,
     id,
     frequency,
@@ -2480,17 +2247,6 @@ class $PlansTable extends Plans with TableInfo<$PlansTable, Plan> {
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('version_data')) {
-      context.handle(
-        _versionDataMeta,
-        versionData.isAcceptableOrUnknown(
-          data['version_data']!,
-          _versionDataMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_versionDataMeta);
-    }
     if (data.containsKey('lifecycle')) {
       context.handle(
         _lifecycleMeta,
@@ -2617,10 +2373,6 @@ class $PlansTable extends Plans with TableInfo<$PlansTable, Plan> {
   Plan map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Plan(
-      versionData: attachedDatabase.typeMapping.read(
-        DriftSqlType.blob,
-        data['${effectivePrefix}version_data'],
-      )!,
       lifecycle: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}lifecycle'],
@@ -2683,7 +2435,6 @@ class $PlansTable extends Plans with TableInfo<$PlansTable, Plan> {
 }
 
 class Plan extends DataClass implements Insertable<Plan> {
-  final Uint8List versionData;
   final int lifecycle;
   final String id;
   final int frequency;
@@ -2698,7 +2449,6 @@ class Plan extends DataClass implements Insertable<Plan> {
   final bool templateIncludeInAnalysis;
   final String? templateNote;
   const Plan({
-    required this.versionData,
     required this.lifecycle,
     required this.id,
     required this.frequency,
@@ -2716,7 +2466,6 @@ class Plan extends DataClass implements Insertable<Plan> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['version_data'] = Variable<Uint8List>(versionData);
     map['lifecycle'] = Variable<int>(lifecycle);
     map['id'] = Variable<String>(id);
     map['frequency'] = Variable<int>(frequency);
@@ -2745,7 +2494,6 @@ class Plan extends DataClass implements Insertable<Plan> {
 
   PlansCompanion toCompanion(bool nullToAbsent) {
     return PlansCompanion(
-      versionData: Value(versionData),
       lifecycle: Value(lifecycle),
       id: Value(id),
       frequency: Value(frequency),
@@ -2776,7 +2524,6 @@ class Plan extends DataClass implements Insertable<Plan> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Plan(
-      versionData: serializer.fromJson<Uint8List>(json['versionData']),
       lifecycle: serializer.fromJson<int>(json['lifecycle']),
       id: serializer.fromJson<String>(json['id']),
       frequency: serializer.fromJson<int>(json['frequency']),
@@ -2802,7 +2549,6 @@ class Plan extends DataClass implements Insertable<Plan> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'versionData': serializer.toJson<Uint8List>(versionData),
       'lifecycle': serializer.toJson<int>(lifecycle),
       'id': serializer.toJson<String>(id),
       'frequency': serializer.toJson<int>(frequency),
@@ -2824,7 +2570,6 @@ class Plan extends DataClass implements Insertable<Plan> {
   }
 
   Plan copyWith({
-    Uint8List? versionData,
     int? lifecycle,
     String? id,
     int? frequency,
@@ -2839,7 +2584,6 @@ class Plan extends DataClass implements Insertable<Plan> {
     bool? templateIncludeInAnalysis,
     Value<String?> templateNote = const Value.absent(),
   }) => Plan(
-    versionData: versionData ?? this.versionData,
     lifecycle: lifecycle ?? this.lifecycle,
     id: id ?? this.id,
     frequency: frequency ?? this.frequency,
@@ -2861,9 +2605,6 @@ class Plan extends DataClass implements Insertable<Plan> {
   );
   Plan copyWithCompanion(PlansCompanion data) {
     return Plan(
-      versionData: data.versionData.present
-          ? data.versionData.value
-          : this.versionData,
       lifecycle: data.lifecycle.present ? data.lifecycle.value : this.lifecycle,
       id: data.id.present ? data.id.value : this.id,
       frequency: data.frequency.present ? data.frequency.value : this.frequency,
@@ -2899,7 +2640,6 @@ class Plan extends DataClass implements Insertable<Plan> {
   @override
   String toString() {
     return (StringBuffer('Plan(')
-          ..write('versionData: $versionData, ')
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('frequency: $frequency, ')
@@ -2919,7 +2659,6 @@ class Plan extends DataClass implements Insertable<Plan> {
 
   @override
   int get hashCode => Object.hash(
-    $driftBlobEquality.hash(versionData),
     lifecycle,
     id,
     frequency,
@@ -2938,7 +2677,6 @@ class Plan extends DataClass implements Insertable<Plan> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Plan &&
-          $driftBlobEquality.equals(other.versionData, this.versionData) &&
           other.lifecycle == this.lifecycle &&
           other.id == this.id &&
           other.frequency == this.frequency &&
@@ -2955,7 +2693,6 @@ class Plan extends DataClass implements Insertable<Plan> {
 }
 
 class PlansCompanion extends UpdateCompanion<Plan> {
-  final Value<Uint8List> versionData;
   final Value<int> lifecycle;
   final Value<String> id;
   final Value<int> frequency;
@@ -2971,7 +2708,6 @@ class PlansCompanion extends UpdateCompanion<Plan> {
   final Value<String?> templateNote;
   final Value<int> rowid;
   const PlansCompanion({
-    this.versionData = const Value.absent(),
     this.lifecycle = const Value.absent(),
     this.id = const Value.absent(),
     this.frequency = const Value.absent(),
@@ -2988,7 +2724,6 @@ class PlansCompanion extends UpdateCompanion<Plan> {
     this.rowid = const Value.absent(),
   });
   PlansCompanion.insert({
-    required Uint8List versionData,
     required int lifecycle,
     required String id,
     required int frequency,
@@ -3003,8 +2738,7 @@ class PlansCompanion extends UpdateCompanion<Plan> {
     required bool templateIncludeInAnalysis,
     this.templateNote = const Value.absent(),
     this.rowid = const Value.absent(),
-  }) : versionData = Value(versionData),
-       lifecycle = Value(lifecycle),
+  }) : lifecycle = Value(lifecycle),
        id = Value(id),
        frequency = Value(frequency),
        anchor = Value(anchor),
@@ -3014,7 +2748,6 @@ class PlansCompanion extends UpdateCompanion<Plan> {
        templateSourceId = Value(templateSourceId),
        templateIncludeInAnalysis = Value(templateIncludeInAnalysis);
   static Insertable<Plan> custom({
-    Expression<Uint8List>? versionData,
     Expression<int>? lifecycle,
     Expression<String>? id,
     Expression<int>? frequency,
@@ -3031,7 +2764,6 @@ class PlansCompanion extends UpdateCompanion<Plan> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
-      if (versionData != null) 'version_data': versionData,
       if (lifecycle != null) 'lifecycle': lifecycle,
       if (id != null) 'id': id,
       if (frequency != null) 'frequency': frequency,
@@ -3053,7 +2785,6 @@ class PlansCompanion extends UpdateCompanion<Plan> {
   }
 
   PlansCompanion copyWith({
-    Value<Uint8List>? versionData,
     Value<int>? lifecycle,
     Value<String>? id,
     Value<int>? frequency,
@@ -3070,7 +2801,6 @@ class PlansCompanion extends UpdateCompanion<Plan> {
     Value<int>? rowid,
   }) {
     return PlansCompanion(
-      versionData: versionData ?? this.versionData,
       lifecycle: lifecycle ?? this.lifecycle,
       id: id ?? this.id,
       frequency: frequency ?? this.frequency,
@@ -3093,9 +2823,6 @@ class PlansCompanion extends UpdateCompanion<Plan> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (versionData.present) {
-      map['version_data'] = Variable<Uint8List>(versionData.value);
-    }
     if (lifecycle.present) {
       map['lifecycle'] = Variable<int>(lifecycle.value);
     }
@@ -3148,7 +2875,6 @@ class PlansCompanion extends UpdateCompanion<Plan> {
   @override
   String toString() {
     return (StringBuffer('PlansCompanion(')
-          ..write('versionData: $versionData, ')
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('frequency: $frequency, ')
@@ -3173,18 +2899,6 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $BudgetsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _versionDataMeta = const VerificationMeta(
-    'versionData',
-  );
-  @override
-  late final GeneratedColumn<Uint8List> versionData =
-      GeneratedColumn<Uint8List>(
-        'version_data',
-        aliasedName,
-        false,
-        type: DriftSqlType.blob,
-        requiredDuringInsert: true,
-      );
   static const VerificationMeta _lifecycleMeta = const VerificationMeta(
     'lifecycle',
   );
@@ -3229,7 +2943,6 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
   );
   @override
   List<GeneratedColumn> get $columns => [
-    versionData,
     lifecycle,
     id,
     categoryId,
@@ -3247,17 +2960,6 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('version_data')) {
-      context.handle(
-        _versionDataMeta,
-        versionData.isAcceptableOrUnknown(
-          data['version_data']!,
-          _versionDataMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_versionDataMeta);
-    }
     if (data.containsKey('lifecycle')) {
       context.handle(
         _lifecycleMeta,
@@ -3297,10 +2999,6 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
   Budget map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Budget(
-      versionData: attachedDatabase.typeMapping.read(
-        DriftSqlType.blob,
-        data['${effectivePrefix}version_data'],
-      )!,
       lifecycle: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}lifecycle'],
@@ -3327,13 +3025,11 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
 }
 
 class Budget extends DataClass implements Insertable<Budget> {
-  final Uint8List versionData;
   final int lifecycle;
   final String id;
   final String? categoryId;
   final String limitAmount;
   const Budget({
-    required this.versionData,
     required this.lifecycle,
     required this.id,
     this.categoryId,
@@ -3342,7 +3038,6 @@ class Budget extends DataClass implements Insertable<Budget> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['version_data'] = Variable<Uint8List>(versionData);
     map['lifecycle'] = Variable<int>(lifecycle);
     map['id'] = Variable<String>(id);
     if (!nullToAbsent || categoryId != null) {
@@ -3354,7 +3049,6 @@ class Budget extends DataClass implements Insertable<Budget> {
 
   BudgetsCompanion toCompanion(bool nullToAbsent) {
     return BudgetsCompanion(
-      versionData: Value(versionData),
       lifecycle: Value(lifecycle),
       id: Value(id),
       categoryId: categoryId == null && nullToAbsent
@@ -3370,7 +3064,6 @@ class Budget extends DataClass implements Insertable<Budget> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Budget(
-      versionData: serializer.fromJson<Uint8List>(json['versionData']),
       lifecycle: serializer.fromJson<int>(json['lifecycle']),
       id: serializer.fromJson<String>(json['id']),
       categoryId: serializer.fromJson<String?>(json['categoryId']),
@@ -3381,7 +3074,6 @@ class Budget extends DataClass implements Insertable<Budget> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'versionData': serializer.toJson<Uint8List>(versionData),
       'lifecycle': serializer.toJson<int>(lifecycle),
       'id': serializer.toJson<String>(id),
       'categoryId': serializer.toJson<String?>(categoryId),
@@ -3390,13 +3082,11 @@ class Budget extends DataClass implements Insertable<Budget> {
   }
 
   Budget copyWith({
-    Uint8List? versionData,
     int? lifecycle,
     String? id,
     Value<String?> categoryId = const Value.absent(),
     String? limitAmount,
   }) => Budget(
-    versionData: versionData ?? this.versionData,
     lifecycle: lifecycle ?? this.lifecycle,
     id: id ?? this.id,
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
@@ -3404,9 +3094,6 @@ class Budget extends DataClass implements Insertable<Budget> {
   );
   Budget copyWithCompanion(BudgetsCompanion data) {
     return Budget(
-      versionData: data.versionData.present
-          ? data.versionData.value
-          : this.versionData,
       lifecycle: data.lifecycle.present ? data.lifecycle.value : this.lifecycle,
       id: data.id.present ? data.id.value : this.id,
       categoryId: data.categoryId.present
@@ -3421,7 +3108,6 @@ class Budget extends DataClass implements Insertable<Budget> {
   @override
   String toString() {
     return (StringBuffer('Budget(')
-          ..write('versionData: $versionData, ')
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('categoryId: $categoryId, ')
@@ -3431,18 +3117,11 @@ class Budget extends DataClass implements Insertable<Budget> {
   }
 
   @override
-  int get hashCode => Object.hash(
-    $driftBlobEquality.hash(versionData),
-    lifecycle,
-    id,
-    categoryId,
-    limitAmount,
-  );
+  int get hashCode => Object.hash(lifecycle, id, categoryId, limitAmount);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Budget &&
-          $driftBlobEquality.equals(other.versionData, this.versionData) &&
           other.lifecycle == this.lifecycle &&
           other.id == this.id &&
           other.categoryId == this.categoryId &&
@@ -3450,14 +3129,12 @@ class Budget extends DataClass implements Insertable<Budget> {
 }
 
 class BudgetsCompanion extends UpdateCompanion<Budget> {
-  final Value<Uint8List> versionData;
   final Value<int> lifecycle;
   final Value<String> id;
   final Value<String?> categoryId;
   final Value<String> limitAmount;
   final Value<int> rowid;
   const BudgetsCompanion({
-    this.versionData = const Value.absent(),
     this.lifecycle = const Value.absent(),
     this.id = const Value.absent(),
     this.categoryId = const Value.absent(),
@@ -3465,18 +3142,15 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     this.rowid = const Value.absent(),
   });
   BudgetsCompanion.insert({
-    required Uint8List versionData,
     required int lifecycle,
     required String id,
     this.categoryId = const Value.absent(),
     required String limitAmount,
     this.rowid = const Value.absent(),
-  }) : versionData = Value(versionData),
-       lifecycle = Value(lifecycle),
+  }) : lifecycle = Value(lifecycle),
        id = Value(id),
        limitAmount = Value(limitAmount);
   static Insertable<Budget> custom({
-    Expression<Uint8List>? versionData,
     Expression<int>? lifecycle,
     Expression<String>? id,
     Expression<String>? categoryId,
@@ -3484,7 +3158,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
-      if (versionData != null) 'version_data': versionData,
       if (lifecycle != null) 'lifecycle': lifecycle,
       if (id != null) 'id': id,
       if (categoryId != null) 'category_id': categoryId,
@@ -3494,7 +3167,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
   }
 
   BudgetsCompanion copyWith({
-    Value<Uint8List>? versionData,
     Value<int>? lifecycle,
     Value<String>? id,
     Value<String?>? categoryId,
@@ -3502,7 +3174,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     Value<int>? rowid,
   }) {
     return BudgetsCompanion(
-      versionData: versionData ?? this.versionData,
       lifecycle: lifecycle ?? this.lifecycle,
       id: id ?? this.id,
       categoryId: categoryId ?? this.categoryId,
@@ -3514,9 +3185,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (versionData.present) {
-      map['version_data'] = Variable<Uint8List>(versionData.value);
-    }
     if (lifecycle.present) {
       map['lifecycle'] = Variable<int>(lifecycle.value);
     }
@@ -3538,7 +3206,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
   @override
   String toString() {
     return (StringBuffer('BudgetsCompanion(')
-          ..write('versionData: $versionData, ')
           ..write('lifecycle: $lifecycle, ')
           ..write('id: $id, ')
           ..write('categoryId: $categoryId, ')
@@ -3564,17 +3231,6 @@ class $StoreMetaTable extends StoreMeta
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
-    'deviceId',
-  );
-  @override
-  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
-    'device_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
   static const VerificationMeta _hasSeededMeta = const VerificationMeta(
     'hasSeeded',
   );
@@ -3591,7 +3247,7 @@ class $StoreMetaTable extends StoreMeta
     defaultValue: const Constant(false),
   );
   @override
-  List<GeneratedColumn> get $columns => [id, deviceId, hasSeeded];
+  List<GeneratedColumn> get $columns => [id, hasSeeded];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -3606,14 +3262,6 @@ class $StoreMetaTable extends StoreMeta
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
-    if (data.containsKey('device_id')) {
-      context.handle(
-        _deviceIdMeta,
-        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_deviceIdMeta);
     }
     if (data.containsKey('has_seeded')) {
       context.handle(
@@ -3634,10 +3282,6 @@ class $StoreMetaTable extends StoreMeta
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
-      deviceId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}device_id'],
-      )!,
       hasSeeded: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}has_seeded'],
@@ -3653,28 +3297,18 @@ class $StoreMetaTable extends StoreMeta
 
 class StoreMetaRow extends DataClass implements Insertable<StoreMetaRow> {
   final int id;
-  final String deviceId;
   final bool hasSeeded;
-  const StoreMetaRow({
-    required this.id,
-    required this.deviceId,
-    required this.hasSeeded,
-  });
+  const StoreMetaRow({required this.id, required this.hasSeeded});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    map['device_id'] = Variable<String>(deviceId);
     map['has_seeded'] = Variable<bool>(hasSeeded);
     return map;
   }
 
   StoreMetaCompanion toCompanion(bool nullToAbsent) {
-    return StoreMetaCompanion(
-      id: Value(id),
-      deviceId: Value(deviceId),
-      hasSeeded: Value(hasSeeded),
-    );
+    return StoreMetaCompanion(id: Value(id), hasSeeded: Value(hasSeeded));
   }
 
   factory StoreMetaRow.fromJson(
@@ -3684,7 +3318,6 @@ class StoreMetaRow extends DataClass implements Insertable<StoreMetaRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return StoreMetaRow(
       id: serializer.fromJson<int>(json['id']),
-      deviceId: serializer.fromJson<String>(json['deviceId']),
       hasSeeded: serializer.fromJson<bool>(json['hasSeeded']),
     );
   }
@@ -3693,21 +3326,15 @@ class StoreMetaRow extends DataClass implements Insertable<StoreMetaRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'deviceId': serializer.toJson<String>(deviceId),
       'hasSeeded': serializer.toJson<bool>(hasSeeded),
     };
   }
 
-  StoreMetaRow copyWith({int? id, String? deviceId, bool? hasSeeded}) =>
-      StoreMetaRow(
-        id: id ?? this.id,
-        deviceId: deviceId ?? this.deviceId,
-        hasSeeded: hasSeeded ?? this.hasSeeded,
-      );
+  StoreMetaRow copyWith({int? id, bool? hasSeeded}) =>
+      StoreMetaRow(id: id ?? this.id, hasSeeded: hasSeeded ?? this.hasSeeded);
   StoreMetaRow copyWithCompanion(StoreMetaCompanion data) {
     return StoreMetaRow(
       id: data.id.present ? data.id.value : this.id,
-      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
       hasSeeded: data.hasSeeded.present ? data.hasSeeded.value : this.hasSeeded,
     );
   }
@@ -3716,57 +3343,45 @@ class StoreMetaRow extends DataClass implements Insertable<StoreMetaRow> {
   String toString() {
     return (StringBuffer('StoreMetaRow(')
           ..write('id: $id, ')
-          ..write('deviceId: $deviceId, ')
           ..write('hasSeeded: $hasSeeded')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, deviceId, hasSeeded);
+  int get hashCode => Object.hash(id, hasSeeded);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is StoreMetaRow &&
           other.id == this.id &&
-          other.deviceId == this.deviceId &&
           other.hasSeeded == this.hasSeeded);
 }
 
 class StoreMetaCompanion extends UpdateCompanion<StoreMetaRow> {
   final Value<int> id;
-  final Value<String> deviceId;
   final Value<bool> hasSeeded;
   const StoreMetaCompanion({
     this.id = const Value.absent(),
-    this.deviceId = const Value.absent(),
     this.hasSeeded = const Value.absent(),
   });
   StoreMetaCompanion.insert({
     this.id = const Value.absent(),
-    required String deviceId,
     this.hasSeeded = const Value.absent(),
-  }) : deviceId = Value(deviceId);
+  });
   static Insertable<StoreMetaRow> custom({
     Expression<int>? id,
-    Expression<String>? deviceId,
     Expression<bool>? hasSeeded,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (deviceId != null) 'device_id': deviceId,
       if (hasSeeded != null) 'has_seeded': hasSeeded,
     });
   }
 
-  StoreMetaCompanion copyWith({
-    Value<int>? id,
-    Value<String>? deviceId,
-    Value<bool>? hasSeeded,
-  }) {
+  StoreMetaCompanion copyWith({Value<int>? id, Value<bool>? hasSeeded}) {
     return StoreMetaCompanion(
       id: id ?? this.id,
-      deviceId: deviceId ?? this.deviceId,
       hasSeeded: hasSeeded ?? this.hasSeeded,
     );
   }
@@ -3776,9 +3391,6 @@ class StoreMetaCompanion extends UpdateCompanion<StoreMetaRow> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
-    }
-    if (deviceId.present) {
-      map['device_id'] = Variable<String>(deviceId.value);
     }
     if (hasSeeded.present) {
       map['has_seeded'] = Variable<bool>(hasSeeded.value);
@@ -3790,2279 +3402,7 @@ class StoreMetaCompanion extends UpdateCompanion<StoreMetaRow> {
   String toString() {
     return (StringBuffer('StoreMetaCompanion(')
           ..write('id: $id, ')
-          ..write('deviceId: $deviceId, ')
           ..write('hasSeeded: $hasSeeded')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $SyncMetaTable extends SyncMeta
-    with TableInfo<$SyncMetaTable, SyncMetadataRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $SyncMetaTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _backendMeta = const VerificationMeta(
-    'backend',
-  );
-  @override
-  late final GeneratedColumn<String> backend = GeneratedColumn<String>(
-    'backend',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _endpointMeta = const VerificationMeta(
-    'endpoint',
-  );
-  @override
-  late final GeneratedColumn<String> endpoint = GeneratedColumn<String>(
-    'endpoint',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _enrollmentPhaseMeta = const VerificationMeta(
-    'enrollmentPhase',
-  );
-  @override
-  late final GeneratedColumn<int> enrollmentPhase = GeneratedColumn<int>(
-    'enrollment_phase',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  static const VerificationMeta _writeEnabledMeta = const VerificationMeta(
-    'writeEnabled',
-  );
-  @override
-  late final GeneratedColumn<bool> writeEnabled = GeneratedColumn<bool>(
-    'write_enabled',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("write_enabled" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
-  static const VerificationMeta _deviceBindingStateMeta =
-      const VerificationMeta('deviceBindingState');
-  @override
-  late final GeneratedColumn<int> deviceBindingState = GeneratedColumn<int>(
-    'device_binding_state',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  static const VerificationMeta _reauthResumePhaseMeta = const VerificationMeta(
-    'reauthResumePhase',
-  );
-  @override
-  late final GeneratedColumn<int> reauthResumePhase = GeneratedColumn<int>(
-    'reauth_resume_phase',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _moneySourcesCursorMeta =
-      const VerificationMeta('moneySourcesCursor');
-  @override
-  late final GeneratedColumn<String> moneySourcesCursor =
-      GeneratedColumn<String>(
-        'money_sources_cursor',
-        aliasedName,
-        true,
-        type: DriftSqlType.string,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _entriesCursorMeta = const VerificationMeta(
-    'entriesCursor',
-  );
-  @override
-  late final GeneratedColumn<String> entriesCursor = GeneratedColumn<String>(
-    'entries_cursor',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _categoriesCursorMeta = const VerificationMeta(
-    'categoriesCursor',
-  );
-  @override
-  late final GeneratedColumn<String> categoriesCursor = GeneratedColumn<String>(
-    'categories_cursor',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _plansCursorMeta = const VerificationMeta(
-    'plansCursor',
-  );
-  @override
-  late final GeneratedColumn<String> plansCursor = GeneratedColumn<String>(
-    'plans_cursor',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _budgetsCursorMeta = const VerificationMeta(
-    'budgetsCursor',
-  );
-  @override
-  late final GeneratedColumn<String> budgetsCursor = GeneratedColumn<String>(
-    'budgets_cursor',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    backend,
-    endpoint,
-    enrollmentPhase,
-    writeEnabled,
-    deviceBindingState,
-    reauthResumePhase,
-    moneySourcesCursor,
-    entriesCursor,
-    categoriesCursor,
-    plansCursor,
-    budgetsCursor,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'sync_meta';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<SyncMetadataRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
-    if (data.containsKey('backend')) {
-      context.handle(
-        _backendMeta,
-        backend.isAcceptableOrUnknown(data['backend']!, _backendMeta),
-      );
-    }
-    if (data.containsKey('endpoint')) {
-      context.handle(
-        _endpointMeta,
-        endpoint.isAcceptableOrUnknown(data['endpoint']!, _endpointMeta),
-      );
-    }
-    if (data.containsKey('enrollment_phase')) {
-      context.handle(
-        _enrollmentPhaseMeta,
-        enrollmentPhase.isAcceptableOrUnknown(
-          data['enrollment_phase']!,
-          _enrollmentPhaseMeta,
-        ),
-      );
-    }
-    if (data.containsKey('write_enabled')) {
-      context.handle(
-        _writeEnabledMeta,
-        writeEnabled.isAcceptableOrUnknown(
-          data['write_enabled']!,
-          _writeEnabledMeta,
-        ),
-      );
-    }
-    if (data.containsKey('device_binding_state')) {
-      context.handle(
-        _deviceBindingStateMeta,
-        deviceBindingState.isAcceptableOrUnknown(
-          data['device_binding_state']!,
-          _deviceBindingStateMeta,
-        ),
-      );
-    }
-    if (data.containsKey('reauth_resume_phase')) {
-      context.handle(
-        _reauthResumePhaseMeta,
-        reauthResumePhase.isAcceptableOrUnknown(
-          data['reauth_resume_phase']!,
-          _reauthResumePhaseMeta,
-        ),
-      );
-    }
-    if (data.containsKey('money_sources_cursor')) {
-      context.handle(
-        _moneySourcesCursorMeta,
-        moneySourcesCursor.isAcceptableOrUnknown(
-          data['money_sources_cursor']!,
-          _moneySourcesCursorMeta,
-        ),
-      );
-    }
-    if (data.containsKey('entries_cursor')) {
-      context.handle(
-        _entriesCursorMeta,
-        entriesCursor.isAcceptableOrUnknown(
-          data['entries_cursor']!,
-          _entriesCursorMeta,
-        ),
-      );
-    }
-    if (data.containsKey('categories_cursor')) {
-      context.handle(
-        _categoriesCursorMeta,
-        categoriesCursor.isAcceptableOrUnknown(
-          data['categories_cursor']!,
-          _categoriesCursorMeta,
-        ),
-      );
-    }
-    if (data.containsKey('plans_cursor')) {
-      context.handle(
-        _plansCursorMeta,
-        plansCursor.isAcceptableOrUnknown(
-          data['plans_cursor']!,
-          _plansCursorMeta,
-        ),
-      );
-    }
-    if (data.containsKey('budgets_cursor')) {
-      context.handle(
-        _budgetsCursorMeta,
-        budgetsCursor.isAcceptableOrUnknown(
-          data['budgets_cursor']!,
-          _budgetsCursorMeta,
-        ),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  SyncMetadataRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SyncMetadataRow(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
-      backend: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}backend'],
-      ),
-      endpoint: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}endpoint'],
-      ),
-      enrollmentPhase: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}enrollment_phase'],
-      )!,
-      writeEnabled: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}write_enabled'],
-      )!,
-      deviceBindingState: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}device_binding_state'],
-      )!,
-      reauthResumePhase: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}reauth_resume_phase'],
-      ),
-      moneySourcesCursor: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}money_sources_cursor'],
-      ),
-      entriesCursor: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}entries_cursor'],
-      ),
-      categoriesCursor: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}categories_cursor'],
-      ),
-      plansCursor: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}plans_cursor'],
-      ),
-      budgetsCursor: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}budgets_cursor'],
-      ),
-    );
-  }
-
-  @override
-  $SyncMetaTable createAlias(String alias) {
-    return $SyncMetaTable(attachedDatabase, alias);
-  }
-}
-
-class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
-  final int id;
-  final String? backend;
-  final String? endpoint;
-  final int enrollmentPhase;
-  final bool writeEnabled;
-  final int deviceBindingState;
-  final int? reauthResumePhase;
-  final String? moneySourcesCursor;
-  final String? entriesCursor;
-  final String? categoriesCursor;
-  final String? plansCursor;
-  final String? budgetsCursor;
-  const SyncMetadataRow({
-    required this.id,
-    this.backend,
-    this.endpoint,
-    required this.enrollmentPhase,
-    required this.writeEnabled,
-    required this.deviceBindingState,
-    this.reauthResumePhase,
-    this.moneySourcesCursor,
-    this.entriesCursor,
-    this.categoriesCursor,
-    this.plansCursor,
-    this.budgetsCursor,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    if (!nullToAbsent || backend != null) {
-      map['backend'] = Variable<String>(backend);
-    }
-    if (!nullToAbsent || endpoint != null) {
-      map['endpoint'] = Variable<String>(endpoint);
-    }
-    map['enrollment_phase'] = Variable<int>(enrollmentPhase);
-    map['write_enabled'] = Variable<bool>(writeEnabled);
-    map['device_binding_state'] = Variable<int>(deviceBindingState);
-    if (!nullToAbsent || reauthResumePhase != null) {
-      map['reauth_resume_phase'] = Variable<int>(reauthResumePhase);
-    }
-    if (!nullToAbsent || moneySourcesCursor != null) {
-      map['money_sources_cursor'] = Variable<String>(moneySourcesCursor);
-    }
-    if (!nullToAbsent || entriesCursor != null) {
-      map['entries_cursor'] = Variable<String>(entriesCursor);
-    }
-    if (!nullToAbsent || categoriesCursor != null) {
-      map['categories_cursor'] = Variable<String>(categoriesCursor);
-    }
-    if (!nullToAbsent || plansCursor != null) {
-      map['plans_cursor'] = Variable<String>(plansCursor);
-    }
-    if (!nullToAbsent || budgetsCursor != null) {
-      map['budgets_cursor'] = Variable<String>(budgetsCursor);
-    }
-    return map;
-  }
-
-  SyncMetaCompanion toCompanion(bool nullToAbsent) {
-    return SyncMetaCompanion(
-      id: Value(id),
-      backend: backend == null && nullToAbsent
-          ? const Value.absent()
-          : Value(backend),
-      endpoint: endpoint == null && nullToAbsent
-          ? const Value.absent()
-          : Value(endpoint),
-      enrollmentPhase: Value(enrollmentPhase),
-      writeEnabled: Value(writeEnabled),
-      deviceBindingState: Value(deviceBindingState),
-      reauthResumePhase: reauthResumePhase == null && nullToAbsent
-          ? const Value.absent()
-          : Value(reauthResumePhase),
-      moneySourcesCursor: moneySourcesCursor == null && nullToAbsent
-          ? const Value.absent()
-          : Value(moneySourcesCursor),
-      entriesCursor: entriesCursor == null && nullToAbsent
-          ? const Value.absent()
-          : Value(entriesCursor),
-      categoriesCursor: categoriesCursor == null && nullToAbsent
-          ? const Value.absent()
-          : Value(categoriesCursor),
-      plansCursor: plansCursor == null && nullToAbsent
-          ? const Value.absent()
-          : Value(plansCursor),
-      budgetsCursor: budgetsCursor == null && nullToAbsent
-          ? const Value.absent()
-          : Value(budgetsCursor),
-    );
-  }
-
-  factory SyncMetadataRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SyncMetadataRow(
-      id: serializer.fromJson<int>(json['id']),
-      backend: serializer.fromJson<String?>(json['backend']),
-      endpoint: serializer.fromJson<String?>(json['endpoint']),
-      enrollmentPhase: serializer.fromJson<int>(json['enrollmentPhase']),
-      writeEnabled: serializer.fromJson<bool>(json['writeEnabled']),
-      deviceBindingState: serializer.fromJson<int>(json['deviceBindingState']),
-      reauthResumePhase: serializer.fromJson<int?>(json['reauthResumePhase']),
-      moneySourcesCursor: serializer.fromJson<String?>(
-        json['moneySourcesCursor'],
-      ),
-      entriesCursor: serializer.fromJson<String?>(json['entriesCursor']),
-      categoriesCursor: serializer.fromJson<String?>(json['categoriesCursor']),
-      plansCursor: serializer.fromJson<String?>(json['plansCursor']),
-      budgetsCursor: serializer.fromJson<String?>(json['budgetsCursor']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<int>(id),
-      'backend': serializer.toJson<String?>(backend),
-      'endpoint': serializer.toJson<String?>(endpoint),
-      'enrollmentPhase': serializer.toJson<int>(enrollmentPhase),
-      'writeEnabled': serializer.toJson<bool>(writeEnabled),
-      'deviceBindingState': serializer.toJson<int>(deviceBindingState),
-      'reauthResumePhase': serializer.toJson<int?>(reauthResumePhase),
-      'moneySourcesCursor': serializer.toJson<String?>(moneySourcesCursor),
-      'entriesCursor': serializer.toJson<String?>(entriesCursor),
-      'categoriesCursor': serializer.toJson<String?>(categoriesCursor),
-      'plansCursor': serializer.toJson<String?>(plansCursor),
-      'budgetsCursor': serializer.toJson<String?>(budgetsCursor),
-    };
-  }
-
-  SyncMetadataRow copyWith({
-    int? id,
-    Value<String?> backend = const Value.absent(),
-    Value<String?> endpoint = const Value.absent(),
-    int? enrollmentPhase,
-    bool? writeEnabled,
-    int? deviceBindingState,
-    Value<int?> reauthResumePhase = const Value.absent(),
-    Value<String?> moneySourcesCursor = const Value.absent(),
-    Value<String?> entriesCursor = const Value.absent(),
-    Value<String?> categoriesCursor = const Value.absent(),
-    Value<String?> plansCursor = const Value.absent(),
-    Value<String?> budgetsCursor = const Value.absent(),
-  }) => SyncMetadataRow(
-    id: id ?? this.id,
-    backend: backend.present ? backend.value : this.backend,
-    endpoint: endpoint.present ? endpoint.value : this.endpoint,
-    enrollmentPhase: enrollmentPhase ?? this.enrollmentPhase,
-    writeEnabled: writeEnabled ?? this.writeEnabled,
-    deviceBindingState: deviceBindingState ?? this.deviceBindingState,
-    reauthResumePhase: reauthResumePhase.present
-        ? reauthResumePhase.value
-        : this.reauthResumePhase,
-    moneySourcesCursor: moneySourcesCursor.present
-        ? moneySourcesCursor.value
-        : this.moneySourcesCursor,
-    entriesCursor: entriesCursor.present
-        ? entriesCursor.value
-        : this.entriesCursor,
-    categoriesCursor: categoriesCursor.present
-        ? categoriesCursor.value
-        : this.categoriesCursor,
-    plansCursor: plansCursor.present ? plansCursor.value : this.plansCursor,
-    budgetsCursor: budgetsCursor.present
-        ? budgetsCursor.value
-        : this.budgetsCursor,
-  );
-  SyncMetadataRow copyWithCompanion(SyncMetaCompanion data) {
-    return SyncMetadataRow(
-      id: data.id.present ? data.id.value : this.id,
-      backend: data.backend.present ? data.backend.value : this.backend,
-      endpoint: data.endpoint.present ? data.endpoint.value : this.endpoint,
-      enrollmentPhase: data.enrollmentPhase.present
-          ? data.enrollmentPhase.value
-          : this.enrollmentPhase,
-      writeEnabled: data.writeEnabled.present
-          ? data.writeEnabled.value
-          : this.writeEnabled,
-      deviceBindingState: data.deviceBindingState.present
-          ? data.deviceBindingState.value
-          : this.deviceBindingState,
-      reauthResumePhase: data.reauthResumePhase.present
-          ? data.reauthResumePhase.value
-          : this.reauthResumePhase,
-      moneySourcesCursor: data.moneySourcesCursor.present
-          ? data.moneySourcesCursor.value
-          : this.moneySourcesCursor,
-      entriesCursor: data.entriesCursor.present
-          ? data.entriesCursor.value
-          : this.entriesCursor,
-      categoriesCursor: data.categoriesCursor.present
-          ? data.categoriesCursor.value
-          : this.categoriesCursor,
-      plansCursor: data.plansCursor.present
-          ? data.plansCursor.value
-          : this.plansCursor,
-      budgetsCursor: data.budgetsCursor.present
-          ? data.budgetsCursor.value
-          : this.budgetsCursor,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncMetadataRow(')
-          ..write('id: $id, ')
-          ..write('backend: $backend, ')
-          ..write('endpoint: $endpoint, ')
-          ..write('enrollmentPhase: $enrollmentPhase, ')
-          ..write('writeEnabled: $writeEnabled, ')
-          ..write('deviceBindingState: $deviceBindingState, ')
-          ..write('reauthResumePhase: $reauthResumePhase, ')
-          ..write('moneySourcesCursor: $moneySourcesCursor, ')
-          ..write('entriesCursor: $entriesCursor, ')
-          ..write('categoriesCursor: $categoriesCursor, ')
-          ..write('plansCursor: $plansCursor, ')
-          ..write('budgetsCursor: $budgetsCursor')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    id,
-    backend,
-    endpoint,
-    enrollmentPhase,
-    writeEnabled,
-    deviceBindingState,
-    reauthResumePhase,
-    moneySourcesCursor,
-    entriesCursor,
-    categoriesCursor,
-    plansCursor,
-    budgetsCursor,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is SyncMetadataRow &&
-          other.id == this.id &&
-          other.backend == this.backend &&
-          other.endpoint == this.endpoint &&
-          other.enrollmentPhase == this.enrollmentPhase &&
-          other.writeEnabled == this.writeEnabled &&
-          other.deviceBindingState == this.deviceBindingState &&
-          other.reauthResumePhase == this.reauthResumePhase &&
-          other.moneySourcesCursor == this.moneySourcesCursor &&
-          other.entriesCursor == this.entriesCursor &&
-          other.categoriesCursor == this.categoriesCursor &&
-          other.plansCursor == this.plansCursor &&
-          other.budgetsCursor == this.budgetsCursor);
-}
-
-class SyncMetaCompanion extends UpdateCompanion<SyncMetadataRow> {
-  final Value<int> id;
-  final Value<String?> backend;
-  final Value<String?> endpoint;
-  final Value<int> enrollmentPhase;
-  final Value<bool> writeEnabled;
-  final Value<int> deviceBindingState;
-  final Value<int?> reauthResumePhase;
-  final Value<String?> moneySourcesCursor;
-  final Value<String?> entriesCursor;
-  final Value<String?> categoriesCursor;
-  final Value<String?> plansCursor;
-  final Value<String?> budgetsCursor;
-  const SyncMetaCompanion({
-    this.id = const Value.absent(),
-    this.backend = const Value.absent(),
-    this.endpoint = const Value.absent(),
-    this.enrollmentPhase = const Value.absent(),
-    this.writeEnabled = const Value.absent(),
-    this.deviceBindingState = const Value.absent(),
-    this.reauthResumePhase = const Value.absent(),
-    this.moneySourcesCursor = const Value.absent(),
-    this.entriesCursor = const Value.absent(),
-    this.categoriesCursor = const Value.absent(),
-    this.plansCursor = const Value.absent(),
-    this.budgetsCursor = const Value.absent(),
-  });
-  SyncMetaCompanion.insert({
-    this.id = const Value.absent(),
-    this.backend = const Value.absent(),
-    this.endpoint = const Value.absent(),
-    this.enrollmentPhase = const Value.absent(),
-    this.writeEnabled = const Value.absent(),
-    this.deviceBindingState = const Value.absent(),
-    this.reauthResumePhase = const Value.absent(),
-    this.moneySourcesCursor = const Value.absent(),
-    this.entriesCursor = const Value.absent(),
-    this.categoriesCursor = const Value.absent(),
-    this.plansCursor = const Value.absent(),
-    this.budgetsCursor = const Value.absent(),
-  });
-  static Insertable<SyncMetadataRow> custom({
-    Expression<int>? id,
-    Expression<String>? backend,
-    Expression<String>? endpoint,
-    Expression<int>? enrollmentPhase,
-    Expression<bool>? writeEnabled,
-    Expression<int>? deviceBindingState,
-    Expression<int>? reauthResumePhase,
-    Expression<String>? moneySourcesCursor,
-    Expression<String>? entriesCursor,
-    Expression<String>? categoriesCursor,
-    Expression<String>? plansCursor,
-    Expression<String>? budgetsCursor,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (backend != null) 'backend': backend,
-      if (endpoint != null) 'endpoint': endpoint,
-      if (enrollmentPhase != null) 'enrollment_phase': enrollmentPhase,
-      if (writeEnabled != null) 'write_enabled': writeEnabled,
-      if (deviceBindingState != null)
-        'device_binding_state': deviceBindingState,
-      if (reauthResumePhase != null) 'reauth_resume_phase': reauthResumePhase,
-      if (moneySourcesCursor != null)
-        'money_sources_cursor': moneySourcesCursor,
-      if (entriesCursor != null) 'entries_cursor': entriesCursor,
-      if (categoriesCursor != null) 'categories_cursor': categoriesCursor,
-      if (plansCursor != null) 'plans_cursor': plansCursor,
-      if (budgetsCursor != null) 'budgets_cursor': budgetsCursor,
-    });
-  }
-
-  SyncMetaCompanion copyWith({
-    Value<int>? id,
-    Value<String?>? backend,
-    Value<String?>? endpoint,
-    Value<int>? enrollmentPhase,
-    Value<bool>? writeEnabled,
-    Value<int>? deviceBindingState,
-    Value<int?>? reauthResumePhase,
-    Value<String?>? moneySourcesCursor,
-    Value<String?>? entriesCursor,
-    Value<String?>? categoriesCursor,
-    Value<String?>? plansCursor,
-    Value<String?>? budgetsCursor,
-  }) {
-    return SyncMetaCompanion(
-      id: id ?? this.id,
-      backend: backend ?? this.backend,
-      endpoint: endpoint ?? this.endpoint,
-      enrollmentPhase: enrollmentPhase ?? this.enrollmentPhase,
-      writeEnabled: writeEnabled ?? this.writeEnabled,
-      deviceBindingState: deviceBindingState ?? this.deviceBindingState,
-      reauthResumePhase: reauthResumePhase ?? this.reauthResumePhase,
-      moneySourcesCursor: moneySourcesCursor ?? this.moneySourcesCursor,
-      entriesCursor: entriesCursor ?? this.entriesCursor,
-      categoriesCursor: categoriesCursor ?? this.categoriesCursor,
-      plansCursor: plansCursor ?? this.plansCursor,
-      budgetsCursor: budgetsCursor ?? this.budgetsCursor,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<int>(id.value);
-    }
-    if (backend.present) {
-      map['backend'] = Variable<String>(backend.value);
-    }
-    if (endpoint.present) {
-      map['endpoint'] = Variable<String>(endpoint.value);
-    }
-    if (enrollmentPhase.present) {
-      map['enrollment_phase'] = Variable<int>(enrollmentPhase.value);
-    }
-    if (writeEnabled.present) {
-      map['write_enabled'] = Variable<bool>(writeEnabled.value);
-    }
-    if (deviceBindingState.present) {
-      map['device_binding_state'] = Variable<int>(deviceBindingState.value);
-    }
-    if (reauthResumePhase.present) {
-      map['reauth_resume_phase'] = Variable<int>(reauthResumePhase.value);
-    }
-    if (moneySourcesCursor.present) {
-      map['money_sources_cursor'] = Variable<String>(moneySourcesCursor.value);
-    }
-    if (entriesCursor.present) {
-      map['entries_cursor'] = Variable<String>(entriesCursor.value);
-    }
-    if (categoriesCursor.present) {
-      map['categories_cursor'] = Variable<String>(categoriesCursor.value);
-    }
-    if (plansCursor.present) {
-      map['plans_cursor'] = Variable<String>(plansCursor.value);
-    }
-    if (budgetsCursor.present) {
-      map['budgets_cursor'] = Variable<String>(budgetsCursor.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncMetaCompanion(')
-          ..write('id: $id, ')
-          ..write('backend: $backend, ')
-          ..write('endpoint: $endpoint, ')
-          ..write('enrollmentPhase: $enrollmentPhase, ')
-          ..write('writeEnabled: $writeEnabled, ')
-          ..write('deviceBindingState: $deviceBindingState, ')
-          ..write('reauthResumePhase: $reauthResumePhase, ')
-          ..write('moneySourcesCursor: $moneySourcesCursor, ')
-          ..write('entriesCursor: $entriesCursor, ')
-          ..write('categoriesCursor: $categoriesCursor, ')
-          ..write('plansCursor: $plansCursor, ')
-          ..write('budgetsCursor: $budgetsCursor')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $SyncAcknowledgedVectorsTable extends SyncAcknowledgedVectors
-    with TableInfo<$SyncAcknowledgedVectorsTable, AcknowledgedVectorRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $SyncAcknowledgedVectorsTable(this.attachedDatabase, [this._alias]);
-  @override
-  late final GeneratedColumnWithTypeConverter<SyncCollection, String>
-  collection =
-      GeneratedColumn<String>(
-        'collection',
-        aliasedName,
-        false,
-        type: DriftSqlType.string,
-        requiredDuringInsert: true,
-      ).withConverter<SyncCollection>(
-        $SyncAcknowledgedVectorsTable.$convertercollection,
-      );
-  static const VerificationMeta _rowIdMeta = const VerificationMeta('rowId');
-  @override
-  late final GeneratedColumn<String> rowId = GeneratedColumn<String>(
-    'row_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  late final GeneratedColumnWithTypeConverter<VersionVector, Uint8List>
-  versionData =
-      GeneratedColumn<Uint8List>(
-        'version_data',
-        aliasedName,
-        false,
-        type: DriftSqlType.blob,
-        requiredDuringInsert: true,
-      ).withConverter<VersionVector>(
-        $SyncAcknowledgedVectorsTable.$converterversionData,
-      );
-  @override
-  List<GeneratedColumn> get $columns => [collection, rowId, versionData];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'sync_acknowledged_vectors';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<AcknowledgedVectorRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('row_id')) {
-      context.handle(
-        _rowIdMeta,
-        rowId.isAcceptableOrUnknown(data['row_id']!, _rowIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_rowIdMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {collection, rowId};
-  @override
-  AcknowledgedVectorRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return AcknowledgedVectorRow(
-      collection: $SyncAcknowledgedVectorsTable.$convertercollection.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.string,
-          data['${effectivePrefix}collection'],
-        )!,
-      ),
-      rowId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}row_id'],
-      )!,
-      versionData: $SyncAcknowledgedVectorsTable.$converterversionData.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.blob,
-          data['${effectivePrefix}version_data'],
-        )!,
-      ),
-    );
-  }
-
-  @override
-  $SyncAcknowledgedVectorsTable createAlias(String alias) {
-    return $SyncAcknowledgedVectorsTable(attachedDatabase, alias);
-  }
-
-  static TypeConverter<SyncCollection, String> $convertercollection =
-      const SyncCollectionConverter();
-  static TypeConverter<VersionVector, Uint8List> $converterversionData =
-      const VersionVectorConverter();
-}
-
-class AcknowledgedVectorRow extends DataClass
-    implements Insertable<AcknowledgedVectorRow> {
-  final SyncCollection collection;
-  final String rowId;
-  final VersionVector versionData;
-  const AcknowledgedVectorRow({
-    required this.collection,
-    required this.rowId,
-    required this.versionData,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    {
-      map['collection'] = Variable<String>(
-        $SyncAcknowledgedVectorsTable.$convertercollection.toSql(collection),
-      );
-    }
-    map['row_id'] = Variable<String>(rowId);
-    {
-      map['version_data'] = Variable<Uint8List>(
-        $SyncAcknowledgedVectorsTable.$converterversionData.toSql(versionData),
-      );
-    }
-    return map;
-  }
-
-  SyncAcknowledgedVectorsCompanion toCompanion(bool nullToAbsent) {
-    return SyncAcknowledgedVectorsCompanion(
-      collection: Value(collection),
-      rowId: Value(rowId),
-      versionData: Value(versionData),
-    );
-  }
-
-  factory AcknowledgedVectorRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return AcknowledgedVectorRow(
-      collection: serializer.fromJson<SyncCollection>(json['collection']),
-      rowId: serializer.fromJson<String>(json['rowId']),
-      versionData: serializer.fromJson<VersionVector>(json['versionData']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'collection': serializer.toJson<SyncCollection>(collection),
-      'rowId': serializer.toJson<String>(rowId),
-      'versionData': serializer.toJson<VersionVector>(versionData),
-    };
-  }
-
-  AcknowledgedVectorRow copyWith({
-    SyncCollection? collection,
-    String? rowId,
-    VersionVector? versionData,
-  }) => AcknowledgedVectorRow(
-    collection: collection ?? this.collection,
-    rowId: rowId ?? this.rowId,
-    versionData: versionData ?? this.versionData,
-  );
-  AcknowledgedVectorRow copyWithCompanion(
-    SyncAcknowledgedVectorsCompanion data,
-  ) {
-    return AcknowledgedVectorRow(
-      collection: data.collection.present
-          ? data.collection.value
-          : this.collection,
-      rowId: data.rowId.present ? data.rowId.value : this.rowId,
-      versionData: data.versionData.present
-          ? data.versionData.value
-          : this.versionData,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('AcknowledgedVectorRow(')
-          ..write('collection: $collection, ')
-          ..write('rowId: $rowId, ')
-          ..write('versionData: $versionData')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(collection, rowId, versionData);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is AcknowledgedVectorRow &&
-          other.collection == this.collection &&
-          other.rowId == this.rowId &&
-          other.versionData == this.versionData);
-}
-
-class SyncAcknowledgedVectorsCompanion
-    extends UpdateCompanion<AcknowledgedVectorRow> {
-  final Value<SyncCollection> collection;
-  final Value<String> rowId;
-  final Value<VersionVector> versionData;
-  final Value<int> rowid;
-  const SyncAcknowledgedVectorsCompanion({
-    this.collection = const Value.absent(),
-    this.rowId = const Value.absent(),
-    this.versionData = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  SyncAcknowledgedVectorsCompanion.insert({
-    required SyncCollection collection,
-    required String rowId,
-    required VersionVector versionData,
-    this.rowid = const Value.absent(),
-  }) : collection = Value(collection),
-       rowId = Value(rowId),
-       versionData = Value(versionData);
-  static Insertable<AcknowledgedVectorRow> custom({
-    Expression<String>? collection,
-    Expression<String>? rowId,
-    Expression<Uint8List>? versionData,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (collection != null) 'collection': collection,
-      if (rowId != null) 'row_id': rowId,
-      if (versionData != null) 'version_data': versionData,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  SyncAcknowledgedVectorsCompanion copyWith({
-    Value<SyncCollection>? collection,
-    Value<String>? rowId,
-    Value<VersionVector>? versionData,
-    Value<int>? rowid,
-  }) {
-    return SyncAcknowledgedVectorsCompanion(
-      collection: collection ?? this.collection,
-      rowId: rowId ?? this.rowId,
-      versionData: versionData ?? this.versionData,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (collection.present) {
-      map['collection'] = Variable<String>(
-        $SyncAcknowledgedVectorsTable.$convertercollection.toSql(
-          collection.value,
-        ),
-      );
-    }
-    if (rowId.present) {
-      map['row_id'] = Variable<String>(rowId.value);
-    }
-    if (versionData.present) {
-      map['version_data'] = Variable<Uint8List>(
-        $SyncAcknowledgedVectorsTable.$converterversionData.toSql(
-          versionData.value,
-        ),
-      );
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncAcknowledgedVectorsCompanion(')
-          ..write('collection: $collection, ')
-          ..write('rowId: $rowId, ')
-          ..write('versionData: $versionData, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $SyncPendingAcknowledgementsTable extends SyncPendingAcknowledgements
-    with
-        TableInfo<
-          $SyncPendingAcknowledgementsTable,
-          PendingAcknowledgementRow
-        > {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $SyncPendingAcknowledgementsTable(this.attachedDatabase, [this._alias]);
-  @override
-  late final GeneratedColumnWithTypeConverter<SyncCollection, String>
-  collection =
-      GeneratedColumn<String>(
-        'collection',
-        aliasedName,
-        false,
-        type: DriftSqlType.string,
-        requiredDuringInsert: true,
-      ).withConverter<SyncCollection>(
-        $SyncPendingAcknowledgementsTable.$convertercollection,
-      );
-  static const VerificationMeta _checkpointMeta = const VerificationMeta(
-    'checkpoint',
-  );
-  @override
-  late final GeneratedColumn<String> checkpoint = GeneratedColumn<String>(
-    'checkpoint',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [collection, checkpoint];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'sync_pending_acknowledgements';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<PendingAcknowledgementRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('checkpoint')) {
-      context.handle(
-        _checkpointMeta,
-        checkpoint.isAcceptableOrUnknown(data['checkpoint']!, _checkpointMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_checkpointMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {collection};
-  @override
-  PendingAcknowledgementRow map(
-    Map<String, dynamic> data, {
-    String? tablePrefix,
-  }) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return PendingAcknowledgementRow(
-      collection: $SyncPendingAcknowledgementsTable.$convertercollection
-          .fromSql(
-            attachedDatabase.typeMapping.read(
-              DriftSqlType.string,
-              data['${effectivePrefix}collection'],
-            )!,
-          ),
-      checkpoint: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}checkpoint'],
-      )!,
-    );
-  }
-
-  @override
-  $SyncPendingAcknowledgementsTable createAlias(String alias) {
-    return $SyncPendingAcknowledgementsTable(attachedDatabase, alias);
-  }
-
-  static TypeConverter<SyncCollection, String> $convertercollection =
-      const SyncCollectionConverter();
-}
-
-class PendingAcknowledgementRow extends DataClass
-    implements Insertable<PendingAcknowledgementRow> {
-  final SyncCollection collection;
-  final String checkpoint;
-  const PendingAcknowledgementRow({
-    required this.collection,
-    required this.checkpoint,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    {
-      map['collection'] = Variable<String>(
-        $SyncPendingAcknowledgementsTable.$convertercollection.toSql(
-          collection,
-        ),
-      );
-    }
-    map['checkpoint'] = Variable<String>(checkpoint);
-    return map;
-  }
-
-  SyncPendingAcknowledgementsCompanion toCompanion(bool nullToAbsent) {
-    return SyncPendingAcknowledgementsCompanion(
-      collection: Value(collection),
-      checkpoint: Value(checkpoint),
-    );
-  }
-
-  factory PendingAcknowledgementRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return PendingAcknowledgementRow(
-      collection: serializer.fromJson<SyncCollection>(json['collection']),
-      checkpoint: serializer.fromJson<String>(json['checkpoint']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'collection': serializer.toJson<SyncCollection>(collection),
-      'checkpoint': serializer.toJson<String>(checkpoint),
-    };
-  }
-
-  PendingAcknowledgementRow copyWith({
-    SyncCollection? collection,
-    String? checkpoint,
-  }) => PendingAcknowledgementRow(
-    collection: collection ?? this.collection,
-    checkpoint: checkpoint ?? this.checkpoint,
-  );
-  PendingAcknowledgementRow copyWithCompanion(
-    SyncPendingAcknowledgementsCompanion data,
-  ) {
-    return PendingAcknowledgementRow(
-      collection: data.collection.present
-          ? data.collection.value
-          : this.collection,
-      checkpoint: data.checkpoint.present
-          ? data.checkpoint.value
-          : this.checkpoint,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('PendingAcknowledgementRow(')
-          ..write('collection: $collection, ')
-          ..write('checkpoint: $checkpoint')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(collection, checkpoint);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is PendingAcknowledgementRow &&
-          other.collection == this.collection &&
-          other.checkpoint == this.checkpoint);
-}
-
-class SyncPendingAcknowledgementsCompanion
-    extends UpdateCompanion<PendingAcknowledgementRow> {
-  final Value<SyncCollection> collection;
-  final Value<String> checkpoint;
-  final Value<int> rowid;
-  const SyncPendingAcknowledgementsCompanion({
-    this.collection = const Value.absent(),
-    this.checkpoint = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  SyncPendingAcknowledgementsCompanion.insert({
-    required SyncCollection collection,
-    required String checkpoint,
-    this.rowid = const Value.absent(),
-  }) : collection = Value(collection),
-       checkpoint = Value(checkpoint);
-  static Insertable<PendingAcknowledgementRow> custom({
-    Expression<String>? collection,
-    Expression<String>? checkpoint,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (collection != null) 'collection': collection,
-      if (checkpoint != null) 'checkpoint': checkpoint,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  SyncPendingAcknowledgementsCompanion copyWith({
-    Value<SyncCollection>? collection,
-    Value<String>? checkpoint,
-    Value<int>? rowid,
-  }) {
-    return SyncPendingAcknowledgementsCompanion(
-      collection: collection ?? this.collection,
-      checkpoint: checkpoint ?? this.checkpoint,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (collection.present) {
-      map['collection'] = Variable<String>(
-        $SyncPendingAcknowledgementsTable.$convertercollection.toSql(
-          collection.value,
-        ),
-      );
-    }
-    if (checkpoint.present) {
-      map['checkpoint'] = Variable<String>(checkpoint.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncPendingAcknowledgementsCompanion(')
-          ..write('collection: $collection, ')
-          ..write('checkpoint: $checkpoint, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $SyncStagedConflictsTable extends SyncStagedConflicts
-    with TableInfo<$SyncStagedConflictsTable, StagedConflictRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $SyncStagedConflictsTable(this.attachedDatabase, [this._alias]);
-  @override
-  late final GeneratedColumnWithTypeConverter<SyncCollection, String>
-  collection =
-      GeneratedColumn<String>(
-        'collection',
-        aliasedName,
-        false,
-        type: DriftSqlType.string,
-        requiredDuringInsert: true,
-      ).withConverter<SyncCollection>(
-        $SyncStagedConflictsTable.$convertercollection,
-      );
-  static const VerificationMeta _rowIdMeta = const VerificationMeta('rowId');
-  @override
-  late final GeneratedColumn<String> rowId = GeneratedColumn<String>(
-    'row_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [collection, rowId];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'sync_staged_conflicts';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<StagedConflictRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('row_id')) {
-      context.handle(
-        _rowIdMeta,
-        rowId.isAcceptableOrUnknown(data['row_id']!, _rowIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_rowIdMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {collection, rowId};
-  @override
-  StagedConflictRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return StagedConflictRow(
-      collection: $SyncStagedConflictsTable.$convertercollection.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.string,
-          data['${effectivePrefix}collection'],
-        )!,
-      ),
-      rowId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}row_id'],
-      )!,
-    );
-  }
-
-  @override
-  $SyncStagedConflictsTable createAlias(String alias) {
-    return $SyncStagedConflictsTable(attachedDatabase, alias);
-  }
-
-  static TypeConverter<SyncCollection, String> $convertercollection =
-      const SyncCollectionConverter();
-}
-
-class StagedConflictRow extends DataClass
-    implements Insertable<StagedConflictRow> {
-  final SyncCollection collection;
-  final String rowId;
-  const StagedConflictRow({required this.collection, required this.rowId});
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    {
-      map['collection'] = Variable<String>(
-        $SyncStagedConflictsTable.$convertercollection.toSql(collection),
-      );
-    }
-    map['row_id'] = Variable<String>(rowId);
-    return map;
-  }
-
-  SyncStagedConflictsCompanion toCompanion(bool nullToAbsent) {
-    return SyncStagedConflictsCompanion(
-      collection: Value(collection),
-      rowId: Value(rowId),
-    );
-  }
-
-  factory StagedConflictRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return StagedConflictRow(
-      collection: serializer.fromJson<SyncCollection>(json['collection']),
-      rowId: serializer.fromJson<String>(json['rowId']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'collection': serializer.toJson<SyncCollection>(collection),
-      'rowId': serializer.toJson<String>(rowId),
-    };
-  }
-
-  StagedConflictRow copyWith({SyncCollection? collection, String? rowId}) =>
-      StagedConflictRow(
-        collection: collection ?? this.collection,
-        rowId: rowId ?? this.rowId,
-      );
-  StagedConflictRow copyWithCompanion(SyncStagedConflictsCompanion data) {
-    return StagedConflictRow(
-      collection: data.collection.present
-          ? data.collection.value
-          : this.collection,
-      rowId: data.rowId.present ? data.rowId.value : this.rowId,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('StagedConflictRow(')
-          ..write('collection: $collection, ')
-          ..write('rowId: $rowId')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(collection, rowId);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is StagedConflictRow &&
-          other.collection == this.collection &&
-          other.rowId == this.rowId);
-}
-
-class SyncStagedConflictsCompanion extends UpdateCompanion<StagedConflictRow> {
-  final Value<SyncCollection> collection;
-  final Value<String> rowId;
-  final Value<int> rowid;
-  const SyncStagedConflictsCompanion({
-    this.collection = const Value.absent(),
-    this.rowId = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  SyncStagedConflictsCompanion.insert({
-    required SyncCollection collection,
-    required String rowId,
-    this.rowid = const Value.absent(),
-  }) : collection = Value(collection),
-       rowId = Value(rowId);
-  static Insertable<StagedConflictRow> custom({
-    Expression<String>? collection,
-    Expression<String>? rowId,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (collection != null) 'collection': collection,
-      if (rowId != null) 'row_id': rowId,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  SyncStagedConflictsCompanion copyWith({
-    Value<SyncCollection>? collection,
-    Value<String>? rowId,
-    Value<int>? rowid,
-  }) {
-    return SyncStagedConflictsCompanion(
-      collection: collection ?? this.collection,
-      rowId: rowId ?? this.rowId,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (collection.present) {
-      map['collection'] = Variable<String>(
-        $SyncStagedConflictsTable.$convertercollection.toSql(collection.value),
-      );
-    }
-    if (rowId.present) {
-      map['row_id'] = Variable<String>(rowId.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncStagedConflictsCompanion(')
-          ..write('collection: $collection, ')
-          ..write('rowId: $rowId, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $SyncStagedSiblingsTable extends SyncStagedSiblings
-    with TableInfo<$SyncStagedSiblingsTable, StagedSiblingRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $SyncStagedSiblingsTable(this.attachedDatabase, [this._alias]);
-  @override
-  late final GeneratedColumnWithTypeConverter<SyncCollection, String>
-  collection =
-      GeneratedColumn<String>(
-        'collection',
-        aliasedName,
-        false,
-        type: DriftSqlType.string,
-        requiredDuringInsert: true,
-      ).withConverter<SyncCollection>(
-        $SyncStagedSiblingsTable.$convertercollection,
-      );
-  static const VerificationMeta _rowIdMeta = const VerificationMeta('rowId');
-  @override
-  late final GeneratedColumn<String> rowId = GeneratedColumn<String>(
-    'row_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _siblingIdMeta = const VerificationMeta(
-    'siblingId',
-  );
-  @override
-  late final GeneratedColumn<String> siblingId = GeneratedColumn<String>(
-    'sibling_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  late final GeneratedColumnWithTypeConverter<VersionVector, Uint8List>
-  versionData =
-      GeneratedColumn<Uint8List>(
-        'version_data',
-        aliasedName,
-        false,
-        type: DriftSqlType.blob,
-        requiredDuringInsert: true,
-      ).withConverter<VersionVector>(
-        $SyncStagedSiblingsTable.$converterversionData,
-      );
-  static const VerificationMeta _payloadMeta = const VerificationMeta(
-    'payload',
-  );
-  @override
-  late final GeneratedColumn<Uint8List> payload = GeneratedColumn<Uint8List>(
-    'payload',
-    aliasedName,
-    false,
-    type: DriftSqlType.blob,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _lifecycleMeta = const VerificationMeta(
-    'lifecycle',
-  );
-  @override
-  late final GeneratedColumn<int> lifecycle = GeneratedColumn<int>(
-    'lifecycle',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _positionMeta = const VerificationMeta(
-    'position',
-  );
-  @override
-  late final GeneratedColumn<int> position = GeneratedColumn<int>(
-    'position',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    collection,
-    rowId,
-    siblingId,
-    versionData,
-    payload,
-    lifecycle,
-    position,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'sync_staged_siblings';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<StagedSiblingRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('row_id')) {
-      context.handle(
-        _rowIdMeta,
-        rowId.isAcceptableOrUnknown(data['row_id']!, _rowIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_rowIdMeta);
-    }
-    if (data.containsKey('sibling_id')) {
-      context.handle(
-        _siblingIdMeta,
-        siblingId.isAcceptableOrUnknown(data['sibling_id']!, _siblingIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_siblingIdMeta);
-    }
-    if (data.containsKey('payload')) {
-      context.handle(
-        _payloadMeta,
-        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_payloadMeta);
-    }
-    if (data.containsKey('lifecycle')) {
-      context.handle(
-        _lifecycleMeta,
-        lifecycle.isAcceptableOrUnknown(data['lifecycle']!, _lifecycleMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_lifecycleMeta);
-    }
-    if (data.containsKey('position')) {
-      context.handle(
-        _positionMeta,
-        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_positionMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {collection, rowId, siblingId};
-  @override
-  StagedSiblingRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return StagedSiblingRow(
-      collection: $SyncStagedSiblingsTable.$convertercollection.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.string,
-          data['${effectivePrefix}collection'],
-        )!,
-      ),
-      rowId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}row_id'],
-      )!,
-      siblingId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}sibling_id'],
-      )!,
-      versionData: $SyncStagedSiblingsTable.$converterversionData.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.blob,
-          data['${effectivePrefix}version_data'],
-        )!,
-      ),
-      payload: attachedDatabase.typeMapping.read(
-        DriftSqlType.blob,
-        data['${effectivePrefix}payload'],
-      )!,
-      lifecycle: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}lifecycle'],
-      )!,
-      position: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}position'],
-      )!,
-    );
-  }
-
-  @override
-  $SyncStagedSiblingsTable createAlias(String alias) {
-    return $SyncStagedSiblingsTable(attachedDatabase, alias);
-  }
-
-  static TypeConverter<SyncCollection, String> $convertercollection =
-      const SyncCollectionConverter();
-  static TypeConverter<VersionVector, Uint8List> $converterversionData =
-      const VersionVectorConverter();
-}
-
-class StagedSiblingRow extends DataClass
-    implements Insertable<StagedSiblingRow> {
-  final SyncCollection collection;
-  final String rowId;
-  final String siblingId;
-  final VersionVector versionData;
-  final Uint8List payload;
-  final int lifecycle;
-  final int position;
-  const StagedSiblingRow({
-    required this.collection,
-    required this.rowId,
-    required this.siblingId,
-    required this.versionData,
-    required this.payload,
-    required this.lifecycle,
-    required this.position,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    {
-      map['collection'] = Variable<String>(
-        $SyncStagedSiblingsTable.$convertercollection.toSql(collection),
-      );
-    }
-    map['row_id'] = Variable<String>(rowId);
-    map['sibling_id'] = Variable<String>(siblingId);
-    {
-      map['version_data'] = Variable<Uint8List>(
-        $SyncStagedSiblingsTable.$converterversionData.toSql(versionData),
-      );
-    }
-    map['payload'] = Variable<Uint8List>(payload);
-    map['lifecycle'] = Variable<int>(lifecycle);
-    map['position'] = Variable<int>(position);
-    return map;
-  }
-
-  SyncStagedSiblingsCompanion toCompanion(bool nullToAbsent) {
-    return SyncStagedSiblingsCompanion(
-      collection: Value(collection),
-      rowId: Value(rowId),
-      siblingId: Value(siblingId),
-      versionData: Value(versionData),
-      payload: Value(payload),
-      lifecycle: Value(lifecycle),
-      position: Value(position),
-    );
-  }
-
-  factory StagedSiblingRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return StagedSiblingRow(
-      collection: serializer.fromJson<SyncCollection>(json['collection']),
-      rowId: serializer.fromJson<String>(json['rowId']),
-      siblingId: serializer.fromJson<String>(json['siblingId']),
-      versionData: serializer.fromJson<VersionVector>(json['versionData']),
-      payload: serializer.fromJson<Uint8List>(json['payload']),
-      lifecycle: serializer.fromJson<int>(json['lifecycle']),
-      position: serializer.fromJson<int>(json['position']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'collection': serializer.toJson<SyncCollection>(collection),
-      'rowId': serializer.toJson<String>(rowId),
-      'siblingId': serializer.toJson<String>(siblingId),
-      'versionData': serializer.toJson<VersionVector>(versionData),
-      'payload': serializer.toJson<Uint8List>(payload),
-      'lifecycle': serializer.toJson<int>(lifecycle),
-      'position': serializer.toJson<int>(position),
-    };
-  }
-
-  StagedSiblingRow copyWith({
-    SyncCollection? collection,
-    String? rowId,
-    String? siblingId,
-    VersionVector? versionData,
-    Uint8List? payload,
-    int? lifecycle,
-    int? position,
-  }) => StagedSiblingRow(
-    collection: collection ?? this.collection,
-    rowId: rowId ?? this.rowId,
-    siblingId: siblingId ?? this.siblingId,
-    versionData: versionData ?? this.versionData,
-    payload: payload ?? this.payload,
-    lifecycle: lifecycle ?? this.lifecycle,
-    position: position ?? this.position,
-  );
-  StagedSiblingRow copyWithCompanion(SyncStagedSiblingsCompanion data) {
-    return StagedSiblingRow(
-      collection: data.collection.present
-          ? data.collection.value
-          : this.collection,
-      rowId: data.rowId.present ? data.rowId.value : this.rowId,
-      siblingId: data.siblingId.present ? data.siblingId.value : this.siblingId,
-      versionData: data.versionData.present
-          ? data.versionData.value
-          : this.versionData,
-      payload: data.payload.present ? data.payload.value : this.payload,
-      lifecycle: data.lifecycle.present ? data.lifecycle.value : this.lifecycle,
-      position: data.position.present ? data.position.value : this.position,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('StagedSiblingRow(')
-          ..write('collection: $collection, ')
-          ..write('rowId: $rowId, ')
-          ..write('siblingId: $siblingId, ')
-          ..write('versionData: $versionData, ')
-          ..write('payload: $payload, ')
-          ..write('lifecycle: $lifecycle, ')
-          ..write('position: $position')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    collection,
-    rowId,
-    siblingId,
-    versionData,
-    $driftBlobEquality.hash(payload),
-    lifecycle,
-    position,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is StagedSiblingRow &&
-          other.collection == this.collection &&
-          other.rowId == this.rowId &&
-          other.siblingId == this.siblingId &&
-          other.versionData == this.versionData &&
-          $driftBlobEquality.equals(other.payload, this.payload) &&
-          other.lifecycle == this.lifecycle &&
-          other.position == this.position);
-}
-
-class SyncStagedSiblingsCompanion extends UpdateCompanion<StagedSiblingRow> {
-  final Value<SyncCollection> collection;
-  final Value<String> rowId;
-  final Value<String> siblingId;
-  final Value<VersionVector> versionData;
-  final Value<Uint8List> payload;
-  final Value<int> lifecycle;
-  final Value<int> position;
-  final Value<int> rowid;
-  const SyncStagedSiblingsCompanion({
-    this.collection = const Value.absent(),
-    this.rowId = const Value.absent(),
-    this.siblingId = const Value.absent(),
-    this.versionData = const Value.absent(),
-    this.payload = const Value.absent(),
-    this.lifecycle = const Value.absent(),
-    this.position = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  SyncStagedSiblingsCompanion.insert({
-    required SyncCollection collection,
-    required String rowId,
-    required String siblingId,
-    required VersionVector versionData,
-    required Uint8List payload,
-    required int lifecycle,
-    required int position,
-    this.rowid = const Value.absent(),
-  }) : collection = Value(collection),
-       rowId = Value(rowId),
-       siblingId = Value(siblingId),
-       versionData = Value(versionData),
-       payload = Value(payload),
-       lifecycle = Value(lifecycle),
-       position = Value(position);
-  static Insertable<StagedSiblingRow> custom({
-    Expression<String>? collection,
-    Expression<String>? rowId,
-    Expression<String>? siblingId,
-    Expression<Uint8List>? versionData,
-    Expression<Uint8List>? payload,
-    Expression<int>? lifecycle,
-    Expression<int>? position,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (collection != null) 'collection': collection,
-      if (rowId != null) 'row_id': rowId,
-      if (siblingId != null) 'sibling_id': siblingId,
-      if (versionData != null) 'version_data': versionData,
-      if (payload != null) 'payload': payload,
-      if (lifecycle != null) 'lifecycle': lifecycle,
-      if (position != null) 'position': position,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  SyncStagedSiblingsCompanion copyWith({
-    Value<SyncCollection>? collection,
-    Value<String>? rowId,
-    Value<String>? siblingId,
-    Value<VersionVector>? versionData,
-    Value<Uint8List>? payload,
-    Value<int>? lifecycle,
-    Value<int>? position,
-    Value<int>? rowid,
-  }) {
-    return SyncStagedSiblingsCompanion(
-      collection: collection ?? this.collection,
-      rowId: rowId ?? this.rowId,
-      siblingId: siblingId ?? this.siblingId,
-      versionData: versionData ?? this.versionData,
-      payload: payload ?? this.payload,
-      lifecycle: lifecycle ?? this.lifecycle,
-      position: position ?? this.position,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (collection.present) {
-      map['collection'] = Variable<String>(
-        $SyncStagedSiblingsTable.$convertercollection.toSql(collection.value),
-      );
-    }
-    if (rowId.present) {
-      map['row_id'] = Variable<String>(rowId.value);
-    }
-    if (siblingId.present) {
-      map['sibling_id'] = Variable<String>(siblingId.value);
-    }
-    if (versionData.present) {
-      map['version_data'] = Variable<Uint8List>(
-        $SyncStagedSiblingsTable.$converterversionData.toSql(versionData.value),
-      );
-    }
-    if (payload.present) {
-      map['payload'] = Variable<Uint8List>(payload.value);
-    }
-    if (lifecycle.present) {
-      map['lifecycle'] = Variable<int>(lifecycle.value);
-    }
-    if (position.present) {
-      map['position'] = Variable<int>(position.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncStagedSiblingsCompanion(')
-          ..write('collection: $collection, ')
-          ..write('rowId: $rowId, ')
-          ..write('siblingId: $siblingId, ')
-          ..write('versionData: $versionData, ')
-          ..write('payload: $payload, ')
-          ..write('lifecycle: $lifecycle, ')
-          ..write('position: $position, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $SyncOrphanTombstonesTable extends SyncOrphanTombstones
-    with TableInfo<$SyncOrphanTombstonesTable, OrphanTombstoneRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $SyncOrphanTombstonesTable(this.attachedDatabase, [this._alias]);
-  @override
-  late final GeneratedColumnWithTypeConverter<SyncCollection, String>
-  collection =
-      GeneratedColumn<String>(
-        'collection',
-        aliasedName,
-        false,
-        type: DriftSqlType.string,
-        requiredDuringInsert: true,
-      ).withConverter<SyncCollection>(
-        $SyncOrphanTombstonesTable.$convertercollection,
-      );
-  static const VerificationMeta _rowIdMeta = const VerificationMeta('rowId');
-  @override
-  late final GeneratedColumn<String> rowId = GeneratedColumn<String>(
-    'row_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  late final GeneratedColumnWithTypeConverter<VersionVector, Uint8List>
-  versionData =
-      GeneratedColumn<Uint8List>(
-        'version_data',
-        aliasedName,
-        false,
-        type: DriftSqlType.blob,
-        requiredDuringInsert: true,
-      ).withConverter<VersionVector>(
-        $SyncOrphanTombstonesTable.$converterversionData,
-      );
-  @override
-  List<GeneratedColumn> get $columns => [collection, rowId, versionData];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'sync_orphan_tombstones';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<OrphanTombstoneRow> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('row_id')) {
-      context.handle(
-        _rowIdMeta,
-        rowId.isAcceptableOrUnknown(data['row_id']!, _rowIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_rowIdMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {collection, rowId};
-  @override
-  OrphanTombstoneRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return OrphanTombstoneRow(
-      collection: $SyncOrphanTombstonesTable.$convertercollection.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.string,
-          data['${effectivePrefix}collection'],
-        )!,
-      ),
-      rowId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}row_id'],
-      )!,
-      versionData: $SyncOrphanTombstonesTable.$converterversionData.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.blob,
-          data['${effectivePrefix}version_data'],
-        )!,
-      ),
-    );
-  }
-
-  @override
-  $SyncOrphanTombstonesTable createAlias(String alias) {
-    return $SyncOrphanTombstonesTable(attachedDatabase, alias);
-  }
-
-  static TypeConverter<SyncCollection, String> $convertercollection =
-      const SyncCollectionConverter();
-  static TypeConverter<VersionVector, Uint8List> $converterversionData =
-      const VersionVectorConverter();
-}
-
-class OrphanTombstoneRow extends DataClass
-    implements Insertable<OrphanTombstoneRow> {
-  final SyncCollection collection;
-  final String rowId;
-  final VersionVector versionData;
-  const OrphanTombstoneRow({
-    required this.collection,
-    required this.rowId,
-    required this.versionData,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    {
-      map['collection'] = Variable<String>(
-        $SyncOrphanTombstonesTable.$convertercollection.toSql(collection),
-      );
-    }
-    map['row_id'] = Variable<String>(rowId);
-    {
-      map['version_data'] = Variable<Uint8List>(
-        $SyncOrphanTombstonesTable.$converterversionData.toSql(versionData),
-      );
-    }
-    return map;
-  }
-
-  SyncOrphanTombstonesCompanion toCompanion(bool nullToAbsent) {
-    return SyncOrphanTombstonesCompanion(
-      collection: Value(collection),
-      rowId: Value(rowId),
-      versionData: Value(versionData),
-    );
-  }
-
-  factory OrphanTombstoneRow.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return OrphanTombstoneRow(
-      collection: serializer.fromJson<SyncCollection>(json['collection']),
-      rowId: serializer.fromJson<String>(json['rowId']),
-      versionData: serializer.fromJson<VersionVector>(json['versionData']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'collection': serializer.toJson<SyncCollection>(collection),
-      'rowId': serializer.toJson<String>(rowId),
-      'versionData': serializer.toJson<VersionVector>(versionData),
-    };
-  }
-
-  OrphanTombstoneRow copyWith({
-    SyncCollection? collection,
-    String? rowId,
-    VersionVector? versionData,
-  }) => OrphanTombstoneRow(
-    collection: collection ?? this.collection,
-    rowId: rowId ?? this.rowId,
-    versionData: versionData ?? this.versionData,
-  );
-  OrphanTombstoneRow copyWithCompanion(SyncOrphanTombstonesCompanion data) {
-    return OrphanTombstoneRow(
-      collection: data.collection.present
-          ? data.collection.value
-          : this.collection,
-      rowId: data.rowId.present ? data.rowId.value : this.rowId,
-      versionData: data.versionData.present
-          ? data.versionData.value
-          : this.versionData,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('OrphanTombstoneRow(')
-          ..write('collection: $collection, ')
-          ..write('rowId: $rowId, ')
-          ..write('versionData: $versionData')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(collection, rowId, versionData);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is OrphanTombstoneRow &&
-          other.collection == this.collection &&
-          other.rowId == this.rowId &&
-          other.versionData == this.versionData);
-}
-
-class SyncOrphanTombstonesCompanion
-    extends UpdateCompanion<OrphanTombstoneRow> {
-  final Value<SyncCollection> collection;
-  final Value<String> rowId;
-  final Value<VersionVector> versionData;
-  final Value<int> rowid;
-  const SyncOrphanTombstonesCompanion({
-    this.collection = const Value.absent(),
-    this.rowId = const Value.absent(),
-    this.versionData = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  SyncOrphanTombstonesCompanion.insert({
-    required SyncCollection collection,
-    required String rowId,
-    required VersionVector versionData,
-    this.rowid = const Value.absent(),
-  }) : collection = Value(collection),
-       rowId = Value(rowId),
-       versionData = Value(versionData);
-  static Insertable<OrphanTombstoneRow> custom({
-    Expression<String>? collection,
-    Expression<String>? rowId,
-    Expression<Uint8List>? versionData,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (collection != null) 'collection': collection,
-      if (rowId != null) 'row_id': rowId,
-      if (versionData != null) 'version_data': versionData,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  SyncOrphanTombstonesCompanion copyWith({
-    Value<SyncCollection>? collection,
-    Value<String>? rowId,
-    Value<VersionVector>? versionData,
-    Value<int>? rowid,
-  }) {
-    return SyncOrphanTombstonesCompanion(
-      collection: collection ?? this.collection,
-      rowId: rowId ?? this.rowId,
-      versionData: versionData ?? this.versionData,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (collection.present) {
-      map['collection'] = Variable<String>(
-        $SyncOrphanTombstonesTable.$convertercollection.toSql(collection.value),
-      );
-    }
-    if (rowId.present) {
-      map['row_id'] = Variable<String>(rowId.value);
-    }
-    if (versionData.present) {
-      map['version_data'] = Variable<Uint8List>(
-        $SyncOrphanTombstonesTable.$converterversionData.toSql(
-          versionData.value,
-        ),
-      );
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncOrphanTombstonesCompanion(')
-          ..write('collection: $collection, ')
-          ..write('rowId: $rowId, ')
-          ..write('versionData: $versionData, ')
-          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -6078,17 +3418,6 @@ abstract class _$LedgerDatabase extends GeneratedDatabase {
   late final $PlansTable plans = $PlansTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $StoreMetaTable storeMeta = $StoreMetaTable(this);
-  late final $SyncMetaTable syncMeta = $SyncMetaTable(this);
-  late final $SyncAcknowledgedVectorsTable syncAcknowledgedVectors =
-      $SyncAcknowledgedVectorsTable(this);
-  late final $SyncPendingAcknowledgementsTable syncPendingAcknowledgements =
-      $SyncPendingAcknowledgementsTable(this);
-  late final $SyncStagedConflictsTable syncStagedConflicts =
-      $SyncStagedConflictsTable(this);
-  late final $SyncStagedSiblingsTable syncStagedSiblings =
-      $SyncStagedSiblingsTable(this);
-  late final $SyncOrphanTombstonesTable syncOrphanTombstones =
-      $SyncOrphanTombstonesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6101,17 +3430,10 @@ abstract class _$LedgerDatabase extends GeneratedDatabase {
     plans,
     budgets,
     storeMeta,
-    syncMeta,
-    syncAcknowledgedVectors,
-    syncPendingAcknowledgements,
-    syncStagedConflicts,
-    syncStagedSiblings,
-    syncOrphanTombstones,
   ];
 }
 
 typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
-  required Uint8List versionData,
   required int lifecycle,
   required String id,
   required String name,
@@ -6123,7 +3445,6 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<int> rowid,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
-  Value<Uint8List> versionData,
   Value<int> lifecycle,
   Value<String> id,
   Value<String> name,
@@ -6144,11 +3465,6 @@ class $$AccountsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<int> get lifecycle => $composableBuilder(
     column: $table.lifecycle,
     builder: (column) => ColumnFilters(column),
@@ -6199,11 +3515,6 @@ class $$AccountsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get lifecycle => $composableBuilder(
     column: $table.lifecycle,
     builder: (column) => ColumnOrderings(column),
@@ -6254,11 +3565,6 @@ class $$AccountsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => column,
-  );
-
   GeneratedColumn<int> get lifecycle =>
       $composableBuilder(column: $table.lifecycle, builder: (column) => column);
 
@@ -6320,7 +3626,6 @@ class $$AccountsTableTableManager
               $$AccountsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<Uint8List> versionData = const Value.absent(),
                 Value<int> lifecycle = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
@@ -6331,7 +3636,6 @@ class $$AccountsTableTableManager
                 Value<int?> statementDay = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion(
-                versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 name: name,
@@ -6344,7 +3648,6 @@ class $$AccountsTableTableManager
               ),
           createCompanionCallback:
               ({
-                required Uint8List versionData,
                 required int lifecycle,
                 required String id,
                 required String name,
@@ -6355,7 +3658,6 @@ class $$AccountsTableTableManager
                 Value<int?> statementDay = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsCompanion.insert(
-                versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 name: name,
@@ -6398,7 +3700,6 @@ typedef $$AccountsTableProcessedTableManager =
       PrefetchHooks Function()
     >;
 typedef $$SubPocketsTableCreateCompanionBuilder = SubPocketsCompanion Function({
-  required Uint8List versionData,
   required int lifecycle,
   required String id,
   required String name,
@@ -6406,7 +3707,6 @@ typedef $$SubPocketsTableCreateCompanionBuilder = SubPocketsCompanion Function({
   Value<int> rowid,
 });
 typedef $$SubPocketsTableUpdateCompanionBuilder = SubPocketsCompanion Function({
-  Value<Uint8List> versionData,
   Value<int> lifecycle,
   Value<String> id,
   Value<String> name,
@@ -6423,11 +3723,6 @@ class $$SubPocketsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<int> get lifecycle => $composableBuilder(
     column: $table.lifecycle,
     builder: (column) => ColumnFilters(column),
@@ -6458,11 +3753,6 @@ class $$SubPocketsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get lifecycle => $composableBuilder(
     column: $table.lifecycle,
     builder: (column) => ColumnOrderings(column),
@@ -6493,11 +3783,6 @@ class $$SubPocketsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => column,
-  );
-
   GeneratedColumn<int> get lifecycle =>
       $composableBuilder(column: $table.lifecycle, builder: (column) => column);
 
@@ -6544,14 +3829,12 @@ class $$SubPocketsTableTableManager
               $$SubPocketsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<Uint8List> versionData = const Value.absent(),
                 Value<int> lifecycle = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<bool> incomingTransfersAsExpenses = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SubPocketsCompanion(
-                versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 name: name,
@@ -6560,14 +3843,12 @@ class $$SubPocketsTableTableManager
               ),
           createCompanionCallback:
               ({
-                required Uint8List versionData,
                 required int lifecycle,
                 required String id,
                 required String name,
                 required bool incomingTransfersAsExpenses,
                 Value<int> rowid = const Value.absent(),
               }) => SubPocketsCompanion.insert(
-                versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 name: name,
@@ -6609,7 +3890,6 @@ typedef $$SubPocketsTableProcessedTableManager =
       PrefetchHooks Function()
     >;
 typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
-  required Uint8List versionData,
   required int lifecycle,
   required String id,
   required String name,
@@ -6621,7 +3901,6 @@ typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
   Value<int> rowid,
 });
 typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
-  Value<Uint8List> versionData,
   Value<int> lifecycle,
   Value<String> id,
   Value<String> name,
@@ -6642,11 +3921,6 @@ class $$CategoriesTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<int> get lifecycle => $composableBuilder(
     column: $table.lifecycle,
     builder: (column) => ColumnFilters(column),
@@ -6697,11 +3971,6 @@ class $$CategoriesTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get lifecycle => $composableBuilder(
     column: $table.lifecycle,
     builder: (column) => ColumnOrderings(column),
@@ -6752,11 +4021,6 @@ class $$CategoriesTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => column,
-  );
-
   GeneratedColumn<int> get lifecycle =>
       $composableBuilder(column: $table.lifecycle, builder: (column) => column);
 
@@ -6815,7 +4079,6 @@ class $$CategoriesTableTableManager
               $$CategoriesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<Uint8List> versionData = const Value.absent(),
                 Value<int> lifecycle = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
@@ -6826,7 +4089,6 @@ class $$CategoriesTableTableManager
                 Value<String> symbol = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CategoriesCompanion(
-                versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 name: name,
@@ -6839,7 +4101,6 @@ class $$CategoriesTableTableManager
               ),
           createCompanionCallback:
               ({
-                required Uint8List versionData,
                 required int lifecycle,
                 required String id,
                 required String name,
@@ -6850,7 +4111,6 @@ class $$CategoriesTableTableManager
                 required String symbol,
                 Value<int> rowid = const Value.absent(),
               }) => CategoriesCompanion.insert(
-                versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 name: name,
@@ -6893,7 +4153,6 @@ typedef $$CategoriesTableProcessedTableManager =
       PrefetchHooks Function()
     >;
 typedef $$EntriesTableCreateCompanionBuilder = EntriesCompanion Function({
-  required Uint8List versionData,
   required int lifecycle,
   required String id,
   required int date,
@@ -6908,7 +4167,6 @@ typedef $$EntriesTableCreateCompanionBuilder = EntriesCompanion Function({
   Value<int> rowid,
 });
 typedef $$EntriesTableUpdateCompanionBuilder = EntriesCompanion Function({
-  Value<Uint8List> versionData,
   Value<int> lifecycle,
   Value<String> id,
   Value<int> date,
@@ -6932,11 +4190,6 @@ class $$EntriesTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<int> get lifecycle => $composableBuilder(
     column: $table.lifecycle,
     builder: (column) => ColumnFilters(column),
@@ -7002,11 +4255,6 @@ class $$EntriesTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get lifecycle => $composableBuilder(
     column: $table.lifecycle,
     builder: (column) => ColumnOrderings(column),
@@ -7072,11 +4320,6 @@ class $$EntriesTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => column,
-  );
-
   GeneratedColumn<int> get lifecycle =>
       $composableBuilder(column: $table.lifecycle, builder: (column) => column);
 
@@ -7147,7 +4390,6 @@ class $$EntriesTableTableManager
               $$EntriesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<Uint8List> versionData = const Value.absent(),
                 Value<int> lifecycle = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<int> date = const Value.absent(),
@@ -7161,7 +4403,6 @@ class $$EntriesTableTableManager
                 Value<int?> systemKind = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EntriesCompanion(
-                versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 date: date,
@@ -7177,7 +4418,6 @@ class $$EntriesTableTableManager
               ),
           createCompanionCallback:
               ({
-                required Uint8List versionData,
                 required int lifecycle,
                 required String id,
                 required int date,
@@ -7191,7 +4431,6 @@ class $$EntriesTableTableManager
                 Value<int?> systemKind = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EntriesCompanion.insert(
-                versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 date: date,
@@ -7237,7 +4476,6 @@ typedef $$EntriesTableProcessedTableManager =
       PrefetchHooks Function()
     >;
 typedef $$PlansTableCreateCompanionBuilder = PlansCompanion Function({
-  required Uint8List versionData,
   required int lifecycle,
   required String id,
   required int frequency,
@@ -7254,7 +4492,6 @@ typedef $$PlansTableCreateCompanionBuilder = PlansCompanion Function({
   Value<int> rowid,
 });
 typedef $$PlansTableUpdateCompanionBuilder = PlansCompanion Function({
-  Value<Uint8List> versionData,
   Value<int> lifecycle,
   Value<String> id,
   Value<int> frequency,
@@ -7280,11 +4517,6 @@ class $$PlansTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<int> get lifecycle => $composableBuilder(
     column: $table.lifecycle,
     builder: (column) => ColumnFilters(column),
@@ -7360,11 +4592,6 @@ class $$PlansTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get lifecycle => $composableBuilder(
     column: $table.lifecycle,
     builder: (column) => ColumnOrderings(column),
@@ -7440,11 +4667,6 @@ class $$PlansTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => column,
-  );
-
   GeneratedColumn<int> get lifecycle =>
       $composableBuilder(column: $table.lifecycle, builder: (column) => column);
 
@@ -7529,7 +4751,6 @@ class $$PlansTableTableManager
               $$PlansTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<Uint8List> versionData = const Value.absent(),
                 Value<int> lifecycle = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<int> frequency = const Value.absent(),
@@ -7545,7 +4766,6 @@ class $$PlansTableTableManager
                 Value<String?> templateNote = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PlansCompanion(
-                versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 frequency: frequency,
@@ -7563,7 +4783,6 @@ class $$PlansTableTableManager
               ),
           createCompanionCallback:
               ({
-                required Uint8List versionData,
                 required int lifecycle,
                 required String id,
                 required int frequency,
@@ -7579,7 +4798,6 @@ class $$PlansTableTableManager
                 Value<String?> templateNote = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PlansCompanion.insert(
-                versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 frequency: frequency,
@@ -7627,7 +4845,6 @@ typedef $$PlansTableProcessedTableManager =
       PrefetchHooks Function()
     >;
 typedef $$BudgetsTableCreateCompanionBuilder = BudgetsCompanion Function({
-  required Uint8List versionData,
   required int lifecycle,
   required String id,
   Value<String?> categoryId,
@@ -7635,7 +4852,6 @@ typedef $$BudgetsTableCreateCompanionBuilder = BudgetsCompanion Function({
   Value<int> rowid,
 });
 typedef $$BudgetsTableUpdateCompanionBuilder = BudgetsCompanion Function({
-  Value<Uint8List> versionData,
   Value<int> lifecycle,
   Value<String> id,
   Value<String?> categoryId,
@@ -7652,11 +4868,6 @@ class $$BudgetsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<int> get lifecycle => $composableBuilder(
     column: $table.lifecycle,
     builder: (column) => ColumnFilters(column),
@@ -7687,11 +4898,6 @@ class $$BudgetsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get lifecycle => $composableBuilder(
     column: $table.lifecycle,
     builder: (column) => ColumnOrderings(column),
@@ -7722,11 +4928,6 @@ class $$BudgetsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => column,
-  );
-
   GeneratedColumn<int> get lifecycle =>
       $composableBuilder(column: $table.lifecycle, builder: (column) => column);
 
@@ -7772,14 +4973,12 @@ class $$BudgetsTableTableManager
               $$BudgetsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<Uint8List> versionData = const Value.absent(),
                 Value<int> lifecycle = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String?> categoryId = const Value.absent(),
                 Value<String> limitAmount = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BudgetsCompanion(
-                versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 categoryId: categoryId,
@@ -7788,14 +4987,12 @@ class $$BudgetsTableTableManager
               ),
           createCompanionCallback:
               ({
-                required Uint8List versionData,
                 required int lifecycle,
                 required String id,
                 Value<String?> categoryId = const Value.absent(),
                 required String limitAmount,
                 Value<int> rowid = const Value.absent(),
               }) => BudgetsCompanion.insert(
-                versionData: versionData,
                 lifecycle: lifecycle,
                 id: id,
                 categoryId: categoryId,
@@ -7835,12 +5032,10 @@ typedef $$BudgetsTableProcessedTableManager =
     >;
 typedef $$StoreMetaTableCreateCompanionBuilder = StoreMetaCompanion Function({
   Value<int> id,
-  required String deviceId,
   Value<bool> hasSeeded,
 });
 typedef $$StoreMetaTableUpdateCompanionBuilder = StoreMetaCompanion Function({
   Value<int> id,
-  Value<String> deviceId,
   Value<bool> hasSeeded,
 });
 
@@ -7855,11 +5050,6 @@ class $$StoreMetaTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get deviceId => $composableBuilder(
-    column: $table.deviceId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7883,11 +5073,6 @@ class $$StoreMetaTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get deviceId => $composableBuilder(
-    column: $table.deviceId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<bool> get hasSeeded => $composableBuilder(
     column: $table.hasSeeded,
     builder: (column) => ColumnOrderings(column),
@@ -7905,9 +5090,6 @@ class $$StoreMetaTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get deviceId =>
-      $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
   GeneratedColumn<bool> get hasSeeded =>
       $composableBuilder(column: $table.hasSeeded, builder: (column) => column);
@@ -7942,26 +5124,14 @@ class $$StoreMetaTableTableManager
               $$StoreMetaTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$StoreMetaTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<String> deviceId = const Value.absent(),
-                Value<bool> hasSeeded = const Value.absent(),
-              }) => StoreMetaCompanion(
-                id: id,
-                deviceId: deviceId,
-                hasSeeded: hasSeeded,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                required String deviceId,
-                Value<bool> hasSeeded = const Value.absent(),
-              }) => StoreMetaCompanion.insert(
-                id: id,
-                deviceId: deviceId,
-                hasSeeded: hasSeeded,
-              ),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<bool> hasSeeded = const Value.absent(),
+          }) => StoreMetaCompanion(id: id, hasSeeded: hasSeeded),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<bool> hasSeeded = const Value.absent(),
+          }) => StoreMetaCompanion.insert(id: id, hasSeeded: hasSeeded),
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
@@ -7996,1380 +5166,6 @@ typedef $$StoreMetaTableProcessedTableManager =
       StoreMetaRow,
       PrefetchHooks Function()
     >;
-typedef $$SyncMetaTableCreateCompanionBuilder = SyncMetaCompanion Function({
-  Value<int> id,
-  Value<String?> backend,
-  Value<String?> endpoint,
-  Value<int> enrollmentPhase,
-  Value<bool> writeEnabled,
-  Value<int> deviceBindingState,
-  Value<int?> reauthResumePhase,
-  Value<String?> moneySourcesCursor,
-  Value<String?> entriesCursor,
-  Value<String?> categoriesCursor,
-  Value<String?> plansCursor,
-  Value<String?> budgetsCursor,
-});
-typedef $$SyncMetaTableUpdateCompanionBuilder = SyncMetaCompanion Function({
-  Value<int> id,
-  Value<String?> backend,
-  Value<String?> endpoint,
-  Value<int> enrollmentPhase,
-  Value<bool> writeEnabled,
-  Value<int> deviceBindingState,
-  Value<int?> reauthResumePhase,
-  Value<String?> moneySourcesCursor,
-  Value<String?> entriesCursor,
-  Value<String?> categoriesCursor,
-  Value<String?> plansCursor,
-  Value<String?> budgetsCursor,
-});
-
-class $$SyncMetaTableFilterComposer
-    extends Composer<_$LedgerDatabase, $SyncMetaTable> {
-  $$SyncMetaTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get backend => $composableBuilder(
-    column: $table.backend,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get endpoint => $composableBuilder(
-    column: $table.endpoint,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get enrollmentPhase => $composableBuilder(
-    column: $table.enrollmentPhase,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get writeEnabled => $composableBuilder(
-    column: $table.writeEnabled,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get deviceBindingState => $composableBuilder(
-    column: $table.deviceBindingState,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get reauthResumePhase => $composableBuilder(
-    column: $table.reauthResumePhase,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get moneySourcesCursor => $composableBuilder(
-    column: $table.moneySourcesCursor,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get entriesCursor => $composableBuilder(
-    column: $table.entriesCursor,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get categoriesCursor => $composableBuilder(
-    column: $table.categoriesCursor,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get plansCursor => $composableBuilder(
-    column: $table.plansCursor,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get budgetsCursor => $composableBuilder(
-    column: $table.budgetsCursor,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$SyncMetaTableOrderingComposer
-    extends Composer<_$LedgerDatabase, $SyncMetaTable> {
-  $$SyncMetaTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get backend => $composableBuilder(
-    column: $table.backend,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get endpoint => $composableBuilder(
-    column: $table.endpoint,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get enrollmentPhase => $composableBuilder(
-    column: $table.enrollmentPhase,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get writeEnabled => $composableBuilder(
-    column: $table.writeEnabled,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get deviceBindingState => $composableBuilder(
-    column: $table.deviceBindingState,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get reauthResumePhase => $composableBuilder(
-    column: $table.reauthResumePhase,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get moneySourcesCursor => $composableBuilder(
-    column: $table.moneySourcesCursor,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get entriesCursor => $composableBuilder(
-    column: $table.entriesCursor,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get categoriesCursor => $composableBuilder(
-    column: $table.categoriesCursor,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get plansCursor => $composableBuilder(
-    column: $table.plansCursor,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get budgetsCursor => $composableBuilder(
-    column: $table.budgetsCursor,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$SyncMetaTableAnnotationComposer
-    extends Composer<_$LedgerDatabase, $SyncMetaTable> {
-  $$SyncMetaTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get backend =>
-      $composableBuilder(column: $table.backend, builder: (column) => column);
-
-  GeneratedColumn<String> get endpoint =>
-      $composableBuilder(column: $table.endpoint, builder: (column) => column);
-
-  GeneratedColumn<int> get enrollmentPhase => $composableBuilder(
-    column: $table.enrollmentPhase,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<bool> get writeEnabled => $composableBuilder(
-    column: $table.writeEnabled,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get deviceBindingState => $composableBuilder(
-    column: $table.deviceBindingState,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get reauthResumePhase => $composableBuilder(
-    column: $table.reauthResumePhase,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get moneySourcesCursor => $composableBuilder(
-    column: $table.moneySourcesCursor,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get entriesCursor => $composableBuilder(
-    column: $table.entriesCursor,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get categoriesCursor => $composableBuilder(
-    column: $table.categoriesCursor,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get plansCursor => $composableBuilder(
-    column: $table.plansCursor,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get budgetsCursor => $composableBuilder(
-    column: $table.budgetsCursor,
-    builder: (column) => column,
-  );
-}
-
-class $$SyncMetaTableTableManager
-    extends
-        RootTableManager<
-          _$LedgerDatabase,
-          $SyncMetaTable,
-          SyncMetadataRow,
-          $$SyncMetaTableFilterComposer,
-          $$SyncMetaTableOrderingComposer,
-          $$SyncMetaTableAnnotationComposer,
-          $$SyncMetaTableCreateCompanionBuilder,
-          $$SyncMetaTableUpdateCompanionBuilder,
-          (
-            SyncMetadataRow,
-            BaseReferences<_$LedgerDatabase, $SyncMetaTable, SyncMetadataRow>,
-          ),
-          SyncMetadataRow,
-          PrefetchHooks Function()
-        > {
-  $$SyncMetaTableTableManager(_$LedgerDatabase db, $SyncMetaTable table)
-    : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$SyncMetaTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$SyncMetaTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$SyncMetaTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<String?> backend = const Value.absent(),
-                Value<String?> endpoint = const Value.absent(),
-                Value<int> enrollmentPhase = const Value.absent(),
-                Value<bool> writeEnabled = const Value.absent(),
-                Value<int> deviceBindingState = const Value.absent(),
-                Value<int?> reauthResumePhase = const Value.absent(),
-                Value<String?> moneySourcesCursor = const Value.absent(),
-                Value<String?> entriesCursor = const Value.absent(),
-                Value<String?> categoriesCursor = const Value.absent(),
-                Value<String?> plansCursor = const Value.absent(),
-                Value<String?> budgetsCursor = const Value.absent(),
-              }) => SyncMetaCompanion(
-                id: id,
-                backend: backend,
-                endpoint: endpoint,
-                enrollmentPhase: enrollmentPhase,
-                writeEnabled: writeEnabled,
-                deviceBindingState: deviceBindingState,
-                reauthResumePhase: reauthResumePhase,
-                moneySourcesCursor: moneySourcesCursor,
-                entriesCursor: entriesCursor,
-                categoriesCursor: categoriesCursor,
-                plansCursor: plansCursor,
-                budgetsCursor: budgetsCursor,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<String?> backend = const Value.absent(),
-                Value<String?> endpoint = const Value.absent(),
-                Value<int> enrollmentPhase = const Value.absent(),
-                Value<bool> writeEnabled = const Value.absent(),
-                Value<int> deviceBindingState = const Value.absent(),
-                Value<int?> reauthResumePhase = const Value.absent(),
-                Value<String?> moneySourcesCursor = const Value.absent(),
-                Value<String?> entriesCursor = const Value.absent(),
-                Value<String?> categoriesCursor = const Value.absent(),
-                Value<String?> plansCursor = const Value.absent(),
-                Value<String?> budgetsCursor = const Value.absent(),
-              }) => SyncMetaCompanion.insert(
-                id: id,
-                backend: backend,
-                endpoint: endpoint,
-                enrollmentPhase: enrollmentPhase,
-                writeEnabled: writeEnabled,
-                deviceBindingState: deviceBindingState,
-                reauthResumePhase: reauthResumePhase,
-                moneySourcesCursor: moneySourcesCursor,
-                entriesCursor: entriesCursor,
-                categoriesCursor: categoriesCursor,
-                plansCursor: plansCursor,
-                budgetsCursor: budgetsCursor,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$SyncMetaTable, SyncMetadataRow>(table),
-                  BaseReferences<
-                    _$LedgerDatabase,
-                    $SyncMetaTable,
-                    SyncMetadataRow
-                  >(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$SyncMetaTableProcessedTableManager =
-    ProcessedTableManager<
-      _$LedgerDatabase,
-      $SyncMetaTable,
-      SyncMetadataRow,
-      $$SyncMetaTableFilterComposer,
-      $$SyncMetaTableOrderingComposer,
-      $$SyncMetaTableAnnotationComposer,
-      $$SyncMetaTableCreateCompanionBuilder,
-      $$SyncMetaTableUpdateCompanionBuilder,
-      (
-        SyncMetadataRow,
-        BaseReferences<_$LedgerDatabase, $SyncMetaTable, SyncMetadataRow>,
-      ),
-      SyncMetadataRow,
-      PrefetchHooks Function()
-    >;
-typedef $$SyncAcknowledgedVectorsTableCreateCompanionBuilder =
-    SyncAcknowledgedVectorsCompanion Function({
-      required SyncCollection collection,
-      required String rowId,
-      required VersionVector versionData,
-      Value<int> rowid,
-    });
-typedef $$SyncAcknowledgedVectorsTableUpdateCompanionBuilder =
-    SyncAcknowledgedVectorsCompanion Function({
-      Value<SyncCollection> collection,
-      Value<String> rowId,
-      Value<VersionVector> versionData,
-      Value<int> rowid,
-    });
-
-class $$SyncAcknowledgedVectorsTableFilterComposer
-    extends Composer<_$LedgerDatabase, $SyncAcknowledgedVectorsTable> {
-  $$SyncAcknowledgedVectorsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnWithTypeConverterFilters<SyncCollection, SyncCollection, String>
-  get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-
-  ColumnFilters<String> get rowId => $composableBuilder(
-    column: $table.rowId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnWithTypeConverterFilters<VersionVector, VersionVector, Uint8List>
-  get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-}
-
-class $$SyncAcknowledgedVectorsTableOrderingComposer
-    extends Composer<_$LedgerDatabase, $SyncAcknowledgedVectorsTable> {
-  $$SyncAcknowledgedVectorsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get rowId => $composableBuilder(
-    column: $table.rowId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$SyncAcknowledgedVectorsTableAnnotationComposer
-    extends Composer<_$LedgerDatabase, $SyncAcknowledgedVectorsTable> {
-  $$SyncAcknowledgedVectorsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumnWithTypeConverter<SyncCollection, String> get collection =>
-      $composableBuilder(
-        column: $table.collection,
-        builder: (column) => column,
-      );
-
-  GeneratedColumn<String> get rowId =>
-      $composableBuilder(column: $table.rowId, builder: (column) => column);
-
-  GeneratedColumnWithTypeConverter<VersionVector, Uint8List> get versionData =>
-      $composableBuilder(
-        column: $table.versionData,
-        builder: (column) => column,
-      );
-}
-
-class $$SyncAcknowledgedVectorsTableTableManager
-    extends
-        RootTableManager<
-          _$LedgerDatabase,
-          $SyncAcknowledgedVectorsTable,
-          AcknowledgedVectorRow,
-          $$SyncAcknowledgedVectorsTableFilterComposer,
-          $$SyncAcknowledgedVectorsTableOrderingComposer,
-          $$SyncAcknowledgedVectorsTableAnnotationComposer,
-          $$SyncAcknowledgedVectorsTableCreateCompanionBuilder,
-          $$SyncAcknowledgedVectorsTableUpdateCompanionBuilder,
-          (
-            AcknowledgedVectorRow,
-            BaseReferences<
-              _$LedgerDatabase,
-              $SyncAcknowledgedVectorsTable,
-              AcknowledgedVectorRow
-            >,
-          ),
-          AcknowledgedVectorRow,
-          PrefetchHooks Function()
-        > {
-  $$SyncAcknowledgedVectorsTableTableManager(
-    _$LedgerDatabase db,
-    $SyncAcknowledgedVectorsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$SyncAcknowledgedVectorsTableFilterComposer(
-                $db: db,
-                $table: table,
-              ),
-          createOrderingComposer: () =>
-              $$SyncAcknowledgedVectorsTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$SyncAcknowledgedVectorsTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<SyncCollection> collection = const Value.absent(),
-                Value<String> rowId = const Value.absent(),
-                Value<VersionVector> versionData = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => SyncAcknowledgedVectorsCompanion(
-                collection: collection,
-                rowId: rowId,
-                versionData: versionData,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required SyncCollection collection,
-                required String rowId,
-                required VersionVector versionData,
-                Value<int> rowid = const Value.absent(),
-              }) => SyncAcknowledgedVectorsCompanion.insert(
-                collection: collection,
-                rowId: rowId,
-                versionData: versionData,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<
-                    $SyncAcknowledgedVectorsTable,
-                    AcknowledgedVectorRow
-                  >(table),
-                  BaseReferences<
-                    _$LedgerDatabase,
-                    $SyncAcknowledgedVectorsTable,
-                    AcknowledgedVectorRow
-                  >(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$SyncAcknowledgedVectorsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$LedgerDatabase,
-      $SyncAcknowledgedVectorsTable,
-      AcknowledgedVectorRow,
-      $$SyncAcknowledgedVectorsTableFilterComposer,
-      $$SyncAcknowledgedVectorsTableOrderingComposer,
-      $$SyncAcknowledgedVectorsTableAnnotationComposer,
-      $$SyncAcknowledgedVectorsTableCreateCompanionBuilder,
-      $$SyncAcknowledgedVectorsTableUpdateCompanionBuilder,
-      (
-        AcknowledgedVectorRow,
-        BaseReferences<
-          _$LedgerDatabase,
-          $SyncAcknowledgedVectorsTable,
-          AcknowledgedVectorRow
-        >,
-      ),
-      AcknowledgedVectorRow,
-      PrefetchHooks Function()
-    >;
-typedef $$SyncPendingAcknowledgementsTableCreateCompanionBuilder =
-    SyncPendingAcknowledgementsCompanion Function({
-      required SyncCollection collection,
-      required String checkpoint,
-      Value<int> rowid,
-    });
-typedef $$SyncPendingAcknowledgementsTableUpdateCompanionBuilder =
-    SyncPendingAcknowledgementsCompanion Function({
-      Value<SyncCollection> collection,
-      Value<String> checkpoint,
-      Value<int> rowid,
-    });
-
-class $$SyncPendingAcknowledgementsTableFilterComposer
-    extends Composer<_$LedgerDatabase, $SyncPendingAcknowledgementsTable> {
-  $$SyncPendingAcknowledgementsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnWithTypeConverterFilters<SyncCollection, SyncCollection, String>
-  get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-
-  ColumnFilters<String> get checkpoint => $composableBuilder(
-    column: $table.checkpoint,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$SyncPendingAcknowledgementsTableOrderingComposer
-    extends Composer<_$LedgerDatabase, $SyncPendingAcknowledgementsTable> {
-  $$SyncPendingAcknowledgementsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get checkpoint => $composableBuilder(
-    column: $table.checkpoint,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$SyncPendingAcknowledgementsTableAnnotationComposer
-    extends Composer<_$LedgerDatabase, $SyncPendingAcknowledgementsTable> {
-  $$SyncPendingAcknowledgementsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumnWithTypeConverter<SyncCollection, String> get collection =>
-      $composableBuilder(
-        column: $table.collection,
-        builder: (column) => column,
-      );
-
-  GeneratedColumn<String> get checkpoint => $composableBuilder(
-    column: $table.checkpoint,
-    builder: (column) => column,
-  );
-}
-
-class $$SyncPendingAcknowledgementsTableTableManager
-    extends
-        RootTableManager<
-          _$LedgerDatabase,
-          $SyncPendingAcknowledgementsTable,
-          PendingAcknowledgementRow,
-          $$SyncPendingAcknowledgementsTableFilterComposer,
-          $$SyncPendingAcknowledgementsTableOrderingComposer,
-          $$SyncPendingAcknowledgementsTableAnnotationComposer,
-          $$SyncPendingAcknowledgementsTableCreateCompanionBuilder,
-          $$SyncPendingAcknowledgementsTableUpdateCompanionBuilder,
-          (
-            PendingAcknowledgementRow,
-            BaseReferences<
-              _$LedgerDatabase,
-              $SyncPendingAcknowledgementsTable,
-              PendingAcknowledgementRow
-            >,
-          ),
-          PendingAcknowledgementRow,
-          PrefetchHooks Function()
-        > {
-  $$SyncPendingAcknowledgementsTableTableManager(
-    _$LedgerDatabase db,
-    $SyncPendingAcknowledgementsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$SyncPendingAcknowledgementsTableFilterComposer(
-                $db: db,
-                $table: table,
-              ),
-          createOrderingComposer: () =>
-              $$SyncPendingAcknowledgementsTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$SyncPendingAcknowledgementsTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<SyncCollection> collection = const Value.absent(),
-                Value<String> checkpoint = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => SyncPendingAcknowledgementsCompanion(
-                collection: collection,
-                checkpoint: checkpoint,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required SyncCollection collection,
-                required String checkpoint,
-                Value<int> rowid = const Value.absent(),
-              }) => SyncPendingAcknowledgementsCompanion.insert(
-                collection: collection,
-                checkpoint: checkpoint,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<
-                    $SyncPendingAcknowledgementsTable,
-                    PendingAcknowledgementRow
-                  >(table),
-                  BaseReferences<
-                    _$LedgerDatabase,
-                    $SyncPendingAcknowledgementsTable,
-                    PendingAcknowledgementRow
-                  >(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$SyncPendingAcknowledgementsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$LedgerDatabase,
-      $SyncPendingAcknowledgementsTable,
-      PendingAcknowledgementRow,
-      $$SyncPendingAcknowledgementsTableFilterComposer,
-      $$SyncPendingAcknowledgementsTableOrderingComposer,
-      $$SyncPendingAcknowledgementsTableAnnotationComposer,
-      $$SyncPendingAcknowledgementsTableCreateCompanionBuilder,
-      $$SyncPendingAcknowledgementsTableUpdateCompanionBuilder,
-      (
-        PendingAcknowledgementRow,
-        BaseReferences<
-          _$LedgerDatabase,
-          $SyncPendingAcknowledgementsTable,
-          PendingAcknowledgementRow
-        >,
-      ),
-      PendingAcknowledgementRow,
-      PrefetchHooks Function()
-    >;
-typedef $$SyncStagedConflictsTableCreateCompanionBuilder =
-    SyncStagedConflictsCompanion Function({
-      required SyncCollection collection,
-      required String rowId,
-      Value<int> rowid,
-    });
-typedef $$SyncStagedConflictsTableUpdateCompanionBuilder =
-    SyncStagedConflictsCompanion Function({
-      Value<SyncCollection> collection,
-      Value<String> rowId,
-      Value<int> rowid,
-    });
-
-class $$SyncStagedConflictsTableFilterComposer
-    extends Composer<_$LedgerDatabase, $SyncStagedConflictsTable> {
-  $$SyncStagedConflictsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnWithTypeConverterFilters<SyncCollection, SyncCollection, String>
-  get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-
-  ColumnFilters<String> get rowId => $composableBuilder(
-    column: $table.rowId,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$SyncStagedConflictsTableOrderingComposer
-    extends Composer<_$LedgerDatabase, $SyncStagedConflictsTable> {
-  $$SyncStagedConflictsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get rowId => $composableBuilder(
-    column: $table.rowId,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$SyncStagedConflictsTableAnnotationComposer
-    extends Composer<_$LedgerDatabase, $SyncStagedConflictsTable> {
-  $$SyncStagedConflictsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumnWithTypeConverter<SyncCollection, String> get collection =>
-      $composableBuilder(
-        column: $table.collection,
-        builder: (column) => column,
-      );
-
-  GeneratedColumn<String> get rowId =>
-      $composableBuilder(column: $table.rowId, builder: (column) => column);
-}
-
-class $$SyncStagedConflictsTableTableManager
-    extends
-        RootTableManager<
-          _$LedgerDatabase,
-          $SyncStagedConflictsTable,
-          StagedConflictRow,
-          $$SyncStagedConflictsTableFilterComposer,
-          $$SyncStagedConflictsTableOrderingComposer,
-          $$SyncStagedConflictsTableAnnotationComposer,
-          $$SyncStagedConflictsTableCreateCompanionBuilder,
-          $$SyncStagedConflictsTableUpdateCompanionBuilder,
-          (
-            StagedConflictRow,
-            BaseReferences<
-              _$LedgerDatabase,
-              $SyncStagedConflictsTable,
-              StagedConflictRow
-            >,
-          ),
-          StagedConflictRow,
-          PrefetchHooks Function()
-        > {
-  $$SyncStagedConflictsTableTableManager(
-    _$LedgerDatabase db,
-    $SyncStagedConflictsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$SyncStagedConflictsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$SyncStagedConflictsTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$SyncStagedConflictsTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<SyncCollection> collection = const Value.absent(),
-                Value<String> rowId = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => SyncStagedConflictsCompanion(
-                collection: collection,
-                rowId: rowId,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required SyncCollection collection,
-                required String rowId,
-                Value<int> rowid = const Value.absent(),
-              }) => SyncStagedConflictsCompanion.insert(
-                collection: collection,
-                rowId: rowId,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$SyncStagedConflictsTable, StagedConflictRow>(
-                    table,
-                  ),
-                  BaseReferences<
-                    _$LedgerDatabase,
-                    $SyncStagedConflictsTable,
-                    StagedConflictRow
-                  >(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$SyncStagedConflictsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$LedgerDatabase,
-      $SyncStagedConflictsTable,
-      StagedConflictRow,
-      $$SyncStagedConflictsTableFilterComposer,
-      $$SyncStagedConflictsTableOrderingComposer,
-      $$SyncStagedConflictsTableAnnotationComposer,
-      $$SyncStagedConflictsTableCreateCompanionBuilder,
-      $$SyncStagedConflictsTableUpdateCompanionBuilder,
-      (
-        StagedConflictRow,
-        BaseReferences<
-          _$LedgerDatabase,
-          $SyncStagedConflictsTable,
-          StagedConflictRow
-        >,
-      ),
-      StagedConflictRow,
-      PrefetchHooks Function()
-    >;
-typedef $$SyncStagedSiblingsTableCreateCompanionBuilder =
-    SyncStagedSiblingsCompanion Function({
-      required SyncCollection collection,
-      required String rowId,
-      required String siblingId,
-      required VersionVector versionData,
-      required Uint8List payload,
-      required int lifecycle,
-      required int position,
-      Value<int> rowid,
-    });
-typedef $$SyncStagedSiblingsTableUpdateCompanionBuilder =
-    SyncStagedSiblingsCompanion Function({
-      Value<SyncCollection> collection,
-      Value<String> rowId,
-      Value<String> siblingId,
-      Value<VersionVector> versionData,
-      Value<Uint8List> payload,
-      Value<int> lifecycle,
-      Value<int> position,
-      Value<int> rowid,
-    });
-
-class $$SyncStagedSiblingsTableFilterComposer
-    extends Composer<_$LedgerDatabase, $SyncStagedSiblingsTable> {
-  $$SyncStagedSiblingsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnWithTypeConverterFilters<SyncCollection, SyncCollection, String>
-  get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-
-  ColumnFilters<String> get rowId => $composableBuilder(
-    column: $table.rowId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get siblingId => $composableBuilder(
-    column: $table.siblingId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnWithTypeConverterFilters<VersionVector, VersionVector, Uint8List>
-  get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-
-  ColumnFilters<Uint8List> get payload => $composableBuilder(
-    column: $table.payload,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get lifecycle => $composableBuilder(
-    column: $table.lifecycle,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get position => $composableBuilder(
-    column: $table.position,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$SyncStagedSiblingsTableOrderingComposer
-    extends Composer<_$LedgerDatabase, $SyncStagedSiblingsTable> {
-  $$SyncStagedSiblingsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get rowId => $composableBuilder(
-    column: $table.rowId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get siblingId => $composableBuilder(
-    column: $table.siblingId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<Uint8List> get payload => $composableBuilder(
-    column: $table.payload,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get lifecycle => $composableBuilder(
-    column: $table.lifecycle,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get position => $composableBuilder(
-    column: $table.position,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$SyncStagedSiblingsTableAnnotationComposer
-    extends Composer<_$LedgerDatabase, $SyncStagedSiblingsTable> {
-  $$SyncStagedSiblingsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumnWithTypeConverter<SyncCollection, String> get collection =>
-      $composableBuilder(
-        column: $table.collection,
-        builder: (column) => column,
-      );
-
-  GeneratedColumn<String> get rowId =>
-      $composableBuilder(column: $table.rowId, builder: (column) => column);
-
-  GeneratedColumn<String> get siblingId =>
-      $composableBuilder(column: $table.siblingId, builder: (column) => column);
-
-  GeneratedColumnWithTypeConverter<VersionVector, Uint8List> get versionData =>
-      $composableBuilder(
-        column: $table.versionData,
-        builder: (column) => column,
-      );
-
-  GeneratedColumn<Uint8List> get payload =>
-      $composableBuilder(column: $table.payload, builder: (column) => column);
-
-  GeneratedColumn<int> get lifecycle =>
-      $composableBuilder(column: $table.lifecycle, builder: (column) => column);
-
-  GeneratedColumn<int> get position =>
-      $composableBuilder(column: $table.position, builder: (column) => column);
-}
-
-class $$SyncStagedSiblingsTableTableManager
-    extends
-        RootTableManager<
-          _$LedgerDatabase,
-          $SyncStagedSiblingsTable,
-          StagedSiblingRow,
-          $$SyncStagedSiblingsTableFilterComposer,
-          $$SyncStagedSiblingsTableOrderingComposer,
-          $$SyncStagedSiblingsTableAnnotationComposer,
-          $$SyncStagedSiblingsTableCreateCompanionBuilder,
-          $$SyncStagedSiblingsTableUpdateCompanionBuilder,
-          (
-            StagedSiblingRow,
-            BaseReferences<
-              _$LedgerDatabase,
-              $SyncStagedSiblingsTable,
-              StagedSiblingRow
-            >,
-          ),
-          StagedSiblingRow,
-          PrefetchHooks Function()
-        > {
-  $$SyncStagedSiblingsTableTableManager(
-    _$LedgerDatabase db,
-    $SyncStagedSiblingsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$SyncStagedSiblingsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$SyncStagedSiblingsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$SyncStagedSiblingsTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<SyncCollection> collection = const Value.absent(),
-                Value<String> rowId = const Value.absent(),
-                Value<String> siblingId = const Value.absent(),
-                Value<VersionVector> versionData = const Value.absent(),
-                Value<Uint8List> payload = const Value.absent(),
-                Value<int> lifecycle = const Value.absent(),
-                Value<int> position = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => SyncStagedSiblingsCompanion(
-                collection: collection,
-                rowId: rowId,
-                siblingId: siblingId,
-                versionData: versionData,
-                payload: payload,
-                lifecycle: lifecycle,
-                position: position,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required SyncCollection collection,
-                required String rowId,
-                required String siblingId,
-                required VersionVector versionData,
-                required Uint8List payload,
-                required int lifecycle,
-                required int position,
-                Value<int> rowid = const Value.absent(),
-              }) => SyncStagedSiblingsCompanion.insert(
-                collection: collection,
-                rowId: rowId,
-                siblingId: siblingId,
-                versionData: versionData,
-                payload: payload,
-                lifecycle: lifecycle,
-                position: position,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$SyncStagedSiblingsTable, StagedSiblingRow>(
-                    table,
-                  ),
-                  BaseReferences<
-                    _$LedgerDatabase,
-                    $SyncStagedSiblingsTable,
-                    StagedSiblingRow
-                  >(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$SyncStagedSiblingsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$LedgerDatabase,
-      $SyncStagedSiblingsTable,
-      StagedSiblingRow,
-      $$SyncStagedSiblingsTableFilterComposer,
-      $$SyncStagedSiblingsTableOrderingComposer,
-      $$SyncStagedSiblingsTableAnnotationComposer,
-      $$SyncStagedSiblingsTableCreateCompanionBuilder,
-      $$SyncStagedSiblingsTableUpdateCompanionBuilder,
-      (
-        StagedSiblingRow,
-        BaseReferences<
-          _$LedgerDatabase,
-          $SyncStagedSiblingsTable,
-          StagedSiblingRow
-        >,
-      ),
-      StagedSiblingRow,
-      PrefetchHooks Function()
-    >;
-typedef $$SyncOrphanTombstonesTableCreateCompanionBuilder =
-    SyncOrphanTombstonesCompanion Function({
-      required SyncCollection collection,
-      required String rowId,
-      required VersionVector versionData,
-      Value<int> rowid,
-    });
-typedef $$SyncOrphanTombstonesTableUpdateCompanionBuilder =
-    SyncOrphanTombstonesCompanion Function({
-      Value<SyncCollection> collection,
-      Value<String> rowId,
-      Value<VersionVector> versionData,
-      Value<int> rowid,
-    });
-
-class $$SyncOrphanTombstonesTableFilterComposer
-    extends Composer<_$LedgerDatabase, $SyncOrphanTombstonesTable> {
-  $$SyncOrphanTombstonesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnWithTypeConverterFilters<SyncCollection, SyncCollection, String>
-  get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-
-  ColumnFilters<String> get rowId => $composableBuilder(
-    column: $table.rowId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnWithTypeConverterFilters<VersionVector, VersionVector, Uint8List>
-  get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-}
-
-class $$SyncOrphanTombstonesTableOrderingComposer
-    extends Composer<_$LedgerDatabase, $SyncOrphanTombstonesTable> {
-  $$SyncOrphanTombstonesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get rowId => $composableBuilder(
-    column: $table.rowId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$SyncOrphanTombstonesTableAnnotationComposer
-    extends Composer<_$LedgerDatabase, $SyncOrphanTombstonesTable> {
-  $$SyncOrphanTombstonesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumnWithTypeConverter<SyncCollection, String> get collection =>
-      $composableBuilder(
-        column: $table.collection,
-        builder: (column) => column,
-      );
-
-  GeneratedColumn<String> get rowId =>
-      $composableBuilder(column: $table.rowId, builder: (column) => column);
-
-  GeneratedColumnWithTypeConverter<VersionVector, Uint8List> get versionData =>
-      $composableBuilder(
-        column: $table.versionData,
-        builder: (column) => column,
-      );
-}
-
-class $$SyncOrphanTombstonesTableTableManager
-    extends
-        RootTableManager<
-          _$LedgerDatabase,
-          $SyncOrphanTombstonesTable,
-          OrphanTombstoneRow,
-          $$SyncOrphanTombstonesTableFilterComposer,
-          $$SyncOrphanTombstonesTableOrderingComposer,
-          $$SyncOrphanTombstonesTableAnnotationComposer,
-          $$SyncOrphanTombstonesTableCreateCompanionBuilder,
-          $$SyncOrphanTombstonesTableUpdateCompanionBuilder,
-          (
-            OrphanTombstoneRow,
-            BaseReferences<
-              _$LedgerDatabase,
-              $SyncOrphanTombstonesTable,
-              OrphanTombstoneRow
-            >,
-          ),
-          OrphanTombstoneRow,
-          PrefetchHooks Function()
-        > {
-  $$SyncOrphanTombstonesTableTableManager(
-    _$LedgerDatabase db,
-    $SyncOrphanTombstonesTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$SyncOrphanTombstonesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$SyncOrphanTombstonesTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$SyncOrphanTombstonesTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<SyncCollection> collection = const Value.absent(),
-                Value<String> rowId = const Value.absent(),
-                Value<VersionVector> versionData = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => SyncOrphanTombstonesCompanion(
-                collection: collection,
-                rowId: rowId,
-                versionData: versionData,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required SyncCollection collection,
-                required String rowId,
-                required VersionVector versionData,
-                Value<int> rowid = const Value.absent(),
-              }) => SyncOrphanTombstonesCompanion.insert(
-                collection: collection,
-                rowId: rowId,
-                versionData: versionData,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$SyncOrphanTombstonesTable, OrphanTombstoneRow>(
-                    table,
-                  ),
-                  BaseReferences<
-                    _$LedgerDatabase,
-                    $SyncOrphanTombstonesTable,
-                    OrphanTombstoneRow
-                  >(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$SyncOrphanTombstonesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$LedgerDatabase,
-      $SyncOrphanTombstonesTable,
-      OrphanTombstoneRow,
-      $$SyncOrphanTombstonesTableFilterComposer,
-      $$SyncOrphanTombstonesTableOrderingComposer,
-      $$SyncOrphanTombstonesTableAnnotationComposer,
-      $$SyncOrphanTombstonesTableCreateCompanionBuilder,
-      $$SyncOrphanTombstonesTableUpdateCompanionBuilder,
-      (
-        OrphanTombstoneRow,
-        BaseReferences<
-          _$LedgerDatabase,
-          $SyncOrphanTombstonesTable,
-          OrphanTombstoneRow
-        >,
-      ),
-      OrphanTombstoneRow,
-      PrefetchHooks Function()
-    >;
 
 class $LedgerDatabaseManager {
   final _$LedgerDatabase _db;
@@ -9388,23 +5184,4 @@ class $LedgerDatabaseManager {
       $$BudgetsTableTableManager(_db, _db.budgets);
   $$StoreMetaTableTableManager get storeMeta =>
       $$StoreMetaTableTableManager(_db, _db.storeMeta);
-  $$SyncMetaTableTableManager get syncMeta =>
-      $$SyncMetaTableTableManager(_db, _db.syncMeta);
-  $$SyncAcknowledgedVectorsTableTableManager get syncAcknowledgedVectors =>
-      $$SyncAcknowledgedVectorsTableTableManager(
-        _db,
-        _db.syncAcknowledgedVectors,
-      );
-  $$SyncPendingAcknowledgementsTableTableManager
-  get syncPendingAcknowledgements =>
-      $$SyncPendingAcknowledgementsTableTableManager(
-        _db,
-        _db.syncPendingAcknowledgements,
-      );
-  $$SyncStagedConflictsTableTableManager get syncStagedConflicts =>
-      $$SyncStagedConflictsTableTableManager(_db, _db.syncStagedConflicts);
-  $$SyncStagedSiblingsTableTableManager get syncStagedSiblings =>
-      $$SyncStagedSiblingsTableTableManager(_db, _db.syncStagedSiblings);
-  $$SyncOrphanTombstonesTableTableManager get syncOrphanTombstones =>
-      $$SyncOrphanTombstonesTableTableManager(_db, _db.syncOrphanTombstones);
 }

@@ -19,8 +19,7 @@ RecurringPlan planFromRow(rows.Plan row) => RecurringPlan(
   lastResolvedDate: dayFromMillis(row.lastResolvedDate),
 );
 
-rows.Plan planToRow(RecurringPlan plan, VersionVector version) => rows.Plan(
-  versionData: _versionToBlob(version),
+rows.Plan planToRow(RecurringPlan plan) => rows.Plan(
   lifecycle: LifecycleState.active.code,
   id: plan.id,
   frequency: plan.frequency.code,
@@ -44,8 +43,7 @@ Budget budgetFromRow(rows.Budget row) => Budget(
   limit: Decimal.parse(row.limitAmount),
 );
 
-rows.Budget budgetToRow(Budget budget, VersionVector version) => rows.Budget(
-  versionData: _versionToBlob(version),
+rows.Budget budgetToRow(Budget budget) => rows.Budget(
   lifecycle: LifecycleState.active.code,
   id: budget.id,
   categoryId: budget.categoryID,

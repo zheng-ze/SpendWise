@@ -17,7 +17,6 @@ import 'package:spendwise/persistence/store/drift_ledger_store.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart';
 import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/persistence/store/persistence_processor.dart';
-import 'package:spendwise/sync/sync_metadata_store.dart';
 
 // MARK: - Database
 
@@ -35,10 +34,6 @@ final ledgerDatabaseProvider = Provider<LedgerDatabase>((ref) {
 
 final storeProvider = Provider<LedgerStore>((ref) {
   return DriftLedgerStore(ref.watch(ledgerDatabaseProvider));
-});
-
-final syncMetadataStoreProvider = Provider<SyncMetadataStore>((ref) {
-  return SyncMetadataStore(ref.watch(ledgerDatabaseProvider));
 });
 
 // MARK: - Banners
@@ -86,7 +81,6 @@ final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
     onPlanError: banner.receivePlanErrors,
     onRetry: () {
       ref.invalidate(storeProvider);
-      ref.invalidate(syncMetadataStoreProvider);
       ref.invalidate(ledgerDatabaseProvider);
       ref.invalidate(databaseConnectionProvider);
     },
