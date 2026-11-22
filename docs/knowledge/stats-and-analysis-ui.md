@@ -157,8 +157,8 @@ auto-dispose `trendsBreakdownScopeProvider` defaults to `wholePeriod`; the typed
 changes it within the Trends route lifetime. `resolveTrendsScopedPresentation` selects the matching
 breakdown, header and `TrendsCategoryDetailSource` together. The control labels the selected scope
 `Selected month` or `Selected year` according to mode. The shared card draws the saved donut or
-category map and ranked rows; Category averages draws no chart. Scope, helper and widget behavior
-are covered by `trends_breakdown_scope_test.dart`, `trends_scoped_presentation_test.dart` and
+category map and ranked rows; Category averages draws no chart. Scope state, scoped presentation and
+average comparison logic are covered by `trends_breakdown_scope_test.dart`, `trends_scoped_presentation_test.dart` and
 `trends_average_comparison_test.dart`.
 
 The selected-period category breakdown uses the selected period, kind and level. The projection explicitly maps the

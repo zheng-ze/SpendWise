@@ -1,5 +1,4 @@
 import 'package:domain/domain.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
@@ -7,11 +6,6 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/settings/display_preferences_providers.dart';
-import 'package:spendwise/ui/overview/overview_flow.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/theme/spendwise_theme.dart';
-
-import '../../support/phone_shell.dart';
 
 const checkingID = '11111111-1111-4111-8111-111111111111';
 const savingsID = '22222222-2222-4222-8222-222222222222';
@@ -186,60 +180,5 @@ ProviderContainer overviewContainer(
     ],
   );
   addTearDown(container.dispose);
-  return container;
-}
-
-List<OverviewWidgetKind> renderedOverviewKinds(WidgetTester tester) {
-  final keyedWidgets = find.byWidgetPredicate(
-    (widget) => widget.key is ValueKey<OverviewWidgetKind>,
-  );
-  return [
-    for (final widget in tester.widgetList(keyedWidgets))
-      if (widget.key case ValueKey<OverviewWidgetKind>(:final value)) value,
-  ];
-}
-
-const _defaultOverviewWindowSize = Size(320, 760);
-const _overviewDevicePixelRatio = 1.0;
-
-void _ignoreOverviewHistory() {}
-
-void _ignoreOverviewBudgets() {}
-
-Future<ProviderContainer> pumpOverviewWindow(
-  WidgetTester tester, {
-  required LedgerState state,
-  DisplayPreferences? preferences,
-  Size windowSize = _defaultOverviewWindowSize,
-  ShellLayoutMode mode = ShellLayoutMode.phone,
-  double splitOffset = 0,
-  bool sheetCovered = false,
-  Brightness brightness = Brightness.light,
-}) async {
-  tester.view.physicalSize = windowSize;
-  tester.view.devicePixelRatio = _overviewDevicePixelRatio;
-  addTearDown(tester.view.reset);
-  final ledger = Ledger(state: state);
-  final container = overviewContainer(ledger, preferences: preferences);
-  final overview = OverviewFlow(
-    onHistorySelected: _ignoreOverviewHistory,
-    onBudgetsSelected: _ignoreOverviewBudgets,
-  );
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(
-        theme: buildSpendWiseTheme(brightness),
-        home: paneShell(
-          overview,
-          mode: mode,
-          splitOffset: splitOffset,
-          sheetCovered: sheetCovered,
-        ),
-      ),
-    ),
-  );
-  await tester.runAsync(() => settleAnalysis(container, ledger));
-  await tester.pumpAndSettle();
   return container;
 }
