@@ -110,14 +110,8 @@ const overviewEditIntro =
 
 const overviewEditShownLabel = 'Shown on Overview';
 
-const overviewEditAddLabel = 'Add widgets';
+const overviewEditHiddenLabel = 'Hidden';
 
-const overviewEditHide = 'Hide';
-
-const overviewEditAdd = '+ Add';
-
-const overviewEditAdded = 'Added';
-
-const overviewEditSeeAll = 'See all widgets';
+const overviewEditHiddenHint = 'Drag a widget here to hide it.';
 
 const overviewEditRestore = 'Restore default';

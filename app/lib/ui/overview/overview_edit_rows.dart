@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/buttons/app_buttons.dart';
-import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/overview/overview_slots.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -9,13 +7,17 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _gripIcon = Icons.drag_indicator;
 
-const _gripSize = 20.0;
+const _gripIconSize = 20.0;
+
+const _gripTargetSize = 48.0;
+
+const _gripTargetFill = Colors.transparent;
 
 const _rowVerticalPadding = 8.0;
 
-const _rowGap = 10.0;
-
 const _textGap = 2.0;
+
+const _hintVerticalPadding = 12.0;
 
 // MARK: - Row Text
 
@@ -45,96 +47,55 @@ class _CardText extends StatelessWidget {
   }
 }
 
-// MARK: - Shown Row
+// MARK: - Overview Edit Row
 
-class ShownRow extends StatelessWidget {
-  const ShownRow({
-    super.key,
-    required this.index,
-    required this.card,
-    required this.onHide,
-  });
+class OverviewEditRow extends StatelessWidget {
+  const OverviewEditRow({super.key, required this.index, required this.card});
 
   final int index;
   final OverviewCard card;
-  final VoidCallback? onHide;
 
   @override
   Widget build(BuildContext context) {
-    final grip = ReorderableDragStartListener(
-      index: index,
-      child: Icon(_gripIcon, size: _gripSize, color: context.colors.subtext),
+    final icon = Icon(
+      _gripIcon,
+      size: _gripIconSize,
+      color: context.colors.subtext,
     );
+    final gripTarget = SizedBox.square(
+      dimension: _gripTargetSize,
+      child: ColoredBox(
+        color: _gripTargetFill,
+        child: Center(child: icon),
+      ),
+    );
+    final grip = ReorderableDragStartListener(index: index, child: gripTarget);
     final text = _CardText(title: card.title, detail: card.subtitle);
-    final hide = SecondaryButton(label: overviewEditHide, onPressed: onHide);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: _rowVerticalPadding),
       child: Row(
         children: [
           grip,
-          const SizedBox(width: _rowGap),
           Expanded(child: text),
-          hide,
         ],
       ),
     );
   }
 }
 
-// MARK: - Addable Row
+// MARK: - Hidden Hint
 
-class AddableRow extends StatelessWidget {
-  const AddableRow({super.key, required this.card, required this.onAdd});
+class OverviewEditHiddenHint extends StatelessWidget {
+  const OverviewEditHiddenHint({super.key, required this.text});
 
-  final OverviewCard card;
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = _CardText(title: card.title, detail: card.subtitle);
-    final add = SecondaryButton(label: overviewEditAdd, onPressed: onAdd);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: _rowVerticalPadding),
-      child: Row(
-        children: [
-          Expanded(child: text),
-          add,
-        ],
-      ),
-    );
-  }
-}
-
-// MARK: - Catalogue Row
-
-class CatalogueRow extends StatelessWidget {
-  const CatalogueRow({
-    super.key,
-    required this.card,
-    required this.added,
-    required this.onAdd,
-  });
-
-  final OverviewCard card;
-  final bool added;
-  final VoidCallback onAdd;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    final text = _CardText(title: card.title, detail: card.question);
-    final addedCaption = Text(
-      overviewEditAdded,
-      style: context.text.caption.copyWith(color: context.colors.subtext),
-    );
-    final add = SecondaryButton(label: overviewEditAdd, onPressed: onAdd);
+    final style = context.text.caption.copyWith(color: context.colors.subtext);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: _rowVerticalPadding),
-      child: Row(
-        children: [
-          Expanded(child: text),
-          added ? addedCaption : add,
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(vertical: _hintVerticalPadding),
+      child: Text(text, style: style),
     );
   }
 }
