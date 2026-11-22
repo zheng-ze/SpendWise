@@ -127,10 +127,7 @@ void main() {
       final applied = _draft([_recent, _today]).applyTo(current);
 
       expect(applied.overviewWidgets, [_recent, _today]);
-      expect(
-        applied,
-        current.copyWith(overviewWidgets: [_recent, _today]),
-      );
+      expect(applied, current.copyWith(overviewWidgets: [_recent, _today]));
       expect(applied.appearance, Appearance.dark);
       expect(applied.savingsPocketID, 'pocket');
     });

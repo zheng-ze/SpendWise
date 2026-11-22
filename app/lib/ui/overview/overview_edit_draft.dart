@@ -10,13 +10,17 @@ class OverviewEditDraft {
   final List<OverviewWidgetKind> kinds;
   final List<OverviewWidgetKind> cardKinds;
 
-  List<OverviewWidgetKind> get shown =>
-      [for (final kind in kinds) if (cardKinds.contains(kind)) kind];
+  List<OverviewWidgetKind> get shown => [
+    for (final kind in kinds)
+      if (cardKinds.contains(kind)) kind,
+  ];
 
   bool get canHide => shown.length > 1;
 
-  List<OverviewWidgetKind> get addable =>
-      [for (final kind in cardKinds) if (!kinds.contains(kind)) kind];
+  List<OverviewWidgetKind> get addable => [
+    for (final kind in cardKinds)
+      if (!kinds.contains(kind)) kind,
+  ];
 
   bool isAdded(OverviewWidgetKind kind) => kinds.contains(kind);
 

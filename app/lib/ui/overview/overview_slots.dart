@@ -8,8 +8,10 @@ import 'package:spendwise/ui/overview/overview_this_month_section.dart';
 import 'package:spendwise/ui/overview/overview_today_section.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 
-typedef OverviewSlotBuilder =
-    Widget Function(OverviewViewState viewState, OverviewViewModel viewModel);
+typedef OverviewSlotBuilder = Widget Function(
+  OverviewViewState viewState,
+  OverviewViewModel viewModel,
+);
 
 class OverviewCard {
   const OverviewCard({
