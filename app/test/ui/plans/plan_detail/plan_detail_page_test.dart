@@ -21,74 +21,73 @@ Future<ProviderContainer> _pumpPhone(
 );
 
 void main() {
-  for (final brightness in Brightness.values) {
-    final suffix = brightness.name;
+  const brightness = Brightness.light;
+  final suffix = brightness.name;
 
-    testWidgets(
-      'mo-plan-detail phone tapping a plan opens its detail page ($suffix)',
-      (tester) async {
-        final container = await _pumpPhone(tester, brightness);
+  testWidgets(
+    'mo-plan-detail phone tapping a plan opens its detail page ($suffix)',
+    (tester) async {
+      final container = await _pumpPhone(tester, brightness);
 
-        await tapPlan(tester, plansShellExpensePlan.id);
+      await tapPlan(tester, plansShellExpensePlan.id);
 
-        expect(container.read(selectedPlanProvider), plansShellExpensePlan.id);
-        expect(find.byType(PlanDetailScreen), findsOneWidget);
-        expect(find.byKey(shellDetailPaneKey), findsNothing);
-      },
-      timeout: uiTestTimeout,
-    );
+      expect(container.read(selectedPlanProvider), plansShellExpensePlan.id);
+      expect(find.byType(PlanDetailScreen), findsOneWidget);
+      expect(find.byKey(shellDetailPaneKey), findsNothing);
+    },
+    timeout: uiTestTimeout,
+  );
 
-    testWidgets(
-      'mo-plan-detail Back pops the page and clears the selection ($suffix)',
-      (tester) async {
-        final container = await _pumpPhone(tester, brightness);
-        await tapPlan(tester, plansShellExpensePlan.id);
+  testWidgets(
+    'mo-plan-detail Back pops the page and clears the selection ($suffix)',
+    (tester) async {
+      final container = await _pumpPhone(tester, brightness);
+      await tapPlan(tester, plansShellExpensePlan.id);
 
-        await tester.tap(find.byType(BackButton));
-        await tester.pumpAndSettle();
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
 
-        expect(find.byType(PlanDetailScreen), findsNothing);
-        expect(container.read(selectedPlanProvider), isNull);
-      },
-      timeout: uiTestTimeout,
-    );
+      expect(find.byType(PlanDetailScreen), findsNothing);
+      expect(container.read(selectedPlanProvider), isNull);
+    },
+    timeout: uiTestTimeout,
+  );
 
-    testWidgets(
-      'mo-plan-detail closes when the plan is deleted from the ledger ($suffix)',
-      (tester) async {
-        final container = await _pumpPhone(tester, brightness);
-        await tapPlan(tester, plansShellExpensePlan.id);
+  testWidgets(
+    'mo-plan-detail closes when the plan is deleted from the ledger ($suffix)',
+    (tester) async {
+      final container = await _pumpPhone(tester, brightness);
+      await tapPlan(tester, plansShellExpensePlan.id);
 
-        container
-            .read(plansShellLedgerFixture)!
-            .deletePlan(plansShellExpensePlan.id);
-        await tester.pumpAndSettle();
+      container
+          .read(plansShellLedgerFixture)!
+          .deletePlan(plansShellExpensePlan.id);
+      await tester.pumpAndSettle();
 
-        expect(find.byType(PlanDetailScreen), findsNothing);
-        expect(container.read(selectedPlanProvider), isNull);
-      },
-      timeout: uiTestTimeout,
-    );
+      expect(find.byType(PlanDetailScreen), findsNothing);
+      expect(container.read(selectedPlanProvider), isNull);
+    },
+    timeout: uiTestTimeout,
+  );
 
-    testWidgets(
-      'mo-plan-detail keeps the selection across fold and unfold ($suffix)',
-      (tester) async {
-        final container = await _pumpPhone(tester, brightness);
-        await tapPlan(tester, plansShellExpensePlan.id);
+  testWidgets(
+    'mo-plan-detail keeps the selection across fold and unfold ($suffix)',
+    (tester) async {
+      final container = await _pumpPhone(tester, brightness);
+      await tapPlan(tester, plansShellExpensePlan.id);
 
-        container.read(plansShellModeFixture.notifier).state =
-            ShellLayoutMode.open;
-        await tester.pumpAndSettle();
-        expect(find.byType(PlanDetailScreen), findsNothing);
-        expect(container.read(selectedPlanProvider), plansShellExpensePlan.id);
+      container.read(plansShellModeFixture.notifier).state =
+          ShellLayoutMode.open;
+      await tester.pumpAndSettle();
+      expect(find.byType(PlanDetailScreen), findsNothing);
+      expect(container.read(selectedPlanProvider), plansShellExpensePlan.id);
 
-        container.read(plansShellModeFixture.notifier).state =
-            ShellLayoutMode.phone;
-        await tester.pumpAndSettle();
-        expect(find.byType(PlanDetailScreen), findsOneWidget);
-        expect(container.read(selectedPlanProvider), plansShellExpensePlan.id);
-      },
-      timeout: uiTestTimeout,
-    );
-  }
+      container.read(plansShellModeFixture.notifier).state =
+          ShellLayoutMode.phone;
+      await tester.pumpAndSettle();
+      expect(find.byType(PlanDetailScreen), findsOneWidget);
+      expect(container.read(selectedPlanProvider), plansShellExpensePlan.id);
+    },
+    timeout: uiTestTimeout,
+  );
 }

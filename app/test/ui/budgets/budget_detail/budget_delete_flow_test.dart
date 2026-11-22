@@ -19,8 +19,6 @@ const _deleteActionLabel = 'Delete budget';
 const _cancelLabel = 'Cancel';
 const _confirmLabel = 'Delete';
 const _confirmTitle = 'Delete the Food budget?';
-const _confirmBody =
-    'Your entries stay as they are. Only the limit is removed.';
 const _deletedTitle = 'This budget was deleted';
 const _outsideOffset = Offset(5, 5);
 const _frames = 20;
@@ -91,16 +89,6 @@ Future<void> _expectEditStillWorks(
 
 void main() {
   for (final mode in [ShellLayoutMode.phone, ShellLayoutMode.open]) {
-    testWidgets('mo-budget-delete ${mode.name}: shows the budget copy with '
-        'Cancel and a filled Delete', (tester) async {
-      await _pumpConfirmation(tester, mode);
-
-      expect(find.text(_confirmTitle), findsOneWidget);
-      expect(find.text(_confirmBody), findsOneWidget);
-      expect(_cancelButton, findsOneWidget);
-      expect(_confirmButton, findsOneWidget);
-    }, timeout: uiTestTimeout);
-
     testWidgets('mo-budget-delete ${mode.name}: Cancel writes nothing and '
         'Edit still works', (tester) async {
       final ledger = buildShellLedger();

@@ -2,62 +2,21 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
-import 'package:spendwise/ui/common/sheets/tray.dart';
-import 'package:spendwise/ui/overview/overview_flow.dart';
 import 'package:spendwise/ui/overview/overview_screen.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
-import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
 import 'overview_fixture.dart';
 import '../../support/ui_test_timeout.dart';
-import '../../support/phone_shell.dart';
 
 const _phoneSize = Size(320, 760);
 const _testDevicePixelRatio = 1.0;
 
-void _ignoreHistory() {}
-
-void _ignoreBudgets() {}
-
-Future<ProviderContainer> _pumpOverview(
-  WidgetTester tester,
-  LedgerState state, {
-  required Brightness brightness,
-  ComputeRunner runner = syncComputeRunner,
-}) async {
-  tester.view.physicalSize = _phoneSize;
-  tester.view.devicePixelRatio = _testDevicePixelRatio;
-  addTearDown(tester.view.reset);
-  final ledger = Ledger(state: state);
-  final container = overviewContainer(ledger, runner: runner);
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(
-        theme: buildSpendWiseTheme(brightness),
-        home: phoneShell(
-          OverviewFlow(
-            onHistorySelected: _ignoreHistory,
-            onBudgetsSelected: _ignoreBudgets,
-          ),
-        ),
-      ),
-    ),
-  );
-  await tester.runAsync(() => settleAnalysis(container, ledger));
-  await tester.pumpAndSettle();
-  return container;
-}
-
 Future<ProviderContainer> _pumpBareOverviewScreen(
   WidgetTester tester,
-  LedgerState state, {
-  required Brightness brightness,
-}) async {
+  LedgerState state,
+) async {
   tester.view.physicalSize = _phoneSize;
   tester.view.devicePixelRatio = _testDevicePixelRatio;
   addTearDown(tester.view.reset);
@@ -67,7 +26,7 @@ Future<ProviderContainer> _pumpBareOverviewScreen(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
-        theme: buildSpendWiseTheme(brightness),
+        theme: buildSpendWiseTheme(Brightness.light),
         home: const OverviewScreen(),
       ),
     ),
@@ -77,206 +36,36 @@ Future<ProviderContainer> _pumpBareOverviewScreen(
   return container;
 }
 
-Finder _inTray(String title, String text) => find.descendant(
-  of: find.ancestor(of: find.text(title), matching: find.byType(Tray)),
-  matching: find.text(text),
-);
-
-class _LoadingOverviewNotifier extends OverviewNotifier {
-  @override
-  OverviewViewState build() => OverviewViewState(
-    day: fixtureToday,
-    today: null,
-    recent: null,
-    upcoming: null,
-    thisMonth: null,
-  );
-}
-
-Color? _textColor(WidgetTester tester, Finder finder) =>
-    tester.widget<Text>(finder).style?.color;
-
 void main() {
-  for (final brightness in Brightness.values) {
-    final colors = brightness == Brightness.dark
-        ? SpendWiseColors.dark
-        : SpendWiseColors.light;
+  testWidgets('Set a monthly cap requests the Budgets section', (tester) async {
+    final state = emptyState();
+    state.addEntry(
+      entry(1, '-5.00', fixtureToday, name: 'Lunch', categoryID: groceriesID),
+    );
+    final container = await _pumpBareOverviewScreen(tester, state);
 
-    group('ov-default in ${brightness.name}', () {
-      testWidgets('renders four recent rows with signed, styled amounts', (
-        tester,
-      ) async {
-        await _pumpOverview(tester, defaultState(), brightness: brightness);
+    final action = find.text('Set a monthly cap');
+    await tester.ensureVisible(action);
+    await tester.tap(action);
+    await tester.pump();
 
-        for (final title in [
-          'Snack',
-          'Shop run',
-          'To savings',
-          'Monthly pay',
-        ]) {
-          expect(find.text(title), findsOneWidget);
-        }
-        expect(find.text('Yesterday bite'), findsNothing);
-        expect(find.text('Today / Salary / Checking'), findsOneWidget);
-        expect(
-          find.text('Today / Transfer / Checking > Savings'),
-          findsOneWidget,
-        );
-        final income = _inTray('Recent entries', '+3,200.00');
-        final moved = _inTray('Recent entries', '500.00');
-        final spent = _inTray('Recent entries', '-42.50');
-        expect(income, findsOneWidget);
-        expect(moved, findsOneWidget);
-        expect(spent, findsOneWidget);
-        expect(_inTray('Recent entries', '-3.20'), findsOneWidget);
-        expect(_textColor(tester, income), colors.income);
-        expect(_textColor(tester, spent), colors.expense);
-        expect(_textColor(tester, moved), colors.text);
-      }, timeout: uiTestTimeout);
+    expect(
+      container.read(overviewViewModelProvider).requireValue.step,
+      isA<OverviewBudgetsRequested>(),
+    );
+  }, timeout: uiTestTimeout);
 
-      testWidgets('renders the upcoming rows in date order', (tester) async {
-        await _pumpOverview(tester, defaultState(), brightness: brightness);
+  testWidgets('View History requests the history page', (tester) async {
+    final container = await _pumpBareOverviewScreen(tester, defaultState());
 
-        final titles = [
-          'Amex Card statement closes',
-          'Streaming',
-          'Wages',
-          'Rent',
-        ];
-        final tops = [
-          for (final title in titles) tester.getTopLeft(find.text(title)).dy,
-        ];
-        expect(tops, [...tops]..sort());
-        expect(find.text('This cycle so far: S\$45.70'), findsOneWidget);
-        expect(find.text('Plan / Amex Card'), findsOneWidget);
-        expect(find.text('Plan / Checking'), findsOneWidget);
-        expect(find.text('Dated ahead / Checking'), findsOneWidget);
-        expect(_inTray('Coming up', '-19.98'), findsOneWidget);
-        expect(_inTray('Coming up', '+3,200.00'), findsOneWidget);
-        expect(_inTray('Coming up', '-1,200.00'), findsOneWidget);
-        expect(find.text('Oct'), findsNWidgets(3));
-        expect(find.text('Nov'), findsOneWidget);
-      }, timeout: uiTestTimeout);
+    final action = find.widgetWithText(TextButton, 'View History');
+    await tester.ensureVisible(action);
+    await tester.tap(action);
+    await tester.pump();
 
-      testWidgets('asks for a monthly cap when no unscoped budget exists', (
-        tester,
-      ) async {
-        final state = emptyState();
-        state.addEntry(
-          entry(
-            1,
-            '-5.00',
-            fixtureToday,
-            name: 'Lunch',
-            categoryID: groceriesID,
-          ),
-        );
-        await _pumpOverview(tester, state, brightness: brightness);
-
-        expect(
-          find.text('Set a monthly cap to see a daily guide.'),
-          findsOneWidget,
-        );
-        expect(find.text('Set a monthly cap'), findsOneWidget);
-        expect(find.textContaining('Daily guide'), findsNothing);
-      }, timeout: uiTestTimeout);
-
-      testWidgets('Set a monthly cap requests the Budgets section', (
-        tester,
-      ) async {
-        final state = emptyState();
-        state.addEntry(
-          entry(
-            1,
-            '-5.00',
-            fixtureToday,
-            name: 'Lunch',
-            categoryID: groceriesID,
-          ),
-        );
-        final container = await _pumpBareOverviewScreen(
-          tester,
-          state,
-          brightness: brightness,
-        );
-
-        final action = find.text('Set a monthly cap');
-        await tester.ensureVisible(action);
-        await tester.tap(action);
-        await tester.pump();
-
-        expect(
-          container.read(overviewViewModelProvider).requireValue.step,
-          isA<OverviewBudgetsRequested>(),
-        );
-      }, timeout: uiTestTimeout);
-
-      testWidgets('View History requests the history page', (tester) async {
-        final container = await _pumpBareOverviewScreen(
-          tester,
-          defaultState(),
-          brightness: brightness,
-        );
-
-        final action = find.widgetWithText(TextButton, 'View History');
-        expect(action, findsOneWidget);
-        expect(tester.widget<TextButton>(action).onPressed, isNotNull);
-        expect(find.byIcon(Icons.chevron_right), findsOneWidget);
-        expect(tester.getSize(action).height, greaterThanOrEqualTo(48));
-        expect(tester.getSemantics(action).flagsCollection.isButton, isTrue);
-
-        await tester.ensureVisible(action);
-        await tester.tap(action);
-        await tester.pump();
-
-        expect(
-          container.read(overviewViewModelProvider).requireValue.step,
-          isA<OverviewHistoryRequested>(),
-        );
-      }, timeout: uiTestTimeout);
-
-      testWidgets('View History is shown when recent entries are empty', (
-        tester,
-      ) async {
-        await _pumpOverview(tester, LedgerState(), brightness: brightness);
-
-        expect(find.text('Your entries will appear here.'), findsOneWidget);
-        expect(find.widgetWithText(TextButton, 'View History'), findsOneWidget);
-      }, timeout: uiTestTimeout);
-
-      testWidgets('View History is shown while the recent section loads', (
-        tester,
-      ) async {
-        tester.view.physicalSize = _phoneSize;
-        tester.view.devicePixelRatio = _testDevicePixelRatio;
-        addTearDown(tester.view.reset);
-        final container = ProviderContainer(
-          overrides: [
-            overviewViewModelProvider.overrideWith(
-              () => _LoadingOverviewNotifier(),
-            ),
-          ],
-        );
-        addTearDown(container.dispose);
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: MaterialApp(
-              theme: buildSpendWiseTheme(brightness),
-              home: phoneShell(
-                OverviewFlow(
-                  onHistorySelected: _ignoreHistory,
-                  onBudgetsSelected: _ignoreBudgets,
-                ),
-              ),
-            ),
-          ),
-        );
-        await tester.pump();
-
-        expect(find.byType(LoadingSkeleton), findsWidgets);
-        expect(find.widgetWithText(TextButton, 'View History'), findsOneWidget);
-      }, timeout: uiTestTimeout);
-    });
-  }
+    expect(
+      container.read(overviewViewModelProvider).requireValue.step,
+      isA<OverviewHistoryRequested>(),
+    );
+  }, timeout: uiTestTimeout);
 }

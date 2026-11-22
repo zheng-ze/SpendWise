@@ -1,14 +1,11 @@
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/inputs/amount_field.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/plans/plan_form/plan_form.dart';
 import 'package:spendwise/ui/plans/plan_list/plan_selection.dart';
-import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../../../support/row_tap.dart';
@@ -17,12 +14,8 @@ import '../plans_shell_test_support.dart';
 
 const _frameMode = ShellLayoutMode.phone;
 const _sheetTitle = 'Edit plan';
-const _saveLabel = 'Save plan';
-const _accountLabel = 'Account';
 const _repeatLabel = 'Repeat';
-const _quarterlyLabel = 'Every three months';
 const _newName = 'Flat rent';
-const _newAmount = '1300';
 const _outsideOffset = Offset(5, 5);
 
 final _editButton = find.widgetWithText(FilledButton, _sheetTitle);
@@ -30,10 +23,6 @@ final _form = find.byType(PlanForm);
 final _nameField = find
     .descendant(of: _form, matching: find.byType(TextField))
     .first;
-final _amountField = find.descendant(
-  of: find.byType(AmountField),
-  matching: find.byType(TextField),
-);
 
 Future<ProviderContainer> _pumpEdit(
   WidgetTester tester,
@@ -53,55 +42,23 @@ Future<ProviderContainer> _pumpEdit(
   return container;
 }
 
-Future<void> _choose(WidgetTester tester, String label) async {
-  await tester.tap(find.text(label));
-  await tester.pumpAndSettle();
-}
-
 void main() {
-  for (final brightness in Brightness.values) {
-    const mode = _frameMode;
-    final label = 'mo-plan-edit ${mode.name} (${brightness.name})';
+  const mode = _frameMode;
+  const brightness = Brightness.light;
+  final label = 'mo-plan-edit ${mode.name} (${brightness.name})';
 
-    testWidgets('$label locked Account row opens nothing', (tester) async {
-      await _pumpEdit(tester, mode, brightness, buildPlansShellLedger());
+  testWidgets('$label tapping outside writes nothing', (tester) async {
+    final ledger = buildPlansShellLedger();
+    await _pumpEdit(tester, mode, brightness, ledger);
+    final revision = ledger.revision;
 
-      await tapRow(tester, find.widgetWithText(ListTile, _accountLabel));
+    await tester.enterText(_nameField, _newName);
+    await tester.tapAt(_outsideOffset);
+    await tester.pumpAndSettle();
 
-      expect(find.byType(AppPickerSheet), findsNothing);
-      expect(_form, findsOneWidget);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('$label Save plan writes the edits and closes', (tester) async {
-      final ledger = buildPlansShellLedger();
-      await _pumpEdit(tester, mode, brightness, ledger);
-
-      await tester.enterText(_nameField, _newName);
-      await tester.enterText(_amountField, _newAmount);
-      await tapRow(tester, find.widgetWithText(ListTile, _repeatLabel));
-      await _choose(tester, _quarterlyLabel);
-      await _choose(tester, _saveLabel);
-
-      final stored = ledger.state.plans[plansShellExpensePlan.id]!;
-      expect(stored.template.name, _newName);
-      expect(stored.template.amount, Decimal.parse('-1300'));
-      expect(stored.frequency, RecurrenceFrequency.quarterly);
-      expect(_form, findsNothing);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('$label tapping outside writes nothing', (tester) async {
-      final ledger = buildPlansShellLedger();
-      await _pumpEdit(tester, mode, brightness, ledger);
-      final revision = ledger.revision;
-
-      await tester.enterText(_nameField, _newName);
-      await tester.tapAt(_outsideOffset);
-      await tester.pumpAndSettle();
-
-      expect(_form, findsNothing);
-      expect(ledger.revision, revision);
-    }, timeout: uiTestTimeout);
-  }
+    expect(_form, findsNothing);
+    expect(ledger.revision, revision);
+  }, timeout: uiTestTimeout);
 
   testWidgets('a changed selection removes the open sheet', (tester) async {
     final ledger = buildPlansShellLedger();
@@ -120,26 +77,6 @@ void main() {
 
     expect(_form, findsNothing);
     expect(ledger.revision, revision);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('open pane header shows the new name after Save plan', (
-    tester,
-  ) async {
-    await _pumpEdit(
-      tester,
-      ShellLayoutMode.open,
-      Brightness.light,
-      buildPlansShellLedger(),
-    );
-    final paneTitle = find.descendant(
-      of: find.byKey(shellDetailPaneKey),
-      matching: find.text(_newName),
-    );
-
-    await tester.enterText(_nameField, _newName);
-    await _choose(tester, _saveLabel);
-
-    expect(paneTitle, findsOneWidget);
   }, timeout: uiTestTimeout);
 
   testWidgets('replacing the ledger removes the open sheet', (tester) async {

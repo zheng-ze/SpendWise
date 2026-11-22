@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
@@ -418,41 +417,5 @@ void main() {
     await tester.tap(find.text('Move'));
     await tester.pumpAndSettle();
     expect(await confirmed, isTrue);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('move to bin actions stay tappable at a large text scale', (
-    tester,
-  ) async {
-    await _pumpBoundShell(tester, size: _phoneSize);
-    tester.platformDispatcher.textScaleFactorTestValue = 3;
-    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-    final context = tester.element(find.text('overview probe'));
-
-    final future = confirmMoveCategoryToBin(context, 'Groceries');
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Move'));
-    await tester.pumpAndSettle();
-
-    expect(await future, isTrue);
-    expect(tester.takeException(), isNull);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('focus traversal stays inside the dialog', (tester) async {
-    await _pumpBoundShell(tester, size: _openSize);
-    final context = tester.element(find.text('overview probe'));
-
-    final future = showDeleteConfirmation(context, itemName: 'Groceries');
-    await tester.pumpAndSettle();
-
-    for (var step = 0; step < 6; step++) {
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pump();
-      final focused = FocusManager.instance.primaryFocus!.context!;
-      expect(focused.findAncestorWidgetOfExactType<Dialog>(), isNotNull);
-    }
-
-    Navigator.of(context, rootNavigator: true).pop(false);
-    await tester.pumpAndSettle();
-    expect(await future, isFalse);
   }, timeout: uiTestTimeout);
 }

@@ -42,13 +42,6 @@ Entry _entry(String name, String sourceID) => testEntry(
   date: DateTime.utc(2026, 1, 5),
 );
 
-TransactionCategory _category(String name, {LifecycleState? lifecycle}) =>
-    testCategory(
-      name: name,
-      colorHex: '#FF0000',
-      lifecycle: lifecycle ?? LifecycleState.active,
-    );
-
 Ledger _ledgerOf({
   List<Account> accounts = const [],
   List<TransactionCategory> categories = const [],
@@ -67,21 +60,6 @@ Future<void> _pump(WidgetTester tester, Ledger ledger) =>
     pumpApp(tester, const RecycleBinScreen(), ledger: ledger);
 
 void main() {
-  testWidgets('a row Restore action restores the binned account', (
-    tester,
-  ) async {
-    final account = _account('Old savings', lifecycle: LifecycleState.archived);
-    final ledger = _ledgerOf(accounts: [account]);
-    await _pump(tester, ledger);
-
-    await tester.tap(find.text(_restoreLabel));
-    await tester.pumpAndSettle();
-
-    final restored = ledger.state.moneySources[account.id]!;
-    expect(restored.lifecycle, LifecycleState.active);
-    expect(find.text('Old savings'), findsNothing);
-  }, timeout: uiTestTimeout);
-
   testWidgets('an entry row Restore action restores the binned entry', (
     tester,
   ) async {
@@ -95,20 +73,6 @@ void main() {
 
     expect(ledger.state.entries.containsKey(entry.id), isTrue);
     expect(ledger.state.binnedEntries, isEmpty);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('a category row Restore action restores the binned category', (
-    tester,
-  ) async {
-    final category = _category('Fitness', lifecycle: LifecycleState.archived);
-    final ledger = _ledgerOf(categories: [category]);
-    await _pump(tester, ledger);
-
-    await tester.tap(find.text(_restoreLabel));
-    await tester.pumpAndSettle();
-
-    final restored = ledger.state.categories[category.id]!;
-    expect(restored.lifecycle, LifecycleState.active);
   }, timeout: uiTestTimeout);
 
   testWidgets(

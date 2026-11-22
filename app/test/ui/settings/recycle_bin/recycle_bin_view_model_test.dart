@@ -114,6 +114,26 @@ void main() {
     expect(ledger.state.categories[cat.id]!.lifecycle, LifecycleState.active);
   });
 
+  test('restore(entry) returns the binned entry to the ledger', () {
+    final acc = account(
+      'a0000000-0000-0000-0000-000000000001',
+      'Bank',
+      lifecycle: LifecycleState.active,
+    );
+    final entry = testEntry(amount: dec('5'), name: 'Coffee', sourceID: acc.id);
+    final ledger = buildLedger(
+      moneySources: {acc.id: MoneySource.account(acc)},
+      binnedEntries: {entry.id: entry},
+    );
+    final container = buildContainer(ledger);
+    final viewModel = container.read(recycleBinViewModelProvider.notifier);
+
+    viewModel.restore(BinRowKind.entry, entry.id);
+
+    expect(ledger.state.entries.containsKey(entry.id), isTrue);
+    expect(ledger.state.binnedEntries, isEmpty);
+  });
+
   test('requestPurge emits PurgeConfirmationRequested carrying the row', () {
     final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
     final ledger = buildLedger(

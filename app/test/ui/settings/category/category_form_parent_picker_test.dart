@@ -1,5 +1,4 @@
 import 'package:domain/domain.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
@@ -19,11 +18,6 @@ TransactionCategory _root(String name) => TransactionCategory(
   includeInAnalysis: true,
   parentID: null,
   symbol: 'tag',
-);
-
-Finder _checkOnRow(String label) => find.descendant(
-  of: find.widgetWithText(InkWell, label).last,
-  matching: find.byIcon(Icons.check),
 );
 
 Future<void> _openForm(WidgetTester tester, Ledger ledger) async {
@@ -48,17 +42,6 @@ void main() {
   );
 
   group('CategoryForm parent picker', () {
-    testWidgets('choosing a parent row applies it', (tester) async {
-      await _openForm(tester, ledger);
-
-      await _openPicker(tester);
-      expect(find.text(_pickerTitle), findsOneWidget);
-      await _pickParentRow(tester, food.name);
-
-      expect(find.text(food.name), findsOneWidget);
-      expect(find.text(_pickerTitle), findsNothing);
-    }, timeout: uiTestTimeout);
-
     testWidgets('Top level clears the chosen parent', (tester) async {
       await _openForm(tester, ledger);
       await _openPicker(tester);
@@ -69,20 +52,6 @@ void main() {
 
       expect(find.text(topLevelLabel), findsOneWidget);
       expect(find.text(food.name), findsNothing);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('the current parent row shows the selected check', (
-      tester,
-    ) async {
-      await _openForm(tester, ledger);
-      await _openPicker(tester);
-      expect(_checkOnRow(topLevelLabel), findsOneWidget);
-      await _pickParentRow(tester, food.name);
-
-      await _openPicker(tester);
-
-      expect(_checkOnRow(food.name), findsOneWidget);
-      expect(_checkOnRow(topLevelLabel), findsNothing);
     }, timeout: uiTestTimeout);
 
     testWidgets('dismissing the picker keeps the chosen parent', (

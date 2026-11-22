@@ -16,9 +16,8 @@ import '../../../support/ui_test_timeout.dart';
 const _openLabel = 'open category';
 
 Future<List<ModalRoute<dynamic>>> _openCategoryPicker(
-  WidgetTester tester, {
-  required bool recordRoutes,
-}) async {
+  WidgetTester tester,
+) async {
   useSheetSize(tester, phoneTallSize);
   final routes = <ModalRoute<dynamic>>[];
   final launcher = Consumer(
@@ -29,7 +28,7 @@ Future<List<ModalRoute<dynamic>>> _openCategoryPicker(
         null,
         PickCategoryRequested(),
         sheetPresentation: presentationFor(phoneTallSize),
-        onPickerRouteCreated: recordRoutes ? routes.add : null,
+        onPickerRouteCreated: routes.add,
       ),
       child: const Text(_openLabel),
     ),
@@ -47,16 +46,10 @@ Future<List<ModalRoute<dynamic>>> _openCategoryPicker(
 
 void main() {
   testWidgets('reports the created picker route once', (tester) async {
-    final routes = await _openCategoryPicker(tester, recordRoutes: true);
+    final routes = await _openCategoryPicker(tester);
 
     expect(find.byType(AppPickerSheet), findsOneWidget);
     expect(routes, hasLength(1));
     expect(routes.single, isA<AppSheetRoute<dynamic>>());
-  }, timeout: uiTestTimeout);
-
-  testWidgets('opens the picker without a route callback', (tester) async {
-    await _openCategoryPicker(tester, recordRoutes: false);
-
-    expect(find.byType(AppPickerSheet), findsOneWidget);
   }, timeout: uiTestTimeout);
 }

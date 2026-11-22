@@ -222,6 +222,22 @@ void main() {
       );
     });
 
+    test('turning the analysis switch off is saved', () async {
+      final ledger = Ledger();
+      final container = buildContainer(ledger);
+      final args = const CategoryFormArgs();
+      await openAlive(container, args);
+      final viewModel = container.read(
+        categoryFormViewModelProvider(args).notifier,
+      );
+
+      viewModel.setName('Groceries');
+      viewModel.setIncludeInAnalysis(false);
+      await viewModel.save();
+
+      expect(ledger.state.categories.values.single.includeInAnalysis, isFalse);
+    });
+
     test('a preset parent prefills the kind and parent id', () async {
       final parent = category(name: 'Food');
       final ledger = Ledger(

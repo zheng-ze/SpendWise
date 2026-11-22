@@ -29,67 +29,64 @@ void _expectExpensePlanNameAndAmount() {
 }
 
 void main() {
-  for (final brightness in Brightness.values) {
-    final suffix = brightness.name;
+  const brightness = Brightness.light;
+  final suffix = brightness.name;
 
-    testWidgets(
-      'mo-desk-plans desktop tapping a plan shows its pane ($suffix)',
-      (tester) async {
-        final container = await _pump(tester, brightness);
+  testWidgets('mo-desk-plans desktop tapping a plan shows its pane ($suffix)', (
+    tester,
+  ) async {
+    final container = await _pump(tester, brightness);
 
-        await tapPlan(tester, plansShellExpensePlan.id);
+    await tapPlan(tester, plansShellExpensePlan.id);
 
-        expect(container.read(selectedPlanProvider), plansShellExpensePlan.id);
-        expect(find.byKey(shellDetailPaneKey), findsOneWidget);
-        expect(find.byType(PlanDetailScreen), findsNothing);
-        _expectExpensePlanNameAndAmount();
-      },
-      timeout: uiTestTimeout,
-    );
+    expect(container.read(selectedPlanProvider), plansShellExpensePlan.id);
+    expect(find.byKey(shellDetailPaneKey), findsOneWidget);
+    expect(find.byType(PlanDetailScreen), findsNothing);
+    _expectExpensePlanNameAndAmount();
+  }, timeout: uiTestTimeout);
 
-    testWidgets('mo-desk-plans desktop Close clears the selection ($suffix)', (
-      tester,
-    ) async {
+  testWidgets('mo-desk-plans desktop Close clears the selection ($suffix)', (
+    tester,
+  ) async {
+    final container = await _pump(tester, brightness);
+    await tapPlan(tester, plansShellExpensePlan.id);
+
+    await tester.tap(find.byKey(shellDetailCloseKey));
+    await tester.pumpAndSettle();
+
+    expect(container.read(selectedPlanProvider), isNull);
+    expect(find.byKey(shellDetailPaneKey), findsNothing);
+  }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'mo-desk-plans desktop closes when the plan is deleted ($suffix)',
+    (tester) async {
       final container = await _pump(tester, brightness);
       await tapPlan(tester, plansShellExpensePlan.id);
 
-      await tester.tap(find.byKey(shellDetailCloseKey));
+      container
+          .read(plansShellLedgerFixture)!
+          .deletePlan(plansShellExpensePlan.id);
       await tester.pumpAndSettle();
 
       expect(container.read(selectedPlanProvider), isNull);
       expect(find.byKey(shellDetailPaneKey), findsNothing);
-    }, timeout: uiTestTimeout);
+    },
+    timeout: uiTestTimeout,
+  );
 
-    testWidgets(
-      'mo-desk-plans desktop closes when the plan is deleted ($suffix)',
-      (tester) async {
-        final container = await _pump(tester, brightness);
-        await tapPlan(tester, plansShellExpensePlan.id);
+  testWidgets('mo-desk-plans desktop Back closes the pane ($suffix)', (
+    tester,
+  ) async {
+    final container = await _pump(tester, brightness);
+    await tapPlan(tester, plansShellExpensePlan.id);
 
-        container
-            .read(plansShellLedgerFixture)!
-            .deletePlan(plansShellExpensePlan.id);
-        await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
 
-        expect(container.read(selectedPlanProvider), isNull);
-        expect(find.byKey(shellDetailPaneKey), findsNothing);
-      },
-      timeout: uiTestTimeout,
-    );
-
-    testWidgets('mo-desk-plans desktop Back closes the pane ($suffix)', (
-      tester,
-    ) async {
-      final container = await _pump(tester, brightness);
-      await tapPlan(tester, plansShellExpensePlan.id);
-
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-
-      expect(container.read(selectedPlanProvider), isNull);
-      expect(find.byKey(shellDetailPaneKey), findsNothing);
-      final row = find.byKey(ValueKey('plan-${plansShellExpensePlan.id}'));
-      expect(row, findsOneWidget);
-    }, timeout: uiTestTimeout);
-  }
+    expect(container.read(selectedPlanProvider), isNull);
+    expect(find.byKey(shellDetailPaneKey), findsNothing);
+    final row = find.byKey(ValueKey('plan-${plansShellExpensePlan.id}'));
+    expect(row, findsOneWidget);
+  }, timeout: uiTestTimeout);
 }

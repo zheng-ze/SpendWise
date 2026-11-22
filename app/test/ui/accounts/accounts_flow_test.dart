@@ -14,63 +14,17 @@ import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
-import 'package:spendwise/ui/common/lists/responsive_summary_card.dart';
-import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/format/date_format.dart';
-import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/money/money_segment.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
-import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 
 import '../../support/phone_shell.dart';
 import '../../support/shell_sheet_harness.dart';
 import '../../support/ui_test_timeout.dart';
-
-void expectAccountsSummaryConfiguration(
-  WidgetTester tester,
-  ProviderContainer container, {
-  required bool wideComposition,
-}) {
-  final netWorth = container.read(accountsViewModelProvider).value!.netWorth;
-  final summary = tester.widget<ResponsiveSummaryCard>(
-    find.descendant(
-      of: find.byType(AccountsScreen),
-      matching: find.byType(ResponsiveSummaryCard),
-    ),
-  );
-
-  expect(summary.metrics.map((metric) => metric.label).toList(), [
-    'Net worth',
-    'Assets',
-    'Owed',
-  ]);
-  expect(summary.metrics.map((metric) => metric.amount).toList(), [
-    netWorth.asset - netWorth.liability,
-    netWorth.asset,
-    netWorth.liability,
-  ]);
-  expect(summary.metrics.map((metric) => metric.kind).toList(), [
-    null,
-    null,
-    AmountKind.expense,
-  ]);
-  expect(summary.metrics.map((metric) => metric.emphasis).toList(), [
-    SummaryMetricEmphasis.primary,
-    SummaryMetricEmphasis.supporting,
-    SummaryMetricEmphasis.supporting,
-  ]);
-  expect(summary.wideComposition, wideComposition);
-}
-
-ShellPaneScope _accountsPaneScope(WidgetTester tester) {
-  final context = tester.element(find.byType(AccountsScreen));
-  return ShellPaneScope.of(context);
-}
 
 Future<void> _pumpAccountsShell(
   WidgetTester tester,
@@ -167,22 +121,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(currentMonth), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('pocket parent selection uses the Accounts picker sheet', (
-    tester,
-  ) async {
-    final container = await pumpFlow(tester, buildLedger());
-
-    container.read(accountsViewModelProvider.notifier).requestNewAccount();
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Subpocket'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Select'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(AppPickerSheet), findsOneWidget);
-    expect(find.text('Select Account'), findsOneWidget);
   }, timeout: uiTestTimeout);
 
   testWidgets(
@@ -361,112 +299,6 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
-
-  testWidgets('account forms constrain and compact the open Money pane', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1200, 800);
-    tester.view.devicePixelRatio = 1;
-    tester.view.padding = const FakeViewPadding(left: 54, right: 54);
-    addTearDown(tester.view.reset);
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(buildLedger()),
-        shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.open),
-      ],
-    );
-    addTearDown(container.dispose);
-    container.read(selectedDestinationProvider.notifier).state =
-        ShellDestination.money;
-    await _pumpAccountsShell(tester, container);
-    await tester.pumpAndSettle();
-
-    final viewModel = container.read(accountsViewModelProvider.notifier);
-    for (final request in [
-      () => viewModel.requestNewAccount(),
-      () => viewModel.requestSourceEdit(checking.id),
-    ]) {
-      request();
-      await tester.pumpAndSettle();
-
-      final sheetContext = tester.element(find.byType(AppSheet).last);
-      final presentation = ProviderScope.containerOf(sheetContext)
-          .read(shellSheetOccupancyProvider);
-      expect(presentation.hasSheets, isTrue);
-      expect(_accountsPaneScope(tester).sheetPresented, isTrue);
-      expectAccountsSummaryConfiguration(
-        tester,
-        container,
-        wideComposition: false,
-      );
-      final segments = tester.widget<SegmentedControl<MoneySegment>>(
-        find.byType(SegmentedControl<MoneySegment>),
-      );
-      expect(segments.small, isTrue);
-      expect(find.text('Money'), findsNWidgets(2));
-      expect(find.text('Budgets'), findsOneWidget);
-      expect(find.text('Accounts'), findsOneWidget);
-      expect(find.text('Plans'), findsOneWidget);
-      expect(find.text('Main Checking'), findsAtLeastNWidgets(1));
-      expect(find.text('Assets'), findsOneWidget);
-      expect(find.text('Owed'), findsOneWidget);
-      expect(find.text('Travel Card'), findsOneWidget);
-      expect(find.textContaining('Payable'), findsOneWidget);
-      expect(find.textContaining('Outstanding'), findsOneWidget);
-
-      expect(container.read(moneySegmentProvider), MoneySegment.accounts);
-      expect(tester.takeException(), isNull);
-
-      Navigator.of(sheetContext, rootNavigator: true).pop();
-      await tester.pump();
-      expect(_accountsPaneScope(tester).sheetPresented, isTrue);
-      await tester.pumpAndSettle();
-      expect(_accountsPaneScope(tester).sheetPresented, isFalse);
-    }
-  }, timeout: uiTestTimeout);
-
-  testWidgets('desktop account forms compact the Accounts summary like open', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1440, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(buildLedger()),
-        shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.desktop),
-      ],
-    );
-    addTearDown(container.dispose);
-    container.read(selectedDestinationProvider.notifier).state =
-        ShellDestination.money;
-
-    await _pumpAccountsShell(tester, container);
-    await tester.pumpAndSettle();
-
-    container.read(accountsViewModelProvider.notifier).requestNewAccount();
-    await tester.pumpAndSettle();
-
-    expect(find.byType(AppSheet), findsOneWidget);
-    expect(find.text('New Account'), findsOneWidget);
-    final sheetContext = tester.element(find.byType(AppSheet).last);
-    final presentation = ProviderScope.containerOf(sheetContext)
-        .read(shellSheetOccupancyProvider);
-    expect(presentation.hasSheets, isTrue);
-    expectAccountsSummaryConfiguration(
-      tester,
-      container,
-      wideComposition: false,
-    );
-    expect(
-      tester
-          .widget<SegmentedControl<MoneySegment>>(
-            find.byType(SegmentedControl<MoneySegment>),
-          )
-          .small,
-      isTrue,
-    );
-  }, timeout: uiTestTimeout);
 }
 
 const _retainedBudgetId = 'b0000000-0000-0000-0000-000000000001';

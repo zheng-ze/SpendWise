@@ -82,9 +82,8 @@ widgets compute no totals.
   `monthlyCap`.
 - `app/lib/ui/transactions/daily_list/transaction_row.dart` - `transactionRow` supplies titles,
   account lines, symbols and amount kinds for entries and projected plan occurrences.
-- `app/test/ui/overview/` - view model tests, the `ov-default` frame-parity widget tests (light and
-  dark, 320x760), `overview_widget_order_test.dart`, `overview_grid_placement_test.dart`,
-  `overview_grid_layout_test.dart` and the shared fixture.
+- `app/test/ui/overview/` - view model tests, the `overview_screen_test.dart` button-to-step tests
+  (320x760), `overview_grid_placement_test.dart` and the shared fixture.
 
 ## Module interactions
 
@@ -207,15 +206,13 @@ Overview tab and does not change the shell selection.
 
 ## Requirements
 
-- Section order is the stored `overviewWidgets` order, and replacing the list re-renders it
-  (`app/test/ui/overview/overview_widget_order_test.dart`).
-- An empty list, or a list holding only kinds without a card, shows the header only
-  (`app/test/ui/overview/overview_widget_order_test.dart`).
+- Section order is the stored `overviewWidgets` order. An empty list, or a list holding only kinds
+  without a card, shows the header only. Neither has a widget test.
 - Recent entries never exceeds 4 and sorts newest first
   (`app/test/ui/overview/overview_view_model_test.dart`).
-- 'View History' is shown for nonempty, empty and section-loading Recent entries, carries
-  button semantics with a 48px minimum hit target, and requests the History page
-  (`app/test/ui/overview/overview_screen_test.dart`).
+- 'View History' is shown for nonempty, empty and section-loading Recent entries, and requests the
+  History page (`app/test/ui/overview/overview_screen_test.dart` for the request; the shown states
+  have no widget test).
 - Coming up excludes dates at or beyond 42 days
   (`app/test/ui/overview/overview_view_model_test.dart`).
 - The column count follows the layout mode, the shell presentation, the window width and the 220 dp
@@ -223,9 +220,8 @@ Overview tab and does not change the shell selection.
   for each card (`app/test/ui/overview/overview_grid_placement_test.dart`).
 - Overview renders its slots in stored order and uses three columns on open and on desktop at 1250 dp
   or wider, two columns on narrower desktop windows and one column on phone or while a sheet covers
-  the shell. The window width, the mode and the presentation reach the column rule through the shell
-  scopes
-  (`app/test/ui/overview/overview_grid_layout_test.dart`).
+  the shell. The column rule is covered by `app/test/ui/overview/overview_grid_placement_test.dart`;
+  the shell-scope wiring has no widget test.
 - The 'Set a monthly cap' link is shown only without an unscoped budget, and tapping it emits
   `OverviewBudgetsRequested` (`app/test/ui/overview/overview_screen_test.dart`,
   `app/test/ui/overview/overview_view_model_test.dart`). Overview's `requestBudgets` step is consumed
@@ -254,7 +250,6 @@ Overview tab and does not change the shell selection.
   reads are flagged and Retry recomputes').
 - A day rollover reads the new month with the day
   (`app/test/ui/overview/overview_view_model_test.dart`: 'This month rolls over to the new month with the day').
-- A stored `thisMonth` renders once in stored order, and a replaced list without it removes the card
-  (`app/test/ui/overview/overview_widget_order_test.dart`: 'stored order is rendered and a replaced list
-  re-renders').
+- A stored `thisMonth` renders once in stored order, and a replaced list without it removes the card.
+  This has no widget test.
 - AC6, the This month card is untappable, has no test. The owner skipped it.
