@@ -41,10 +41,6 @@ jobs:
         working-directory: packages/domain
         run: dart pub get
 
-      - name: Get sync dependencies
-        working-directory: packages/sync
-        run: dart pub get
-
       - name: Get OCR dependencies
         working-directory: packages/ocr
         run: flutter pub get
@@ -55,10 +51,6 @@ jobs:
 
       - name: Check domain formatting
         working-directory: packages/domain
-        run: dart format --output=none --set-exit-if-changed .
-
-      - name: Check sync formatting
-        working-directory: packages/sync
         run: dart format --output=none --set-exit-if-changed .
 
       - name: Check OCR formatting
@@ -80,11 +72,6 @@ jobs:
         include:
           - name: domain
             directory: packages/domain
-            pub_get: dart pub get
-            analyze: dart analyze
-
-          - name: sync
-            directory: packages/sync
             pub_get: dart pub get
             analyze: dart analyze
 
@@ -129,11 +116,6 @@ jobs:
         include:
           - name: domain
             directory: packages/domain
-            pub_get: dart pub get
-            test: dart test
-
-          - name: sync
-            directory: packages/sync
             pub_get: dart pub get
             test: dart test
 
@@ -291,7 +273,6 @@ jobs:
           }
 
           prepare_codegen packages/domain dart
-          prepare_codegen packages/sync dart
           prepare_codegen packages/ocr flutter
           prepare_codegen app flutter
 

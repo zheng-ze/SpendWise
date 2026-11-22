@@ -4,7 +4,6 @@ import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/event_bus.dart';
-import 'package:sync/sync.dart';
 
 import '../support/ledger_fixtures.dart';
 
@@ -42,23 +41,6 @@ void main() {
     final cache = AnalysisCache()..start(bus);
 
     bus.publish([UpsertAccount(testAccount())]);
-
-    expect(cache.revision, 1);
-  });
-
-  test('stampedBusEventBumpsRevisionWithoutReadingStamps', () {
-    final bus = EventBus();
-    final cache = AnalysisCache()..start(bus);
-
-    final account = testAccount();
-    bus.publish(
-      [UpsertAccount(account)],
-      stamps: {
-        SyncRowID.of(SyncCollection.moneySources, account.id): VersionVector({
-          'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa': 3,
-        }),
-      },
-    );
 
     expect(cache.revision, 1);
   });

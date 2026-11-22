@@ -54,7 +54,7 @@ against that same limit, and updating the limit replaces it for all months.
 
 **Lifecycle state** (`LifecycleState`) — where a row sits in its life: `active`, `archived`
 (user-hidden but still referenced), `referenceOnly` (unreferenced and pending purge), or
-`tombstoned` (gone, kept only as a deletion marker for sync). See
+`tombstoned` (gone). See
 `docs/knowledge/ledger-and-money-model.md` for the archival-vs-deletion split on plans (ADR-0006)
 and the rule that only delete/restore/purge may move a row between these states (ADR-0049).
 
@@ -72,9 +72,6 @@ resolving its category and applying transfer/treat-as-expense reclassification. 
 **Treat-as-expense** — a per-account flag marking the account as money leaving the user's control
 (a loan, an overdraft), so a transfer into it counts as spending rather than an internal move. See
 ADR-0033.
-
-**Version vector** — a per-row counter-per-device used to order and compare writes for a future
-sync engine. Lives only in the persistence layer, never in `packages/domain`. See ADR-0018.
 
 **Invariant** — a rule `LedgerState` checks after every mutation in debug builds
 (`assertInvariants`), backstopping illegal states that closed maps and dedicated removers are

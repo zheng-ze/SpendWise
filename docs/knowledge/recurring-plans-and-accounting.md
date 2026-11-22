@@ -1,6 +1,6 @@
 # Recurring Plans & Accounting
 
-Last reconciled: dc79efdd
+Last reconciled: 2026-11-22
 
 The pure-domain plan and accounting logic in `packages/domain/lib/src/plans/` and
 `packages/domain/lib/src/accounting.dart`, plus the plan mutators on `LedgerState`. Plans expand
@@ -50,9 +50,8 @@ use `_addMonths` through `RecurrenceFrequency.stepFrom` (`plan_scheduling.dart`)
 (Jan 31 → Feb 28/29, 30-day months, year rollover, leap-day yearly) is required.
 
 **OccurrenceID** - `OccurrenceID.make(planID, occurrenceDay)` in `occurrence_id.dart` computes a
-deterministic UUIDv5 over the plan id and the occurrence's UTC calendar day, so two devices
-resolving the same (plan, day) mint the same entry id and a future sync merge converges on one
-entry. Namespace `8b9e0c42-5f3a-4d71-9c2e-1a6b7f0d3e85`, plan id rendered **lowercase** via
+deterministic UUIDv5 over the plan id and the occurrence's UTC calendar day, so resolving
+the same (plan, day) always mints the same entry id. Namespace `8b9e0c42-5f3a-4d71-9c2e-1a6b7f0d3e85`, plan id rendered **lowercase** via
 `normalizedID(planID)` in the name - the project-wide rule is lowercase. Seconds since
 2001-01-01T00:00:00Z (Apple reference date). No calendar parameter: UTC is baked in via
 `startOfDayUtc`. An occurrence instant's day-boundary normalization, not its time, determines the

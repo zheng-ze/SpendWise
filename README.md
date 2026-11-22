@@ -29,10 +29,8 @@ that, in order:
 
 1. **Receipt scan** — on-device OCR pipeline that reads a receipt and pre-fills an entry.
 2. **Category classifier** — classifies unseen merchants for the receipt-scan pipeline.
-3. **Sync engine** — cross-platform sync (Android, iOS, desktop, web) using the version vectors
-   and deterministic occurrence ids already in the schema.
-4. **Realbyte import** — CSV/Excel import from Money Manager, plus export/backup.
-5. **Remainder** — amortise/split-payment wizards, search/filter, and smaller items (widgets,
+3. **Realbyte import** — CSV/Excel import from Money Manager, plus export/backup.
+4. **Remainder** — amortise/split-payment wizards, search/filter, and smaller items (widgets,
    recurring-plan notifications).
 
 Tracked as GitHub issues; see `docs/NAVIGATION.md` for the current phase table and sequencing
@@ -66,8 +64,7 @@ a specific platform:
 flutter run -d macos     # or ios, android, windows, linux, chrome
 ```
 
-The macOS app declares the `keychain-access-groups` entitlement for secure storage, so a local
-build must be signed with your own Apple development team. Create the untracked file
+To sign a local macOS build with your own Apple development team, create the untracked file
 `app/macos/Runner/Configs/Signing.local.xcconfig`; the Runner target includes it when present:
 
 ```sh

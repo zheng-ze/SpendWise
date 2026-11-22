@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: 7d891059
+Last reconciled: 2026-11-22
 
 ## Feature overview
 
@@ -191,7 +191,7 @@ Overview tab and does not change the shell selection.
   entries rows can overflow the same way.
 - The screen has no header actions. The gear and 'Edit Overview' of the reference frame are not
   rendered.
-- Notices above the sections (sync, save retry, plan attention) are not part of this screen. The
+- Notices above the sections (save retry, plan attention) are not part of this screen. The
   shell's `StatusBanner` owns notice display.
 - The fresh-install framing of the reference ('Start with an account' tray, 'Add your first entry'
   link) is not rendered.

@@ -1,44 +1,29 @@
 import 'dart:async';
 
 import 'package:domain/domain.dart';
-import 'package:sync/sync.dart';
-
-import 'package:spendwise/ledger/ledger_publication.dart';
-
-export 'package:spendwise/ledger/ledger_publication.dart';
 
 /// Handlers must not mutate the ledger; they run inside publish.
 class EventBus {
-  final StreamController<LedgerPublication> _controller =
-      StreamController<LedgerPublication>.broadcast(sync: true);
+  final StreamController<List<LedgerChange>> _controller =
+      StreamController<List<LedgerChange>>.broadcast(sync: true);
 
   // MARK: - Publishing
 
-  void publish(
-    List<LedgerChange> changes, {
-    Map<SyncRowID, VersionVector>? stamps,
-  }) {
+  void publish(List<LedgerChange> changes) {
     if (changes.isEmpty) return;
 
-    var publication = LedgerPublication(changes: changes, stamps: stamps);
+    var published = changes;
     assert(() {
-      publication = LedgerPublication(
-        changes: List<LedgerChange>.unmodifiable(changes),
-        stamps: stamps == null
-            ? null
-            : Map<SyncRowID, VersionVector>.unmodifiable(
-                Map<SyncRowID, VersionVector>.of(stamps),
-              ),
-      );
+      published = List<LedgerChange>.unmodifiable(changes);
       return true;
     }());
 
-    _controller.add(publication);
+    _controller.add(published);
   }
 
   // MARK: - Subscribing
 
-  Stream<LedgerPublication> subscribe() => _controller.stream;
+  Stream<List<LedgerChange>> subscribe() => _controller.stream;
 
   Future<void> dispose() => _controller.close();
 }

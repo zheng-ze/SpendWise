@@ -8,12 +8,11 @@ Prioritize findings in roughly this order:
 
 1. Incorrect financial behavior
 2. Data loss or persistence corruption
-3. Sync divergence or conflict-resolution errors
-4. Security or privacy issues
-5. Platform-specific regressions
-6. Broken user flows or state-management bugs
-7. Missing important tests
-8. Maintainability issues that create a concrete correctness risk
+3. Security or privacy issues
+4. Platform-specific regressions
+5. Broken user flows or state-management bugs
+6. Missing important tests
+7. Maintainability issues that create a concrete correctness risk
 
 Do not spend review comments on formatting or lint issues already handled by automated tooling.
 
@@ -40,32 +39,9 @@ Do not recommend speculative abstractions or large refactors unless they solve a
 - Once schema migrations exist, any incompatible schema change must include an appropriate migration and migration tests.
 - Avoid behavior that depends on a fresh database if existing databases may need to continue working.
 
-## Sync correctness
-
-Sync correctness is more important than implementation simplicity.
-
-Review sync-related changes for:
-
-- eventual convergence between replicas
-- idempotency
-- deterministic conflict resolution
-- duplicate operation delivery
-- retries
-- stale clients
-- out-of-order delivery
-- concurrent edits
-- concurrent create/update/delete operations
-- version-vector correctness
-- serialization compatibility
-- partial failures
-
-Given the same valid set of operations, replicas should not end in different states merely because operations arrived in a different order.
-
-Do not allow UI code to independently reproduce sync or conflict-resolution logic that belongs in the sync/domain layer.
-
 ## Security and privacy
 
-Treat financial data, synchronization data, credentials, and tokens as sensitive.
+Treat financial data, credentials, and tokens as sensitive.
 
 Flag:
 
@@ -124,7 +100,6 @@ Prioritize tests for:
 - financial calculations
 - domain invariants
 - persistence round trips
-- sync convergence and conflict handling
 - serialization
 - edit flows that must preserve existing values
 - security-sensitive behavior

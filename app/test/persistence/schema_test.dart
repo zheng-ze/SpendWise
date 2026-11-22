@@ -2,6 +2,59 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart';
 
+const _expectedLedgerColumns = {
+  'accounts': {
+    'id',
+    'name',
+    'type',
+    'sub_pocket_ids',
+    'incoming_transfers_as_expenses',
+    'include_in_net_worth',
+    'statement_day',
+    'lifecycle',
+  },
+  'sub_pockets': {'id', 'name', 'incoming_transfers_as_expenses', 'lifecycle'},
+  'categories': {
+    'id',
+    'name',
+    'kind',
+    'color_hex',
+    'include_in_analysis',
+    'parent_id',
+    'symbol',
+    'lifecycle',
+  },
+  'entries': {
+    'id',
+    'date',
+    'amount',
+    'name',
+    'category_id',
+    'source_id',
+    'destination_id',
+    'include_in_analysis',
+    'note',
+    'system_kind',
+    'lifecycle',
+  },
+  'plans': {
+    'id',
+    'frequency',
+    'anchor',
+    'end_date',
+    'last_resolved_date',
+    'template_amount',
+    'template_name',
+    'template_category_id',
+    'template_source_id',
+    'template_destination_id',
+    'template_include_in_analysis',
+    'template_note',
+    'lifecycle',
+  },
+  'budgets': {'id', 'category_id', 'limit_amount', 'lifecycle'},
+};
+
 void main() {
   late LedgerDatabase db;
 
@@ -25,34 +78,20 @@ void main() {
   test('budgets hold one limit and no limit history columns', () async {
     final columns = await columnTypes('budgets');
 
-    expect(columns.keys, {
-      'id',
-      'category_id',
-      'limit_amount',
-      'version_data',
-      'lifecycle',
-    });
+    expect(columns.keys, {'id', 'category_id', 'limit_amount', 'lifecycle'});
   });
 
-  test('every synced table carries a version vector and a lifecycle', () async {
-    for (final table in [
-      'accounts',
-      'sub_pockets',
-      'categories',
-      'entries',
-      'plans',
-      'budgets',
-    ]) {
-      final columns = await columnTypes(table);
-      expect(columns['version_data'], 'BLOB', reason: table);
-      expect(columns['lifecycle'], 'INTEGER', reason: table);
+  test('every ledger table has exactly its expected columns and an integer lifecycle', () async {
+    for (final entry in _expectedLedgerColumns.entries) {
+      final columns = await columnTypes(entry.key);
+      expect(columns['lifecycle'], 'INTEGER', reason: entry.key);
+      expect(columns.keys.toSet(), entry.value, reason: entry.key);
     }
   });
 
-  test('store_meta is device-local, so it has neither', () async {
+  test('store_meta holds only its id and the seeded flag', () async {
     final columns = await columnTypes('store_meta');
-    expect(columns.containsKey('version_data'), isFalse);
-    expect(columns.containsKey('lifecycle'), isFalse);
+    expect(columns.keys, {'id', 'has_seeded'});
   });
 
   test('reserved entry columns exist and are nullable', () async {
@@ -90,11 +129,11 @@ void main() {
 
   test('store_meta rejects a second row', () async {
     await db.customStatement(
-      "INSERT INTO store_meta (id, device_id, has_seeded) VALUES (0, 'a', 0)",
+      "INSERT INTO store_meta (id, has_seeded) VALUES (0, 0)",
     );
     await expectLater(
       db.customStatement(
-        "INSERT INTO store_meta (id, device_id, has_seeded) VALUES (1, 'b', 0)",
+        "INSERT INTO store_meta (id, has_seeded) VALUES (1, 0)",
       ),
       throwsA(isA<SqliteException>()),
     );

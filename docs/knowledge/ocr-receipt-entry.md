@@ -1,6 +1,6 @@
 # Receipt OCR Entry
 
-Last reconciled: 2026-10-18
+Last reconciled: 2026-11-22
 
 _(Reconciled against `packages/ocr/lib/src/`, `app/lib/ocr/`, `app/android/app/src/main/kotlin/`,
 `app/lib/ui/transactions/receipt_scan/`, and `app/ios/Runner/`.
@@ -257,7 +257,7 @@ The extracted merchant name feeds the entry form's name field through the same p
 takes; the category classifier's `predict` runs against OCR text with no special-casing, and
 accepting or correcting the suggestion is a normal `observe` signal. Non-goals: no line-item
 extraction, no cloud OCR on any platform ever, no custom-trained model, no receipt image retention
-or cloud sync, single-page extraction on both native scanners, and `packages/ocr/` is not hardened
+or cloud upload, single-page extraction on both native scanners, and `packages/ocr/` is not hardened
 for external consumers (it has exactly one consumer — this app).
 
 ## Receipt launcher and chooser

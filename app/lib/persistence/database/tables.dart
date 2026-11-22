@@ -1,16 +1,14 @@
 import 'package:drift/drift.dart';
 
-// MARK: - Synced Rows
+// MARK: - Ledger Rows
 
-mixin SyncedRow on Table {
-  BlobColumn get versionData => blob().named('version_data')();
-
+mixin LedgerRow on Table {
   IntColumn get lifecycle => integer()();
 }
 
 // MARK: - Accounts
 
-class Accounts extends Table with SyncedRow {
+class Accounts extends Table with LedgerRow {
   TextColumn get id => text()();
 
   TextColumn get name => text()();
@@ -33,7 +31,7 @@ class Accounts extends Table with SyncedRow {
 
 // MARK: - Pockets
 
-class SubPockets extends Table with SyncedRow {
+class SubPockets extends Table with LedgerRow {
   TextColumn get id => text()();
 
   TextColumn get name => text()();
@@ -47,7 +45,7 @@ class SubPockets extends Table with SyncedRow {
 
 // MARK: - Categories
 
-class Categories extends Table with SyncedRow {
+class Categories extends Table with LedgerRow {
   TextColumn get id => text()();
 
   TextColumn get name => text()();
@@ -69,7 +67,7 @@ class Categories extends Table with SyncedRow {
 
 // MARK: - Entries
 
-class Entries extends Table with SyncedRow {
+class Entries extends Table with LedgerRow {
   TextColumn get id => text()();
 
   IntColumn get date => integer()();
@@ -97,7 +95,7 @@ class Entries extends Table with SyncedRow {
 
 // MARK: - Plans
 
-class Plans extends Table with SyncedRow {
+class Plans extends Table with LedgerRow {
   TextColumn get id => text()();
 
   IntColumn get frequency => integer()();
@@ -131,7 +129,7 @@ class Plans extends Table with SyncedRow {
 
 // MARK: - Budgets
 
-class Budgets extends Table with SyncedRow {
+class Budgets extends Table with LedgerRow {
   TextColumn get id => text()();
 
   TextColumn get categoryId => text().named('category_id').nullable()();
@@ -144,12 +142,9 @@ class Budgets extends Table with SyncedRow {
 
 // MARK: - Store Meta
 
-/// Device-local; the one table outside sync.
 @DataClassName('StoreMetaRow')
 class StoreMeta extends Table {
   IntColumn get id => integer()();
-
-  TextColumn get deviceId => text().named('device_id')();
 
   BoolColumn get hasSeeded =>
       boolean().named('has_seeded').withDefault(const Constant(false))();

@@ -1,6 +1,5 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
-import 'package:sync/sync.dart';
 
 import 'package:spendwise/ledger/event_bus.dart';
 
@@ -36,13 +35,10 @@ class Ledger extends ChangeNotifier {
     return _commit(changes);
   }
 
-  List<LedgerChange> _commit(
-    List<LedgerChange> changes, {
-    Map<SyncRowID, VersionVector>? stamps,
-  }) {
+  List<LedgerChange> _commit(List<LedgerChange> changes) {
     if (changes.isEmpty) return changes;
     _revision += 1;
-    bus.publish(changes, stamps: stamps);
+    bus.publish(changes);
     notifyListeners();
     return changes;
   }
@@ -159,28 +155,6 @@ class Ledger extends ChangeNotifier {
 
   List<LedgerChange> deleteBudget(String rawID) =>
       _mutate((state) => state.deleteBudget(rawID));
-
-  // MARK: - Sync
-
-  List<LedgerChange> applySyncBatch(
-    List<LedgerChange> changes,
-    Map<SyncRowID, VersionVector> stamps,
-  ) {
-    assert(ChangeNotifier.debugAssertNotDisposed(this));
-
-    final candidate = LedgerState(
-      moneySources: _state.moneySources,
-      entries: _state.entries,
-      binnedEntries: _state.binnedEntries,
-      categories: _state.categories,
-      plans: _state.plans,
-      budgets: _state.budgets,
-    );
-    candidate.apply(changes);
-    candidate.assertInvariants();
-    _state.adopt(candidate);
-    return _commit(changes, stamps: stamps);
-  }
 
   // MARK: - Queries
 

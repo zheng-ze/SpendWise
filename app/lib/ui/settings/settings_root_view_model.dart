@@ -9,12 +9,6 @@ class CategoriesRequested extends SettingsStep {}
 
 class RecycleBinRequested extends SettingsStep {}
 
-class RepairDeviceAccessRequested extends SettingsStep {}
-
-class StartHostedEnrollmentRequested extends SettingsStep {}
-
-class ResumeFreshEnrollmentRequested extends SettingsStep {}
-
 // MARK: - SettingsRootViewState
 class SettingsRootViewState
     implements HasStep<SettingsRootViewState, SettingsStep> {
@@ -36,9 +30,6 @@ class SettingsRootViewState
 abstract class SettingsRootViewModel {
   void requestCategories();
   void requestRecycleBin();
-  void requestRepair();
-  void requestStartHostedEnrollment();
-  void requestResumeFreshEnrollment();
   void clearStep();
 }
 
@@ -59,21 +50,10 @@ class SettingsRootNotifier extends Notifier<SettingsRootViewState>
 
   @override
   void requestRecycleBin() => emitStep(RecycleBinRequested());
-
-  @override
-  void requestRepair() => emitStep(RepairDeviceAccessRequested());
-
-  @override
-  void requestStartHostedEnrollment() =>
-      emitStep(StartHostedEnrollmentRequested());
-
-  @override
-  void requestResumeFreshEnrollment() =>
-      emitStep(ResumeFreshEnrollmentRequested());
 }
 
 // MARK: - Constants
 final settingsRootViewModelProvider =
-    NotifierProvider<SettingsRootNotifier, SettingsRootViewState>(
+    NotifierProvider.autoDispose<SettingsRootNotifier, SettingsRootViewState>(
       SettingsRootNotifier.new,
     );

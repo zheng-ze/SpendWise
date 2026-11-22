@@ -34,13 +34,6 @@ RecurrenceFrequency _frequency(int code) => switch (code) {
   _ => RecurrenceFrequency.monthly,
 };
 
-// MARK: - Versions
-
-VersionVector versionFromRow(Uint8List blob) => VersionVector.decode(blob);
-
-Uint8List _versionToBlob(VersionVector version) =>
-    Uint8List.fromList(version.encode());
-
 // MARK: - Days
 
 DateTime dayFromMillis(int millis) =>

@@ -16,8 +16,7 @@ Entry entryFromRow(rows.Entry row) => Entry(
   note: row.note,
 );
 
-rows.Entry entryToRow(Entry entry, VersionVector version) => rows.Entry(
-  versionData: _versionToBlob(version),
+rows.Entry entryToRow(Entry entry) => rows.Entry(
   lifecycle: entry.lifecycle.code,
   id: entry.id,
   date: millisFromDay(entry.date),

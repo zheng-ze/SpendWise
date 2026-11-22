@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/persistence/store/persistence_processor.dart';
-import 'package:sync/sync.dart';
 
 import '../support/in_memory_ledger_store.dart';
 import '../support/ledger_fixtures.dart';
@@ -197,64 +196,5 @@ void main() {
       [UpsertAccount(a)],
       [UpsertAccount(b), UpsertAccount(a)],
     ]);
-  });
-
-  test('unstampedPublicationTakesTheEnqueuePath', () async {
-    final bus = EventBus();
-    final store = InMemoryLedgerStore();
-    final processor = PersistenceProcessor(store: store, bus: bus);
-    await processor.start();
-
-    final a = testAccount();
-    bus.publish([UpsertAccount(a)]);
-    await processor.flush();
-
-    expect(store.enqueuedBatches, [
-      [UpsertAccount(a)],
-    ]);
-    expect(store.enqueuedStamps, [isNull]);
-
-    final loaded = await store.load();
-    expect(loaded.moneySources[a.id]?.asAccount, a);
-  });
-
-  test('stampedPublicationTakesTheEnqueueStampedPath', () async {
-    final bus = EventBus();
-    final store = InMemoryLedgerStore();
-    final processor = PersistenceProcessor(store: store, bus: bus);
-    await processor.start();
-
-    final a = testAccount();
-    final stamps = {
-      SyncRowID.of(SyncCollection.moneySources, a.id): VersionVector({
-        'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa': 3,
-      }),
-    };
-    bus.publish([UpsertAccount(a)], stamps: stamps);
-    await processor.flush();
-
-    expect(store.enqueuedBatches, [
-      [UpsertAccount(a)],
-    ]);
-    expect(store.enqueuedStamps, [stamps]);
-
-    final loaded = await store.load();
-    expect(loaded.moneySources[a.id]?.asAccount, a);
-  });
-
-  test('emptyStampsMapTakesTheEnqueuePath', () async {
-    final bus = EventBus();
-    final store = InMemoryLedgerStore();
-    final processor = PersistenceProcessor(store: store, bus: bus);
-    await processor.start();
-
-    final a = testAccount();
-    bus.publish([UpsertAccount(a)], stamps: const {});
-    await processor.flush();
-
-    expect(store.enqueuedBatches, [
-      [UpsertAccount(a)],
-    ]);
-    expect(store.enqueuedStamps, [isNull]);
   });
 }

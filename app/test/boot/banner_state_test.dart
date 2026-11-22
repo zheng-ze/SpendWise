@@ -26,12 +26,6 @@ void main() {
     expect(banner.message, "Couldn't save changes, will retry shortly");
   });
 
-  test('permanentlyFailedShowsExactSaveMessage', () {
-    final banner = BannerState()
-      ..receiveSaveState(SaveBannerState.permanentlyFailed);
-    expect(banner.message, "Couldn't save changes");
-  });
-
   test('clearSaveStateShowsNoBanner', () {
     final banner = BannerState()
       ..receiveSaveState(SaveBannerState.retrying)

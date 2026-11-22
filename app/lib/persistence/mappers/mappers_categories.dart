@@ -13,11 +13,7 @@ TransactionCategory categoryFromRow(rows.Category row) => TransactionCategory(
   lifecycle: _lifecycle(row.lifecycle),
 );
 
-rows.Category categoryToRow(
-  TransactionCategory category,
-  VersionVector version,
-) => rows.Category(
-  versionData: _versionToBlob(version),
+rows.Category categoryToRow(TransactionCategory category) => rows.Category(
   lifecycle: category.lifecycle.code,
   id: category.id,
   name: category.name,
@@ -29,10 +25,9 @@ rows.Category categoryToRow(
 );
 
 rows.Category categoryUpsertRow(
-  TransactionCategory category,
-  VersionVector version, {
+  TransactionCategory category, {
   required rows.Category? stored,
 }) {
-  final row = categoryToRow(category, version);
+  final row = categoryToRow(category);
   return stored == null ? row : row.copyWith(parentId: Value(stored.parentId));
 }

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/common/feedback/delete_confirmation.dart';
 import 'package:spendwise/ui/shell/shell_sheet_presentation.dart';
@@ -59,7 +57,6 @@ Future<ProviderContainer> _pumpBoundShell(
   useShellWindow(tester, size);
   final container = ProviderContainer(
     overrides: [
-      hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
       shellPlatformProvider.overrideWith(
         (ref) => (isWeb: false, targetPlatform: TargetPlatform.iOS),
       ),

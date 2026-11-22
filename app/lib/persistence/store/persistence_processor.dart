@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:domain/domain.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/persistence/store/ledger_store.dart';
 
@@ -10,7 +11,7 @@ class PersistenceProcessor {
 
   final EventBus bus;
 
-  StreamSubscription<LedgerPublication>? _subscription;
+  StreamSubscription<List<LedgerChange>>? _subscription;
 
   // MARK: - Lifecycle
 
@@ -21,13 +22,7 @@ class PersistenceProcessor {
 
   // MARK: - Forwarding
 
-  void _forward(LedgerPublication publication) {
-    if (publication.hasStamps) {
-      store.enqueueStamped(publication.changes, publication.stamps!);
-    } else {
-      store.enqueue(publication.changes);
-    }
-  }
+  void _forward(List<LedgerChange> changes) => store.enqueue(changes);
 
   Future<void> flush() => store.flushNow();
 

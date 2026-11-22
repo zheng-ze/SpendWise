@@ -1,16 +1,12 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:domain/domain.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart' as rows;
 import 'package:spendwise/persistence/mappers/mappers.dart';
-import 'package:sync/sync.dart';
 
 void main() {
-  final version = VersionVector({'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa': 3});
-
   const accountID = 'a1b2c3d4-1111-4111-8111-aaaaaaaaaaaa';
   const pocketID = 'b1b2c3d4-2222-4222-8222-bbbbbbbbbbbb';
   const categoryID = 'c1b2c3d4-3333-4333-8333-cccccccccccc';
@@ -32,9 +28,8 @@ void main() {
         lifecycle: LifecycleState.archived,
       );
 
-      final row = accountToRow(account, version);
+      final row = accountToRow(account);
       expect(accountFromRow(row), account);
-      expect(versionFromRow(row.versionData), version);
     });
 
     test('the account row stores the type code and the lifecycle code', () {
@@ -45,7 +40,6 @@ void main() {
           type: AccountType.insurance,
           lifecycle: LifecycleState.referenceOnly,
         ),
-        version,
       );
 
       expect(row.type, 6);
@@ -60,7 +54,6 @@ void main() {
           type: AccountType.cash,
           subPocketIDs: {pocketID},
         ),
-        version,
       );
 
       expect(json.decode(row.subPocketIds), [pocketID]);
@@ -69,7 +62,6 @@ void main() {
     test('an account with no sub pockets stores an empty array', () {
       final row = accountToRow(
         Account(id: accountID, name: 'Everyday', type: AccountType.cash),
-        version,
       );
 
       expect(json.decode(row.subPocketIds), isEmpty);
@@ -83,7 +75,7 @@ void main() {
         type: AccountType.cash,
       );
 
-      final restored = accountFromRow(accountToRow(account, version));
+      final restored = accountFromRow(accountToRow(account));
 
       expect(restored.statementDay, isNull);
       expect(restored, account);
@@ -96,7 +88,7 @@ void main() {
         type: AccountType.loan,
       );
 
-      final row = accountToRow(account, version);
+      final row = accountToRow(account);
 
       expect(row.type, 8);
       expect(accountFromRow(row).type, AccountType.loan);
@@ -109,7 +101,7 @@ void main() {
         type: AccountType.overdraft,
       );
 
-      final row = accountToRow(account, version);
+      final row = accountToRow(account);
 
       expect(row.type, 9);
       expect(accountFromRow(row).type, AccountType.overdraft);
@@ -125,9 +117,8 @@ void main() {
         lifecycle: LifecycleState.archived,
       );
 
-      final row = pocketToRow(pocket, version);
+      final row = pocketToRow(pocket);
       expect(pocketFromRow(row), pocket);
-      expect(versionFromRow(row.versionData), version);
     });
   });
 
@@ -154,34 +145,27 @@ void main() {
         lifecycle: LifecycleState.referenceOnly,
       );
 
-      final row = categoryToRow(category, version);
+      final row = categoryToRow(category);
       expect(categoryFromRow(row), category);
-      expect(versionFromRow(row.versionData), version);
     });
 
     test('the category row stores the kind code', () {
-      expect(categoryToRow(makeCategory(), version).kind, 1);
-      expect(
-        categoryToRow(makeCategory(kind: CategoryKind.income), version).kind,
-        0,
-      );
+      expect(categoryToRow(makeCategory()).kind, 1);
+      expect(categoryToRow(makeCategory(kind: CategoryKind.income)).kind, 0);
     });
 
     test('a top level category stores a null parent', () {
-      final row = categoryToRow(makeCategory(), version);
+      final row = categoryToRow(makeCategory());
 
       expect(row.parentId, isNull);
       expect(categoryFromRow(row).parentID, isNull);
     });
 
     test('categoryParentIDImmutableOnUpsert', () {
-      final stored = categoryToRow(
-        makeCategory(parentID: parentCategoryID),
-        version,
-      );
+      final stored = categoryToRow(makeCategory(parentID: parentCategoryID));
       final reparented = makeCategory(parentID: entryID);
 
-      final upserted = categoryUpsertRow(reparented, version, stored: stored);
+      final upserted = categoryUpsertRow(reparented, stored: stored);
 
       expect(upserted.parentId, parentCategoryID);
       expect(categoryFromRow(upserted).parentID, parentCategoryID);
@@ -190,7 +174,6 @@ void main() {
     test('an upsert over no stored row takes the incoming parent', () {
       final upserted = categoryUpsertRow(
         makeCategory(parentID: parentCategoryID),
-        version,
         stored: null,
       );
 
@@ -199,10 +182,7 @@ void main() {
 
     test('an upsert carries every field but the parent from the incoming '
         'category', () {
-      final stored = categoryToRow(
-        makeCategory(parentID: parentCategoryID),
-        version,
-      );
+      final stored = categoryToRow(makeCategory(parentID: parentCategoryID));
       final renamed = TransactionCategory(
         id: categoryID,
         name: 'Tea',
@@ -214,7 +194,7 @@ void main() {
         lifecycle: LifecycleState.archived,
       );
 
-      final upserted = categoryUpsertRow(renamed, version, stored: stored);
+      final upserted = categoryUpsertRow(renamed, stored: stored);
 
       expect(upserted.name, 'Tea');
       expect(upserted.colorHex, '#00FF00');
@@ -238,9 +218,8 @@ void main() {
         lifecycle: LifecycleState.archived,
       );
 
-      final row = entryToRow(entry, version);
+      final row = entryToRow(entry);
       expect(entryFromRow(row), entry);
-      expect(versionFromRow(row.versionData), version);
     });
 
     test('transferEntryRoundTrips', () {
@@ -253,7 +232,7 @@ void main() {
         destinationID: pocketID,
       );
 
-      final row = entryToRow(transfer, version);
+      final row = entryToRow(transfer);
 
       expect(row.destinationId, pocketID);
       expect(entryFromRow(row), transfer);
@@ -268,7 +247,6 @@ void main() {
           name: 'Coffee',
           sourceID: accountID,
         ),
-        version,
       );
 
       expect(row.amount, '-1234.5678');
@@ -284,7 +262,7 @@ void main() {
         note: '  Receipt kept  ',
       );
 
-      final row = entryToRow(entry, version);
+      final row = entryToRow(entry);
 
       expect(row.note, 'Receipt kept');
       expect(entryFromRow(row), entry);
@@ -303,7 +281,7 @@ void main() {
         lifecycle: LifecycleState.archived,
       );
 
-      final row = entryToRow(entry, version);
+      final row = entryToRow(entry);
 
       expect(row.note, isNull);
       final restored = entryFromRow(row);
@@ -323,7 +301,6 @@ void main() {
           includeInAnalysis: false,
           lifecycle: LifecycleState.archived,
         ),
-        version,
       );
 
       final restored = entryFromRow(row);
@@ -347,7 +324,6 @@ void main() {
           sourceID: accountID,
           note: '   ',
         ),
-        version,
       );
 
       expect(row.note, isNull);
@@ -365,7 +341,7 @@ void main() {
         systemKind: SystemEntryKind.openingBalance,
       );
 
-      final row = entryToRow(entry, version);
+      final row = entryToRow(entry);
       expect(row.systemKind, 0);
       expect(entryFromRow(row), entry);
       expect(entryFromRow(row).systemKind, SystemEntryKind.openingBalance);
@@ -382,7 +358,7 @@ void main() {
         systemKind: SystemEntryKind.balanceAdjustment,
       );
 
-      final row = entryToRow(entry, version);
+      final row = entryToRow(entry);
       expect(row.systemKind, 1);
       expect(entryFromRow(row), entry);
       expect(entryFromRow(row).systemKind, SystemEntryKind.balanceAdjustment);
@@ -397,7 +373,7 @@ void main() {
         sourceID: accountID,
       );
 
-      final row = entryToRow(entry, version);
+      final row = entryToRow(entry);
       expect(row.systemKind, isNull);
       expect(entryFromRow(row).systemKind, isNull);
     });
@@ -423,9 +399,8 @@ void main() {
         lastResolvedDate: DateTime.utc(2026, 4, 5),
       );
 
-      final row = planToRow(plan, version);
+      final row = planToRow(plan);
       expect(planFromRow(row), plan);
-      expect(versionFromRow(row.versionData), version);
     });
 
     test('transferPlanRoundTrips', () {
@@ -437,7 +412,7 @@ void main() {
         lastResolvedDate: DateTime.utc(2026, 1, 5),
       );
 
-      final row = planToRow(plan, version);
+      final row = planToRow(plan);
 
       expect(row.templateDestinationId, pocketID);
       expect(row.templateCategoryId, isNull);
@@ -453,7 +428,7 @@ void main() {
         lastResolvedDate: DateTime.utc(2026, 1, 5),
       );
 
-      final row = planToRow(plan, version);
+      final row = planToRow(plan);
 
       expect(row.endDate, isNull);
       expect(planFromRow(row), plan);
@@ -469,7 +444,6 @@ void main() {
           anchor: DateTime.utc(2026, 1, 5),
           lastResolvedDate: DateTime.utc(2026, 1, 5),
         ),
-        version,
       );
 
       expect(row.frequency, 4);
@@ -485,7 +459,7 @@ void main() {
         lastResolvedDate: DateTime.utc(2026, 1, 5),
       );
 
-      expect(planToRow(plan, version).lifecycle, 0);
+      expect(planToRow(plan).lifecycle, 0);
     });
 
     test('a noted template round-trips with its trimmed note', () {
@@ -503,7 +477,7 @@ void main() {
         lastResolvedDate: DateTime.utc(2026, 1, 5),
       );
 
-      final row = planToRow(plan, version);
+      final row = planToRow(plan);
 
       expect(row.templateNote, 'Pack shoes');
       expect(planFromRow(row), plan);
@@ -521,7 +495,7 @@ void main() {
           lastResolvedDate: DateTime.utc(2026, 1, 5),
         );
 
-        final row = planToRow(plan, version);
+        final row = planToRow(plan);
 
         expect(row.templateNote, isNull);
         expect(planFromRow(row), plan);
@@ -543,7 +517,7 @@ void main() {
         lastResolvedDate: DateTime.utc(2026, 1, 5),
       );
 
-      final row = planToRow(plan, version);
+      final row = planToRow(plan);
 
       expect(row.templateNote, isNull);
       expect(planFromRow(row).template.note, isNull);
@@ -558,12 +532,11 @@ void main() {
         limit: Decimal.parse('1234.56'),
       );
 
-      final row = budgetToRow(budget, version);
+      final row = budgetToRow(budget);
 
       expect(row.categoryId, categoryID);
       expect(row.limitAmount, '1234.56');
       expect(budgetFromRow(row), budget);
-      expect(versionFromRow(row.versionData), version);
     });
 
     test('an overall budget stores a null categoryID', () {
@@ -573,7 +546,7 @@ void main() {
         limit: Decimal.parse('500'),
       );
 
-      final row = budgetToRow(budget, version);
+      final row = budgetToRow(budget);
 
       expect(row.categoryId, isNull);
       expect(budgetFromRow(row), budget);
@@ -582,7 +555,6 @@ void main() {
     test('a malformed stored limit raises rather than defaulting', () {
       final row = budgetToRow(
         Budget(id: budgetID, categoryID: null, limit: Decimal.parse('500')),
-        version,
       ).copyWith(limitAmount: 'not a number');
 
       expect(() => budgetFromRow(row), throwsFormatException);
@@ -598,20 +570,14 @@ void main() {
           type: AccountType.cash,
           lifecycle: lifecycle,
         );
-        expect(
-          accountFromRow(accountToRow(account, version)).lifecycle,
-          lifecycle,
-        );
+        expect(accountFromRow(accountToRow(account)).lifecycle, lifecycle);
 
         final pocket = SubPocket(
           id: pocketID,
           name: 'Groceries',
           lifecycle: lifecycle,
         );
-        expect(
-          pocketFromRow(pocketToRow(pocket, version)).lifecycle,
-          lifecycle,
-        );
+        expect(pocketFromRow(pocketToRow(pocket)).lifecycle, lifecycle);
 
         final category = TransactionCategory(
           id: categoryID,
@@ -623,10 +589,7 @@ void main() {
           symbol: 'cup',
           lifecycle: lifecycle,
         );
-        expect(
-          categoryFromRow(categoryToRow(category, version)).lifecycle,
-          lifecycle,
-        );
+        expect(categoryFromRow(categoryToRow(category)).lifecycle, lifecycle);
 
         final entry = Entry(
           id: entryID,
@@ -636,9 +599,9 @@ void main() {
           sourceID: accountID,
           lifecycle: lifecycle,
         );
-        expect(entryFromRow(entryToRow(entry, version)).lifecycle, lifecycle);
+        expect(entryFromRow(entryToRow(entry)).lifecycle, lifecycle);
 
-        expect(accountToRow(account, version).lifecycle, lifecycle.code);
+        expect(accountToRow(account).lifecycle, lifecycle.code);
       }
     });
   });
@@ -663,7 +626,7 @@ void main() {
           sourceID: accountID,
         );
 
-        final row = entryToRow(entry, version);
+        final row = entryToRow(entry);
 
         expect(row.amount, amount.toString());
         expect(entryFromRow(row).amount, amount);
@@ -684,7 +647,7 @@ void main() {
           lastResolvedDate: DateTime.utc(2026, 1, 5),
         );
 
-        final row = planToRow(plan, version);
+        final row = planToRow(plan);
 
         expect(row.templateAmount, amount.toString());
         expect(planFromRow(row).template.amount, amount);
@@ -702,7 +665,6 @@ void main() {
           name: 'Coffee',
           sourceID: accountID,
         ),
-        version,
       );
 
       expect(row.amount, '0.3');
@@ -728,7 +690,7 @@ void main() {
           sourceID: accountID,
         );
 
-        final row = entryToRow(entry, version);
+        final row = entryToRow(entry);
 
         expect(row.date, day.millisecondsSinceEpoch);
         final restored = entryFromRow(row).date;
@@ -752,7 +714,7 @@ void main() {
           lastResolvedDate: day,
         );
 
-        final row = planToRow(plan, version);
+        final row = planToRow(plan);
 
         expect(row.anchor, day.millisecondsSinceEpoch);
         expect(row.endDate, day.millisecondsSinceEpoch);
@@ -801,7 +763,6 @@ void main() {
     test('an uppercase account row loads with lowercase ids', () {
       final row = accountToRow(
         Account(id: accountID, name: 'Everyday', type: AccountType.cash),
-        version,
       ).copyWith(id: upper, subPocketIds: json.encode([upperPocket]));
 
       final account = accountFromRow(row);
@@ -811,10 +772,8 @@ void main() {
     });
 
     test('an uppercase pocket row loads with a lowercase id', () {
-      final row = pocketToRow(
-        SubPocket(id: pocketID, name: 'Groceries'),
-        version,
-      ).copyWith(id: upperPocket);
+      final row = pocketToRow(SubPocket(id: pocketID, name: 'Groceries'))
+          .copyWith(id: upperPocket);
 
       expect(pocketFromRow(row).id, upperPocket.toLowerCase());
     });
@@ -830,7 +789,6 @@ void main() {
           parentID: parentCategoryID,
           symbol: 'cup',
         ),
-        version,
       ).copyWith(id: upperCategory, parentId: Value(upperParent));
 
       final category = categoryFromRow(row);
@@ -851,7 +809,6 @@ void main() {
               destinationID: pocketID,
               categoryID: categoryID,
             ),
-            version,
           ).copyWith(
             id: upper,
             sourceId: upperPocket,
@@ -882,7 +839,6 @@ void main() {
               anchor: DateTime.utc(2026, 1, 5),
               lastResolvedDate: DateTime.utc(2026, 1, 5),
             ),
-            version,
           ).copyWith(
             id: upper,
             templateSourceId: upperPocket,
@@ -906,7 +862,6 @@ void main() {
           type: AccountType.cash,
           subPocketIDs: {upperPocket},
         ),
-        version,
       );
 
       expect(row.id, upper.toLowerCase());
@@ -918,7 +873,6 @@ void main() {
     test('an unknown account type falls back to other', () {
       final row = accountToRow(
         Account(id: accountID, name: 'Everyday', type: AccountType.cash),
-        version,
       ).copyWith(type: 99);
 
       expect(accountFromRow(row).type, AccountType.other);
@@ -935,7 +889,6 @@ void main() {
           parentID: null,
           symbol: 'cup',
         ),
-        version,
       ).copyWith(kind: 42);
 
       expect(categoryFromRow(row).kind, CategoryKind.expense);
@@ -949,14 +902,11 @@ void main() {
           type: AccountType.cash,
           lifecycle: LifecycleState.archived,
         ),
-        version,
       ).copyWith(lifecycle: 77);
       expect(accountFromRow(account).lifecycle, LifecycleState.active);
 
-      final pocket = pocketToRow(
-        SubPocket(id: pocketID, name: 'Groceries'),
-        version,
-      ).copyWith(lifecycle: -1);
+      final pocket = pocketToRow(SubPocket(id: pocketID, name: 'Groceries'))
+          .copyWith(lifecycle: -1);
       expect(pocketFromRow(pocket).lifecycle, LifecycleState.active);
 
       final category = categoryToRow(
@@ -969,7 +919,6 @@ void main() {
           parentID: null,
           symbol: 'cup',
         ),
-        version,
       ).copyWith(lifecycle: 77);
       expect(categoryFromRow(category).lifecycle, LifecycleState.active);
 
@@ -981,7 +930,6 @@ void main() {
           name: 'Coffee',
           sourceID: accountID,
         ),
-        version,
       ).copyWith(lifecycle: 77);
       expect(entryFromRow(entry).lifecycle, LifecycleState.active);
     });
@@ -999,7 +947,6 @@ void main() {
           anchor: DateTime.utc(2026, 1, 5),
           lastResolvedDate: DateTime.utc(2026, 1, 5),
         ),
-        version,
       ).copyWith(frequency: 99);
 
       expect(planFromRow(row).frequency, RecurrenceFrequency.monthly);
@@ -1008,93 +955,9 @@ void main() {
     test('a known code is not swallowed by the fallback', () {
       final row = accountToRow(
         Account(id: accountID, name: 'Everyday', type: AccountType.cash),
-        version,
       ).copyWith(type: AccountType.investment.code);
 
       expect(accountFromRow(row).type, AccountType.investment);
-    });
-  });
-
-  group('version vector', () {
-    test('a corrupt vector raises rather than loading as empty', () {
-      final row = accountToRow(
-        Account(id: accountID, name: 'Everyday', type: AccountType.cash),
-        version,
-      ).copyWith(versionData: Uint8List.fromList(utf8.encode('not json')));
-
-      expect(
-        () => versionFromRow(row.versionData),
-        throwsA(isA<VersionVectorDecodeError>()),
-      );
-    });
-
-    test('a vector of the wrong shape raises', () {
-      expect(
-        () => versionFromRow(Uint8List.fromList(utf8.encode('"a string"'))),
-        throwsA(isA<VersionVectorDecodeError>()),
-      );
-    });
-
-    test('an empty blob loads as the empty vector', () {
-      expect(versionFromRow(Uint8List(0)), VersionVector.empty);
-    });
-
-    test('every row type writes the vector it is given', () {
-      final rowVersion = VersionVector({
-        'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa': 7,
-        'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb': 2,
-      });
-
-      final blobs = [
-        accountToRow(
-          Account(id: accountID, name: 'Everyday', type: AccountType.cash),
-          rowVersion,
-        ).versionData,
-        pocketToRow(
-          SubPocket(id: pocketID, name: 'Groceries'),
-          rowVersion,
-        ).versionData,
-        categoryToRow(
-          TransactionCategory(
-            id: categoryID,
-            name: 'Coffee',
-            kind: CategoryKind.expense,
-            colorHex: '#FF8800',
-            includeInAnalysis: true,
-            parentID: null,
-            symbol: 'cup',
-          ),
-          rowVersion,
-        ).versionData,
-        entryToRow(
-          Entry(
-            id: entryID,
-            date: DateTime.utc(2026, 3, 14),
-            amount: Decimal.one,
-            name: 'Coffee',
-            sourceID: accountID,
-          ),
-          rowVersion,
-        ).versionData,
-        planToRow(
-          RecurringPlan(
-            id: planID,
-            template: EntryTemplate(
-              amount: Decimal.one,
-              name: 'Gym',
-              sourceID: accountID,
-            ),
-            frequency: RecurrenceFrequency.monthly,
-            anchor: DateTime.utc(2026, 1, 5),
-            lastResolvedDate: DateTime.utc(2026, 1, 5),
-          ),
-          rowVersion,
-        ).versionData,
-      ];
-
-      for (final blob in blobs) {
-        expect(versionFromRow(blob), rowVersion);
-      }
     });
   });
 
@@ -1103,12 +966,11 @@ void main() {
       expect(
         accountToRow(
           Account(id: accountID, name: 'Everyday', type: AccountType.cash),
-          version,
         ),
         isA<rows.Account>(),
       );
       expect(
-        pocketToRow(SubPocket(id: pocketID, name: 'Groceries'), version),
+        pocketToRow(SubPocket(id: pocketID, name: 'Groceries')),
         isA<rows.SubPocket>(),
       );
     });

@@ -12,7 +12,7 @@ extension _DriftStoreIngest on DriftLedgerStore {
         item.reached.complete();
         continue;
       }
-      _pending.addAll(item as List<_StampedChange>);
+      _pending.addAll(item as List<LedgerChange>);
       buffered = true;
     }
     if (buffered) _armDebounce();
@@ -67,12 +67,6 @@ extension _DriftStoreSaving on DriftLedgerStore {
           }
           if (seedingThisCycle) await _writeSeedFlag();
         });
-      } on PermanentSaveError catch (error, stackTrace) {
-        _lastCycleGaveUp = true;
-        _lastFailure = error;
-        _lastFailureStack = stackTrace;
-        _report(SaveBannerState.permanentlyFailed);
-        return;
       } on Object catch (error, stackTrace) {
         if (attempt < _maxRetries) {
           if (!_inTimedRetry) _report(SaveBannerState.retrying);

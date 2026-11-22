@@ -169,8 +169,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   // Retiring removes only the session's sheet route. An open delete confirmation is a plain modal route
   // the Flow does not track, so it stays up and its Delete fails this gate without writing. Nothing can
-  // replace the ledger or change the shown budget while it blocks the screen, because sync runs only on
-  // explicit calls; revisit this if sync becomes constant live updates.
+  // replace the ledger or change the shown budget while it blocks the screen.
   bool _editStillValid(_EditSession session) {
     if (!mounted || session.sheet.retired) return false;
     if (_detail.shownID != session.budgetID) return false;

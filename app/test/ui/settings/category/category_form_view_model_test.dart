@@ -801,28 +801,23 @@ void main() {
       expect(formState?.name, 'Snacks');
     });
 
-    test(
-      'a synced child for the edited root clears the draft parent',
-      () async {
-        final ledger = Ledger(
-          state: LedgerState(
-            categories: {parent.id: parent, edited.id: edited},
-          ),
-        );
-        final container = buildContainer(ledger);
-        final args = CategoryFormArgs(category: edited);
-        await openAlive(container, args);
-        container
-            .read(categoryFormViewModelProvider(args).notifier)
-            .setParentID(parent.id);
+    test('a child added for the edited root clears the draft parent', () async {
+      final ledger = Ledger(
+        state: LedgerState(categories: {parent.id: parent, edited.id: edited}),
+      );
+      final container = buildContainer(ledger);
+      final args = CategoryFormArgs(category: edited);
+      await openAlive(container, args);
+      container
+          .read(categoryFormViewModelProvider(args).notifier)
+          .setParentID(parent.id);
 
-        ledger.addCategory(category(name: 'Rent', parentID: edited.id));
+      ledger.addCategory(category(name: 'Rent', parentID: edited.id));
 
-        final formState = read(container, args);
-        expect(formState?.storedHasChildren, isTrue);
-        expect(formState?.parentID, isNull);
-      },
-    );
+      final formState = read(container, args);
+      expect(formState?.storedHasChildren, isTrue);
+      expect(formState?.parentID, isNull);
+    });
 
     test('binning the stored parent keeps an unchanged parent', () async {
       final child = category(
