@@ -1,11 +1,11 @@
 # Ledger Runtime
 
-Last reconciled: 2ca37997
+Last reconciled: 2026-11-22
 
 ## Feature overview
 
 The app-layer runtime that wraps the domain: `Ledger` (the sole mutation hub), `EventBus`
-(synchronous broadcast of `LedgerPublication` batches), `AnalysisCache` (a source-revision-stamped cache of analysis
+(synchronous broadcast of `LedgerChange` batches), `AnalysisCache` (a source-revision-stamped cache of analysis
 items), `AnalysisQueries` (the shared app-layer read service), `PersistenceProcessor`
 (the pipe from bus to store), the boot phase machine, the save/plan
 banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/boot/`.
@@ -13,10 +13,9 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
 ## Key files
 
 - `app/lib/ledger/ledger.dart` - the only object permitted to touch `LedgerState`; every local
-  mutation forwards to a domain mutator through `mutate` (`applySyncBatch` below is the sync
-  boundary, not a local mutation).
-- `app/lib/ledger/event_bus.dart` - one `StreamController<LedgerPublication>.broadcast(sync: true)`.
-- `app/lib/ledger/ledger_publication.dart` - the `LedgerPublication` batch (`changes` plus optional sync `stamps`).
+  mutation forwards to a domain mutator through `mutate`.
+- `app/lib/ledger/event_bus.dart` - one `StreamController<List<LedgerChange>>.broadcast(sync: true)`;
+  `publish(List<LedgerChange>)` and `subscribe()` returning `Stream<List<LedgerChange>>`.
 - `app/lib/ledger/analysis_cache.dart` - bus-driven cache of `Accounting.analysisItems`, with a
   publication counter and accepted source revision.
 - `app/lib/ledger/ledger_session.dart` - pairs a ready Ledger with its non-null analysis cache.
@@ -38,7 +37,7 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
 - `app/lib/ui/common/base/ledger_backed_notifier.dart` - watches the ready session and exposes its
   Ledger and cache to ViewModels.
 - `app/lib/persistence/store/persistence_processor.dart` - subscribes to the bus and forwards each
-  publication to `enqueue` (unstamped) or `enqueueStamped` (stamped).
+  batch of changes to `store.enqueue`.
 - `app/lib/boot/app_boot.dart`, `app_phase.dart`, `banner_state.dart`, `providers.dart`,
   `seed_data.dart` - boot state machine, banner state, Riverpod wiring, and the sample dataset.
   `providers.dart` also holds `clockProvider` and `todayProvider`; the day
@@ -54,29 +53,14 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
 `Ledger._mutate` runs, in order: the domain mutator (throws `LedgerError` on rejection), the debug
 invariant sweep, then `_commit`: for a non-empty batch it increments `Ledger.revision`,
 publishes one atomic batch, and notifies listeners (`ledger.dart`). `revision` starts at zero and
-counts committed batches, including sync batches, rather than individual changes. Empty commits
+counts committed batches rather than individual changes. Empty commits
 leave the revision unchanged and publish and notify nothing
-(`app/test/ledger/ledger_revision_test.dart`). Local `Ledger` mutations publish unstamped
-`LedgerPublication` values (no stamps).
+(`app/test/ledger/ledger_revision_test.dart`).
 A cascade such as `addPocket` publishes the pocket upsert and the updated parent
 account as one batch. A throwing mutator publishes nothing. An empty change list publishes
-nothing, even with stamps present (`event_bus.dart:publish`). Delivered publications wrap
-`changes` (and `stamps`, when present) in unmodifiable views under the existing debug-only
-assert discipline, so a subscriber cannot mutate a batch in flight. An empty stamps map counts
-as unstamped: `LedgerPublication.hasStamps` is false and the processor keeps the `enqueue` bump
-path (`ledger_publication.dart`, `persistence_processor.dart:_forward`).
-
-`Ledger.applySyncBatch(changes, stamps)` (`ledger.dart`) is the sync apply boundary for an
-already-decided remote batch. `SyncCoordinator` calls it after synchronous finalization accepts
-the remote changes and stamps (`app/lib/sync/sync_coordinator.dart`). It copies all six tables
-into a candidate `LedgerState`, applies the batch there, and calls `candidate.assertInvariants` directly
-outside `assert` - structural clauses only, no mutator clause 12 monotonicity, so a legitimate
-remote lifecycle transition this device never observed still passes. Only then it adopts the
-candidate into the live object (`LedgerState.adopt`) and calls `_commit`. A non-empty sync batch
-advances the revision, publishes one stamped `LedgerPublication`, and notifies once; an empty
-batch still adopts the candidate but leaves the revision unchanged and publishes and notifies
-nothing (`ledger.dart:applySyncBatch`, `_commit`). A validation failure throws before adoption or
-commit, so the live tables, the bus, and the listeners are untouched.
+nothing (`event_bus.dart:publish`). Delivered batches are unmodifiable lists under the existing
+debug-only assert discipline, so a subscriber cannot mutate a batch in flight
+(`persistence_processor.dart:_forward`).
 
 The bus connects `PersistenceProcessor` and `AnalysisCache`; UI reacts through Ledger and cache
 listeners. `PersistenceProcessor.start` attaches during boot before the Ledger reaches the UI.
@@ -109,7 +93,7 @@ compute from `LedgerState` alone (Accounts, Category list, Plan list, Recycle bi
 `app/lib/ui/budgets/budget_detail/budget_detail_view_model.dart`,
 `app/lib/ui/overview/overview_view_model.dart`, `app/lib/ui/accounts/accounts_view_model.dart`).
 
-`AnalysisCache.revision` counts received publications, ignoring stamps. `refresh(state,
+`AnalysisCache.revision` counts received publications. `refresh(state,
 sourceRevision: ...)` chooses the explicit source revision, then the bound Ledger getter, then the
 publication counter. It captures all six LedgerState tables, including `binnedEntries`, before
 running `Accounting.analysisItems` through `isolateComputeRunner`; `syncComputeRunner` is an injectable
@@ -422,13 +406,11 @@ Exact and verified against `app_boot.dart`:
    banner.
 3. `store.seedIfFirstLaunch(sampleSeedChanges)`.
 4. `state = await store.load()`; throw → `failed`.
-5. Read and project the sync metadata snapshot; a read or decode failure yields
-   `HostedSyncUnavailable` without blocking ledger readiness.
-6. Create the `EventBus`.
-7. Create `PersistenceProcessor(store, bus)` and call `processor.start()`.
-8. Create `Ledger(state, bus)`.
-9. Wire `ledger.onPlanError = showPlanError`.
-10. Phase → `ready(ledger, processor)`.
+5. Create the `EventBus`.
+6. Create `PersistenceProcessor(store, bus)` and call `processor.start()`.
+7. Create `Ledger(state, bus)`.
+8. Wire `ledger.onPlanError = showPlanError`.
+9. Phase → `ready(ledger, processor)`.
 
 Any uncaught boot error lands in `failed(error)`; there is no partial-ready state. Provider
 dependency direction is `appBootProvider → appPhaseProvider → ledgerProvider →
@@ -436,20 +418,10 @@ ledgerSessionProvider`; `persistenceProcessorProvider` also derives from the pha
 follows Ledger identity across retries, while `bannerStateProvider` is read by boot independently
 (`app/lib/boot/providers.dart`). `ledgerDatabaseProvider` is
 the sole boot owner of the shared `LedgerDatabase`; `storeProvider` builds `DriftLedgerStore`
-from it, and `syncMetadataStoreProvider` builds `SyncMetadataStore` from that same instance.
-`AppBoot.onRetry` invalidates `ledgerDatabaseProvider` and `syncMetadataStoreProvider` alongside
-`storeProvider` and `databaseConnectionProvider`, ensuring a retry can reopen the database after
+from it. `AppBoot.onRetry` invalidates `storeProvider`, `ledgerDatabaseProvider` and
+`databaseConnectionProvider`, ensuring a retry can reopen the database after
 a failed lazy connection. Source: `app/lib/boot/providers.dart` - provider definitions and
 `appBootProvider`'s `onRetry`.
-
-`appBootProvider` supplies `AppBoot.readSyncSnapshot` from the shared `SyncMetadataStore`.
-`AppBoot.syncStatus` starts as `HostedSyncUnavailable`, and each restart resets it to that value
-before reading a new snapshot after ledger load and before creating the event bus.
-`hostedSyncStatusProvider` exposes the projected value. `refreshSyncStatus()` rereads metadata
-after later changes. Each start or refresh advances a generation so an older read cannot overwrite
-a newer status. Source:
-`app/lib/boot/app_boot.dart` - `AppBoot.start`, `_loadSyncStatus`, `refreshSyncStatus`;
-`app/lib/boot/providers.dart` - `appBootProvider`, `hostedSyncStatusProvider`.
 
 ## Boot phase machine
 
@@ -508,18 +480,9 @@ non-empty, `onPlanError?.call(failures)` runs. `PlanFailure` carries `planID`, `
 
 ## Banners
 
-`StatusBanner` is bottom-anchored inside a `SafeArea` with a 16 dp minimum bottom inset. A hosted
-sync repair banner takes precedence whenever `hostedSyncStatusProvider` is
-`HostedSyncBindingRepair` or `HostedSyncSessionReauth`. It is persistent, tappable, non-dismissible,
-and exposes button semantics. A tap opens Settings and calls `SettingsRootNotifier.requestRepair()`
-only when `enrollmentFlowOpenProvider` is false, so an open fresh route awaiting binding authorization
-remains the single route. It hides while either a fresh enrollment or repair route is open and
-Settings is open. Its position uses the same bottom anchoring as the timed pill. Source:
-`app/lib/ui/shell/status_banner.dart` - `StatusBanner.build`, `_RepairBanner.build`.
-
-When no repair banner is displayed, the single banner slot shows `planError ?? saveStateMessage`,
-with plan error taking precedence. These timed messages remain in `BannerState` while repair is active
-and show again after repair ends. Save-state messages come from the store's error handler
+`StatusBanner` is bottom-anchored inside a `SafeArea` with a 16 dp minimum bottom inset. It shows
+only `bannerStateProvider.message`, in a single banner slot, which is `planError ?? saveStateMessage`
+with plan error taking precedence. Save-state messages come from the store's error handler
 (`persistence.md` §1): `retrying` → "Couldn't save changes, retrying"; `failedWillRetry` →
 "Couldn't save changes, will retry shortly"; `clear` → no banner. Plan-error message is
 count-aware over distinct plan IDs ("A recurring plan couldn't add its entry" / "N recurring plans
@@ -558,7 +521,7 @@ fixtures; mockup and sample-seed figures are not calculation targets
   `AppBoot.utcNowFor` is the boot-layer's instance of this pattern (see Lifecycle hooks above); the
   same pattern is applied at `EntryFormViewModel.save` and three budget ViewModels (#38).
 - With `sync: true`, a subscriber callback runs inside `mutate`; subscribers must never call back
-  into `Ledger.mutate` (Dart's sync controller throws on reentrant `add`). Neither ported
+  into `Ledger.mutate` (Dart's synchronous controller throws on reentrant `add`). Neither ported
   subscriber does.
 
 ## Requirements

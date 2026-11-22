@@ -35,8 +35,7 @@ document is the wide-angle view that ties those entries together.
   optional end date. Each plan tracks a forward-only `lastResolvedDate` cursor, advanced by
   `resolvePlans` whenever the app becomes active. Every generated entry has a deterministic id:
   UUIDv5 over the plan id and the occurrence's calendar day (see ADR-0004), so the same occurrence
-  is recognized as the same entry across repeated resolutions rather than re-minted, which matters
-  once multiple devices resolve the same plan independently. A plan with no occurrences left is
+  is recognized as the same entry across repeated resolutions rather than re-minted. A plan with no occurrences left is
   retired. A failure during resolution surfaces as a `PlanFailure`, never dropped silently.
 - **Lifecycle** — every money source, category, and plan moves through
   `active → archived (recycle bin) → referenceOnly | tombstoned`. Deleting a row archives it; delete
@@ -68,16 +67,13 @@ document is the wide-angle view that ties those entries together.
   candidate, recognizes its text, looks the result up against past corrections, and pre-fills the
   entry form when confident. No receipt image or extracted text leaves the device. See
   `docs/knowledge/ocr-receipt-entry.md` and ADR-0051, ADR-0052, ADR-0056.
-- **Persistence** — a `LedgerStore` contract (`load` / `start` / `enqueue` / `enqueueStamped` /
-  `flushNow` / `setErrorHandler`) backed by Drift (SQLite), with an in-memory implementation for tests. Writes
-  flow through an ordered ingest queue with a 250 ms debounce and per-`SyncRowID` coalescing, so only the
+- **Persistence** — a `LedgerStore` contract (`load` / `start` / `enqueue` / `flushNow` /
+  `setErrorHandler`) backed by Drift (SQLite), with an in-memory implementation for tests. Writes
+  flow through an ordered ingest queue with a 250 ms debounce and per-row-key coalescing, so only the
   last write to a given row within a batch is applied (see `docs/knowledge/persistence.md` for the pipeline). A failed write retries twice with backoff;
   the save-banner state machine (`clear` / `retrying` / `failedWillRetry`) reflects this, and
   `flushNow` provides a barrier that waits until every write enqueued before the call is on disk.
-  Each row carries a version vector (`bump` / `dominates` / `isConcurrent`) to support a future sync
-  engine; full merge logic is deferred to that engine, while the store already computes the carried
-  pointwise maximum for stamped ingestion. Store metadata tracks a per-device id and
-  whether the store has been seeded.
+  A delete removes its row. Store metadata records whether the store has been seeded.
 - **UI** - four top-level destinations: Overview, History, Money, and Settings. Overview
   shows Today, Recent entries and Coming up. History shows a month-navigated list grouped into day
   sections, with month and week summaries. Its See more detail action pushes Trends, which currently
@@ -191,10 +187,10 @@ separator input is a recorded non-goal until localization work begins.
   `"<planID-lowercase>|<seconds-since-2001-01-01-of-start-of-day>"`. The plan id is normalized to
   lowercase before it enters the name, so an id-casing difference between two representations of the
   same plan can never change the produced id. Occurrence identity is
-  normalized to UTC date-only (`startOfDay` in UTC), so a device's timezone can never change which
+  normalized to UTC date-only (`startOfDay` in UTC), so the local timezone can never change which
   id a given plan and calendar day produce — a real risk if identity were computed from local time,
-  since two devices resolving the same plan in different timezones would then mint different ids
-  for what should be the same occurrence, defeating deduplication once multiple devices sync. The
+  since resolving the same plan in different timezones would then mint different ids
+  for what should be the same occurrence, defeating deduplication. The
   pinned test fixes the id for a given plan id and UTC day and pins the case-insensitive plan-id
   match and the time-of-day collapse (local vs UTC, any time of day) to the same id.
 - `RecurrenceFrequency.step` / `occurrences` use a clamped month-add helper (see §5, rule 1) so
@@ -225,33 +221,24 @@ separator input is a recorded non-goal until localization work begins.
   for the bus-to-store bridge.
 - The Drift schema is the persistence model, distinct from the domain model: `accounts`,
   `sub_pockets`, `categories`, `entries`, `plans` (a plan's template fields are flattened into
-  columns), `budgets`, and `store_meta` (device id, `hasSeeded`). Every ledger row (every table
-  except `store_meta`) carries a `version_data BLOB`
-  (an encoded version vector) and a `lifecycle INT`. The v4 sync-coordination tables
-  (`sync_meta`, `sync_acknowledged_vectors`, `sync_pending_acknowledgements`,
-  `sync_staged_conflicts`, `sync_staged_siblings`) follow their own keys instead; their table
-  doc comments in `app/lib/sync/sync_tables.dart` own that schema, with the coordination
-  behavior covered in `docs/knowledge/sync-durable-stores.md`. Amount and other decimal columns are stored as
-  `TEXT`. Budgets store a nullable `category_id` and a `limit_amount` `TEXT` column. `load()` filters
-  out rows with `lifecycle == tombstoned` and rebuilds `LedgerState` by replaying upserts.
+  columns), `budgets`, and `store_meta` (`hasSeeded`). The schema is a fresh v9. Every ledger row
+  carries a `lifecycle INT`, and a delete removes the row. Amount and other decimal columns are stored as
+  `TEXT`. Budgets store a nullable `category_id` and a `limit_amount` `TEXT` column. `load()` reads
+  every row and rebuilds `LedgerState` by replaying upserts.
   `entries.note TEXT` remains reserved ahead of a future split-payment wizard's principal/interest
   breakdown; a `system_kind INT` column, by contrast, is now written (0 opening balance, 1
   balance adjustment, null for a user entry) to mark synthetic entries and protect them from edits,
   so it needs no migration and no longer waits for a feature.
 - **Decode fallback policy.** An unknown enum code decodes to a safe default
   (`AccountType.other`, `CategoryKind.expense`, `LifecycleState.active`,
-  `RecurrenceFrequency.monthly`). A version vector that fails to decode is treated as an error, not
-  silently reset to an empty vector — resetting it would erase a row's causal history, which
-  becomes real data loss once the sync engine is in place.
+  `RecurrenceFrequency.monthly`).
 - The write pipeline is a FIFO ingest queue with a 250 ms debounce (`Timer`), coalescing to the
-  last change per `SyncRowID` (see `docs/knowledge/persistence.md`). A batch stays pending until its save succeeds, retries twice with 200 ms
+  last change per row key (see `docs/knowledge/persistence.md`). A batch stays pending until its save succeeds, retries twice with 200 ms
   backoff, then settles into `failedWillRetry`. `flushNow` loops until the pending queue is empty,
   and a `clear` banner state is only reported after a preceding non-clear state, so a client
   watching the banner never misses a transition. After `failedWillRetry`, the store schedules a
   timed re-flush on the same backoff cadence rather than waiting passively for the next mutation to
   trigger a retry.
-- `VersionVector` is a `Map<String, int>` supporting `bump` / `dominates` / `isConcurrent`. Full merge
-  logic is deferred to the sync engine; the store computes only the carried pointwise maximum for stamped ingestion.
 - App lifecycle: on `resumed`, the app calls `ledger.resolvePlans()`; on `inactive`/`paused`, it
   calls `persistence.flush()`. `resolvePlans` also fires immediately after a plan is created from
   the entry form — creation sets `lastResolvedDate = anchor − 1s` so the anchor occurrence
@@ -359,7 +346,7 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   showing payable versus outstanding (statement-day clamped per §5 rule 1), account and pocket
   forms, and the opening-balance flow.
 - Settings: category management (list, form, color and icon pickers, one level of nesting),
-  receipt scan and sync preferences, and the recycle bin (restore, or purge with a reference-count
+  receipt scan preferences, and the recycle bin (restore, or purge with a reference-count
   message). Recurring plans are managed in Money.
 - Boot: a sealed `AppPhase` machine (`Loading` / `Ready` / `Failed`) living in `boot/`, with
   `Ready` carrying the `Ledger` and `PersistenceProcessor`; sample-data seeding gated on
@@ -381,7 +368,7 @@ observed class of bug.
    a defect. The `decimal` package is used everywhere money is represented, money is stored as
    `TEXT` in SQLite, and the domain package is linted against accidental `double` use.
 3. **Occurrence identity is UTC-normalized.** An occurrence id is derived from a plan id and a
-   UTC date-only value (see §4.1), so a device's local timezone or a DST transition can never
+   UTC date-only value (see §4.1), so the local timezone or a DST transition can never
    change which id a given occurrence produces.
 4. **Icon names are Material Icons, not free-form strings.** A category's stored icon name is
    looked up in a mapping table to a Flutter `IconData`, with a fallback icon for an unmapped name.
@@ -408,20 +395,11 @@ observed class of bug.
 
 Future work, in intended order:
 
-1. **Sync engine.** Version vectors and deterministic occurrence ids are already in place on every
-   row specifically to support this. The plan is a CRDT-style merge using `dominates` and
-   `isConcurrent`, with conflict surfacing for edits that are genuinely concurrent. Transport is not
-   yet decided — starting with file or export-based sync, or a self-hosted option, and evaluating a
-   hosted backend only if it can preserve the app's offline-first behavior. Cross-platform sync
-   (Android, iOS, and desktop all converging) is the goal.
-
-The engine-agnostic backend transport contract this engine uses is specified in `docs/sync-protocol.md`,
-which is reachable through the required reading order in `docs/NAVIGATION.md`.
-2. **Realbyte import and export/backup.** CSV/Excel import from Money Manager, to migrate existing
+1. **Realbyte import and export/backup.** CSV/Excel import from Money Manager, to migrate existing
    transaction history (and to generate realistic data for performance testing), plus an
    export/backup path — an offline-first app with no backup story loses data whenever a device is
    lost.
-3. **Search and filter.** Entry search by name, category, or holder, at minimum.
-4. **Later.** Home-screen widgets and quick-add, notifications for recurring plans coming due, and
+2. **Search and filter.** Entry search by name, category, or holder, at minimum.
+3. **Later.** Home-screen widgets and quick-add, notifications for recurring plans coming due, and
    per-render scan memoization if real data sizes ever demand it (not needed at the app's current,
    personal scale).

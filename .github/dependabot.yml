@@ -6,7 +6,6 @@ updates:
     directories:
       - "/app"
       - "/packages/domain"
-      - "/packages/sync"
       - "/packages/ocr"
 
     schedule:

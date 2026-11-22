@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: dc79efdd
+Last reconciled: 2026-11-22
 
 ## Feature overview
 
@@ -174,12 +174,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   Riverpod's default retry reports a failed build as `AsyncLoading` and retrying a ledger-derived
   build cannot succeed.
 
-  Four providers are justified exceptions to the no-manual-invalidation rule and stay
-  non-`autoDispose`. `settingsRootViewModelProvider` carries a one-shot repair Step from the shell
-  banner to a Settings that mounts on the next frame. `enrollmentFlowOpenProvider` is a guard that
-  `SettingsFlow` writes and the always-mounted status banner reads reactively.
-  `syncEnrollmentViewModelProvider` and `backendPickerViewModelProvider` settle in-flight enrollment
-  work after their route disposes. The sheet-form view models are not yet under this rule.
+  The sheet-form view models are not yet under the no-manual-invalidation rule.
   `accountFormViewModelProvider`, `sourceEditFormViewModelProvider`, `entryFormViewModelProvider` and
   `receiptEntryCoordinatorProvider` are invalidated by hand (in `account_form.dart`,
   `source_edit_form.dart`, `new_entry_presenter.dart` and `edit_entry_presenter.dart`). `categoryFormViewModelProvider`
@@ -270,14 +265,6 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   while Category Detail remains a nested route opened by the Trends Flow
   (`app/lib/ui/stats/trends_flow.dart`,
   `app/lib/ui/stats/trends/trends_open_layout.dart`).
-  The desktop sidebar's sync line is a dedicated `SidebarStatusViewModel` that
-  watches `hostedSyncStatusProvider`: no selection shows "Sync not configured",
-  setup pending shows "Sync setup pending", ready shows "Sync ready", binding
-  repair shows "Device access needs repair", session reauthentication shows
-  "Sign in to restore sync", unsupported custom sync shows "Custom sync
-  unsupported", and unavailable shows "Sync unavailable". The line starts no
-  refresh, polling, enrollment or repair operation and shows no synchronization
-  timestamp. Phone chrome has no sync line.
   Every visual value in the shell chrome is a named constant.
   `BootChrome` supplies the four feature builders and `AppShell` invokes only the builder of the
   selected destination.
@@ -287,9 +274,8 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   `onEnded`, so its root screen shows no back control. `AppShell` mounts Settings
   only while `ShellDestination.settings` is selected. Selecting Settings only writes
   `selectedDestinationProvider`. Back pops Settings child routes; at the root it preserves the
-  selection. Leaving Settings disposes the Flow, its child routes and any open enrollment route, and
-  returning builds Settings fresh at its root. Settings refreshes the hosted sync status in
-  `initState`, so every mount refreshes it, and again after an enrollment route closes.
+  selection. Leaving Settings disposes the Flow and its child routes, and returning builds Settings
+  fresh at its root.
   (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_providers.dart`,
   `app/lib/ui/shell/boot_chrome.dart`, `app/lib/ui/settings/settings_flow.dart`)
 - **Flow Back handling** - `FlowBaseState` wraps its nested `Navigator` in Flutter's
@@ -300,21 +286,11 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   direct callers) still calls `onEnded` at the root, but root system Back and the swipe bypass
   `onEnded` because the enclosing route pops directly. Because only the selected destination is
   mounted, only that destination's Flow handles Back. A Flow that must refuse Back wraps `super.build`
-  in its own `PopScope` (the enrollment Flows during a backend save). `FlowBase` reads no shell
+  in its own `PopScope`. `FlowBase` reads no shell
   providers. Add drafts are scoped to their sheet, as described in [budgets.md](budgets.md).
 - **Settings teardown** - `SettingsFlow.dispose` performs terminal cleanup only through one
-  disposal-safe microtask using the captured `ProviderContainer` and guard controller: it releases
-  `enrollmentFlowOpenProvider` when this Flow owned the route and clears any pending navigation
-  step. It never re-emits resume or repair steps and never reopens a route. A route completion
-  arriving after teardown cannot release another owner's guard. (`app/lib/ui/settings/settings_flow.dart`)
-- **Repair routing and visibility** - `StatusBanner` hides the repair banner only while
-  `selectedDestinationProvider` is `settings` and `enrollmentFlowOpenProvider` is true. A repair
-  tap selects Settings first and calls `requestRepair()` only while `enrollmentFlowOpenProvider` is
-  false. `SettingsFlow`
-  re-checks a pending step after its navigator mounts, so a request made before Settings is built is
-  consumed once. (`app/lib/ui/shell/app_shell.dart`,
-  `app/lib/ui/shell/status_banner.dart`,
-  `app/lib/ui/settings/settings_flow.dart` - `handleStep`)
+  disposal-safe microtask using the captured `ProviderContainer` and guard controller: it clears any
+  pending navigation step and never reopens a route. (`app/lib/ui/settings/settings_flow.dart`)
 
 ## Notifier conventions
 
@@ -430,7 +406,7 @@ under the confirmation helper.
 - **`EdgeDivider`** (`app/lib/ui/common/lists/edge_divider.dart`) is a one-pixel `edge`-colour line,
   horizontal by default or vertical with `axis: Axis.vertical`. The shell's sidebar boundary, the
   Settings category list, the recycle bin sections and the entry form rows use it.
-- **`PageHeader`** (`app/lib/ui/common/navigation/page_header.dart`) is the one header for every screen with a back control: Trends, Category detail, Budget detail, Plan detail, History, the sync enrollment screens, the backend picker, document crop, the Categories list and the Recycle bin. No screen draws its own `AppBar`. It takes a title, an optional back callback (`BackButton` when set), a `disabledBack` flag that draws an inert back arrow, an optional subtitle and an optional trailing action, and sets the title in the headline style's medium weight.
+- **`PageHeader`** (`app/lib/ui/common/navigation/page_header.dart`) is the one header for every screen with a back control: Trends, Category detail, Budget detail, Plan detail, History, document crop, the Categories list and the Recycle bin. No screen draws its own `AppBar`. It takes a title, an optional back callback (`BackButton` when set), a `disabledBack` flag that draws an inert back arrow, an optional subtitle and an optional trailing action, and sets the title in the headline style's medium weight.
 - **`PeriodStepper`** (`app/lib/ui/common/navigation/period_stepper.dart`) is the previous and next
   arrow pair around a centred label. A disabled arrow draws a dashed outline. The daily list and the
   Trends controls use it.
@@ -438,8 +414,7 @@ under the confirmation helper.
   from the enclosing route when tapped, with an optional leading icon and a check mark when `selected`.
   The recurrence, ends, receipt and budget edit action sheets use it.
 - **`InlineSpinner`** (`app/lib/ui/common/feedback/inline_spinner.dart`) is a 20 dp
-  `CircularProgressIndicator` with a 2 dp stroke, used inside buttons while the Hosted Sync enrollment
-  and backend picker screens work.
+  `CircularProgressIndicator` with a 2 dp stroke, used by the new-entry rows.
 - **`AppLinkButton`** (`app/lib/ui/common/buttons/app_link_button.dart`) is a text button with a
   trailing chevron and a caller-supplied colour. Overview's Recent section and the Trends detail action
   use it.
@@ -584,8 +559,7 @@ under the confirmation helper.
   with an explicit presentation, cap checks for every drawn phone sheet, and an
   assertion that the alert sits outside the sheet subtree.
 - **Shared fixtures** - `app/test/support/` holds `ledger_fixtures.dart` (`testAccount`,
-  `testCategory`, `testEntry`), `boot_ready.dart` (`readyPhase`), `sync_fixtures.dart`
-  (`credentialPayload`, `deviceSecret`) and `row_tap.dart` (`tapRow`). A test file may keep a thin
+  `testCategory`, `testEntry`), `boot_ready.dart` (`readyPhase`) and `row_tap.dart` (`tapRow`). A test file may keep a thin
   local wrapper over them for file-specific defaults.
 
 ## Gotchas and invariants

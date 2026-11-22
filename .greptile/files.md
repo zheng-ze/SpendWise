@@ -45,10 +45,6 @@
       "description": "Statistics and analysis UI behavior"
     },
     {
-      "path": "docs/knowledge/sync-package-engine.md",
-      "description": "Sync package, protocol, engine behavior, and invariants"
-    },
-    {
       "path": "docs/knowledge/transactions-ui.md",
       "description": "Transaction UI flows and behavior"
     },

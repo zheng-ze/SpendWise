@@ -21,15 +21,15 @@ const _ledgerTables = {
 const _freshTables = {..._ledgerTables, 'store_meta'};
 
 const _legacyStatements = [
-  'CREATE TABLE sync_meta (id INTEGER NOT NULL PRIMARY KEY, backend TEXT)',
-  'INSERT INTO sync_meta (id, backend) VALUES (0, \'hosted\')',
+  'CREATE TABLE legacy_extra (id INTEGER PRIMARY KEY, note TEXT)',
+  'INSERT INTO legacy_extra (id, note) VALUES (1, \'old\')',
   'CREATE TABLE accounts (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, '
-      'version_data BLOB NOT NULL, lifecycle INTEGER NOT NULL)',
-  'INSERT INTO accounts (id, name, version_data, lifecycle) '
+      'legacy_blob BLOB NOT NULL, lifecycle INTEGER NOT NULL)',
+  'INSERT INTO accounts (id, name, legacy_blob, lifecycle) '
       'VALUES (\'a1\', \'old\', x\'00\', 0)',
   'CREATE TABLE store_meta (id INTEGER NOT NULL PRIMARY KEY, '
-      'device_id TEXT NOT NULL, has_seeded INTEGER NOT NULL DEFAULT 0)',
-  'INSERT INTO store_meta (id, device_id, has_seeded) VALUES (0, \'d\', 1)',
+      'legacy_flag TEXT NOT NULL, has_seeded INTEGER NOT NULL DEFAULT 0)',
+  'INSERT INTO store_meta (id, legacy_flag, has_seeded) VALUES (0, \'x\', 1)',
   'PRAGMA user_version = $_legacyVersion',
 ];
 
@@ -85,13 +85,11 @@ void main() {
   test('a v8 database opens to the fresh schema with no old data', () async {
     db = openLegacyDatabase();
 
-    final tables = await tableNames();
-    expect(tables, _freshTables);
-    expect(tables.where((name) => name.startsWith('sync_')), isEmpty);
-    expect(await columnNames('accounts'), isNot(contains('version_data')));
+    expect(await tableNames(), _freshTables);
+    expect(await columnNames('accounts'), isNot(contains('legacy_blob')));
     expect(await columnNames('store_meta'), {'id', 'has_seeded'});
     expect(await userVersion(), _freshVersion);
-    for (final table in _freshTables) {
+    for (final table in _ledgerTables) {
       final count = db.customSelect('SELECT COUNT(*) AS c FROM $table');
       expect((await count.getSingle()).read<int>('c'), 0, reason: table);
     }

@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: 6a34f454
+Last reconciled: 2026-11-22
 
 ## Feature overview
 
@@ -98,8 +98,8 @@ All amounts are `Decimal`; both mutators reject a limit `<= 0` with `ZeroAmount`
 
 **Invariant.** Clause 16 requires every budget's category to resolve. Clause 17
 (`_assertBudgetLimitPositive`, `ledger_state_invariants_budgets.dart`) requires every stored budget to
-have `limit > 0` and fails with "budget <id> has a nonpositive limit". `LedgerState.replaying` and
-`Ledger.applySyncBatch` run the invariants, so load and sync apply reject a nonpositive limit.
+have `limit > 0` and fails with "budget <id> has a nonpositive limit". `LedgerState.replaying` runs
+the invariants, so load rejects a nonpositive limit.
 
 ## Spend math (app layer)
 
@@ -356,8 +356,7 @@ synchronous turn.
   multiplication rather than a rounded ratio. Ties break by trimmed, lowercased category name, then by
   normalized budget id.
 - **Failure.** A budget with a missing category makes the read fail rather than returning a partial
-  overview. A nonpositive limit cannot occur because invariant clause 17 rejects it at load and
-  sync apply.
+  overview. A nonpositive limit cannot occur because invariant clause 17 rejects it at load.
 
 ## Forecast
 
@@ -474,7 +473,7 @@ The shared controller adds no timer or pane ownership to hide an asynchronous ga
 - Deleting a budget removes the row entirely - no tombstone, no restore.
 - Each month stands alone: spend compares to the one limit with no carry-over between months.
 - The overview cap counts a category budget only when its parent category has no budget of its own, so a parent and its child are never added together.
-- A delete confirmation dialog that is open when the ledger is replaced or the shown budget changes is not dismissed by session retirement. Its Delete then does nothing, because `_editStillValid` fails after the dialog returns. Nothing in the app can change the ledger while the dialog blocks the screen, since sync runs only on explicit calls today. Revisit this if sync becomes constant live updates.
+- A delete confirmation dialog that is open when the ledger is replaced or the shown budget changes is not dismissed by session retirement. Its Delete then does nothing, because `_editStillValid` fails after the dialog returns. Nothing in the app can change the ledger while the dialog blocks the screen.
 
 ## Requirements
 

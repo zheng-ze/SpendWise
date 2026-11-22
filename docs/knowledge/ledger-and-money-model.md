@@ -1,6 +1,6 @@
 # Ledger & Money Model
 
-Last reconciled: 2026-10-16
+Last reconciled: 2026-11-22
 
 ## Feature overview
 
@@ -57,19 +57,11 @@ an id and equality is by case + id: `IdCollision`, `UnknownAccount`, `UnknownHol
 `LedgerState`; views and view models never hold a `LedgerState` reference. Every local
 `Ledger` mutation runs the same pipeline: run the domain mutator, sweep invariants in debug,
 publish the returned changes to the `EventBus`, then notify Riverpod listeners (`ledger_runtime.md`
-§1.1); the sync boundary (`Ledger.applySyncBatch`) is described in `ledger_runtime.md`, not here.
-On a thrown `LedgerError` nothing happens — no change, no invariant sweep, no publish.
+§1.1). On a thrown `LedgerError` nothing happens — no change, no invariant sweep, no publish.
 
-The persistence layer coalesces changes per `SyncRowID` (see `persistence.md` § Write pipeline) and rebuilds
+The persistence layer coalesces changes per row key (see `persistence.md` § Write pipeline) and rebuilds
 state via `LedgerState.replaying(changes)`, which applies changes directly into the maps without
 validation or cascade (`ledger_state_replay.dart`).
-
-`LedgerState.adopt` (`ledger_state_adopt.dart`) is the sync apply boundary's counterpart: it
-clears and refills all five live tables in place, keeping the same `LedgerState` object, without
-validating. The caller (`Ledger.applySyncBatch`, see `ledger_runtime.md`) validates the candidate
-structurally before adopting. The `_lifecycleAtLastCheck` baseline refreshes only inside the
-existing debug-only assert closure, so release builds allocate no snapshot map and the next debug
-local mutation judges clause 12 against the post-sync baseline.
 
 `Accounting` reads `LedgerState` as pure functions — balances, net
 worth, and analysis classification — and never mutates it.

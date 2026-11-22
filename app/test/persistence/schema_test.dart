@@ -2,6 +2,59 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart';
 
+const _expectedLedgerColumns = {
+  'accounts': {
+    'id',
+    'name',
+    'type',
+    'sub_pocket_ids',
+    'incoming_transfers_as_expenses',
+    'include_in_net_worth',
+    'statement_day',
+    'lifecycle',
+  },
+  'sub_pockets': {'id', 'name', 'incoming_transfers_as_expenses', 'lifecycle'},
+  'categories': {
+    'id',
+    'name',
+    'kind',
+    'color_hex',
+    'include_in_analysis',
+    'parent_id',
+    'symbol',
+    'lifecycle',
+  },
+  'entries': {
+    'id',
+    'date',
+    'amount',
+    'name',
+    'category_id',
+    'source_id',
+    'destination_id',
+    'include_in_analysis',
+    'note',
+    'system_kind',
+    'lifecycle',
+  },
+  'plans': {
+    'id',
+    'frequency',
+    'anchor',
+    'end_date',
+    'last_resolved_date',
+    'template_amount',
+    'template_name',
+    'template_category_id',
+    'template_source_id',
+    'template_destination_id',
+    'template_include_in_analysis',
+    'template_note',
+    'lifecycle',
+  },
+  'budgets': {'id', 'category_id', 'limit_amount', 'lifecycle'},
+};
+
 void main() {
   late LedgerDatabase db;
 
@@ -28,18 +81,11 @@ void main() {
     expect(columns.keys, {'id', 'category_id', 'limit_amount', 'lifecycle'});
   });
 
-  test('every ledger table carries a lifecycle and no version data', () async {
-    for (final table in [
-      'accounts',
-      'sub_pockets',
-      'categories',
-      'entries',
-      'plans',
-      'budgets',
-    ]) {
-      final columns = await columnTypes(table);
-      expect(columns['lifecycle'], 'INTEGER', reason: table);
-      expect(columns.containsKey('version_data'), isFalse, reason: table);
+  test('every ledger table has exactly its expected columns and an integer lifecycle', () async {
+    for (final entry in _expectedLedgerColumns.entries) {
+      final columns = await columnTypes(entry.key);
+      expect(columns['lifecycle'], 'INTEGER', reason: entry.key);
+      expect(columns.keys.toSet(), entry.value, reason: entry.key);
     }
   });
 

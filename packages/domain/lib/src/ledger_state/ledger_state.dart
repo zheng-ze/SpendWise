@@ -19,7 +19,6 @@ import 'package:domain/src/plans/plan_resolution.dart';
 import 'package:domain/src/plans/recurring_plan.dart';
 
 part 'mutators/ledger_state_accounts.dart';
-part 'mutators/ledger_state_adopt.dart';
 part 'mutators/ledger_state_budgets.dart';
 part 'mutators/ledger_state_categories.dart';
 part 'mutators/ledger_state_entries.dart';

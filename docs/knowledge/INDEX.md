@@ -1,6 +1,6 @@
 # Knowledge Base Index
 
-Last reconciled: 2026-10-31
+Last reconciled: 2026-11-22
 
 One comprehensive entry per feature. Read the relevant entry before planning or changing a
 feature; it records the final implementation, key files, interactions, navigation, APIs, gotchas,
@@ -14,15 +14,7 @@ themselves. Feature entries fold in still-current legacy material when a feature
 |---|---|
 | Domain models, `LedgerState`, lifecycle machine | [ledger-and-money-model.md](ledger-and-money-model.md) |
 | Runtime hub, event bus, analysis cache, boot, banners, seeding | [ledger-runtime.md](ledger-runtime.md) |
-| Persistence (Drift store, coalescing, version vectors, replay) | [persistence.md](persistence.md) |
-| Sync package engine, payload codec, encryption, reconciliation, staging, device-binding contract | [sync-package-engine.md](sync-package-engine.md) |
-| App-side durable sync stores (metadata, staging, migration) | [sync-durable-stores.md](sync-durable-stores.md) |
-| Sync composition roots, credential and key boundaries, backend selection | [sync-composition-root.md](sync-composition-root.md) |
-| Sync run scheduler, single-flight and request coalescing | [sync-run-scheduler.md](sync-run-scheduler.md) |
-| Sync repair gate, bound-RPC admission, leases, and episode-scoped repair | [sync-repair-gate.md](sync-repair-gate.md) |
-| Sync enrollment factory, phase machine, and crash recovery | [sync-enrollment.md](sync-enrollment.md) |
-| Hosted sync enrollment Flow, OTP interaction, and publication retry | [sync-enrollment-flow.md](sync-enrollment-flow.md) |
-| Sync enrollment backend picker | [sync-enrollment-backend-picker.md](sync-enrollment-backend-picker.md) |
+| Persistence (Drift store, coalescing, replay) | [persistence.md](persistence.md) |
 | Recurring plans, occurrences, accounting, analysis | [recurring-plans-and-accounting.md](recurring-plans-and-accounting.md) |
 | Budgets, retained open/desktop detail panes and phone route reconciliation | [budgets.md](budgets.md) |
 | Categories and the on-device category classifier | [categories-and-classification.md](categories-and-classification.md) |
@@ -30,7 +22,7 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | Trends page hosted by History and category drill-down | [stats-and-analysis-ui.md](stats-and-analysis-ui.md) |
 | Overview screen: Today, Recent entries, Coming up | [overview-ui.md](overview-ui.md) |
 | Money host with Budgets, Accounts, and Plans segments, and account/pocket forms | [accounts-ui.md](accounts-ui.md) |
-| Settings: categories, recycle bin, Hosted Sync enrollment and repair, device-local display preferences | [settings-ui.md](settings-ui.md) |
+| Settings: categories, recycle bin, device-local display preferences | [settings-ui.md](settings-ui.md) |
 | Receipt OCR entry | [ocr-receipt-entry.md](ocr-receipt-entry.md) |
 | UI framework (MVVM, Flow, Step, shell pane retention, route-owned sheets, theme and component kit) | [ui-framework-mvvm.md](ui-framework-mvvm.md) |
 

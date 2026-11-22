@@ -1,11 +1,11 @@
 # Settings UI
 
-Last reconciled: 6a34f454
+Last reconciled: 2026-11-22
 
 ## Feature overview
 
-Settings contains category management (list, form sheet, icon and colour picker), the Recycle Bin for archived
-rows, and Hosted Sync status, enrollment, and device-access repair. Recurring-plan management lives
+Settings contains category management (list, form sheet, icon and colour picker) and the Recycle Bin for
+archived rows. Recurring-plan management lives
 in the Money Plans segment; its list, detail, form and pane modules live under `app/lib/ui/plans/`,
 not under Settings. The ledger
 screens are mostly stateless facades over `Ledger`, with per-sheet form view models keyed by their arguments.
@@ -24,10 +24,6 @@ screens are mostly stateless facades over `Ledger`, with per-sheet form view mod
 - `app/lib/ui/shell/shell_confirmation.dart`, `app/lib/ui/common/feedback/destructive_confirmation.dart`
   - the shared confirmation dialog route and its content.
 - `app/lib/ui/settings/recycle_bin/` - the recycle bin.
-- `app/lib/boot/providers.dart`, `app/lib/sync/hosted_sync_status.dart` - the Hosted Sync status
-  provider and durable-metadata projection.
-- `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` - fresh enrollment and
-  repair presentation opened from Settings; see `sync-enrollment-flow.md`.
 - `packages/domain/lib/src/ledger_state/mutators/ledger_state_categories.dart`, `ledger_state_plans.dart`
   - the domain mutators (see `ledger-and-money-model.md`, `recurring-plans-and-accounting.md`).
 - `app/lib/settings/display_preferences.dart`,
@@ -59,9 +55,7 @@ counts. These counts include active and binned entries through `entriesReferenci
 The Settings Flow owns Settings' nested navigator; `AppShell` mounts it only while the
 `settings` destination is selected (see `ui-framework-mvvm.md`). The root screen shows the large "Settings" title with no
 back control. The Categories list and the Recycle bin use the same `PageHeader` (no AppBar) with
-Flutter's icon-only `BackButton` (accessible name "Back") that pops the route. Back pops child routes and preserves the destination selection at the root. Phone/open
-resize keeps the mounted flow and its open enrollment route in place, without re-hosting the
-enrollment flow. Selecting another destination disposes the flow and its child routes, and
+Flutter's icon-only `BackButton` (accessible name "Back") that pops the route. Back pops child routes and preserves the destination selection at the root. Selecting another destination disposes the flow and its child routes, and
 selecting Settings again builds it fresh at the root. The Categories row opens category management, whose forms open as AppSheets over it. Settings has no Recurring Plans row, request Step or Plans route.
 `MoneyFlow` hosts the Plans segment through `PlansFlow`; the Money header has no Plans action, and
 plan forms open as AppSheets (`app/lib/ui/plans/plan_form/plan_form.dart`).
@@ -70,48 +64,12 @@ plan forms open as AppSheets (`app/lib/ui/plans/plan_form/plan_form.dart`).
 
 The recycle bin lists binned items in four titled cards (Entries, Accounts, Pockets, Categories), each hidden when empty.
 
-## Hosted Sync
-
-The Hosted Sync section watches `hostedSyncStatusProvider` and displays status text for
-every `HostedSyncStatus`: not configured, setup pending, ready, binding repair needed, sign-in expired,
-unsupported endpoint, or status unavailable. Binding repair explains that device access needs
-authorization and reconciliation precedes resumed writes. Session reauth explains that the existing
-device access is kept. Only those two repair statuses show `Repair Device Access`. Custom endpoints
-show the sync protocol v2 unsupported notice; unavailable status shows a read-only failure message.
-
-The `hostedSyncStatus` tile is tappable and shows a chevron only for `HostedSyncNoSelection` and
-`HostedSyncSetupPending`. `SettingsRootNotifier.requestStartHostedEnrollment()` emits
-`StartHostedEnrollmentRequested`; `_SettingsFlowState._openFreshFlow()` rechecks those statuses before
-opening `SyncEnrollmentFlow(repairMode: false)`, whose root is the backend picker. Other statuses
-keep the tile passive. Fresh and repair routes share `enrollmentFlowOpenProvider` to prevent
-duplicate pushes across Settings Flow instances; only the instance that owns the route releases
-the guard. Hosted Sync status refreshes in `SettingsFlow.initState`, so every mount refreshes it,
-and again after either route closes.
-Source: `app/lib/ui/settings/settings_root_screen.dart` - `_HostedSyncSection`;
-`app/lib/ui/settings/settings_root_view_model.dart` - `StartHostedEnrollmentRequested`;
-`app/lib/ui/settings/settings_flow.dart` - `_openFreshFlow`, `_pushEnrollmentRoute`,
-`_markEnrollmentRouteClosed`; `app/lib/ui/shell/shell_providers.dart`.
-
-`SettingsRootNotifier.requestRepair()` emits the single-shot `RepairDeviceAccessRequested` navigation
-step. The persistent shell repair banner also uses this seam; it appears for binding-repair and
-session-reauth status and takes precedence over the timed plan/save message. Tapping it selects
-Settings first and requests repair only when `enrollmentFlowOpenProvider` is false. `SettingsFlow` opens
-`SyncEnrollmentFlow(repairMode: true)` for the request and re-checks a pending step after its navigator
-mounts, so a request made before Settings is built is consumed once. The banner hides while Settings is
-selected and enrollment is open. Leaving Settings disposes `SettingsFlow`, its child routes and
-any open enrollment route; the enrollment Flow's disposal cancels its pending operation, and
-`SettingsFlow` teardown releases only the owned guard and clears any pending step without
-requesting resume or repair. An unfinished fresh setup stays resumable from the Hosted Sync
-tile. Source:
-`app/lib/ui/settings/settings_flow.dart`, `app/lib/ui/shell/status_banner.dart`,
-`app/lib/ui/shell/shell_providers.dart`.
-
 ## Display preferences
 
 Appearance, the Overview widget order, the Trends breakdown choices, chart
 colours, the insight switches, dismissed insights and the savings pocket id
-persist device-locally in SharedPreferences under the `display.v1.*` keys and
-never sync. `DisplayPreferences` is immutable with stable string codes, and
+persist in SharedPreferences under the `display.v1.*` keys and stay device-local.
+`DisplayPreferences` is immutable with stable string codes, and
 decoding is total: an unknown code falls back to its default, and unknown or
 duplicate widget codes are dropped. An absent widget key loads the default
 Today, Recent entries and Coming up set, while an empty value loads an empty

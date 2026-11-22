@@ -78,10 +78,9 @@ SpendWise is a personal finance app built in Flutter.
   as a defensive guard, but do not overdo it: one case per guarded edge, never a matrix of
   variants. Merge exact duplicates.
 - Weigh test depth by importance, blast radius, and the consequence of a fault. Code whose failure
-  corrupts or loses money data, breaks sync, or cannot be undone (domain accounting and
-  `LedgerState` invariants, ID and date normalization, persistence and mappers, sync engine,
-  coordinator, enrollment, and write gates) is tested to 100 percent line and branch coverage with
-  every error path. Wider-impact code gets thorough coverage; contained, easily reversed code gets
+  corrupts or loses money data, or cannot be undone (domain accounting and `LedgerState`
+  invariants, ID and date normalization, persistence and mappers) is tested to 100 percent line and
+  branch coverage with every error path. Wider-impact code gets thorough coverage; contained, easily reversed code gets
   proportionate coverage.
 - Test behavior, never visuals. Do not assert geometry, layout, spacing, insets, placement,
   scrolling extents, or colors. Do not test UI declarations (screens, sheets, rows, cards, pickers,

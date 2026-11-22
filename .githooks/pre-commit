@@ -18,7 +18,6 @@ check() {
 }
 
 check domain packages/domain "dart analyze"
-check sync packages/sync "dart analyze"
 check ocr packages/ocr "flutter analyze"
 check app app "flutter analyze"
 
