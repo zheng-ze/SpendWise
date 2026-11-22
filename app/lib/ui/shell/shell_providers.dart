@@ -56,6 +56,3 @@ final shellLayoutModeProvider = Provider<ShellLayoutMode>((ref) {
 final selectedDestinationProvider = StateProvider<ShellDestination>(
   (ref) => ShellDestination.overview,
 );
-
-// MARK: - Enrollment
-final enrollmentFlowOpenProvider = StateProvider<bool>((ref) => false);

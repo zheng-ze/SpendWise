@@ -12,7 +12,6 @@ import '../../../support/add_sheet_dismiss.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
-import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
@@ -257,7 +256,6 @@ Future<EntryHarness> pumpShell(
   final container = ProviderContainer(
     observers: [log],
     overrides: [
-      hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
       shellPlatformProvider.overrideWithValue((
         isWeb: false,
         targetPlatform: platform,

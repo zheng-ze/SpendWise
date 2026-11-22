@@ -802,7 +802,7 @@ void main() {
     });
 
     test(
-      'a synced child for the edited root clears the draft parent',
+      'a child added for the edited root clears the draft parent',
       () async {
         final ledger = Ledger(
           state: LedgerState(

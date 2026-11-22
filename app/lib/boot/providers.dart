@@ -17,7 +17,6 @@ import 'package:spendwise/persistence/store/drift_ledger_store.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart';
 import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/persistence/store/persistence_processor.dart';
-import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 
 // MARK: - Database
@@ -83,7 +82,6 @@ final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
   final boot = AppBoot(
     createStore: () async => ref.read(storeProvider),
     seedChanges: seedChanges,
-    readSyncSnapshot: () => ref.read(syncMetadataStoreProvider).snapshot(),
     onSaveState: banner.receiveSaveState,
     onPlanError: banner.receivePlanErrors,
     onRetry: () {
@@ -103,10 +101,6 @@ final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
 
 final appPhaseProvider = Provider<AppPhase>((ref) {
   return ref.watch(appBootProvider).phase;
-});
-
-final hostedSyncStatusProvider = Provider<HostedSyncStatus>((ref) {
-  return ref.watch(appBootProvider).syncStatus;
 });
 
 final ledgerProvider = Provider<Ledger?>((ref) {
