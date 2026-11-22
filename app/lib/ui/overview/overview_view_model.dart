@@ -132,6 +132,8 @@ class OverviewHistoryRequested extends OverviewStep {}
 
 class OverviewBudgetsRequested extends OverviewStep {}
 
+class OverviewEditOverviewRequested extends OverviewStep {}
+
 class OverviewEntryRequested extends OverviewStep {
   OverviewEntryRequested(this.entryId);
 
@@ -143,6 +145,7 @@ abstract class OverviewViewModel {
   void retryReads();
   void requestHistory();
   void requestBudgets();
+  void requestEditOverview();
   void openEntry(String id);
   void clearStep();
 }
@@ -204,6 +207,9 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
 
   @override
   void requestBudgets() => emitStep(OverviewBudgetsRequested());
+
+  @override
+  void requestEditOverview() => emitStep(OverviewEditOverviewRequested());
 
   @override
   void openEntry(String id) {
