@@ -31,7 +31,10 @@ ProviderContainer _container() {
   return container;
 }
 
-Future<void> _mountFlow(WidgetTester tester, ProviderContainer container) async {
+Future<void> _mountFlow(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
