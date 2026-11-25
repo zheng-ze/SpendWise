@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: 2026-11-22
+Last reconciled: 2026-11-25
 
 ## Feature overview
 
@@ -17,6 +17,12 @@ indirectly, via the spend math the app layer runs against analysis.
   `LedgerState`: create, update the limit, delete, duplicate-guard, and the category sweep.
 - `app/lib/ui/budgets/budget_list/` - budget list view model, `budget_form.dart` and its view model,
   `budget_category_picker.dart`, `budget_scope_options.dart`, card, and `budgets_flow.dart`.
+- `app/lib/ui/budgets/budget_list/budget_list_cards.dart` - `budgetListCards` and `BudgetListCard`:
+  the one formatter from category budget rows to row strings (name, amounts, status, progress, over
+  limit), used by the list view model and by Overview's Budget watch.
+- `app/lib/ui/budgets/budget_list/budget_selection.dart` - `selectedBudgetProvider`,
+  `pendingBudgetSelectionProvider` and `requestBudgetSelection`, the handoff that opens a budget from
+  outside Budgets.
 - `app/lib/ui/budgets/budget_detail/` - the detail screen, pane, view model,
   `budget_edit_actions_sheet.dart`, `budget_limit_edit_sheet.dart` with
   `budget_limit_editor_view_model.dart`, whose loading and load-error states come from the shared
@@ -67,6 +73,11 @@ and computes the counted entries itself from the live ledger.
 selected-budget state, a nullable budget ID held by the shared `IdSelectionNotifier`. The list writes
 it on a tap, `budgetPaneProvider` reads it to supply the open/desktop pane through `MoneyFlow`, and
 `BudgetsFlow` hands it to a `SelectedDetailController`, which reconciles one phone detail page against it.
+
+Overview's Budget watch reads `readBudgets` for the current month and formats rows through the same
+`budgetListCards` the list uses. A row tap there opens a budget through `requestBudgetSelection`, which
+sets `pendingBudgetSelectionProvider` and then opens Money at Budgets; see the selection handoff under
+Provider and subscription lifetime and [overview-ui.md](overview-ui.md).
 
 ## Budget model
 
@@ -174,6 +185,15 @@ Budgets segment or the Money destination disposes them and a later visit starts 
 the month choice is null until the user picks a month, `budgetsMonthProvider` falls back to the month
 of `todayProvider`, and the choice resets to the current month once Budgets is left (see
 `app/test/ui/budgets/budget_list/budgets_month_test.dart`).
+
+**Selection handoff.** `pendingBudgetSelectionProvider` is a kept-alive `IdSelectionNotifier`, so a
+request survives while Money is unmounted. `selectedBudgetProvider` is autoDispose and cannot be set
+before Money mounts. `BudgetsFlow` listens to the pending provider from `initState` with
+`fireImmediately`, and applies a non-null ID after the frame (provider writes are not allowed during
+build): if the pending value is still that ID, it clears the pending provider and calls
+`selectedBudgetProvider.notifier.select`. A request made before Budgets mounts and one made while it is
+mounted both select that budget, and no request selects nothing
+(`app/test/ui/budgets/budget_list/budgets_flow_pending_selection_test.dart`).
 
 **Selection and presentation.** A tray tap always sets `selectedBudgetProvider`. Open and desktop
 present the selected budget as a pane; only phone uses a managed root detail page. Selection survives
@@ -397,7 +417,8 @@ synchronous turn.
 `BudgetsRoot` reads `budgetsListViewModelProvider`, which watches the current effective month,
 `todayProvider`, chart-colour preference, and `AnalysisQueries.readBudgets`. The query result supplies
 the `BudgetsOverview` and category card data; the list view model maps category names, spend, limits,
-remaining amounts, and utilization into presentation rows. The summary and category cards therefore
+remaining amounts, and utilization into presentation rows through `budgetListCards`
+(`budget_list_cards.dart`), the same function Overview's Budget watch uses. The summary and category cards therefore
 reflect the same overview projection. A failed query surfaces `AnalysisQueryResult.failure`. `BudgetListError` owns the visible
 retry action, which calls `AnalysisQueries.retry`. (`budgets_list_view.dart`,
 `budgets_list_view_model.dart`, `analysis_queries.dart`)
