@@ -435,9 +435,7 @@ Overview tab and does not change the shell selection.
   when the Budgets month is changed (`app/test/ui/overview/overview_content_test.dart`, group 'Budget
   watch'). `openBudget` emits `OverviewBudgetRequested` for an existing budget and `clearStep` clears it
   (`app/test/ui/overview/overview_view_model_test.dart`, group 'Budget step').
-- 'Add a budget' requests the Budgets section
-  (`app/test/ui/overview/overview_screen_test.dart`: 'Add a budget requests the Budgets section').
-  A Budget watch row opens that budget in Money on a phone, 'View budgets' opens the Budgets list
+- A Budget watch row opens that budget in Money on a phone, 'View budgets' opens the Budgets list
   without a selection, and a row tap selects the budget in the open layout pane
   (`app/test/ui/shell/destination_lifetime_test.dart`: 'Budget watch row opens that budget in Money on
   a phone', 'Budget watch View budgets opens the Budgets list without a selection', 'Budget watch row

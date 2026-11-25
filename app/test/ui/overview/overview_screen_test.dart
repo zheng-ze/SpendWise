@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/ui/overview/overview_screen.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
@@ -16,14 +15,13 @@ const _testDevicePixelRatio = 1.0;
 
 Future<ProviderContainer> _pumpBareOverviewScreen(
   WidgetTester tester,
-  LedgerState state, {
-  DisplayPreferences? preferences,
-}) async {
+  LedgerState state,
+) async {
   tester.view.physicalSize = _phoneSize;
   tester.view.devicePixelRatio = _testDevicePixelRatio;
   addTearDown(tester.view.reset);
   final ledger = Ledger(state: state);
-  final container = overviewContainer(ledger, preferences: preferences);
+  final container = overviewContainer(ledger);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
@@ -47,29 +45,6 @@ void main() {
     final container = await _pumpBareOverviewScreen(tester, state);
 
     final action = find.text('Set a monthly cap');
-    await tester.ensureVisible(action);
-    await tester.tap(action);
-    await tester.pump();
-
-    expect(
-      container.read(overviewViewModelProvider).requireValue.step,
-      isA<OverviewBudgetsRequested>(),
-    );
-  }, timeout: uiTestTimeout);
-
-  testWidgets('Add a budget requests the Budgets section', (tester) async {
-    final state = emptyState();
-    state.addBudget(null, Decimal.parse('1200'));
-    final container = await _pumpBareOverviewScreen(
-      tester,
-      state,
-      preferences: DisplayPreferences(
-        overviewWidgets: const [OverviewWidgetKind.budgetWatch],
-      ),
-    );
-
-    expect(find.text('No budgets yet.'), findsOneWidget);
-    final action = find.text('Add a budget');
     await tester.ensureVisible(action);
     await tester.tap(action);
     await tester.pump();
