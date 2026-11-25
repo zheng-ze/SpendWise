@@ -36,6 +36,9 @@ void main() {
       final failed = container.read(overviewViewModelProvider).requireValue;
       expect(failed.todayFailed, isTrue);
       expect(failed.thisMonthFailed, isTrue);
+      expect(failed.budgetWatchFailed, isTrue);
+      expect(failed.budgetWatch, isNull);
+      expect(failed.recent, isNotEmpty);
 
       failing = false;
       container.read(overviewViewModelProvider.notifier).retryReads();
@@ -44,6 +47,8 @@ void main() {
       final viewState = container.read(overviewViewModelProvider).requireValue;
       expect(viewState.todayFailed, isFalse);
       expect(viewState.thisMonthFailed, isFalse);
+      expect(viewState.budgetWatchFailed, isFalse);
+      expect(viewState.budgetWatch, isEmpty);
       expect(viewState.today!.spent, Decimal.parse('45.70'));
       final figures = viewState.thisMonth!.figures!;
       expect(figures.spent, '-53.70');
@@ -154,6 +159,39 @@ void main() {
       );
 
       notifier.clearStep();
+      expect(
+        container.read(overviewViewModelProvider).requireValue.step,
+        isNull,
+      );
+    });
+  });
+
+  group('Budget step', () {
+    test('openBudget emits a budget request that clearStep clears', () async {
+      final state = defaultState();
+      final budgetID = state.budgets.keys.single;
+      final container = await _keptContainer(Ledger(state: state));
+      final notifier = container.read(overviewViewModelProvider.notifier);
+
+      notifier.openBudget(budgetID);
+      final step = container.read(overviewViewModelProvider).requireValue.step;
+      expect(step, isA<OverviewBudgetRequested>());
+      expect((step! as OverviewBudgetRequested).budgetID, budgetID);
+
+      notifier.clearStep();
+      expect(
+        container.read(overviewViewModelProvider).requireValue.step,
+        isNull,
+      );
+    });
+
+    test('openBudget emits nothing for an unknown id', () async {
+      final container = await _keptContainer(Ledger(state: defaultState()));
+
+      container
+          .read(overviewViewModelProvider.notifier)
+          .openBudget('00000000-0000-4000-8000-000000000000');
+
       expect(
         container.read(overviewViewModelProvider).requireValue.step,
         isNull,

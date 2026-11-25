@@ -16,10 +16,12 @@ class OverviewFlow extends FlowBase<OverviewStep> {
     super.key,
     required this.onHistorySelected,
     required this.onBudgetsSelected,
+    required this.onBudgetSelected,
   });
 
   final VoidCallback onHistorySelected;
   final VoidCallback onBudgetsSelected;
+  final ValueChanged<String> onBudgetSelected;
 
   @override
   ConsumerState<OverviewFlow> createState() => _OverviewFlowState();
@@ -44,6 +46,8 @@ class _OverviewFlowState extends FlowBaseState<OverviewStep, OverviewFlow> {
         widget.onHistorySelected();
       case OverviewBudgetsRequested():
         widget.onBudgetsSelected();
+      case OverviewBudgetRequested(:final budgetID):
+        widget.onBudgetSelected(budgetID);
       case OverviewEntryRequested(:final entryId):
         unawaited(openEditEntry(context: context, ref: ref, entryId: entryId));
       case OverviewEditOverviewRequested():

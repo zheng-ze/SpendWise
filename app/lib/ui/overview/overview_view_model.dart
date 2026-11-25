@@ -7,6 +7,7 @@ import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/summaries/period_summary.dart';
 import 'package:spendwise/ledger/analysis/summaries/today_summary.dart';
 import 'package:spendwise/ledger/analysis/summaries/upcoming.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_list_cards.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/date_format.dart';
@@ -21,6 +22,7 @@ const _datedAheadCaption = 'Dated ahead';
 const _statementTitleSuffix = 'statement closes';
 const _statementCaptionPrefix = 'This cycle so far: ';
 const _unnamedCardTitle = 'Card';
+const _budgetWatchRowLimit = 3;
 
 // MARK: - OverviewEntryRow
 class OverviewEntryRow {
@@ -92,8 +94,10 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
     required this.recent,
     required this.upcoming,
     required this.thisMonth,
+    this.budgetWatch,
     this.todayFailed = false,
     this.thisMonthFailed = false,
+    this.budgetWatchFailed = false,
     this.recordedToday = false,
     this.step,
   });
@@ -103,9 +107,11 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
   final List<OverviewEntryRow>? recent;
   final List<OverviewUpcomingRow>? upcoming;
   final OverviewThisMonth? thisMonth;
+  final List<BudgetListCard>? budgetWatch;
 
   final bool todayFailed;
   final bool thisMonthFailed;
+  final bool budgetWatchFailed;
   final bool recordedToday;
   @override
   final OverviewStep? step;
@@ -118,8 +124,10 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
         recent: recent,
         upcoming: upcoming,
         thisMonth: thisMonth,
+        budgetWatch: budgetWatch,
         todayFailed: todayFailed,
         thisMonthFailed: thisMonthFailed,
+        budgetWatchFailed: budgetWatchFailed,
         recordedToday: recordedToday,
         step: step(),
       );
@@ -131,6 +139,12 @@ sealed class OverviewStep {}
 class OverviewHistoryRequested extends OverviewStep {}
 
 class OverviewBudgetsRequested extends OverviewStep {}
+
+class OverviewBudgetRequested extends OverviewStep {
+  OverviewBudgetRequested(this.budgetID);
+
+  final String budgetID;
+}
 
 class OverviewEditOverviewRequested extends OverviewStep {}
 
@@ -147,6 +161,7 @@ abstract class OverviewViewModel {
   void requestBudgets();
   void requestEditOverview();
   void openEntry(String id);
+  void openBudget(String budgetID);
   void clearStep();
 }
 
@@ -179,12 +194,23 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
             month.start,
           )
         : null;
+    final budgets = queries.readBudgets(month: month.start);
+    final overview = budgets.value;
+    final budgetsAreCurrent = budgets.sourceRevision == currentLedger.revision;
+    final budgetWatch = budgetsAreCurrent && overview != null
+        ? budgetListCards(
+            overview.categoryBudgets.take(_budgetWatchRowLimit),
+            ledgerState,
+          )
+        : null;
     return OverviewViewState(
       day: day,
       today: todayIsCurrent ? today.value : null,
       todayFailed: today.state == AnalysisQueryState.failed,
       thisMonth: thisMonth,
       thisMonthFailed: period.state == AnalysisQueryState.failed,
+      budgetWatch: budgetWatch,
+      budgetWatchFailed: budgets.state == AnalysisQueryState.failed,
       recordedToday: newest?.entry.date == day,
       recent: recent == null
           ? null
@@ -218,6 +244,20 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
         false;
     if (!isActive) return;
     emitStep(OverviewEntryRequested(id));
+  }
+
+  @override
+  void openBudget(String budgetID) {
+    final exists =
+        ref
+            .read(ledgerSessionProvider)
+            ?.ledger
+            .state
+            .budgets
+            .containsKey(budgetID) ??
+        false;
+    if (!exists) return;
+    emitStep(OverviewBudgetRequested(budgetID));
   }
 }
 

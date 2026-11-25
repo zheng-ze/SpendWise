@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/buttons/app_link_button.dart';
 import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
 import 'package:spendwise/ui/common/lists/medallion_row.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
@@ -8,7 +7,6 @@ import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/overview/overview_rows.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/symbol_map.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Tray
 
@@ -66,15 +64,7 @@ class HistoryAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final button = AppLinkButton(
-      label: overviewHistoryLink,
-      onPressed: onPressed,
-      color: context.colors.action,
-    );
-    return Padding(
-      padding: const EdgeInsets.only(top: overviewLinkTopPadding),
-      child: button,
-    );
+    return OverviewLinkAction(label: overviewHistoryLink, onPressed: onPressed);
   }
 }
 

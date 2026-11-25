@@ -7,21 +7,13 @@ import 'package:spendwise/ui/format/money_format.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_overview.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_list_cards.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 
-typedef BudgetListCard = ({
-  String id,
-  String? savedHex,
-  String name,
-  String amounts,
-  String status,
-  double progress,
-  bool overLimit,
-});
 typedef BudgetListSummary = ({
   String? budgetID,
   String remaining,
@@ -34,8 +26,6 @@ typedef BudgetListSummary = ({
 
 const _emptyProgress = 0.0;
 const _fullProgress = 1.0;
-const _percentScale = 100;
-const _percentDigits = 1;
 
 // MARK: - BudgetsListViewState
 class BudgetsListViewState
@@ -133,7 +123,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
       overview: result.value,
       cards: result.value == null
           ? const []
-          : _cardRows(result.value!, currentLedger.state),
+          : budgetListCards(result.value!.categoryBudgets, currentLedger.state),
       error: error,
       today: today,
       chartColours: chartColours,
@@ -141,26 +131,6 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
       step: state.value?.step,
     );
   }
-
-  List<BudgetListCard> _cardRows(
-    BudgetsOverview overview,
-    LedgerState ledgerState,
-  ) => [
-    for (final row in overview.categoryBudgets)
-      (
-        id: row.budgetID,
-        savedHex: ledgerState.categories[row.categoryID]?.colorHex,
-        name: row.parentName == null
-            ? row.name
-            : '${row.parentName} / ${row.name}',
-        amounts: '${formatMoney(row.spend)} of ${formatMoney(row.limit)}',
-        status:
-            '${formatMoney(row.remaining)} left / '
-            '${(row.utilizationRatio.toDouble() * _percentScale).toStringAsFixed(_percentDigits)}% used',
-        progress: row.utilizationRatio.toDouble(),
-        overLimit: row.remaining < Decimal.zero,
-      ),
-  ];
 
   @override
   void retry() => ref.read(analysisQueriesProvider)?.retry();

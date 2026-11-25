@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/settings/display_preferences.dart';
+import 'package:spendwise/ui/overview/overview_budget_watch_section.dart';
 import 'package:spendwise/ui/overview/overview_coming_up_section.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/overview/overview_recent_section.dart';
@@ -52,12 +53,20 @@ OverviewCard? overviewCardFor(OverviewWidgetKind kind) => switch (kind) {
       onRetry: viewModel.retryReads,
     ),
   ),
+  OverviewWidgetKind.budgetWatch => OverviewCard(
+    title: overviewBudgetWatchTitle,
+    subtitle: overviewBudgetWatchSubtitle,
+    build: (viewState, viewModel) => BudgetWatchTray(
+      rows: viewState.budgetWatch,
+      failed: viewState.budgetWatchFailed,
+      viewModel: viewModel,
+    ),
+  ),
   OverviewWidgetKind.topCategories ||
   OverviewWidgetKind.cardStatement ||
   OverviewWidgetKind.accountBalances ||
   OverviewWidgetKind.spendingOverTime ||
   OverviewWidgetKind.savingsPocket ||
-  OverviewWidgetKind.budgetWatch ||
   OverviewWidgetKind.insights ||
   OverviewWidgetKind.weekSoFar => null,
 };

@@ -1,6 +1,7 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/buttons/app_link_button.dart';
 import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
@@ -83,4 +84,30 @@ class OverviewEmptyCopy extends StatelessWidget {
     text,
     style: context.text.caption.copyWith(color: context.colors.subtext),
   );
+}
+
+// MARK: - Link Action
+
+class OverviewLinkAction extends StatelessWidget {
+  const OverviewLinkAction({
+    super.key,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = AppLinkButton(
+      label: label,
+      onPressed: onPressed,
+      color: context.colors.action,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: overviewLinkTopPadding),
+      child: button,
+    );
+  }
 }

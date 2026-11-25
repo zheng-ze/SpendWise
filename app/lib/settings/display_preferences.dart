@@ -103,6 +103,7 @@ class DisplayPreferences {
       OverviewWidgetKind.thisMonth,
       OverviewWidgetKind.recentEntries,
       OverviewWidgetKind.comingUp,
+      OverviewWidgetKind.budgetWatch,
     ],
     this.breakdownChart = BreakdownChart.donut,
     this.breakdownLevel = BreakdownLevel.categories,

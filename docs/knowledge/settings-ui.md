@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: 2026-11-22
+Last reconciled: 2026-11-25
 
 ## Feature overview
 
@@ -71,9 +71,9 @@ colours, the insight switches, dismissed insights and the savings pocket id
 persist in SharedPreferences under the `display.v1.*` keys and stay device-local.
 `DisplayPreferences` is immutable with stable string codes, and
 decoding is total: an unknown code falls back to its default, and unknown or
-duplicate widget codes are dropped. An absent widget key loads the four-kind
+duplicate widget codes are dropped. An absent widget key loads the five-kind
 default (`DisplayPreferences.defaults.overviewWidgets`: Today, This month,
-Recent entries and Coming up), while an empty value loads an empty list. The
+Recent entries, Coming up and Budget watch), while an empty value loads an empty list. The
 store does not replace that empty list at load. Overview and the Edit Overview
 sheet treat any stored list with no card kind (an empty list, or one holding
 only kinds without a card) as the defaults, through `overviewWidgetsOrDefault`
