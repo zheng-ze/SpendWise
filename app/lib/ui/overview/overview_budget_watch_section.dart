@@ -92,20 +92,12 @@ class BudgetWatchRows extends StatelessWidget {
   Widget build(BuildContext context) {
     final cards = [
       for (final (index, row) in rows.indexed)
-        OverviewRowFrame(
+        BudgetWatchRow(
+          row: row,
+          index: index,
           isLast: index == rows.length - 1,
-          child: BudgetCard(
-            key: ValueKey('budget-${row.id}'),
-            savedHex: row.savedHex,
-            rank: index,
-            chartColours: chartColours,
-            name: row.name,
-            amounts: row.amounts,
-            status: row.status,
-            progress: row.progress,
-            overLimit: row.overLimit,
-            onTap: () => viewModel.openBudget(row.id),
-          ),
+          chartColours: chartColours,
+          onTap: () => viewModel.openBudget(row.id),
         ),
     ];
     final link = OverviewLinkAction(
@@ -115,6 +107,42 @@ class BudgetWatchRows extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [...cards, link],
+    );
+  }
+}
+
+class BudgetWatchRow extends StatelessWidget {
+  const BudgetWatchRow({
+    super.key,
+    required this.row,
+    required this.index,
+    required this.isLast,
+    required this.chartColours,
+    required this.onTap,
+  });
+
+  final BudgetListCard row;
+  final int index;
+  final bool isLast;
+  final ChartColours chartColours;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OverviewRowFrame(
+      isLast: isLast,
+      child: BudgetCard(
+        key: ValueKey('budget-${row.id}'),
+        savedHex: row.savedHex,
+        rank: index,
+        chartColours: chartColours,
+        name: row.name,
+        amounts: row.amounts,
+        status: row.status,
+        progress: row.progress,
+        overLimit: row.overLimit,
+        onTap: onTap,
+      ),
     );
   }
 }
