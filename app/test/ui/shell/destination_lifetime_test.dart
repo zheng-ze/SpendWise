@@ -1,9 +1,17 @@
 import 'package:domain/domain.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ledger/event_bus.dart';
+import 'package:spendwise/persistence/store/persistence_processor.dart';
+import 'package:spendwise/settings/display_preferences.dart';
+import 'package:spendwise/settings/display_preferences_providers.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_pane.dart';
+import 'package:spendwise/ui/shell/boot_chrome.dart';
+import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
@@ -21,6 +29,7 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import 'package:spendwise/ui/transactions/trends_detail_action.dart';
 
+import '../../support/in_memory_ledger_store.dart';
 import '../../support/shell_sheet_harness.dart';
 import '../budgets/budget_shell_test_support.dart';
 import '../overview/overview_fixture.dart';
@@ -69,6 +78,7 @@ void main() {
       }
 
       void ignoreBudgets() {}
+      void ignoreBudget(String budgetID) {}
 
       await pumpShellApp(
         tester,
@@ -77,6 +87,7 @@ void main() {
           ShellDestination.overview: (_) => OverviewFlow(
             onHistorySelected: selectHistory,
             onBudgetsSelected: ignoreBudgets,
+            onBudgetSelected: ignoreBudget,
           ),
           ShellDestination.history: (_) => const TransactionsFlow(),
         },
@@ -191,6 +202,7 @@ void main() {
         .read(moneySegmentProvider.notifier)
         .openAt(MoneySegment.budgets);
     void ignoreHistory() {}
+    void ignoreBudget(String budgetID) {}
     await pumpShellApp(
       tester,
       container,
@@ -198,6 +210,7 @@ void main() {
         ShellDestination.overview: (_) => OverviewFlow(
           onHistorySelected: ignoreHistory,
           onBudgetsSelected: openBudgets,
+          onBudgetSelected: ignoreBudget,
         ),
         ShellDestination.money: (_) => const MoneyFlow(),
       },
@@ -213,6 +226,59 @@ void main() {
     expect(container.read(moneySegmentProvider), MoneySegment.budgets);
     expect(find.byType(BudgetsFlow), findsOneWidget);
     expect(container.read(selectedBudgetProvider), isNull);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('Budget watch row opens that budget in Money on a phone', (
+    tester,
+  ) async {
+    final container = await _pumpBudgetWatchOverview(tester);
+
+    await tester.tap(find.text(budgetShellFood.name));
+    await tester.pumpAndSettle();
+
+    expect(container.read(selectedDestinationProvider), ShellDestination.money);
+    expect(container.read(moneySegmentProvider), MoneySegment.budgets);
+    expect(container.read(selectedBudgetProvider), 'b2');
+    expect(find.byType(BudgetDetailScreen), findsOneWidget);
+    expect(container.read(pendingBudgetSelectionProvider), isNull);
+  }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'Budget watch View budgets opens the Budgets list without a selection',
+    (tester) async {
+      final container = await _pumpBudgetWatchOverview(tester);
+
+      await tester.tap(find.text(overviewBudgetWatchViewLink));
+      await tester.pumpAndSettle();
+
+      expect(
+        container.read(selectedDestinationProvider),
+        ShellDestination.money,
+      );
+      expect(container.read(moneySegmentProvider), MoneySegment.budgets);
+      expect(container.read(selectedBudgetProvider), isNull);
+      expect(find.byType(BudgetDetailScreen), findsNothing);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets('Budget watch row selects the budget in the open layout pane', (
+    tester,
+  ) async {
+    final container = await _pumpBudgetWatchOverview(
+      tester,
+      mode: ShellLayoutMode.open,
+    );
+
+    await tester.tap(find.text(budgetShellFood.name));
+    await tester.pumpAndSettle();
+
+    expect(container.read(selectedDestinationProvider), ShellDestination.money);
+    expect(container.read(moneySegmentProvider), MoneySegment.budgets);
+    expect(container.read(selectedBudgetProvider), 'b2');
+    expect(find.byType(BudgetPaneBody), findsOneWidget);
+    expect(find.byType(BudgetDetailScreen), findsNothing);
+    expect(container.read(pendingBudgetSelectionProvider), isNull);
   }, timeout: uiTestTimeout);
 }
 
@@ -270,3 +336,43 @@ Future<void> _leaveAndReturnToMoney(
       ShellDestination.money;
   await tester.pumpAndSettle();
 }
+
+Future<ProviderContainer> _pumpBudgetWatchOverview(
+  WidgetTester tester, {
+  ShellLayoutMode mode = ShellLayoutMode.phone,
+}) async {
+  final ledger = buildShellLedger();
+  final persistence = PersistenceProcessor(
+    store: InMemoryLedgerStore(),
+    bus: EventBus(),
+  );
+  final container = buildShellContainer(
+    ledger: ledger,
+    overrides: [
+      appPhaseProvider.overrideWithValue(
+        Ready(ledger: ledger, persistence: persistence),
+      ),
+      initialDisplayPreferencesProvider.overrideWithValue(
+        DisplayPreferences(overviewWidgets: [OverviewWidgetKind.budgetWatch]),
+      ),
+    ],
+  );
+  if (mode == ShellLayoutMode.open) useShellWindow(tester, _openWindow);
+  container.read(budgetShellModeFixture.notifier).state = mode;
+  container.read(selectedDestinationProvider.notifier).state =
+      ShellDestination.overview;
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(
+        builder: buildShellAppContent,
+        home: BootChrome(),
+      ),
+    ),
+  );
+  await tester.runAsync(() => settleAnalysis(container, ledger));
+  await tester.pumpAndSettle();
+  return container;
+}
+
+const _openWindow = Size(1024, 800);
