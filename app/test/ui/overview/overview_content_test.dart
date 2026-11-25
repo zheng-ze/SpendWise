@@ -7,6 +7,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_month.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 
@@ -17,6 +18,27 @@ Future<OverviewViewState> _settled(Ledger ledger) async {
   container.listen(overviewViewModelProvider, (_, _) {});
   await settleAnalysis(container, ledger);
   return container.read(overviewViewModelProvider).requireValue;
+}
+
+const _unscopedLimit = '1200';
+const _budgetWatchRowCount = 3;
+final _seedLimits = {'Dining': '350', 'Groceries': '450', 'Transport': '120'};
+
+String _categoryID(LedgerState state, String name) =>
+    state.categories.values.firstWhere((c) => c.name == name).id;
+
+LedgerState _seedWithBudgets(Map<String, String> limits) {
+  final state = LedgerState();
+  buildSeed(state, today: fixtureToday);
+  for (final MapEntry(:key, :value) in limits.entries) {
+    state.addBudget(_categoryID(state, key), Decimal.parse(value));
+  }
+  return state;
+}
+
+Future<List<String>> _watchNames(LedgerState state) async {
+  final watch = (await _settled(Ledger(state: state))).budgetWatch!;
+  return [for (final card in watch) card.name];
 }
 
 void main() {
@@ -55,8 +77,66 @@ void main() {
 
       expect(viewState.today, isNull);
       expect(viewState.thisMonth, isNull);
+      expect(viewState.budgetWatch, isNull);
       expect(viewState.recent, isNotEmpty);
       expect(viewState.upcoming, isNotEmpty);
+    });
+  });
+
+  group('Budget watch', () {
+    test('lists category budgets with the Budgets list strings', () async {
+      final state = _seedWithBudgets(_seedLimits);
+      state.addBudget(null, Decimal.parse(_unscopedLimit));
+
+      final watch = (await _settled(Ledger(state: state))).budgetWatch!;
+
+      expect(
+        [for (final card in watch) card.name],
+        ['Dining', 'Groceries', 'Transport'],
+      );
+      expect(watch[0].amounts, 'S\$83.90 of S\$350.00');
+      expect(watch[0].status, 'S\$266.10 left / 24.0% used');
+      expect(watch[1].status, endsWith('16.3% used'));
+      expect(watch[2].status, endsWith('8.3% used'));
+    });
+
+    test('keeps only the top three category budgets', () async {
+      final state = _seedWithBudgets({..._seedLimits, 'Salary': '5000'});
+
+      final names = await _watchNames(state);
+
+      expect(names, hasLength(_budgetWatchRowCount));
+      expect(names, isNot(contains('Salary')));
+    });
+
+    test('reads today month even when the Budgets month is changed', () async {
+      final ledger = Ledger(state: _seedWithBudgets(_seedLimits));
+      final container = overviewContainer(ledger);
+      container.listen(overviewViewModelProvider, (_, _) {});
+      container.listen(budgetsMonthChoiceProvider, (_, _) {});
+      container.read(budgetsMonthChoiceProvider.notifier).state = DateTime.utc(
+        2026,
+        3,
+      );
+      await settleAnalysis(container, ledger);
+
+      final watch = container
+          .read(overviewViewModelProvider)
+          .requireValue
+          .budgetWatch!;
+
+      expect(watch.first.amounts, 'S\$83.90 of S\$350.00');
+    });
+
+    test('an unscoped budget alone yields an empty list', () async {
+      final state = _seedWithBudgets({});
+      state.addBudget(null, Decimal.parse(_unscopedLimit));
+
+      expect(await _watchNames(state), isEmpty);
+    });
+
+    test('no budgets yields an empty list', () async {
+      expect(await _watchNames(_seedWithBudgets({})), isEmpty);
     });
   });
 

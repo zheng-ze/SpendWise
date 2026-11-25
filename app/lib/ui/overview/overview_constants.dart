@@ -93,6 +93,18 @@ const overviewThisMonthIncomeLabel = 'Income';
 
 const overviewThisMonthNetLabel = 'Net';
 
+const overviewBudgetWatchTitle = 'Budget watch';
+
+const overviewBudgetWatchSubtitle = 'Your top budgets this month';
+
+const overviewBudgetWatchViewLink = 'View budgets';
+
+const overviewBudgetWatchEmpty = 'No budgets yet.';
+
+const overviewBudgetWatchAddLink = 'Add a budget';
+
+const overviewBudgetWatchErrorTitle = "Couldn't load your budgets";
+
 const overviewEditAction = 'Edit Overview';
 
 const overviewEditDone = 'Done';

@@ -30,17 +30,19 @@ const _seededKinds = [
   OverviewWidgetKind.thisMonth,
   OverviewWidgetKind.recentEntries,
   OverviewWidgetKind.comingUp,
+  OverviewWidgetKind.budgetWatch,
 ];
 
 final _hiddenHint = find.byType(OverviewEditHiddenHint);
 
-const _hiddenKind = OverviewWidgetKind.comingUp;
+const _hiddenKind = OverviewWidgetKind.budgetWatch;
 
 const _swappedKinds = [
   OverviewWidgetKind.thisMonth,
   OverviewWidgetKind.today,
   OverviewWidgetKind.recentEntries,
   OverviewWidgetKind.comingUp,
+  OverviewWidgetKind.budgetWatch,
 ];
 
 void main() {
@@ -98,8 +100,11 @@ Future<ProviderContainer> _pumpOverview(WidgetTester tester) async {
     tester,
     container,
     bodies: {
-      ShellDestination.overview: (_) =>
-          OverviewFlow(onHistorySelected: _ignore, onBudgetsSelected: _ignore),
+      ShellDestination.overview: (_) => OverviewFlow(
+        onHistorySelected: _ignore,
+        onBudgetsSelected: _ignore,
+        onBudgetSelected: _ignoreBudget,
+      ),
     },
   );
   await tester.runAsync(() => settleAnalysis(container, ledger));
@@ -128,3 +133,5 @@ Future<void> _dragGripDown(WidgetTester tester, Finder grip, int steps) async {
 }
 
 void _ignore() {}
+
+void _ignoreBudget(String budgetID) {}

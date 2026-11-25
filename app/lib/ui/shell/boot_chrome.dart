@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/load_error_view.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
@@ -56,12 +57,19 @@ class _OverviewTabEntry extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    void selectBudget(String budgetID) => requestBudgetSelection(
+      budgetID: budgetID,
+      pending: ref.read(pendingBudgetSelectionProvider.notifier),
+      moneySegment: ref.read(moneySegmentProvider.notifier),
+    );
+
     return OverviewFlow(
       onHistorySelected: () =>
           ref.read(selectedDestinationProvider.notifier).state =
               ShellDestination.history,
       onBudgetsSelected: () =>
           ref.read(moneySegmentProvider.notifier).openAt(MoneySegment.budgets),
+      onBudgetSelected: selectBudget,
     );
   }
 }

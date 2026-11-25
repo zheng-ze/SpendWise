@@ -10,6 +10,7 @@ void main() {
       OverviewWidgetKind.thisMonth,
       OverviewWidgetKind.recentEntries,
       OverviewWidgetKind.comingUp,
+      OverviewWidgetKind.budgetWatch,
     ]);
   });
 
