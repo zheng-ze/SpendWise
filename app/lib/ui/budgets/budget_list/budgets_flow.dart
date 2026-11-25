@@ -51,6 +51,8 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     onShownChanged: (_) => _editSession?.sheet.retire(),
   );
 
+  late final ProviderSubscription<String?> _pendingSelection;
+
   _FormSession? _formSession;
   _EditSession? _editSession;
 
@@ -60,10 +62,27 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   void initState() {
     super.initState();
     _detail.start();
+    _pendingSelection = ref.listenManual(
+      pendingBudgetSelectionProvider,
+      (_, next) => _applyPendingSelection(next),
+      fireImmediately: true,
+    );
+  }
+
+  void _applyPendingSelection(String? budgetID) {
+    if (budgetID == null) return;
+    // Providers cannot be written during build, and this can fire while the flow mounts.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (ref.read(pendingBudgetSelectionProvider) != budgetID) return;
+      ref.read(pendingBudgetSelectionProvider.notifier).clear();
+      ref.read(selectedBudgetProvider.notifier).select(budgetID);
+    });
   }
 
   @override
   void dispose() {
+    _pendingSelection.close();
     _detail.dispose();
     _editSession?.sheet.retire();
     _formSession?.sheet.end();
