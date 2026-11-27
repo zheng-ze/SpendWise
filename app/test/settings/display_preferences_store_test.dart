@@ -29,15 +29,26 @@ void main() {
         breakdownChart: BreakdownChart.categoryMap,
         breakdownLevel: BreakdownLevel.subcategories,
         chartColours: ChartColours.contrasting,
-        insightCategoryChanges: false,
-        insightUsualPace: false,
-        dismissedInsights: {'2026-10:abc', '2026-09:def'},
         savingsPocketID: 'pocket-1',
       );
 
       await DisplayPreferencesStore(prefs).save(saved);
 
       expect(DisplayPreferencesStore(prefs).load(), saved);
+    });
+
+    test('retired insight keys are ignored and load the defaults', () async {
+      SharedPreferences.setMockInitialValues({
+        'display.v1.insights.categoryChanges': false,
+        'display.v1.insights.usualPace': false,
+        'display.v1.insights.dismissed': ['2026-10:abc'],
+      });
+      final prefs = await SharedPreferences.getInstance();
+
+      expect(
+        DisplayPreferencesStore(prefs).load(),
+        DisplayPreferences.defaults,
+      );
     });
 
     test('an empty widget value loads an empty set', () async {
