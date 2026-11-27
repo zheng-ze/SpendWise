@@ -78,6 +78,8 @@ void main() {
       expect(viewState.today, isNull);
       expect(viewState.thisMonth, isNull);
       expect(viewState.budgetWatch, isNull);
+      expect(viewState.insights, isNull);
+      expect(viewState.weekSoFar, isNull);
       expect(viewState.recent, isNotEmpty);
       expect(viewState.upcoming, isNotEmpty);
     });
