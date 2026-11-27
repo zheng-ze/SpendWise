@@ -105,6 +105,26 @@ const overviewBudgetWatchAddLink = 'Add a budget';
 
 const overviewBudgetWatchErrorTitle = "Couldn't load your budgets";
 
+const overviewInsightsTitle = 'Insights';
+
+const overviewInsightsSubtitle = 'Categories that differ from your usual start';
+
+const overviewInsightsErrorTitle = "Couldn't load your insights";
+
+const overviewWeekSoFarTitle = 'Week so far';
+
+const overviewWeekSoFarSubtitle = 'This week compared with usual';
+
+const overviewWeekSoFarErrorTitle = "Couldn't load this week's spending";
+
+const overviewHistoryNeededTitle = 'More daily history needed.';
+
+const overviewInsightsHistoryNeededBody =
+    'Keep adding entries to compare the same days in earlier months.';
+
+const overviewWeekHistoryNeededBody =
+    'Record more entries over the last three weeks to compare this week fairly.';
+
 const overviewEditAction = 'Edit Overview';
 
 const overviewEditDone = 'Done';
