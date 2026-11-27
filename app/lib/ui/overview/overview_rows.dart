@@ -86,6 +86,32 @@ class OverviewEmptyCopy extends StatelessWidget {
   );
 }
 
+// MARK: - History Needed
+
+const overviewHistoryNeededGap = 4.0;
+
+class OverviewHistoryNeeded extends StatelessWidget {
+  const OverviewHistoryNeeded({super.key, required this.body});
+
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = Text(
+      overviewHistoryNeededTitle,
+      style: context.text.body.copyWith(fontWeight: SpendWiseText.semibold),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        title,
+        const SizedBox(height: overviewHistoryNeededGap),
+        OverviewEmptyCopy(body),
+      ],
+    );
+  }
+}
+
 // MARK: - Link Action
 
 class OverviewLinkAction extends StatelessWidget {

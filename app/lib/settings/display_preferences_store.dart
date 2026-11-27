@@ -14,10 +14,6 @@ class DisplayPreferencesStore {
   static const breakdownChartKey = 'display.v1.breakdownChart';
   static const breakdownLevelKey = 'display.v1.breakdownLevel';
   static const chartColoursKey = 'display.v1.chartColours';
-  static const insightCategoryChangesKey =
-      'display.v1.insights.categoryChanges';
-  static const insightUsualPaceKey = 'display.v1.insights.usualPace';
-  static const dismissedInsightsKey = 'display.v1.insights.dismissed';
   static const savingsPocketKey = 'display.v1.savingsPocket';
 
   // MARK: - Loading
@@ -32,11 +28,6 @@ class DisplayPreferencesStore {
       breakdownChart: BreakdownChart.decode(prefs.getString(breakdownChartKey)),
       breakdownLevel: BreakdownLevel.decode(prefs.getString(breakdownLevelKey)),
       chartColours: ChartColours.decode(prefs.getString(chartColoursKey)),
-      insightCategoryChanges: prefs.getBool(insightCategoryChangesKey) ?? true,
-      insightUsualPace: prefs.getBool(insightUsualPaceKey) ?? true,
-      dismissedInsights: Set.of(
-        prefs.getStringList(dismissedInsightsKey) ?? const [],
-      ),
       savingsPocketID: prefs.getString(savingsPocketKey),
     );
   }
@@ -52,15 +43,6 @@ class DisplayPreferencesStore {
     await prefs.setString(breakdownChartKey, preferences.breakdownChart.code);
     await prefs.setString(breakdownLevelKey, preferences.breakdownLevel.code);
     await prefs.setString(chartColoursKey, preferences.chartColours.code);
-    await prefs.setBool(
-      insightCategoryChangesKey,
-      preferences.insightCategoryChanges,
-    );
-    await prefs.setBool(insightUsualPaceKey, preferences.insightUsualPace);
-    await prefs.setStringList(
-      dismissedInsightsKey,
-      preferences.dismissedInsights.toList()..sort(),
-    );
     final pocketID = preferences.savingsPocketID;
     if (pocketID == null) {
       await prefs.remove(savingsPocketKey);

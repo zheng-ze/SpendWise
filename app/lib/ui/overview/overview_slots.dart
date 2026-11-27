@@ -4,12 +4,14 @@ import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/ui/overview/overview_budget_watch_section.dart';
 import 'package:spendwise/ui/overview/overview_coming_up_section.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
+import 'package:spendwise/ui/overview/overview_insights_section.dart';
 import 'package:spendwise/ui/overview/overview_recent_section.dart';
 import 'package:spendwise/ui/overview/overview_this_month_section.dart';
 import 'package:spendwise/ui/overview/overview_today_section.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
+import 'package:spendwise/ui/overview/overview_week_so_far_section.dart';
 
-typedef OverviewSlotBuilder = Widget Function(
+typedef OverviewSlotBuilder = Widget? Function(
   OverviewViewState viewState,
   OverviewViewModel viewModel,
 );
@@ -62,14 +64,38 @@ OverviewCard? overviewCardFor(OverviewWidgetKind kind) => switch (kind) {
       viewModel: viewModel,
     ),
   ),
+  OverviewWidgetKind.insights => OverviewCard(
+    title: overviewInsightsTitle,
+    subtitle: overviewInsightsSubtitle,
+    build: _insightsSlot,
+  ),
+  OverviewWidgetKind.weekSoFar => OverviewCard(
+    title: overviewWeekSoFarTitle,
+    subtitle: overviewWeekSoFarSubtitle,
+    build: (viewState, viewModel) => WeekSoFarTray(
+      weekSoFar: viewState.weekSoFar,
+      failed: viewState.weekSoFarFailed,
+      viewModel: viewModel,
+    ),
+  ),
   OverviewWidgetKind.topCategories ||
   OverviewWidgetKind.cardStatement ||
   OverviewWidgetKind.accountBalances ||
   OverviewWidgetKind.spendingOverTime ||
-  OverviewWidgetKind.savingsPocket ||
-  OverviewWidgetKind.insights ||
-  OverviewWidgetKind.weekSoFar => null,
+  OverviewWidgetKind.savingsPocket => null,
 };
+
+Widget? _insightsSlot(
+  OverviewViewState viewState,
+  OverviewViewModel viewModel,
+) {
+  if (viewState.insightsSettledEmpty) return null;
+  return InsightsTray(
+    insights: viewState.insights,
+    failed: viewState.insightsFailed,
+    viewModel: viewModel,
+  );
+}
 
 Widget? overviewSlotFor(
   OverviewWidgetKind kind, {

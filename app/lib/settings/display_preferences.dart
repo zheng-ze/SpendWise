@@ -104,16 +104,14 @@ class DisplayPreferences {
       OverviewWidgetKind.recentEntries,
       OverviewWidgetKind.comingUp,
       OverviewWidgetKind.budgetWatch,
+      OverviewWidgetKind.insights,
+      OverviewWidgetKind.weekSoFar,
     ],
     this.breakdownChart = BreakdownChart.donut,
     this.breakdownLevel = BreakdownLevel.categories,
     this.chartColours = ChartColours.categoryColours,
-    this.insightCategoryChanges = true,
-    this.insightUsualPace = true,
-    Set<String> dismissedInsights = const {},
     this.savingsPocketID,
-  }) : overviewWidgets = List.unmodifiable(overviewWidgets),
-       dismissedInsights = Set.unmodifiable(dismissedInsights);
+  }) : overviewWidgets = List.unmodifiable(overviewWidgets);
 
   static final defaults = DisplayPreferences();
 
@@ -122,9 +120,6 @@ class DisplayPreferences {
   final BreakdownChart breakdownChart;
   final BreakdownLevel breakdownLevel;
   final ChartColours chartColours;
-  final bool insightCategoryChanges;
-  final bool insightUsualPace;
-  final Set<String> dismissedInsights;
   final String? savingsPocketID;
 
   DisplayPreferences copyWith({
@@ -133,9 +128,6 @@ class DisplayPreferences {
     BreakdownChart? breakdownChart,
     BreakdownLevel? breakdownLevel,
     ChartColours? chartColours,
-    bool? insightCategoryChanges,
-    bool? insightUsualPace,
-    Set<String>? dismissedInsights,
     String? Function()? savingsPocketID,
   }) {
     return DisplayPreferences(
@@ -144,10 +136,6 @@ class DisplayPreferences {
       breakdownChart: breakdownChart ?? this.breakdownChart,
       breakdownLevel: breakdownLevel ?? this.breakdownLevel,
       chartColours: chartColours ?? this.chartColours,
-      insightCategoryChanges:
-          insightCategoryChanges ?? this.insightCategoryChanges,
-      insightUsualPace: insightUsualPace ?? this.insightUsualPace,
-      dismissedInsights: dismissedInsights ?? this.dismissedInsights,
       savingsPocketID: savingsPocketID == null
           ? this.savingsPocketID
           : savingsPocketID(),
@@ -162,9 +150,6 @@ class DisplayPreferences {
       other.breakdownChart == breakdownChart &&
       other.breakdownLevel == breakdownLevel &&
       other.chartColours == chartColours &&
-      other.insightCategoryChanges == insightCategoryChanges &&
-      other.insightUsualPace == insightUsualPace &&
-      setEquals(other.dismissedInsights, dismissedInsights) &&
       other.savingsPocketID == savingsPocketID;
 
   @override
@@ -174,9 +159,6 @@ class DisplayPreferences {
     breakdownChart,
     breakdownLevel,
     chartColours,
-    insightCategoryChanges,
-    insightUsualPace,
-    Object.hashAllUnordered(dismissedInsights),
     savingsPocketID,
   );
 }

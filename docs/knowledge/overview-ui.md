@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: 2026-11-25
+Last reconciled: 2026-11-27
 
 ## Feature overview
 
@@ -24,29 +24,32 @@ span two columns and every other kind spans one. Cards keep their natural height
 taken in stored order. `placeOverviewCard` puts each card at the top of the shortest column. A
 two-column card takes the adjacent column pair that wastes the least space under the shorter column,
 then the lower top, then the leftmost pair. With one column every card stacks in stored order. With
-two columns each spanning card takes both columns. Only kinds that map to a card take part in
-placement. The default list is Today, This month, Recent entries, Coming up and Budget watch.
-`overviewCardFor` (`overview_slots.dart`) is the single kind-to-card mapping, an exhaustive switch
-with no default. Each `OverviewCard` carries a `title`, a `subtitle` and the `build`
-function that creates the widget. Only `today`, `thisMonth`, `recentEntries`, `comingUp` and
-`budgetWatch` map to a card; the other seven kinds map to null and render nothing, with no placeholder. A card ticket adds a
-kind by replacing its null arm. `overviewSlotFor` is a thin wrapper over `overviewCardFor` that returns
-the built widget, and `overviewCardKinds` lists the kinds that have a card in enum declaration order
-as the Edit Overview catalogue.
+two columns each spanning card takes both columns. Only kinds whose builder returns a widget take
+part in placement. The default list is Today, This month, Recent entries, Coming up, Budget watch,
+Insights and Week so far. `overviewCardFor` (`overview_slots.dart`) is the single kind-to-card
+mapping, an exhaustive switch with no default. Each `OverviewCard` carries a `title`, a `subtitle`
+and the `build` function that creates the widget; `OverviewSlotBuilder` returns a nullable `Widget`.
+Seven kinds map to a card: `today`, `thisMonth`, `recentEntries`, `comingUp`, `budgetWatch`,
+`insights` and `weekSoFar`. The other five (`topCategories`, `cardStatement`, `accountBalances`,
+`spendingOverTime` and `savingsPocket`) map to null and render nothing, with no placeholder. A card
+ticket adds a kind by replacing its null arm. `overviewSlotFor` is a thin wrapper over
+`overviewCardFor` that returns the built widget or null, and `overviewCardKinds` lists the kinds that
+have a card in enum declaration order as the Edit Overview catalogue.
 
-Overview never renders empty. When the stored list holds no card kind, either because it is empty or
-because it holds only kinds without a card, `overviewWidgetsOrDefault` returns
-`DisplayPreferences.defaults.overviewWidgets` and the grid renders that list. A stored list with at
-least one card kind passes through unchanged, kinds without a card included. The stored value is not
-rewritten when the screen renders; it changes only when the user taps Done in Edit Overview. A user
-who has ever saved a display setting keeps the stored list, so the Budget watch default reaches only
-installs that have never saved one.
+The defaults fallback judges card kinds, not rendered output. When the stored list holds no card
+kind, either because it is empty or because it holds only kinds without a card,
+`overviewWidgetsOrDefault` returns `DisplayPreferences.defaults.overviewWidgets` and the grid renders
+that list. A stored list with at least one card kind passes through unchanged, kinds without a card
+included, and is never replaced even if its cards render nothing. The stored value is not rewritten
+when the screen renders; it changes only when the user taps Done in Edit Overview. A user who has
+ever saved a display setting keeps the stored list, so the Budget watch, Insights and Week so far
+defaults reach only installs that have never saved one.
 
 The header carries an 'Edit Overview' action that opens the Edit Overview sheet, described in its own
-section below. With the default list no
-section is ever blank: each section renders its own copy for an empty ledger, and a section whose
-read has not settled renders a `LoadingSkeleton`. The screen reads only through `AnalysisQueries`;
-widgets compute no totals.
+section below. With the default list every section renders its own copy for an empty ledger, except
+an available Insights card with no rows, which renders nothing. A section whose read has not settled
+renders a `LoadingSkeleton`. The screen reads only through `AnalysisQueries`; widgets compute no
+totals.
 
 ## Key files
 
@@ -55,7 +58,9 @@ widgets compute no totals.
   and the row types `OverviewEntryRow` and `OverviewUpcomingRow`, and the This month types
   `OverviewThisMonth` (caption and optional figures) and `OverviewMonthFigures` (signed value strings
   and `netKind`). `OverviewViewState.budgetWatch` holds the Budget watch rows (`BudgetListCard`) and
-  `budgetWatchFailed` flags a failed read. The view state carries an
+  `budgetWatchFailed` flags a failed read. It also carries `insights` (`OverviewInsights?`),
+  `insightsFailed`, `insightsSettledEmpty`, `weekSoFar` (`OverviewWeekSoFar?`) and `weekSoFarFailed`.
+  The view state carries an
   `OverviewStep` (`HasStep`/`StepEmitting`); `requestHistory` emits `OverviewHistoryRequested`,
   `requestBudgets` emits `OverviewBudgetsRequested`, `requestEditOverview` emits
   `OverviewEditOverviewRequested`, `openEntry` emits `OverviewEntryRequested`, `openBudget` emits
@@ -84,7 +89,21 @@ widgets compute no totals.
 - `app/lib/ui/overview/overview_slots.dart` - `OverviewCard`, `overviewCardFor` (the single
   kind-to-card switch carrying title, subtitle and builder), `overviewSlotFor` (a thin wrapper
   over it), `overviewCardKinds` (the editor catalogue) and `overviewWidgetsOrDefault` (the seeding
-  rule). `thisMonth` maps to `ThisMonthTray` and `budgetWatch` maps to `BudgetWatchTray`.
+  rule). `thisMonth` maps to `ThisMonthTray`, `budgetWatch` maps to `BudgetWatchTray`,
+  `insights` maps to `InsightsTray` and `weekSoFar` maps to `WeekSoFarTray`. `OverviewSlotBuilder` is
+  nullable: the `insights` builder returns null while `OverviewViewState.insightsSettledEmpty` is
+  true.
+- `app/lib/ui/overview/overview_insights_mapping.dart` - the pure mapping from the reads to view
+  types: `OverviewInsights` (`OverviewInsightsHistoryNeeded`, `OverviewInsightsAvailable`),
+  `OverviewInsightRow` (`lead`, `amount`, `tail`, `amountKind`), `OverviewWeekSoFar`
+  (`OverviewWeekHistoryNeeded`, `OverviewWeekAvailable`), and the functions `overviewInsights` and
+  `overviewWeekSoFar`.
+- `app/lib/ui/overview/overview_insights_section.dart` - `InsightsTray` (the card, with the failed,
+  skeleton, history-needed and rows states) and `InsightRow`, a `Text.rich` line in an
+  `OverviewRowFrame`.
+- `app/lib/ui/overview/overview_week_so_far_section.dart` - `WeekSoFarTray` (the card, with the
+  failed, skeleton, history-needed and content states) and `WeekSoFarContent` (range caption, total,
+  optional comparison and usual note).
 - `app/lib/ui/overview/overview_budget_watch_section.dart` - `BudgetWatchTray` (the card, with the
   failed, skeleton, empty and rows states), `BudgetWatchEmpty` and `BudgetWatchRows`, which renders each
   row with `BudgetCard`.
@@ -113,6 +132,8 @@ widgets compute no totals.
   Retry button shared by the Today and This month trays, a thin wrapper over `LoadErrorView.box`.
   The same file holds `OverviewRowFrame` (the bottom edge between rows), `OverviewAmountText` (a
   padded shared `AmountText`) and `OverviewEmptyCopy` (caption-role subtext copy).
+  `OverviewHistoryNeeded` takes a `body` and renders the 'More daily history needed.' title line
+  above `OverviewEmptyCopy(body)`; the Insights and Week so far trays share it.
   `OverviewLinkAction` is the shared link button (action colour, top padding) that the 'View History'
   link and both Budget watch links use.
 - `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) subscribing to
@@ -129,7 +150,10 @@ widgets compute no totals.
   account lines, symbols and amount kinds for entries and projected plan occurrences.
 - `app/test/ui/overview/` - view model tests, the `overview_screen_test.dart` button-to-step tests
   (320x760), `overview_grid_placement_test.dart`, `overview_slots_test.dart` (card kinds and the
-  seeding rule), `overview_content_test.dart` (the This month and Budget watch reads), `overview_edit_draft_test.dart` (the draft), `overview_edit_sheet_test.dart` (the
+  seeding rule and the nullable slot), `overview_content_test.dart` (the This month and Budget watch
+  reads), `overview_insights_mapping_test.dart` (the pure mapping),
+  `overview_insights_content_test.dart` (the Insights and Week so far reads),
+  `overview_edit_draft_test.dart` (the draft), `overview_edit_sheet_test.dart` (the
   sheet's two widget cases) and the shared fixture.
 
 ## Edit Overview
@@ -169,7 +193,7 @@ The draft rules:
 - `canApply` is true while at least one kind is shown. A saved list without a card kind would
   render as the defaults, so Done is disabled instead of saving it. The last shown card may still be
   dragged into Hidden.
-- Restore default sets `kinds` to `DisplayPreferences.defaults.overviewWidgets`, the five-kind
+- Restore default sets `kinds` to `DisplayPreferences.defaults.overviewWidgets`, the seven-kind
   default, with no confirmation. It replaces the whole list, so stored kinds without a card are
   dropped.
 
@@ -227,6 +251,14 @@ Ledger revision, the same gate as `today`; otherwise the This month tray shows a
 comes from `todayProvider`, so a day rollover into a new month reads the new month at once.
 `budgetWatch` follows the same gate: it is null, which renders a skeleton, until the `readBudgets()`
 result is current for the Ledger revision.
+`OverviewNotifier.build` also calls `AnalysisQueries.readMatchedDayInsights()` and
+`AnalysisQueries.readWeekSoFar()`, both parameterless mixed reads at today. `insights` and
+`weekSoFar` follow the same current-revision gate as `today`: each is null, which renders a skeleton,
+until its read is current for the Ledger revision. A failed `readMatchedDayInsights()` renders
+'Couldn't load your insights' and a filled Retry in the Insights tray, and a failed `readWeekSoFar()`
+renders 'Couldn't load this week's spending' and a filled Retry in the Week so far tray; both flags
+(`insightsFailed`, `weekSoFarFailed`) clear through the same `OverviewNotifier.retryReads`. The one
+exception to the gate is `insightsSettledEmpty`, described under Gotchas and invariants.
 Tapping 'View History' calls `OverviewViewModel.requestHistory`; `OverviewFlow` consumes the
 resulting `OverviewHistoryRequested` exactly once and clears it, including requests made before its
 Navigator mounts. On every layout `BootChrome` supplies a callback that selects the
@@ -280,6 +312,25 @@ Overview tab and does not change the shell selection.
   budgets yet.' and an 'Add a budget' link, when no category budget exists, including when only an
   All spending budget exists. With rows it ends in a 'View budgets' link. It has no forecast line,
   chip, headline or legend.
+- Insights: up to 2 lines from `readMatchedDayInsights`, mapped by `overviewInsights`
+  (`overview_insights_mapping.dart`) in the read's own ranked order; the read's
+  `InsightRules.maximumCategoryChanges` is the only cap. A line reads '<Category> is S$X higher than
+  your usual start.' or '<Category> is S$X lower than your usual start.', with 'are' in place of 'is'
+  for synthetic transfer buckets. The category name is the ledger category name, falling back to
+  `analysisBucketName` for Uncategorized and synthetic buckets. The amount is the absolute difference
+  and its span takes the expense tone when higher and the income tone when lower. When the state is
+  history-needed the tray shows 'More daily history needed.' with the body 'Keep adding entries to
+  compare the same days in earlier months.'. An available result with no rows renders nothing.
+- Week so far: from `readWeekSoFar`, mapped by `overviewWeekSoFar`. The range reads
+  '<week range> / <n> days', or '<day month> / 1 day' on a Monday, so it shows the elapsed days. Below
+  it are the observed total, formatted like Today's spent figure, and the usual note 'Usual is
+  <mean>, the average of <t1>, <t2> and <t3> over the same days of the last three weeks.' with the
+  three totals oldest first. The sentence '<amount> more than usual' or '<amount> less than usual'
+  shows only when the change qualifies (`WeekSoFar.qualifies`); it has no tone. The total takes the expense tone when the week is above usual and the income tone
+  when it is below usual, but only while that sentence is shown; otherwise the total is neutral
+  (`OverviewWeekAvailable.totalTone` is null for neutral). There is no bar
+  chart. When the state is history-needed the tray shows 'More daily history needed.' with the body
+  'Record more entries over the last three weeks to compare this week fairly.'.
 - Recent entries: at most 4 active entries dated before tomorrow, newest first; same-day entries
   order by id descending. A row caption is
   '<Today or d MMM> / <category> / <account line>' and the title is the entry name, falling back to
@@ -305,9 +356,24 @@ Overview tab and does not change the shell selection.
 - Placement never reorders cards, so some space cannot be removed. With column bottoms of 100, 400
   and 100, a two-column card goes at the top of 400 and leaves a 300 gap above it. The bottom edges
   of the last cards are also ragged.
-- Placement runs only over kinds with a card, so the seven unmapped kinds never take a cell.
-  `spendingOverTime` has a span of two but no card yet, so its span is covered only by the pure tests
-  until its card ships.
+- Placement runs only over slots whose builder returns a widget, so the five unmapped kinds never take
+  a cell. `spendingOverTime` has a span of two but no card yet, so its span is covered only by the
+  pure tests until its card ships.
+- An empty Insights card takes no slot. `OverviewSlotBuilder` is nullable, and the `insights` builder
+  returns null while `insightsSettledEmpty` is true. `OverviewSlotGrid` leaves a null slot out of the
+  slot map, so no cell and no 10 dp gap is added; a `SizedBox.shrink()` would still leave the gap.
+  The kind stays a card kind and stays Shown in Edit Overview.
+- Old saved lists do not get the new cards. A stored `overviewWidgets` list without `insights` or
+  `weekSoFar` hides them until the user adds them in Edit Overview; only the defaults carry them.
+- `insightsSettledEmpty` is the one exception to the current-revision gate. `OverviewNotifier.build`
+  computes it from the raw `readMatchedDayInsights()` value, current or stale: it is true when that
+  value is available with no changes, and `_readMixed` keeps the previous value while a refresh is
+  pending, so the empty card stays absent through a refresh instead of flashing a skeleton. It
+  applies to Insights only; Week so far and every other card keep the plain gate. It clears when
+  rows arrive, when a history-needed result arrives, when the read fails (so a failure always shows
+  the retry) and when no settled result exists yet. `insights` itself stays null while pending.
+- An Overview whose only Shown card is an empty Insights card renders blank.
+  `overviewWidgetsOrDefault` judges card kinds, so it does not fall back to the defaults.
 - Any AppSheet that covers the shell collapses Overview to one column on open and desktop, not only
   Add entry and Edit entry.
 - On open, a window about 780 dp wide or narrower (680 dp of grid for three columns, plus 28 dp of
@@ -354,14 +420,26 @@ Overview tab and does not change the shell selection.
 
 - Section order is the stored `overviewWidgets` order. A stored list with no card kind, either empty
   or holding only kinds without a card, renders as `DisplayPreferences.defaults.overviewWidgets`
-  through `overviewWidgetsOrDefault`, so Overview never renders empty. A list with at least one card
-  kind is returned unchanged, kinds without a card included
-  (`app/test/ui/overview/overview_slots_test.dart`: 'an empty list becomes the defaults', 'a list with
-  only cardless kinds becomes the defaults', 'a list with a card kind is returned unchanged'). The
-  grid's use of the function has no widget test.
-- `overviewCardKinds` lists the kinds with a card in declaration order
-  (`app/test/ui/overview/overview_slots_test.dart`: 'overviewCardKinds lists the card kinds in
-  declaration order').
+  through `overviewWidgetsOrDefault`. That fallback judges card kinds, not rendered output, so a
+  stored list with a card kind is never replaced even if its cards render nothing. A list with at
+  least one card kind is returned unchanged, kinds without a card included
+  (`app/test/ui/overview/overview_slots_test.dart`). The grid's use of the function has no widget
+  test.
+- `overviewCardKinds` lists the seven kinds with a card in declaration order, and the defaults are
+  the seven-kind list (`app/test/ui/overview/overview_slots_test.dart`). `overviewSlotFor` returns
+  null for `insights` while `insightsSettledEmpty` is true and a widget for a history-needed or
+  failed Insights state (same file, with a hand-written fake `OverviewViewModel`).
+- Insights lines, amount kinds, the 2-row cap, the 'Uncategorized is' and 'Savings transfers are'
+  wording, the Week so far range, comparison and usual note, and the Monday '1 day' range are
+  covered by `app/test/ui/overview/overview_insights_mapping_test.dart` and
+  `app/test/ui/overview/overview_insights_content_test.dart`. The content test also covers the
+  history-needed states with the seed ledger and the `insightsSettledEmpty` cases: an available
+  result with no rows, a refresh after an empty result, a read that has never settled, and a
+  failure after an empty result.
+- Failed Insights and Week so far reads set their flags, `insightsSettledEmpty` is false while
+  failed, and Retry clears them (`app/test/ui/overview/overview_view_model_test.dart`). Both reads
+  stay null while the analysis computes (`app/test/ui/overview/overview_content_test.dart`). The
+  failure copy and the Retry button have no widget test.
 - Recent entries never exceeds 4 and sorts newest first
   (`app/test/ui/overview/overview_view_model_test.dart`).
 - 'View History' is shown for nonempty, empty and section-loading Recent entries, and requests the
@@ -411,7 +489,7 @@ Overview tab and does not change the shell selection.
   moving it past the Hidden header, shows a card at its drop position, keeps kinds without a card at
   their exact index when shown cards are reordered (and in their relative order when a card is
   hidden or shown), reports `canApply` false when nothing is shown, restores the
-  five-kind default and applies itself to the other display preferences unchanged
+  seven-kind default and applies itself to the other display preferences unchanged
   (`app/test/ui/overview/overview_edit_draft_test.dart`, groups 'shown and hidden', 'move within
   shown', 'move shown to hidden', 'move hidden to shown', 'moves that change nothing',
   'restoreDefault and applyTo'). An injected fifth card kind appears in `hidden` ('an injected fifth
@@ -421,11 +499,10 @@ Overview tab and does not change the shell selection.
   (`app/test/ui/overview/overview_view_model_test.dart`: 'requestEditOverview emits an edit-overview
   request that clearStep clears').
 - On phone, dragging a grip reorders the list without dismissing the sheet, and Done saves the new
-  order to `overviewWidgets`
-  (`app/test/ui/overview/overview_edit_sheet_test.dart`: 'grip drag reorders without dismissing and
-  Done saves'). Dragging a card into Hidden and then tapping outside discards the draft and leaves
-  `overviewWidgets` unchanged (same file: 'dragging a card into Hidden then tapping outside
-  discards'). Both cases assert preference values and the presence of the sheet only.
+  order to `overviewWidgets`. Dragging a card into Hidden and then tapping outside discards the draft
+  and leaves `overviewWidgets` unchanged
+  (`app/test/ui/overview/overview_edit_sheet_test.dart`, seeded with all seven card kinds). Both
+  cases assert preference values and the presence of the sheet only.
 - The sheet shows Shown and Hidden as two separate sections, each with a heading, a tray surface and
   an empty-state hint row that is a drop target (`overviewEditShownHint`, `overviewEditHiddenHint`).
   The rendered-to-draft index mapping in `_EditLayout`, including a drop past the Hidden heading

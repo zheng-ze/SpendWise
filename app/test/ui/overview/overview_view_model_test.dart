@@ -20,42 +20,43 @@ Future<ProviderContainer> _keptContainer(Ledger ledger) async {
 void main() {
   setUp(silenceDebugPrint);
 
-  test(
-    'failed Today and This month reads are flagged and Retry recomputes',
-    () async {
-      final ledger = Ledger(state: defaultState());
-      var failing = true;
-      final container = overviewContainer(
-        ledger,
-        runner: (state) => failing
-            ? Future.error(StateError('boom'))
-            : syncComputeRunner(state),
-      );
-      container.listen(overviewViewModelProvider, (_, _) {});
-      await pumpEventQueue();
-      final failed = container.read(overviewViewModelProvider).requireValue;
-      expect(failed.todayFailed, isTrue);
-      expect(failed.thisMonthFailed, isTrue);
-      expect(failed.budgetWatchFailed, isTrue);
-      expect(failed.budgetWatch, isNull);
-      expect(failed.recent, isNotEmpty);
+  test('failed mixed reads are flagged and Retry recomputes', () async {
+    final ledger = Ledger(state: defaultState());
+    var failing = true;
+    final container = overviewContainer(
+      ledger,
+      runner: (state) =>
+          failing ? Future.error(StateError('boom')) : syncComputeRunner(state),
+    );
+    container.listen(overviewViewModelProvider, (_, _) {});
+    await pumpEventQueue();
+    final failed = container.read(overviewViewModelProvider).requireValue;
+    expect(failed.todayFailed, isTrue);
+    expect(failed.thisMonthFailed, isTrue);
+    expect(failed.budgetWatchFailed, isTrue);
+    expect(failed.budgetWatch, isNull);
+    expect(failed.recent, isNotEmpty);
+    expect(failed.insightsFailed, isTrue);
+    expect(failed.insightsSettledEmpty, isFalse);
+    expect(failed.weekSoFarFailed, isTrue);
 
-      failing = false;
-      container.read(overviewViewModelProvider.notifier).retryReads();
-      await settleAnalysis(container, ledger);
+    failing = false;
+    container.read(overviewViewModelProvider.notifier).retryReads();
+    await settleAnalysis(container, ledger);
 
-      final viewState = container.read(overviewViewModelProvider).requireValue;
-      expect(viewState.todayFailed, isFalse);
-      expect(viewState.thisMonthFailed, isFalse);
-      expect(viewState.budgetWatchFailed, isFalse);
-      expect(viewState.budgetWatch, isEmpty);
-      expect(viewState.today!.spent, Decimal.parse('45.70'));
-      final figures = viewState.thisMonth!.figures!;
-      expect(figures.spent, '-53.70');
-      expect(figures.income, '+3,200.00');
-      expect(figures.net, '+3,146.30');
-    },
-  );
+    final viewState = container.read(overviewViewModelProvider).requireValue;
+    expect(viewState.todayFailed, isFalse);
+    expect(viewState.thisMonthFailed, isFalse);
+    expect(viewState.budgetWatchFailed, isFalse);
+    expect(viewState.budgetWatch, isEmpty);
+    expect(viewState.insightsFailed, isFalse);
+    expect(viewState.weekSoFarFailed, isFalse);
+    expect(viewState.today!.spent, Decimal.parse('45.70'));
+    final figures = viewState.thisMonth!.figures!;
+    expect(figures.spent, '-53.70');
+    expect(figures.income, '+3,200.00');
+    expect(figures.net, '+3,146.30');
+  });
 
   test('This month rolls over to the new month with the day', () async {
     var now = DateTime.utc(2026, 10, 31);

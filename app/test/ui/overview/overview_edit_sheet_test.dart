@@ -31,11 +31,13 @@ const _seededKinds = [
   OverviewWidgetKind.recentEntries,
   OverviewWidgetKind.comingUp,
   OverviewWidgetKind.budgetWatch,
+  OverviewWidgetKind.insights,
+  OverviewWidgetKind.weekSoFar,
 ];
 
 final _hiddenHint = find.byType(OverviewEditHiddenHint);
 
-const _hiddenKind = OverviewWidgetKind.budgetWatch;
+const _hiddenKind = OverviewWidgetKind.weekSoFar;
 
 const _swappedKinds = [
   OverviewWidgetKind.thisMonth,
@@ -43,6 +45,8 @@ const _swappedKinds = [
   OverviewWidgetKind.recentEntries,
   OverviewWidgetKind.comingUp,
   OverviewWidgetKind.budgetWatch,
+  OverviewWidgetKind.insights,
+  OverviewWidgetKind.weekSoFar,
 ];
 
 void main() {
@@ -74,6 +78,8 @@ void main() {
     await _openSheet(tester);
     expect(_hiddenHint, findsOneWidget);
 
+    await tester.ensureVisible(_gripOf(_hiddenKind));
+    await tester.pumpAndSettle();
     await _dragGripDown(tester, _gripOf(_hiddenKind), _hideDragSteps);
 
     expect(_hiddenHint, findsNothing);

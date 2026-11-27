@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
+import 'package:spendwise/ledger/analysis/insights/insight_rules.dart';
+import 'package:spendwise/ledger/analysis/insights/matched_day_insights.dart';
 import 'package:spendwise/ledger/analysis/summaries/period_summary.dart';
 import 'package:spendwise/ledger/analysis/summaries/today_summary.dart';
 import 'package:spendwise/ledger/analysis/summaries/upcoming.dart';
@@ -12,6 +14,7 @@ import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/overview/overview_insights_mapping.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
 // MARK: - Constants
@@ -95,9 +98,14 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
     required this.upcoming,
     required this.thisMonth,
     this.budgetWatch,
+    this.insights,
+    this.weekSoFar,
     this.todayFailed = false,
     this.thisMonthFailed = false,
     this.budgetWatchFailed = false,
+    this.insightsFailed = false,
+    this.insightsSettledEmpty = false,
+    this.weekSoFarFailed = false,
     this.recordedToday = false,
     this.step,
   });
@@ -108,10 +116,15 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
   final List<OverviewUpcomingRow>? upcoming;
   final OverviewThisMonth? thisMonth;
   final List<BudgetListCard>? budgetWatch;
+  final OverviewInsights? insights;
+  final OverviewWeekSoFar? weekSoFar;
 
   final bool todayFailed;
   final bool thisMonthFailed;
   final bool budgetWatchFailed;
+  final bool insightsFailed;
+  final bool insightsSettledEmpty;
+  final bool weekSoFarFailed;
   final bool recordedToday;
   @override
   final OverviewStep? step;
@@ -125,9 +138,14 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
         upcoming: upcoming,
         thisMonth: thisMonth,
         budgetWatch: budgetWatch,
+        insights: insights,
+        weekSoFar: weekSoFar,
         todayFailed: todayFailed,
         thisMonthFailed: thisMonthFailed,
         budgetWatchFailed: budgetWatchFailed,
+        insightsFailed: insightsFailed,
+        insightsSettledEmpty: insightsSettledEmpty,
+        weekSoFarFailed: weekSoFarFailed,
         recordedToday: recordedToday,
         step: step(),
       );
@@ -203,6 +221,14 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
             ledgerState,
           )
         : null;
+    final insightsRead = queries.readMatchedDayInsights();
+    final insightsValue = insightsRead.value;
+    final insightsAreCurrent =
+        insightsRead.sourceRevision == currentLedger.revision;
+    final insightsFailed = insightsRead.state == AnalysisQueryState.failed;
+    final weekRead = queries.readWeekSoFar();
+    final weekValue = weekRead.value;
+    final weekIsCurrent = weekRead.sourceRevision == currentLedger.revision;
     return OverviewViewState(
       day: day,
       today: todayIsCurrent ? today.value : null,
@@ -211,6 +237,15 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
       thisMonthFailed: period.state == AnalysisQueryState.failed,
       budgetWatch: budgetWatch,
       budgetWatchFailed: budgets.state == AnalysisQueryState.failed,
+      insights: insightsAreCurrent && insightsValue != null
+          ? overviewInsights(insightsValue, ledgerState)
+          : null,
+      insightsFailed: insightsFailed,
+      insightsSettledEmpty: _isSettledEmpty(insightsValue, insightsFailed),
+      weekSoFar: weekIsCurrent && weekValue != null
+          ? overviewWeekSoFar(weekValue)
+          : null,
+      weekSoFarFailed: weekRead.state == AnalysisQueryState.failed,
       recordedToday: newest?.entry.date == day,
       recent: recent == null
           ? null
@@ -276,6 +311,12 @@ OverviewEntryRow _entryRow(Entry entry, LedgerState ledger, DateTime today) {
     amountKind: row.amountKind,
   );
 }
+
+bool _isSettledEmpty(MatchedDayInsights? settled, bool failed) =>
+    !failed &&
+    settled != null &&
+    settled.state == InsightState.available &&
+    settled.changes.isEmpty;
 
 AmountKind _netKind(Decimal net) {
   if (net > Decimal.zero) return AmountKind.income;
