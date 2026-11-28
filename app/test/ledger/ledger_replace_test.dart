@@ -77,7 +77,7 @@ void main() {
 
     expect(
       () => ledger.replaceContents(_invalidReplacement()),
-      throwsA(isA<UnknownHolder>()),
+      throwsA(isA<StateError>()),
     );
 
     expect(ledger.revision, 1);
