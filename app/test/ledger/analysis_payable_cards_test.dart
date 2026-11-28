@@ -114,13 +114,13 @@ void main() {
   test('equalCutsOrderByNameThenID', () {
     final setup = _setup();
     final ledger = setup.ledger;
-    _addOwingCard(ledger, 3, name: 'Zeta');
+    _addOwingCard(ledger, 3, name: 'Alpha');
     _addOwingCard(ledger, 2, name: 'Alpha');
-    _addOwingCard(ledger, 1, name: 'Alpha');
+    _addOwingCard(ledger, 1, name: 'Zeta');
 
     final cards = _cards(setup.queries);
 
-    expect(_idNumbers(cards), [1, 2, 3]);
+    expect(_idNumbers(cards), [2, 3, 1]);
     expect(cards.map((card) => card.accountName), ['Alpha', 'Alpha', 'Zeta']);
   });
 

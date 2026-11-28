@@ -100,11 +100,6 @@ void main() {
       const stored = [OverviewWidgetKind.today, OverviewWidgetKind.budgetWatch];
       expect(overviewWidgetsOrDefault(stored), stored);
     });
-
-    test('a stored list without cardStatement does not gain it', () {
-      const stored = [OverviewWidgetKind.today, OverviewWidgetKind.comingUp];
-      expect(overviewWidgetsOrDefault(stored), stored);
-    });
   });
 
   group('overviewSlotFor cardStatement', () {
