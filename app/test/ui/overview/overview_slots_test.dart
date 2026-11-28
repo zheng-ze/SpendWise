@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/ui/overview/overview_card_statement_mapping.dart';
+import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/overview/overview_insights_mapping.dart';
 import 'package:spendwise/ui/overview/overview_slots.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
@@ -54,7 +55,7 @@ OverviewViewState _viewState({
 );
 
 void main() {
-  const allKinds = [
+  const defaultKinds = [
     OverviewWidgetKind.today,
     OverviewWidgetKind.thisMonth,
     OverviewWidgetKind.recentEntries,
@@ -64,9 +65,33 @@ void main() {
     OverviewWidgetKind.insights,
     OverviewWidgetKind.weekSoFar,
   ];
+  const cardKinds = [
+    OverviewWidgetKind.today,
+    OverviewWidgetKind.thisMonth,
+    OverviewWidgetKind.recentEntries,
+    OverviewWidgetKind.topCategories,
+    OverviewWidgetKind.cardStatement,
+    OverviewWidgetKind.comingUp,
+    OverviewWidgetKind.budgetWatch,
+    OverviewWidgetKind.insights,
+    OverviewWidgetKind.weekSoFar,
+  ];
 
   test('overviewCardKinds lists the card kinds in declaration order', () {
-    expect(overviewCardKinds, allKinds);
+    expect(overviewCardKinds, cardKinds);
+  });
+
+  test('topCategories has a titled card right after recentEntries', () {
+    final card = overviewCardFor(OverviewWidgetKind.topCategories);
+    final recentIndex = overviewCardKinds.indexOf(
+      OverviewWidgetKind.recentEntries,
+    );
+    expect(card, isNotNull);
+    expect(card!.title, overviewTopCategoriesTitle);
+    expect(
+      overviewCardKinds[recentIndex + 1],
+      OverviewWidgetKind.topCategories,
+    );
   });
 
   group('overviewWidgetsOrDefault', () {
@@ -78,13 +103,13 @@ void main() {
     });
 
     test('the defaults are the eight card kinds', () {
-      expect(DisplayPreferences.defaults.overviewWidgets, allKinds);
+      expect(DisplayPreferences.defaults.overviewWidgets, defaultKinds);
     });
 
     test('a list with only cardless kinds becomes the defaults', () {
       expect(
         overviewWidgetsOrDefault(const [
-          OverviewWidgetKind.topCategories,
+          OverviewWidgetKind.accountBalances,
           OverviewWidgetKind.savingsPocket,
         ]),
         DisplayPreferences.defaults.overviewWidgets,
