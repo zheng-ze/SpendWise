@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -76,13 +77,16 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   Future<void> _pickImportFile() async {
     final notifier = ref.read(settingsRootViewModelProvider.notifier);
     final picker = ref.read(importFilePickerProvider);
+    Uint8List? bytes;
     try {
-      notifier.applyPickedFile(bytes: await picker.pick());
+      bytes = await picker.pick();
     } catch (e) {
       // A plugin failure such as PlatformException is reported to the view
       // model as a picker error.
       notifier.applyPickedFile(pickerError: e);
+      return;
     }
+    notifier.applyPickedFile(bytes: bytes);
   }
 
   Future<void> _confirmImport(BuildContext context) async {
