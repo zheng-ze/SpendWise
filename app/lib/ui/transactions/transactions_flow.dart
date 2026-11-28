@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/format/date_format.dart';
+import 'package:spendwise/ui/shell/shell_navigation.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/trends_flow.dart';
@@ -48,6 +49,19 @@ class TransactionsFlow extends FlowBase<TransactionsStep> {
 class _TransactionsFlowState
     extends FlowBaseState<TransactionsStep, TransactionsFlow> {
   Route<void>? _trendsRoute;
+  bool _pickupScheduled = false;
+
+  bool get _consumesShellRequests => widget.initialScope == null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_consumesShellRequests) return;
+    ref.listenManual(shellNavigationProvider, (_, request) {
+      if (request != null) _schedulePickup();
+    });
+    _schedulePickup();
+  }
 
   TransactionsViewModel get _screenViewModel =>
       ref.read(transactionsViewModelProvider(widget.initialScope).notifier);
@@ -105,8 +119,32 @@ class _TransactionsFlowState
     _trendsRoute = route;
     Navigator.of(context).push(route);
     route.completed.whenComplete(() {
-      if (identical(_trendsRoute, route)) _trendsRoute = null;
+      if (!identical(_trendsRoute, route)) return;
+      _trendsRoute = null;
+      if (mounted && _consumesShellRequests) _schedulePickup();
     });
+  }
+
+  void _schedulePickup() {
+    if (_pickupScheduled) return;
+    _pickupScheduled = true;
+    WidgetsBinding.instance.ensureVisualUpdate();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pickupScheduled = false;
+      if (mounted) _pickUpShellRequest();
+    });
+  }
+
+  void _pickUpShellRequest() {
+    final request = ref.read(shellNavigationProvider);
+    if (request == null) return;
+    final context = navigatorContext;
+    if (context == null) return;
+    final route = _trendsRoute;
+    // An exiting route keeps the request pending until route.completed fires.
+    if (route != null && !route.isActive) return;
+    if (route == null) _openTrends(context);
+    ref.read(shellNavigationProvider.notifier).consume(request);
   }
 
   void _closeTrends() {
