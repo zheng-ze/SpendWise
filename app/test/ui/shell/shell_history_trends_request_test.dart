@@ -301,24 +301,4 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
-
-  testWidgets('a pending request is picked up when History is selected later', (
-    tester,
-  ) async {
-    final container = _shellContainer();
-    await _pumpShellOnHistory(tester, container);
-    final destination = container.read(selectedDestinationProvider.notifier);
-
-    _requestTrends(container);
-    destination.state = ShellDestination.overview;
-    await tester.pumpAndSettle();
-    expect(_trends, findsNothing);
-    expect(container.read(shellNavigationProvider), isNotNull);
-
-    destination.state = ShellDestination.history;
-    await tester.pumpAndSettle();
-
-    expect(_trends, findsOneWidget);
-    expect(container.read(shellNavigationProvider), isNull);
-  }, timeout: uiTestTimeout);
 }

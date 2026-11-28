@@ -58,7 +58,6 @@ class _TransactionsFlowState
     super.initState();
     if (!_consumesShellRequests) return;
     ref.listenManual(shellNavigationProvider, (_, _) => _schedulePickup());
-    ref.listenManual(selectedDestinationProvider, (_, _) => _schedulePickup());
     _schedulePickup();
   }
 
@@ -137,9 +136,6 @@ class _TransactionsFlowState
   void _pickUpShellRequest() {
     final request = ref.read(shellNavigationProvider);
     if (request == null) return;
-    if (ref.read(selectedDestinationProvider) != ShellDestination.history) {
-      return;
-    }
     final context = navigatorContext;
     if (context == null) return;
     final route = _trendsRoute;

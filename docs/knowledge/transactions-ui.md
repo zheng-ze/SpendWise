@@ -134,8 +134,8 @@ control is the `PageHeader` back control, Flutter's icon-only `BackButton` with 
 pops inner child routes first.
 
 The unscoped `TransactionsFlow` consumes the pending `ShellRequest` from `shellNavigationProvider`
-only after its Navigator is mounted and History is the selected destination. It pushes the Trends
-page when none exists, reveals an open Trends route without resetting it, and waits for an exiting
+only after its Navigator is mounted. The shell builds the Flow only while History is selected. It
+pushes the Trends page when none exists, reveals an open Trends route without resetting it, and waits for an exiting
 Trends route to complete before it acts. Repeated requests coalesce, and the Flow clears only the
 request it handled. Scoped Money flows never consume the request. No Overview widget calls
 `openHistoryTrends()` yet; only a test action does.
