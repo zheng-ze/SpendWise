@@ -9,6 +9,7 @@ import 'package:spendwise/ui/overview/overview_insights_section.dart';
 import 'package:spendwise/ui/overview/overview_recent_section.dart';
 import 'package:spendwise/ui/overview/overview_this_month_section.dart';
 import 'package:spendwise/ui/overview/overview_today_section.dart';
+import 'package:spendwise/ui/overview/overview_top_categories_section.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/overview/overview_week_so_far_section.dart';
 
@@ -85,7 +86,15 @@ OverviewCard? overviewCardFor(OverviewWidgetKind kind) => switch (kind) {
       viewModel: viewModel,
     ),
   ),
-  OverviewWidgetKind.topCategories ||
+  OverviewWidgetKind.topCategories => OverviewCard(
+    title: overviewTopCategoriesTitle,
+    subtitle: overviewTopCategoriesSubtitle,
+    build: (viewState, viewModel) => TopCategoriesTray(
+      topCategories: viewState.topCategories,
+      failed: viewState.topCategoriesFailed,
+      viewModel: viewModel,
+    ),
+  ),
   OverviewWidgetKind.accountBalances ||
   OverviewWidgetKind.spendingOverTime ||
   OverviewWidgetKind.savingsPocket => null,
