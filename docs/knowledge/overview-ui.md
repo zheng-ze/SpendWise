@@ -121,7 +121,7 @@ totals.
 - `app/lib/ui/overview/overview_top_categories_section.dart` - `TopCategoriesTray` (the card, with the
   failed, skeleton and content states), `TopCategoriesContent` (caption, rows or the empty copy, and
   the 'Open Trends' link), `TopCategoriesRows`, `OverviewTopCategoryRowView` and `TopCategoryBar`.
-  Bar and icon colours come from `CategoryPalette.resolve` with the stored `chartColours`.
+  The bar colour comes from `CategoryPalette.resolve` with the stored `chartColours`.
 - `app/lib/ui/overview/overview_budget_watch_section.dart` - `BudgetWatchTray` (the card, with the
   failed, skeleton, empty and rows states), `BudgetWatchEmpty` and `BudgetWatchRows`, which renders each
   row with `BudgetCard`.

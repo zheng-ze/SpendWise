@@ -106,16 +106,18 @@ class TopCategoriesRows extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lastIndex = rows.length - 1;
+    Widget frameOf(int index, OverviewTopCategoryRow row) {
+      final view = OverviewTopCategoryRowView(
+        row: row,
+        index: index,
+        chartColours: chartColours,
+      );
+      return OverviewRowFrame(isLast: index == lastIndex, child: view);
+    }
+
     final lines = [
-      for (final (index, row) in rows.indexed)
-        OverviewRowFrame(
-          isLast: index == rows.length - 1,
-          child: OverviewTopCategoryRowView(
-            row: row,
-            index: index,
-            chartColours: chartColours,
-          ),
-        ),
+      for (final (index, row) in rows.indexed) frameOf(index, row),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,7 +151,7 @@ class OverviewTopCategoryRowView extends StatelessWidget {
     final icon = Icon(
       symbolIcon(row.symbolName),
       size: overviewTopCategoryIconSize,
-      color: barColor,
+      color: colors.text,
     );
     final name = Expanded(child: Text(row.name, style: text.body));
     final amount = Padding(

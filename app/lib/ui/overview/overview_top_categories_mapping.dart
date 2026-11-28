@@ -13,7 +13,10 @@ const _topCategoriesRowLimit = 3;
 // MARK: - Types
 @immutable
 class OverviewTopCategories {
-  const OverviewTopCategories({required this.caption, required this.rows});
+  OverviewTopCategories({
+    required this.caption,
+    required List<OverviewTopCategoryRow> rows,
+  }) : rows = List.unmodifiable(rows);
 
   final String caption;
   final List<OverviewTopCategoryRow> rows;
