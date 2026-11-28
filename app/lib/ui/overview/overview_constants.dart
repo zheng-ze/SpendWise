@@ -28,6 +28,20 @@ const overviewRowVerticalPadding = 7.0;
 
 const overviewRowTrailingGap = 9.0;
 
+// MARK: - Top categories
+
+const overviewTopCategoryIconSize = 18.0;
+
+const overviewTopCategoryIconGap = 8.0;
+
+const overviewTopCategoryBarHeight = 6.0;
+
+const overviewTopCategoryBarRadius = 3.0;
+
+const overviewTopCategoryBarTopGap = 6.0;
+
+const overviewTopCategoryCaptionGap = 4.0;
+
 // MARK: - Links
 
 const overviewLinkTopPadding = 8.0;
@@ -110,6 +124,16 @@ const overviewInsightsTitle = 'Insights';
 const overviewInsightsSubtitle = 'Categories that differ from your usual start';
 
 const overviewInsightsErrorTitle = "Couldn't load your insights";
+
+const overviewTopCategoriesTitle = 'Top categories';
+
+const overviewTopCategoriesSubtitle = 'Your largest spending this month';
+
+const overviewTopCategoriesEmpty = 'No spending yet';
+
+const overviewTopCategoriesTrendsLink = 'Open Trends';
+
+const overviewTopCategoriesErrorTitle = "Couldn't load your top categories";
 
 const overviewWeekSoFarTitle = 'Week so far';
 
