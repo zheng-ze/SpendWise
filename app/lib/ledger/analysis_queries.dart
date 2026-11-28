@@ -17,6 +17,7 @@ import 'package:spendwise/ledger/analysis/insights/insight_rules.dart';
 import 'package:spendwise/ledger/analysis/insights/matched_day_insights.dart';
 import 'package:spendwise/ledger/analysis/summaries/month_pace.dart';
 import 'package:spendwise/ledger/analysis/summaries/month_spread.dart';
+import 'package:spendwise/ledger/analysis/summaries/payable_cards.dart';
 import 'package:spendwise/ledger/analysis/summaries/period_summary.dart';
 import 'package:spendwise/ledger/analysis/summaries/register.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
@@ -138,6 +139,9 @@ class AnalysisQueries extends ChangeNotifier {
   AnalysisQueryResult<CardStatement?> readCardStatement({
     required String accountID,
   }) => _readCardStatement(accountID: accountID);
+
+  AnalysisQueryResult<List<PayableCard>> readPayableCards() =>
+      _readPayableCards();
 
   AnalysisQueryResult<DateTime?> readFirstRecordMonth() =>
       _readFirstRecordMonth();

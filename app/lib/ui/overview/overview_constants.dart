@@ -117,6 +117,16 @@ const overviewWeekSoFarSubtitle = 'This week compared with usual';
 
 const overviewWeekSoFarErrorTitle = "Couldn't load this week's spending";
 
+const overviewCardStatementTitle = 'Card statement';
+
+const overviewCardStatementSubtitle = 'What you owe before each statement cut';
+
+const overviewCardStatementEmpty = 'No card statements to pay.';
+
+const overviewCardStatementPayableLabel = 'Payable';
+
+const overviewCardStatementCyclePrefix = 'This cycle ';
+
 const overviewHistoryNeededTitle = 'More daily history needed.';
 
 const overviewInsightsHistoryNeededBody =

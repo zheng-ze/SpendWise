@@ -131,6 +131,15 @@ extension _AnalysisLedgerReads on AnalysisQueries {
     );
   }
 
+  AnalysisQueryResult<List<PayableCard>> _readPayableCards() {
+    const identity = 'payable-cards';
+    return _readLedgerOnly<List<PayableCard>>(
+      identity,
+      '$identity|${_today.toIso8601String()}|${_ledger.revision}',
+      () => payableCards(ledger: _ledger.state, today: _today),
+    );
+  }
+
   AnalysisQueryResult<DateTime?> _readFirstRecordMonth() {
     const identity = 'first-record-month';
     return _readLedgerOnly<DateTime?>(
