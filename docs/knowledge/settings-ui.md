@@ -1,11 +1,11 @@
 # Settings UI
 
-Last reconciled: 2026-11-27
+Last reconciled: 2026-11-28
 
 ## Feature overview
 
-Settings contains category management (list, form sheet, icon and colour picker) and the Recycle Bin for
-archived rows. Recurring-plan management lives
+Settings contains category management (list, form sheet, icon and colour picker), the Recycle Bin for
+archived rows, and the "Import from Money Manager" row (see `money-manager-import.md`). Recurring-plan management lives
 in the Money Plans segment; its list, detail, form and pane modules live under `app/lib/ui/plans/`,
 not under Settings. The ledger
 screens are mostly stateless facades over `Ledger`, with per-sheet form view models keyed by their arguments.
@@ -18,6 +18,9 @@ screens are mostly stateless facades over `Ledger`, with per-sheet form view mod
   optional back callback, a disabled-back flag, a subtitle and a trailing action, draws its title in
   the headline style's own medium weight, and every screen with a back control uses it, including
   the Settings root, the Categories list and the Recycle bin.
+- `app/lib/ui/settings/import_errors_sheet.dart`, `import_error_text.dart` - the import errors sheet and
+  the outcome-to-message mapping; `app/lib/import/import_file_picker_service.dart` - the `ImportFilePicker`
+  seam the Flow reads.
 - `app/lib/ui/settings/category/` - category list, form sheet, subcategories section and parent picker.
 - `app/lib/ui/common/pickers/symbol_picker.dart`, `app/lib/ui/theme/category_palette.dart` - the icon and
   colour picker and the saved-colour mapping.
@@ -97,6 +100,18 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 
 ## Screens and flows
 
+- **Import from Money Manager** - the first row of the Data section, above Recycle Bin: an upload icon,
+  the title "Import from Money Manager" and the subtitle "Replaces all ledger data". It is disabled
+  unless `importStatus` is `idle` and shows an `InlineSpinner` while `running`. `SettingsRootViewState`
+  carries `importStatus` (`idle`, `picking`, `confirming`, `running`) and `importErrors`. The
+  notifier emits `ImportFileRequested`, `ImportConfirmationRequested` and `ImportErrorsRequested`;
+  `SettingsFlow` performs each (the file picker, `showDestructiveConfirmation`, and the
+  `AppSheet` errors sheet) and reports the raw result back through `applyPickedFile`,
+  `applyImportConfirmed` and `dismissImportErrors`. The notifier takes `ref.keepAlive()` for the run
+  and holds it until the errors are dismissed, and `SettingsFlow.initState` schedules a post-frame
+  `_handleHeldStep` that shows a step still held by the kept-alive notifier. The pipeline and
+  persistence behavior are in `money-manager-import.md`.
+  (`settings_root_screen.dart`: `_ImportRow`; `settings_root_view_model.dart`; `settings_flow.dart`)
 - **Currency** - a fixed row reading "Amounts display in Singapore dollars / SGD". There is no
   multi-currency support. (`app/lib/ui/settings/settings_root_screen.dart`)
 
@@ -185,6 +200,8 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 - Category kind is locked while active or binned entries reference it
   (`app/lib/ui/settings/category/category_form_view_model.dart`: `_isReferenced`;
   `packages/domain/lib/src/ledger_state/queries/ledger_state_queries.dart`: `entryCountReferencing`).
+- A successful import shows no message and keeps display preferences: the import writes only ledger
+  rows (`money-manager-import.md`), and `SettingsRootNotifier.applyImportConfirmed` stores errors only.
 - Purge moves referenced rows to `referenceOnly` and unreferenced rows to tombstoned; the domain
   decides which. `ledger-and-money-model.md` §Purge.
 
@@ -200,5 +217,7 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 - Plan save preserves the template's original sign.
 - The Entries section lists binned entries newest first, hides when none are binned, restores
   without confirmation and purges only after confirmation.
+- The import row ignores taps unless the status is `idle`, so a second tap during a pending pick never
+  reaches the picker. (`SettingsRootNotifier.requestImport`)
 - Recycle bin restore on a pocket whose parent is still binned is a silent no-op.
 - Delete copy pluralizes by referencing-entry count.

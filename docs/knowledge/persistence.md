@@ -1,6 +1,6 @@
 # Persistence
 
-Last reconciled: 2026-11-22
+Last reconciled: 2026-11-28
 
 ## Feature overview
 
@@ -87,6 +87,24 @@ Constants: `debounce = 250 ms`, `maxRetries = 2`, `retryBackoff = 200 ms` (`drif
    timer, awaits any in-flight flush, then loops flush cycles until `pending` is empty. A cycle that
    gives up makes `flushNow` throw `PersistenceBarrierFailure` carrying the last failure.
    (`drift_ledger_store.dart:flushNow`, `drift_store_scheduling.dart:_runCycle`)
+
+## Replace-all batches and rollback
+
+The Money Manager import publishes one `Ledger.replaceContents` batch holding a delete for every
+current row and an upsert for every replacement row (`ledger_state_replace.dart`). The store needs
+no special case. `_drain` adds the whole batch to `pending` in one synchronous call, and the old and
+new ids differ, so coalescing keeps every delete and every upsert and the batch commits in one
+SQLite transaction. The import touches neither `store_meta` (so `has_seeded` stays set and a wiped
+ledger is not re-seeded) nor SharedPreferences.
+
+If the barrier fails, `MoneyManagerImporter` calls `Ledger.replaceContents` with the pre-import
+snapshot. The failed transaction rolled back, so the disk still holds the original rows, and
+`pending` now holds the import batch followed by the rollback batch. Coalescing keeps only the last
+change per row: for each original id the re-upsert of the original row, and for each new id the
+delete of a row that never reached disk. The debounce cycle armed by the rollback enqueue (250 ms,
+which cancels the timed retry) commits that set, and the disk ends equal to the original. Tests:
+`app/test/persistence/drift_ledger_store_test.dart`, group `replace batch`. See
+`money-manager-import.md`.
 
 ## Deleting rows and load
 
@@ -194,5 +212,8 @@ as the first flush so a crash before that save leaves the flag clear and reseeds
 - A save that fails every attempt reports `failedWillRetry`, arms a timed retry, and leaves its
   pending batch undrained until a cycle commits; `flushNow` then throws
   `PersistenceBarrierFailure`. (`drift_store_scheduling.dart:_runCycle`)
+- A replace-all batch commits in one transaction and leaves `has_seeded` untouched; after a failed
+  flush, the rollback batch coalesces with it so the disk returns to the original rows.
+  (`drift_store_writes.dart:_coalesce`; `drift_ledger_store_test.dart`, group `replace batch`)
 - An upgrade from any schema below 9 drops every table and recreates the fresh schema.
   (`ledger_database.dart:migration`; tests in `schema_reset_test.dart`)
