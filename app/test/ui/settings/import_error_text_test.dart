@@ -28,12 +28,14 @@ void main() {
     final messages = rejected(const [
       UnreadableFile(),
       MissingColumns(['A', 'B']),
+      UnexpectedColumns(),
       NoRows(),
     ]);
 
     expect(messages, [
       "Couldn't read this file as an Excel workbook.",
       'Missing columns: A, B',
+      "The columns don't match the Money Manager export.",
       'The file has no rows to import.',
     ]);
   });

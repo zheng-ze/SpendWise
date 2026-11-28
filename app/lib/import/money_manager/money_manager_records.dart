@@ -47,6 +47,10 @@ final class MissingColumns extends MoneyManagerImportError {
   final List<String> names;
 }
 
+final class UnexpectedColumns extends MoneyManagerImportError {
+  const UnexpectedColumns();
+}
+
 final class NoRows extends MoneyManagerImportError {
   const NoRows();
 }
@@ -101,27 +105,30 @@ final class MoneyManagerRecordsFailed extends MoneyManagerParseResult {
   final List<MoneyManagerImportError> errors;
 }
 
-const _dateHeader = 'Date';
-const _accountHeader = 'Account';
-const _categoryHeader = 'Category';
-const _subcategoryHeader = 'Subcategory';
-const _noteHeader = 'Note';
-const _typeHeader = 'Income/Expense';
-const _descriptionHeader = 'Description';
-const _amountHeader = 'Amount';
-const _currencyHeader = 'Currency';
-
-const _requiredHeaders = [
-  _dateHeader,
-  _accountHeader,
-  _categoryHeader,
-  _subcategoryHeader,
-  _noteHeader,
-  _typeHeader,
-  _descriptionHeader,
-  _amountHeader,
-  _currencyHeader,
+const _expectedHeaders = [
+  'Date',
+  'Account',
+  'Category',
+  'Subcategory',
+  'Note',
+  'SGD',
+  'Income/Expense',
+  'Tag',
+  'Description',
+  'Amount',
+  'Currency',
+  'Account',
 ];
+
+const _dateColumn = 0;
+const _accountColumn = 1;
+const _categoryColumn = 2;
+const _subcategoryColumn = 3;
+const _noteColumn = 4;
+const _typeColumn = 6;
+const _descriptionColumn = 8;
+const _amountColumn = 9;
+const _currencyColumn = 10;
 
 const _expenseValue = 'Expense';
 const _incomeValue = 'Income';
@@ -140,16 +147,19 @@ MoneyManagerParseResult parseMoneyManagerSheet(XlsxSheet sheet) {
   if (rows.length <= _headerRowCount) {
     return const MoneyManagerRecordsFailed([NoRows()]);
   }
-  final columns = _columnIndexes(rows.first);
-  final missing = _requiredHeaders.where((name) => !columns.containsKey(name));
+  final header = _trimmedHeader(rows.first);
+  final missing = _missingHeaders(header);
   if (missing.isNotEmpty) {
-    return MoneyManagerRecordsFailed([MissingColumns(missing.toList())]);
+    return MoneyManagerRecordsFailed([MissingColumns(missing)]);
+  }
+  if (!_isExpectedHeader(header)) {
+    return const MoneyManagerRecordsFailed([UnexpectedColumns()]);
   }
 
   final parsed = <MoneyManagerRow>[];
   final errors = <MoneyManagerImportError>[];
   for (var index = _headerRowCount; index < rows.length; index++) {
-    final cells = _RowCells(rows[index], columns);
+    final cells = _RowCells(rows[index]);
     final row = _parseRow(index + 1, cells, sheet.date1904, errors);
     if (row != null) parsed.add(row);
   }
@@ -157,24 +167,40 @@ MoneyManagerParseResult parseMoneyManagerSheet(XlsxSheet sheet) {
   return MoneyManagerRecords(parsed);
 }
 
-Map<String, int> _columnIndexes(List<String> header) {
-  final columns = <String, int>{};
-  for (var index = 0; index < header.length; index++) {
-    columns.putIfAbsent(header[index].trim(), () => index);
+List<String> _trimmedHeader(List<String> header) {
+  final trimmed = [for (final cell in header) cell.trim()];
+  while (trimmed.isNotEmpty && trimmed.last.isEmpty) {
+    trimmed.removeLast();
   }
-  return columns;
+  return trimmed;
+}
+
+List<String> _missingHeaders(List<String> header) {
+  final remaining = [...header];
+  final missing = <String>[];
+  for (final name in _expectedHeaders) {
+    if (remaining.remove(name)) continue;
+    if (!missing.contains(name)) missing.add(name);
+  }
+  return missing;
+}
+
+bool _isExpectedHeader(List<String> header) {
+  if (header.length != _expectedHeaders.length) return false;
+  for (var index = 0; index < header.length; index++) {
+    if (header[index] != _expectedHeaders[index]) return false;
+  }
+  return true;
 }
 
 final class _RowCells {
-  const _RowCells(this._cells, this._columns);
+  const _RowCells(this._cells);
 
   final List<String> _cells;
-  final Map<String, int> _columns;
 
-  String operator [](String header) {
-    final index = _columns[header]!;
-    if (index >= _cells.length) return '';
-    return _cells[index].trim();
+  String operator [](int column) {
+    if (column >= _cells.length) return '';
+    return _cells[column].trim();
   }
 }
 
@@ -185,23 +211,23 @@ MoneyManagerRow? _parseRow(
   List<MoneyManagerImportError> errors,
 ) {
   final before = errors.length;
-  final date = _parseDate(cells[_dateHeader], date1904);
+  final date = _parseDate(cells[_dateColumn], date1904);
   if (date == null) errors.add(InvalidDate(sheetRow));
 
-  final account = cells[_accountHeader];
+  final account = cells[_accountColumn];
   if (account.isEmpty) errors.add(MissingAccount(sheetRow));
 
-  final typeText = cells[_typeHeader];
+  final typeText = cells[_typeColumn];
   final type = _parseType(typeText);
-  final category = cells[_categoryHeader];
+  final category = cells[_categoryColumn];
   final categoryError = _categoryError(sheetRow, type, typeText, category);
   if (categoryError != null) errors.add(categoryError);
 
-  final amountText = cells[_amountHeader];
+  final amountText = cells[_amountColumn];
   final amount = _parseAmount(amountText);
   if (amount == null) errors.add(InvalidAmount(sheetRow, amountText));
 
-  final currency = cells[_currencyHeader];
+  final currency = cells[_currencyColumn];
   if (currency != _supportedCurrency) {
     errors.add(UnsupportedCurrency(sheetRow, currency));
   }
@@ -213,9 +239,9 @@ MoneyManagerRow? _parseRow(
     date: date!,
     account: account,
     category: category,
-    subcategory: cells[_subcategoryHeader],
-    note: cells[_noteHeader],
-    description: cells[_descriptionHeader],
+    subcategory: cells[_subcategoryColumn],
+    note: cells[_noteColumn],
+    description: cells[_descriptionColumn],
     amount: amount!,
   );
 }

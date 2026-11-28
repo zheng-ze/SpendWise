@@ -34,8 +34,8 @@ List<String> row({
     note,
     amount,
     type,
-    description,
     '',
+    description,
     amount,
     currency,
     duplicateAccount,
@@ -66,13 +66,18 @@ List<MoneyManagerImportError> failedErrors(
   return (result as MoneyManagerRecordsFailed).errors;
 }
 
+List<MoneyManagerImportError> headerErrors(List<String> header) {
+  final result = parseMoneyManagerSheet(sheetWith([header, row()]));
+  return (result as MoneyManagerRecordsFailed).errors;
+}
+
 DateTime dateOf(String serial, {bool date1904 = false}) {
   return parsedRows([row(date: serial)], date1904: date1904).single.date;
 }
 
 void main() {
   group('header and shape', () {
-    test('reads columns from the first occurrence of a header', () {
+    test('reads the account from column B, not the duplicate in column L', () {
       final parsed = parsedRows([
         row(account: 'Cash', duplicateAccount: 'Shadow'),
       ]);
@@ -80,21 +85,80 @@ void main() {
       expect(parsed.single.account, 'Cash');
     });
 
+    test('accepts a header with surrounding whitespace', () {
+      final padded = [for (final name in moneyManagerHeader) ' $name '];
+
+      final result = parseMoneyManagerSheet(sheetWith([padded, row()]));
+
+      expect(result, isA<MoneyManagerRecords>());
+    });
+
+    test('accepts empty cells after the last header', () {
+      final trailing = [...moneyManagerHeader, '', ' '];
+
+      final result = parseMoneyManagerSheet(sheetWith([trailing, row()]));
+
+      expect(result, isA<MoneyManagerRecords>());
+    });
+
     test('lists missing column names in header order', () {
       final header = ['Date', 'Account', 'Category', 'Subcategory'];
-      final sheet = sheetWith([header, row()]);
 
-      final result = parseMoneyManagerSheet(sheet);
+      final errors = headerErrors(header);
 
-      final errors = (result as MoneyManagerRecordsFailed).errors;
       final missing = errors.single as MissingColumns;
       expect(missing.names, [
         'Note',
+        'SGD',
         'Income/Expense',
+        'Tag',
         'Description',
         'Amount',
         'Currency',
+        'Account',
       ]);
+    });
+
+    test('lists a column missing from the middle', () {
+      final header = [...moneyManagerHeader]..remove('Tag');
+
+      final errors = headerErrors(header);
+
+      expect((errors.single as MissingColumns).names, ['Tag']);
+    });
+
+    test('reports a missing second Account', () {
+      final header = moneyManagerHeader.take(11).toList();
+
+      final errors = headerErrors(header);
+
+      expect((errors.single as MissingColumns).names, ['Account']);
+    });
+
+    test('lists a name missing twice only once', () {
+      final header = [...moneyManagerHeader]
+        ..removeWhere((n) => n == 'Account');
+
+      final errors = headerErrors(header);
+
+      expect((errors.single as MissingColumns).names, ['Account']);
+    });
+
+    test('rejects columns in the wrong order', () {
+      final header = [...moneyManagerHeader];
+      header.setRange(7, 9, ['Description', 'Tag']);
+
+      final errors = headerErrors(header);
+
+      expect(errors.single, isA<UnexpectedColumns>());
+    });
+
+    test('rejects a 13th column', () {
+      final header = [...moneyManagerHeader, 'Extra'];
+
+      final errors = headerErrors(header);
+
+      expect(errors.single, isA<UnexpectedColumns>());
     });
 
     test('rejects a header-only sheet', () {

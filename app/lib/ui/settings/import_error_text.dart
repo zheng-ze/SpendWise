@@ -7,6 +7,8 @@ const String importUnexpectedMessage =
     "Couldn't import this file. Your data was not changed.";
 const String unreadableFileMessage =
     "Couldn't read this file as an Excel workbook.";
+const String unexpectedColumnsMessage =
+    "The columns don't match the Money Manager export.";
 const String noRowsMessage = 'The file has no rows to import.';
 const String invalidDateText = "Date isn't valid";
 const String missingAccountText = 'Account is missing';
@@ -46,6 +48,7 @@ String _fileMessage(MoneyManagerImportError error) {
     UnreadableFile() => unreadableFileMessage,
     MissingColumns(:final names) =>
       'Missing columns: ${names.join(columnSeparator)}',
+    UnexpectedColumns() => unexpectedColumnsMessage,
     NoRows() => noRowsMessage,
     MoneyManagerRowError() => _rowMessage(error),
   };
