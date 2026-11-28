@@ -156,6 +156,11 @@ class Ledger extends ChangeNotifier {
   List<LedgerChange> deleteBudget(String rawID) =>
       _mutate((state) => state.deleteBudget(rawID));
 
+  // MARK: - Replace
+
+  List<LedgerChange> replaceContents(LedgerState replacement) =>
+      _mutate((state) => state.replaceContents(replacement));
+
   // MARK: - Queries
 
   List<TransactionCategory> categories(CategoryKind kind) =>

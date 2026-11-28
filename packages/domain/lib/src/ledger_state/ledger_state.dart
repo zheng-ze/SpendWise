@@ -35,6 +35,7 @@ part 'mutators/ledger_state_plans.dart';
 part 'mutators/ledger_state_pockets.dart';
 part 'mutators/ledger_state_purge.dart';
 part 'queries/ledger_state_queries.dart';
+part 'mutators/ledger_state_replace.dart';
 part 'mutators/ledger_state_replay.dart';
 part 'mutators/ledger_state_sweep.dart';
 

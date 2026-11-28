@@ -1,6 +1,6 @@
 # Knowledge Base Index
 
-Last reconciled: 2026-11-27
+Last reconciled: 2026-11-28
 
 One comprehensive entry per feature. Read the relevant entry before planning or changing a
 feature; it records the final implementation, key files, interactions, navigation, APIs, gotchas,
@@ -22,7 +22,8 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | Trends page hosted by History and category drill-down | [stats-and-analysis-ui.md](stats-and-analysis-ui.md) |
 | Overview screen: Today, This month, Recent entries, Coming up, Budget watch, Insights, Week so far, and Edit Overview | [overview-ui.md](overview-ui.md) |
 | Money host with Budgets, Accounts, and Plans segments, and account/pocket forms | [accounts-ui.md](accounts-ui.md) |
-| Settings: categories, recycle bin, device-local display preferences | [settings-ui.md](settings-ui.md) |
+| Settings: categories, recycle bin, Money Manager import row, device-local display preferences | [settings-ui.md](settings-ui.md) |
+| Money Manager import: picker, .xlsx reader, parsing, ledger builder, atomic replacement and rollback | [money-manager-import.md](money-manager-import.md) |
 | Receipt OCR entry | [ocr-receipt-entry.md](ocr-receipt-entry.md) |
 | UI framework (MVVM, Flow, Step, shell pane retention, route-owned sheets, theme and component kit) | [ui-framework-mvvm.md](ui-framework-mvvm.md) |
 

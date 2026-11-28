@@ -1,6 +1,6 @@
 # Ledger & Money Model
 
-Last reconciled: 2026-11-22
+Last reconciled: 2026-11-28
 
 ## Feature overview
 
@@ -40,6 +40,8 @@ an id and equality is by case + id: `IdCollision`, `UnknownAccount`, `UnknownHol
   reference-counting helpers used by purge.
 - `packages/domain/lib/src/ledger_state/mutators/ledger_state_replay.dart` — validation-free replay used by
   load, the in-memory double, and seeding.
+- `packages/domain/lib/src/ledger_state/mutators/ledger_state_replace.dart` - `replaceContents`, the
+  whole-ledger replacement used by the Money Manager import (see `money-manager-import.md`).
 - `packages/domain/lib/src/ledger_state/mutators/ledger_state_purge.dart` — the holder/category purge rule
   and the dereference sweep.
 - `packages/domain/lib/src/ledger_state/mutators/ledger_state_entries.dart`, `ledger_state_holders.dart`,
@@ -126,6 +128,13 @@ is a no-op returning `[]`.
   `name`, `categoryID`, or `includeInAnalysis` throws `SystemEntryLocked(entry.id)`; amount, date,
   holders, and note stay editable (`setOpeningBalance` builds a `systemKind: openingBalance` entry with
   `includeInAnalysis: false`). A note-only edit on a system entry passes the existing validation path.
+- **`replaceContents(replacement)`** validates first: `replacement.assertInvariants()` throws before
+  anything changes. It then returns deletes for every current row (budgets, plans, active and binned
+  entries, categories, money sources) followed by upserts for every replacement row (accounts,
+  pockets, parent categories before children, entries, binned entries, plans, budgets), applies them,
+  and resets `_lifecycleAtLastCheck` to null so an id shared with an old row does not trip the one-way
+  lifecycle check. Replacing an empty ledger with an empty one returns `[]`.
+  (`ledger_state_replace.dart`; `Ledger.replaceContents` wraps it in one batch and one revision bump)
 - **`addPocket`** rejects a non-active parent (`inactiveReference`); **`addCategory`** permits a
   non-active parent — a pocket is reached through its owning account, a category is only a naming
   ancestor.
@@ -195,6 +204,8 @@ the same helper the purge and sweep paths use, so the three can never drift.
 
 - Money is `Decimal`, never `double`; IDs are normalized lowercase uuids; int-coded enums carry an
   explicit `code`. (CONTEXT.md domain rules)
+- `LedgerState.replaceContents` swaps the entire contents atomically and returns the ordered changes;
+  an invalid replacement leaves the receiver unchanged. (`ledger_state_replace.dart`)
 - Every `LedgerState` mutation validates, mutates, and returns `List<LedgerChange>` in order.
   (`ledger_state.dart`)
 - `assertInvariants` runs after every successful mutation in debug builds. (`ledger_state_invariants.dart`)
