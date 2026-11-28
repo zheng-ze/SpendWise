@@ -67,31 +67,47 @@ side (row, ViewModel state, Flow steps) is also described in `settings-ui.md`.
 
 ## Import pipeline
 
-`MoneyManagerImporter.run` returns a sealed `ImportOutcome`: `ImportSucceeded`,
+`MoneyManagerImporter.run` returns a sealed `ImportOutcome`: `ImportSucceeded`
+(no data),
 `ImportRejected(errors)`, `ImportSaveFailed`, or `ImportFailedUnexpectedly`.
 
 1. **Read and build off the main isolate.** The injected `ImportBuildRunner` runs
    `readAndBuildMoneyManagerLedger`. The default `isolateImportBuildRunner` uses `Isolate.run` and
    must not capture the calling instance. Tests pass `syncImportBuildRunner`.
-2. **Read.** `XlsxReader` opens the zip with `archive` and the XML with `xml`. It finds the sheet by
-   resolving the first `<sheet>` through `xl/_rels/workbook.xml.rels` (a relative or `/`-absolute
-   target), keeps every cell as raw text (shared strings, `inlineStr`, `str` and numbers), and places
-   cells by the column letters of their `r` reference so a gap becomes an empty cell. Every
+2. **Read.** `XlsxReader` opens the zip with `archive` and the XML with `xml`. It first rejects a
+   non-xlsx file explicitly: the bytes must start with the zip signature `PK\x03\x04`
+   (`_requireZipSignature`), and `[Content_Types].xml` must declare `/xl/workbook.xml` with the
+   workbook main content type (`_requireWorkbookContentType`), so macro-enabled workbooks and other
+   OOXML packages are rejected. It then finds the sheet by resolving the first `<sheet>` through
+   `xl/_rels/workbook.xml.rels` (a relative or `/`-absolute target), matching elements in any XML
+   namespace so namespace-prefixed sheets read, and keeps every cell as raw text (shared strings,
+   `inlineStr`, `str` and numbers). Cells are placed by the column letters of their `r` reference so
+   a gap becomes an empty cell, and rows are placed by their `r` attribute: a skipped row becomes an
+   empty list, so list position + 1 is the sheet row. Before allocating, `_readRows` and `_column`
+   reject a row above 1048576 or a column above 16384, and `_readRow` rejects a sheet that expands
+   to more than 10,000,000 cells (`XlsxReader(maxCells:)`, default `_defaultMaxCells`). Every
    malformed-input path ends in `XlsxReadFailure`, including a non-integer or out-of-range
    shared-string index and any other thrown object. `readAndBuildMoneyManagerLedger` turns it into
    `ImportBuildRejected([UnreadableFile()])`.
-3. **Parse.** `parseMoneyManagerSheet` matches headers by exact trimmed name, first occurrence.
-   Required: Date, Account, Category, Subcategory, Note, Income/Expense, Description, Amount,
-   Currency. A missing header gives `MissingColumns`, and a sheet with only a header gives `NoRows`.
-   Every row is checked and all row errors are collected before any build (`InvalidDate`,
-   `MissingAccount`, `MissingCategory`, `MissingDestination`, `UnsupportedType`, `InvalidAmount`,
+3. **Parse.** `parseMoneyManagerSheet` requires the exact header row `_expectedHeaders`: the 12
+   columns Date, Account, Category, Subcategory, Note, SGD, Income/Expense, Tag, Description,
+   Amount, Currency, Account, in that order. Header names are trimmed and trailing empty header
+   cells are ignored (`_trimmedHeader`). A missing name gives `MissingColumns` (`_missingHeaders`);
+   any other deviation, such as a wrong order or an extra column, gives `UnexpectedColumns`
+   (`_isExpectedHeader`). A sheet with only a header gives `NoRows`. Data columns are read at fixed
+   indexes (`_dateColumn` through `_currencyColumn`), not by name lookup. Every row is checked and
+   all row errors are collected before any build (`InvalidDate`, `MissingAccount`,
+   `MissingCategory`, `MissingDestination`, `UnsupportedType`, `InvalidAmount`,
    `UnsupportedCurrency`), each carrying the 1-based sheet row. The type must be `Expense`,
    `Income` or `Transfer-Out`, and the currency must be `SGD`.
 4. **Amount.** The Amount cell is parsed as text with `Decimal.tryParse`. It must be greater than
    zero and have at most two decimal places (`_maxAmountScale`).
-5. **Date.** The serial is parsed as a `Decimal`, floored to the whole day `n` (at least 1), and
-   mapped to `DateTime.utc(1899, 12, 30 + n)`, or `DateTime.utc(1904, 1, 1 + n)` when `date1904` is
-   set. `Entry` normalizes it with `startOfDayUtc`.
+5. **Date.** The serial is parsed as a `Decimal`, floored to the whole day `n`, and mapped to
+   `DateTime.utc(1899, 12, 30 + n)`, or `DateTime.utc(1904, 1, 1 + n)` when `date1904` is set. The
+   day must lie in `1` to the last valid day, 9999-12-31: serial 2958465 for the 1900 epoch
+   (`_maxSerialDay1900`) and 2957003 for the 1904 epoch (that value minus `_daysBetweenEpochs`).
+   Any other serial reports `InvalidDate` with the row number instead of throwing. `Entry`
+   normalizes the date with `startOfDayUtc`.
 6. **Build.** `buildMoneyManagerLedger` fills a fresh `LedgerState` through the real mutators
    (`addAccount`, `addCategory`, `addEntry`), with ids from an injected `String Function() newID`
    that defaults to the domain `newID`.
@@ -150,8 +166,9 @@ and `xml` are the pure-Dart parsing dependencies (`app/pubspec.yaml`).
   reads the text, so no `double` is involved. An Expense text such as `2.0` is stored negated.
 - **The dimension reference is ignored.** `XlsxReader` reads the `<row>` elements and never
   `<dimension ref>`, because the real export declares `A1` for a sheet of more than a thousand rows.
-- **A duplicate header resolves to the first column.** `_columnIndexes` uses `putIfAbsent`, so the
-  repeated "Account" header resolves to the first occurrence.
+- **The second Account column is validated but unused.** The export header repeats "Account" at
+  the last position, and `_expectedHeaders` requires it there. Rows read only the first Account
+  column (`_accountColumn`), and the SGD and Tag columns are validated but not read either.
 - **Errors survive leaving Settings.** The keep-alive link is held until `dismissImportErrors`, and
   `applyPickedFile` returns early when `ref.mounted` is false.
 - **Edits made during the save-retry window are discarded** if the save then fails, because the
