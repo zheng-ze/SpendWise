@@ -43,11 +43,30 @@ XlsxSheet _parse(Uint8List bytes) {
   final sheetPath = _sheetPath(workbook, rels);
   final sheet = _document(archive, sheetPath);
   final sharedStrings = _sharedStrings(archive);
-  final rows = [
-    for (final row in sheet.findAllElements('row'))
-      _readRow(row, sharedStrings),
-  ];
+  final rows = _readRows(sheet, sharedStrings);
   return XlsxSheet(rows: rows, date1904: _isDate1904(workbook));
+}
+
+Iterable<XmlElement> _descendants(XmlNode parent, String name) {
+  return parent.findAllElements(name, namespaceUri: _anyNamespace);
+}
+
+Iterable<XmlElement> _children(XmlElement parent, String name) {
+  return parent.findElements(name, namespaceUri: _anyNamespace);
+}
+
+List<List<String>> _readRows(XmlDocument sheet, List<String> sharedStrings) {
+  final rows = <List<String>>[];
+  for (final row in _descendants(sheet, 'row')) {
+    final requested = int.tryParse(row.getAttribute('r') ?? '');
+    final index = requested == null ? rows.length : requested - 1;
+    final placedAt = index < rows.length ? rows.length : index;
+    while (rows.length < placedAt) {
+      rows.add(<String>[]);
+    }
+    rows.add(_readRow(row, sharedStrings));
+  }
+  return rows;
 }
 
 XmlDocument _document(Archive archive, String path) {
@@ -57,16 +76,15 @@ XmlDocument _document(Archive archive, String path) {
 }
 
 bool _isDate1904(XmlDocument workbook) {
-  final properties = workbook.findAllElements('workbookPr').firstOrNull;
+  final properties = _descendants(workbook, 'workbookPr').firstOrNull;
   return _date1904Values.contains(properties?.getAttribute('date1904'));
 }
 
 String _sheetPath(XmlDocument workbook, XmlDocument rels) {
-  final sheet = workbook.findAllElements('sheet').firstOrNull;
+  final sheet = _descendants(workbook, 'sheet').firstOrNull;
   if (sheet == null) throw const XlsxReadFailure('The workbook has no sheet.');
   final relationshipId = sheet.getAttribute('id', namespaceUri: _anyNamespace);
-  final relationship = rels
-      .findAllElements('Relationship')
+  final relationship = _descendants(rels, 'Relationship')
       .where((element) => element.getAttribute('Id') == relationshipId)
       .firstOrNull;
   final target = relationship?.getAttribute('Target');
@@ -82,7 +100,7 @@ String _sheetPath(XmlDocument workbook, XmlDocument rels) {
 List<String> _sharedStrings(Archive archive) {
   if (archive.findFile(_sharedStringsPath) == null) return const [];
   final document = _document(archive, _sharedStringsPath);
-  return [for (final item in document.findAllElements('si')) _richText(item)];
+  return [for (final item in _descendants(document, 'si')) _richText(item)];
 }
 
 String _richText(XmlElement element) {
@@ -93,7 +111,7 @@ String _richText(XmlElement element) {
 Iterable<XmlElement> _textElements(XmlElement element) {
   return switch (element.name.local) {
     't' => [element],
-    'r' => element.findElements('t'),
+    'r' => _children(element, 't'),
     _ => const [],
   };
 }
@@ -101,7 +119,7 @@ Iterable<XmlElement> _textElements(XmlElement element) {
 List<String> _readRow(XmlElement row, List<String> sharedStrings) {
   final cells = <String>[];
   var nextColumn = 0;
-  for (final cell in row.findElements('c')) {
+  for (final cell in _children(row, 'c')) {
     final column = _column(cell.getAttribute('r')) ?? nextColumn;
     while (cells.length <= column) {
       cells.add('');
@@ -128,10 +146,10 @@ int? _column(String? reference) {
 String _cellText(XmlElement cell, List<String> sharedStrings) {
   final type = cell.getAttribute('t');
   if (type == _inlineStringType) {
-    final inline = cell.findElements('is').firstOrNull;
+    final inline = _children(cell, 'is').firstOrNull;
     return inline == null ? '' : _richText(inline);
   }
-  final value = cell.findElements('v').firstOrNull?.innerText ?? '';
+  final value = _children(cell, 'v').firstOrNull?.innerText ?? '';
   if (type != _sharedStringType) return value;
   final index = int.tryParse(value);
   if (index == null || index < 0 || index >= sharedStrings.length) {

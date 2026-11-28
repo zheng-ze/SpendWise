@@ -157,6 +157,102 @@ void main() {
     });
   });
 
+  group('row placement', () {
+    test('rows omitted by r leave empty rows between', () {
+      const rows =
+          '<row r="1"><c r="A1"><v>1</v></c></row>'
+          '<row r="4"><c r="A4"><v>4</v></c></row>';
+
+      final sheet = _readSheet(rows);
+
+      expect(sheet.rows, [
+        ['1'],
+        <String>[],
+        <String>[],
+        ['4'],
+      ]);
+    });
+
+    test('a leading gap and a row without r take the next index', () {
+      const rows =
+          '<row r="3"><c r="A3"><v>3</v></c></row>'
+          '<row><c><v>4</v></c></row>'
+          '<row r="x"><c><v>5</v></c></row>';
+
+      final sheet = _readSheet(rows);
+
+      expect(sheet.rows, [
+        <String>[],
+        <String>[],
+        ['3'],
+        ['4'],
+        ['5'],
+      ]);
+    });
+
+    test('a duplicate or out-of-order r takes the next index', () {
+      const rows =
+          '<row r="2"><c><v>a</v></c></row>'
+          '<row r="2"><c><v>b</v></c></row>'
+          '<row r="1"><c><v>c</v></c></row>'
+          '<row r="0"><c><v>d</v></c></row>';
+
+      final sheet = _readSheet(rows);
+
+      expect(sheet.rows, [
+        <String>[],
+        ['a'],
+        ['b'],
+        ['c'],
+        ['d'],
+      ]);
+    });
+  });
+
+  group('prefixed spreadsheetML', () {
+    test('reads rows, cells, values and inline strings', () {
+      const prefixedSheet =
+          '<x:worksheet xmlns:x="$_mainNamespace"><x:sheetData>'
+          '<x:row r="1"><x:c r="A1"><x:v>7</x:v></x:c>'
+          '<x:c r="B1" t="inlineStr"><x:is><x:t>Hi</x:t></x:is></x:c>'
+          '<x:c r="C1" t="s"><x:v>0</x:v></x:c></x:row>'
+          '</x:sheetData></x:worksheet>';
+      const sharedStrings =
+          '<x:sst xmlns:x="$_mainNamespace">'
+          '<x:si><x:r><x:t>Rich</x:t></x:r><x:r><x:t>Text</x:t></x:r></x:si>'
+          '</x:sst>';
+      final bytes = buildMoneyManagerXlsx(
+        partOverrides: {
+          sheetPart: prefixedSheet,
+          sharedStringsPart: sharedStrings,
+        },
+      );
+
+      final sheet = _reader.read(bytes);
+
+      expect(sheet.rows.single, ['7', 'Hi', 'RichText']);
+    });
+
+    test('reads a prefixed workbook and relationships', () {
+      final workbook =
+          '<x:workbook xmlns:x="$_mainNamespace" '
+          'xmlns:r="$_officeRelsNamespace"><x:workbookPr date1904="1"/>'
+          '<x:sheets><x:sheet name="S" r:id="rId1"/></x:sheets></x:workbook>';
+      final rels =
+          '<p:Relationships xmlns:p="$_relsNamespace">'
+          '<p:Relationship Id="rId1" Type="worksheet" '
+          'Target="worksheets/sheet1.xml"/></p:Relationships>';
+      final bytes = buildMoneyManagerXlsx(
+        partOverrides: {workbookPart: workbook, workbookRelsPart: rels},
+      );
+
+      final sheet = _reader.read(bytes);
+
+      expect(sheet.rows.first, moneyManagerHeader);
+      expect(sheet.date1904, isTrue);
+    });
+  });
+
   group('workbook structure', () {
     test('resolves a relative rels target', () {
       final sheet = _reader.read(buildMoneyManagerXlsx());
