@@ -8,6 +8,7 @@ import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/banner_state.dart';
 import 'package:spendwise/boot/seed_data.dart';
+import 'package:spendwise/import/money_manager/money_manager_importer.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
@@ -105,6 +106,13 @@ final ledgerProvider = Provider<Ledger?>((ref) {
 final persistenceProcessorProvider = Provider<PersistenceProcessor?>((ref) {
   final phase = ref.watch(appPhaseProvider);
   return phase is Ready ? phase.persistence : null;
+});
+
+final moneyManagerImporterProvider = Provider<MoneyManagerImporter?>((ref) {
+  final ledger = ref.watch(ledgerProvider);
+  final processor = ref.watch(persistenceProcessorProvider);
+  if (ledger == null || processor == null) return null;
+  return MoneyManagerImporter(ledger: ledger, flush: processor.flush);
 });
 
 // MARK: - Clock
