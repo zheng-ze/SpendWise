@@ -6,6 +6,10 @@ import 'package:xml/xml.dart';
 
 import 'xlsx_sheet.dart';
 
+const _zipSignature = [0x50, 0x4B, 0x03, 0x04];
+const _contentTypesPath = '[Content_Types].xml';
+const _workbookContentType =
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml';
 const _workbookPath = 'xl/workbook.xml';
 const _relsPath = 'xl/_rels/workbook.xml.rels';
 const _sharedStringsPath = 'xl/sharedStrings.xml';
@@ -42,7 +46,9 @@ final class XlsxReader {
 }
 
 XlsxSheet _parse(Uint8List bytes, int maxCells) {
+  _requireZipSignature(bytes);
   final archive = ZipDecoder().decodeBytes(bytes);
+  _requireWorkbookContentType(archive);
   final workbook = _document(archive, _workbookPath);
   final rels = _document(archive, _relsPath);
   final sheetPath = _sheetPath(workbook, rels);
@@ -50,6 +56,34 @@ XlsxSheet _parse(Uint8List bytes, int maxCells) {
   final sharedStrings = _sharedStrings(archive);
   final rows = _readRows(sheet, sharedStrings, maxCells);
   return XlsxSheet(rows: rows, date1904: _isDate1904(workbook));
+}
+
+void _requireZipSignature(Uint8List bytes) {
+  final isZip =
+      bytes.length >= _zipSignature.length &&
+      _zipSignature.indexed.every((entry) => bytes[entry.$1] == entry.$2);
+  if (!isZip) throw const XlsxReadFailure('The file is not an xlsx workbook.');
+}
+
+void _requireWorkbookContentType(Archive archive) {
+  final file = archive.findFile(_contentTypesPath);
+  if (file == null) {
+    throw const XlsxReadFailure('Missing part $_contentTypesPath.');
+  }
+  final types = XmlDocument.parse(utf8.decode(file.content));
+  final isWorkbook = _descendants(types, 'Override').any(_declaresWorkbook);
+  if (!isWorkbook) {
+    throw const XlsxReadFailure('The file is not an xlsx workbook.');
+  }
+}
+
+bool _declaresWorkbook(XmlElement override) {
+  final partName = override.getAttribute('PartName')?.toLowerCase() ?? '';
+  final contentType = override.getAttribute('ContentType')?.toLowerCase();
+  final relativeName = partName.startsWith(_absoluteTargetPrefix)
+      ? partName.substring(_absoluteTargetPrefix.length)
+      : partName;
+  return relativeName == _workbookPath && contentType == _workbookContentType;
 }
 
 Iterable<XmlElement> _descendants(XmlNode parent, String name) {
@@ -161,7 +195,9 @@ int? _column(String? reference) {
   for (final unit in letters.codeUnits) {
     number = number * _letterBase + ((unit | _asciiCaseBit) - _asciiBeforeA);
     if (number > _maxColumnNumber) {
-      throw XlsxReadFailure('Column $letters is beyond column $_maxColumnNumber.');
+      throw XlsxReadFailure(
+        'Column $letters is beyond column $_maxColumnNumber.',
+      );
     }
   }
   return number - 1;

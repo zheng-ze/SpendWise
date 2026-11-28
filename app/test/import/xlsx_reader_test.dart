@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +13,30 @@ const _relsNamespace =
     'http://schemas.openxmlformats.org/package/2006/relationships';
 const _officeRelsNamespace =
     'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const _contentTypesNamespace =
+    'http://schemas.openxmlformats.org/package/2006/content-types';
+const _workbookContentType =
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml';
+const _macroEnabledContentType =
+    'application/vnd.ms-excel.sheet.macroEnabled.main+xml';
+const _wordContentType =
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml';
+const _notXlsxMessage = 'not an xlsx';
 const _reader = XlsxReader();
+
+String _contentTypesXml(String overridesXml) {
+  return '<Types xmlns="$_contentTypesNamespace">'
+      '<Default Extension="xml" ContentType="application/xml"/>'
+      '$overridesXml</Types>';
+}
+
+Uint8List _xlsxWithWorkbookContentType(String contentType) {
+  final override =
+      '<Override PartName="/xl/workbook.xml" ContentType="$contentType"/>';
+  return buildMoneyManagerXlsx(
+    partOverrides: {contentTypesPart: _contentTypesXml(override)},
+  );
+}
 
 String _sheetXml(String rowsXml) {
   return '<worksheet xmlns="$_mainNamespace">'
@@ -309,13 +333,90 @@ void main() {
     });
   });
 
-  group('failures', () {
+  group('rejecting files that are not xlsx', () {
     test('bytes that are not a zip', () {
       final bytes = Uint8List.fromList([1, 2, 3, 4, 5]);
 
-      expect(() => _reader.read(bytes), throwsA(_readFailure()));
+      _expectFailure(bytes, _notXlsxMessage);
     });
 
+    test('text bytes', () {
+      final bytes = Uint8List.fromList(utf8.encode('Date,Account\n1,Cash\n'));
+
+      _expectFailure(bytes, _notXlsxMessage);
+    });
+
+    test('empty bytes', () {
+      _expectFailure(Uint8List(0), _notXlsxMessage);
+    });
+
+    test('a three-byte input that is a prefix of the zip signature', () {
+      final bytes = Uint8List.fromList([0x50, 0x4B, 0x03]);
+
+      _expectFailure(bytes, _notXlsxMessage);
+    });
+
+    test('a pdf signature', () {
+      final bytes = Uint8List.fromList(utf8.encode('%PDF-1.7 body'));
+
+      _expectFailure(bytes, _notXlsxMessage);
+    });
+
+    test('a legacy xls (OLE) signature', () {
+      final bytes = Uint8List.fromList([
+        0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 0, 0, 0, 0, //
+      ]);
+
+      _expectFailure(bytes, _notXlsxMessage);
+    });
+
+    test('a zip without [Content_Types].xml', () {
+      final bytes = buildMoneyManagerXlsx(removedParts: {contentTypesPart});
+
+      _expectFailure(bytes, contentTypesPart);
+    });
+
+    test('a macro-enabled workbook', () {
+      final bytes = _xlsxWithWorkbookContentType(_macroEnabledContentType);
+
+      _expectFailure(bytes, _notXlsxMessage);
+    });
+
+    test('a word-processing document', () {
+      final bytes = _xlsxWithWorkbookContentType(_wordContentType);
+
+      _expectFailure(bytes, _notXlsxMessage);
+    });
+
+    test('content types that do not declare the workbook', () {
+      final bytes = buildMoneyManagerXlsx(
+        partOverrides: {contentTypesPart: _contentTypesXml('')},
+      );
+
+      _expectFailure(bytes, _notXlsxMessage);
+    });
+
+    test('an Override without a PartName or ContentType', () {
+      final bytes = buildMoneyManagerXlsx(
+        partOverrides: {contentTypesPart: _contentTypesXml('<Override/>')},
+      );
+
+      _expectFailure(bytes, _notXlsxMessage);
+    });
+
+    test('a workbook declared with different case and no leading slash', () {
+      final override =
+          '<Override PartName="XL/Workbook.xml" '
+          'ContentType="${_workbookContentType.toUpperCase()}"/>';
+      final bytes = buildMoneyManagerXlsx(
+        partOverrides: {contentTypesPart: _contentTypesXml(override)},
+      );
+
+      expect(_reader.read(bytes).rows.first, moneyManagerHeader);
+    });
+  });
+
+  group('failures', () {
     test('malformed XML keeps the parser error as the cause', () {
       final bytes = buildMoneyManagerXlsx(
         partOverrides: {sheetPart: '<worksheet><sheetData>'},
