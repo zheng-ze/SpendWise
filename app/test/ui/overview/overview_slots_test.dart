@@ -1,9 +1,11 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/ui/overview/overview_card_statement_mapping.dart';
 import 'package:spendwise/ui/overview/overview_insights_mapping.dart';
 import 'package:spendwise/ui/overview/overview_slots.dart';
+import 'package:spendwise/ui/overview/overview_top_categories_mapping.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 
 class _FakeOverviewViewModel implements OverviewViewModel {
@@ -18,6 +20,9 @@ class _FakeOverviewViewModel implements OverviewViewModel {
 
   @override
   void requestBudgets() {}
+
+  @override
+  void requestTrends() {}
 
   @override
   void requestEditOverview() {}
@@ -37,6 +42,7 @@ OverviewViewState _viewState({
   bool insightsFailed = false,
   bool insightsSettledEmpty = false,
   List<OverviewCardStatementRow>? cardStatements,
+  OverviewTopCategories? topCategories,
 }) => OverviewViewState(
   day: _day,
   today: null,
@@ -48,10 +54,11 @@ OverviewViewState _viewState({
   insightsFailed: insightsFailed,
   insightsSettledEmpty: insightsSettledEmpty,
   cardStatements: cardStatements,
+  topCategories: topCategories,
 );
 
 void main() {
-  const allKinds = [
+  const defaultKinds = [
     OverviewWidgetKind.today,
     OverviewWidgetKind.thisMonth,
     OverviewWidgetKind.recentEntries,
@@ -61,9 +68,66 @@ void main() {
     OverviewWidgetKind.insights,
     OverviewWidgetKind.weekSoFar,
   ];
+  const cardKinds = [
+    OverviewWidgetKind.today,
+    OverviewWidgetKind.thisMonth,
+    OverviewWidgetKind.recentEntries,
+    OverviewWidgetKind.topCategories,
+    OverviewWidgetKind.cardStatement,
+    OverviewWidgetKind.comingUp,
+    OverviewWidgetKind.budgetWatch,
+    OverviewWidgetKind.insights,
+    OverviewWidgetKind.weekSoFar,
+  ];
 
   test('overviewCardKinds lists the card kinds in declaration order', () {
-    expect(overviewCardKinds, allKinds);
+    expect(overviewCardKinds, cardKinds);
+  });
+
+  test('topCategories comes right after recentEntries', () {
+    final recentIndex = overviewCardKinds.indexOf(
+      OverviewWidgetKind.recentEntries,
+    );
+    expect(
+      overviewCardKinds[recentIndex + 1],
+      OverviewWidgetKind.topCategories,
+    );
+  });
+
+  group('overviewCardFor topCategories', () {
+    final viewModel = _FakeOverviewViewModel();
+    final card = overviewCardFor(OverviewWidgetKind.topCategories);
+
+    Widget? buildSlot(OverviewTopCategories? topCategories) =>
+        card!.build(_viewState(topCategories: topCategories), viewModel);
+
+    test('builds a widget while the read is pending', () {
+      expect(buildSlot(null), isA<Widget>());
+    });
+
+    test('builds a widget with no rows', () {
+      final empty = OverviewTopCategories(
+        caption: 'May so far',
+        rows: const [],
+      );
+      expect(buildSlot(empty), isA<Widget>());
+    });
+
+    test('builds a widget with rows', () {
+      final withRows = OverviewTopCategories(
+        caption: 'May so far',
+        rows: const [
+          OverviewTopCategoryRow(
+            name: 'Food',
+            symbolName: 'fork.knife',
+            savedHex: null,
+            amount: '10.00',
+            barRatio: 1,
+          ),
+        ],
+      );
+      expect(buildSlot(withRows), isA<Widget>());
+    });
   });
 
   group('overviewWidgetsOrDefault', () {
@@ -75,13 +139,13 @@ void main() {
     });
 
     test('the defaults are the eight card kinds', () {
-      expect(DisplayPreferences.defaults.overviewWidgets, allKinds);
+      expect(DisplayPreferences.defaults.overviewWidgets, defaultKinds);
     });
 
     test('a list with only cardless kinds becomes the defaults', () {
       expect(
         overviewWidgetsOrDefault(const [
-          OverviewWidgetKind.topCategories,
+          OverviewWidgetKind.accountBalances,
           OverviewWidgetKind.savingsPocket,
         ]),
         DisplayPreferences.defaults.overviewWidgets,

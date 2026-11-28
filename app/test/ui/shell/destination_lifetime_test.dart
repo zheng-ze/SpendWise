@@ -25,6 +25,7 @@ import 'package:spendwise/ui/settings/category/category_list_screen.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/settings/settings_root_screen.dart';
 import 'package:spendwise/ui/stats/trends_flow.dart';
+import 'package:spendwise/ui/shell/shell_navigation.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import 'package:spendwise/ui/transactions/trends_detail_action.dart';
@@ -78,6 +79,7 @@ void main() {
       }
 
       void ignoreBudgets() {}
+      void ignoreTrends() {}
       void ignoreBudget(String budgetID) {}
 
       await pumpShellApp(
@@ -87,6 +89,7 @@ void main() {
           ShellDestination.overview: (_) => OverviewFlow(
             onHistorySelected: selectHistory,
             onBudgetsSelected: ignoreBudgets,
+            onTrendsSelected: ignoreTrends,
             onBudgetSelected: ignoreBudget,
           ),
           ShellDestination.history: (_) => const TransactionsFlow(),
@@ -202,6 +205,7 @@ void main() {
         .read(moneySegmentProvider.notifier)
         .openAt(MoneySegment.budgets);
     void ignoreHistory() {}
+    void ignoreTrends() {}
     void ignoreBudget(String budgetID) {}
     await pumpShellApp(
       tester,
@@ -210,6 +214,7 @@ void main() {
         ShellDestination.overview: (_) => OverviewFlow(
           onHistorySelected: ignoreHistory,
           onBudgetsSelected: openBudgets,
+          onTrendsSelected: ignoreTrends,
           onBudgetSelected: ignoreBudget,
         ),
         ShellDestination.money: (_) => const MoneyFlow(),
@@ -231,7 +236,7 @@ void main() {
   testWidgets('Budget watch row opens that budget in Money on a phone', (
     tester,
   ) async {
-    final container = await _pumpBudgetWatchOverview(tester);
+    final container = await _pumpOverviewWithKinds(tester);
 
     await tester.tap(find.text(budgetShellFood.name));
     await tester.pumpAndSettle();
@@ -246,7 +251,7 @@ void main() {
   testWidgets(
     'Budget watch View budgets opens the Budgets list without a selection',
     (tester) async {
-      final container = await _pumpBudgetWatchOverview(tester);
+      final container = await _pumpOverviewWithKinds(tester);
 
       await tester.tap(find.text(overviewBudgetWatchViewLink));
       await tester.pumpAndSettle();
@@ -265,7 +270,7 @@ void main() {
   testWidgets('Budget watch row selects the budget in the open layout pane', (
     tester,
   ) async {
-    final container = await _pumpBudgetWatchOverview(
+    final container = await _pumpOverviewWithKinds(
       tester,
       mode: ShellLayoutMode.open,
     );
@@ -279,6 +284,25 @@ void main() {
     expect(find.byType(BudgetPaneBody), findsOneWidget);
     expect(find.byType(BudgetDetailScreen), findsNothing);
     expect(container.read(pendingBudgetSelectionProvider), isNull);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('Top categories Open Trends opens History with Trends on top', (
+    tester,
+  ) async {
+    final container = await _pumpOverviewWithKinds(
+      tester,
+      shownKinds: const [OverviewWidgetKind.topCategories],
+    );
+
+    await tester.tap(find.text(overviewTopCategoriesTrendsLink));
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(selectedDestinationProvider),
+      ShellDestination.history,
+    );
+    expect(find.byType(TrendsFlow), findsOneWidget);
+    expect(container.read(shellNavigationProvider), isNull);
   }, timeout: uiTestTimeout);
 }
 
@@ -337,9 +361,10 @@ Future<void> _leaveAndReturnToMoney(
   await tester.pumpAndSettle();
 }
 
-Future<ProviderContainer> _pumpBudgetWatchOverview(
+Future<ProviderContainer> _pumpOverviewWithKinds(
   WidgetTester tester, {
   ShellLayoutMode mode = ShellLayoutMode.phone,
+  List<OverviewWidgetKind> shownKinds = const [OverviewWidgetKind.budgetWatch],
 }) async {
   final ledger = buildShellLedger();
   final persistence = PersistenceProcessor(
@@ -353,7 +378,7 @@ Future<ProviderContainer> _pumpBudgetWatchOverview(
         Ready(ledger: ledger, persistence: persistence),
       ),
       initialDisplayPreferencesProvider.overrideWithValue(
-        DisplayPreferences(overviewWidgets: [OverviewWidgetKind.budgetWatch]),
+        DisplayPreferences(overviewWidgets: shownKinds),
       ),
     ],
   );

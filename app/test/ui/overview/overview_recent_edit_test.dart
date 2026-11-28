@@ -78,6 +78,7 @@ Future<ProviderContainer> _pumpNoCapOverview(
       ShellDestination.overview: (_) => OverviewFlow(
         onHistorySelected: _ignoreHistory,
         onBudgetsSelected: onBudgetsSelected,
+        onTrendsSelected: _ignoreTrends,
         onBudgetSelected: _ignoreBudget,
       ),
     },
@@ -92,3 +93,5 @@ void _ignoreHistory() {}
 void _ignoreBudget(String budgetID) {}
 
 void _ignoreBudgets() {}
+
+void _ignoreTrends() {}

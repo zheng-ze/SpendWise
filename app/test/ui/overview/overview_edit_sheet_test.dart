@@ -29,6 +29,7 @@ const _seededKinds = [
   OverviewWidgetKind.today,
   OverviewWidgetKind.thisMonth,
   OverviewWidgetKind.recentEntries,
+  OverviewWidgetKind.topCategories,
   OverviewWidgetKind.cardStatement,
   OverviewWidgetKind.comingUp,
   OverviewWidgetKind.budgetWatch,
@@ -44,6 +45,7 @@ const _swappedKinds = [
   OverviewWidgetKind.thisMonth,
   OverviewWidgetKind.today,
   OverviewWidgetKind.recentEntries,
+  OverviewWidgetKind.topCategories,
   OverviewWidgetKind.cardStatement,
   OverviewWidgetKind.comingUp,
   OverviewWidgetKind.budgetWatch,
@@ -111,6 +113,7 @@ Future<ProviderContainer> _pumpOverview(WidgetTester tester) async {
       ShellDestination.overview: (_) => OverviewFlow(
         onHistorySelected: _ignore,
         onBudgetsSelected: _ignore,
+        onTrendsSelected: _ignore,
         onBudgetSelected: _ignoreBudget,
       ),
     },
