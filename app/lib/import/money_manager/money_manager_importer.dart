@@ -104,6 +104,8 @@ final class MoneyManagerImporter {
       snapshot = _snapshot(ledger.state);
       ledger.replaceContents(imported);
     } catch (_) {
+      // Any failure before the ledger is committed (isolate, reader, builder,
+      // invariant check) must become ImportFailedUnexpectedly, revision unchanged.
       return const ImportFailedUnexpectedly();
     }
     return _save(snapshot, imported);
@@ -116,6 +118,7 @@ final class MoneyManagerImporter {
     try {
       await flush();
     } catch (_) {
+      // Any flush failure must roll the ledger back to the snapshot.
       ledger.replaceContents(snapshot);
       return const ImportSaveFailed();
     }

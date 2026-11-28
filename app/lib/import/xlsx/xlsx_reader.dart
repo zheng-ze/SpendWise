@@ -29,6 +29,8 @@ final class XlsxReader {
     } on XlsxReadFailure {
       rethrow;
     } catch (error) {
+      // archive and xml throw many unrelated types; every one must surface as
+      // XlsxReadFailure with the cause kept.
       throw XlsxReadFailure('The file is not a readable xlsx.', cause: error);
     }
   }

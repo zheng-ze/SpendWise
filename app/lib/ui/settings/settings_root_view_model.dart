@@ -148,6 +148,7 @@ class SettingsRootNotifier extends Notifier<SettingsRootViewState>
     try {
       return await importer.run(bytes);
     } catch (_) {
+      // A throwing importer must not leave the status stuck on running.
       return const ImportFailedUnexpectedly();
     }
   }

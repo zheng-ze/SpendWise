@@ -79,6 +79,8 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
     try {
       notifier.applyPickedFile(bytes: await picker.pick());
     } catch (e) {
+      // A plugin failure such as PlatformException is reported to the view
+      // model as a picker error.
       notifier.applyPickedFile(pickerError: e);
     }
   }
