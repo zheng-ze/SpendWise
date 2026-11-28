@@ -59,8 +59,8 @@ totals.
   `OverviewThisMonth` (caption and optional figures) and `OverviewMonthFigures` (signed value strings
   and `netKind`). `OverviewViewState.budgetWatch` holds the Budget watch rows (`BudgetListCard`) and
   `budgetWatchFailed` flags a failed read. It also carries `insights` (`OverviewInsights?`),
-  `insightsFailed`, `insightsSettledEmpty`, `weekSoFar` (`OverviewWeekSoFar?`) and `weekSoFarFailed`. `cardStatements` (`List<OverviewCardStatementRow>?`) holds the Card statement rows, and null renders the skeleton.
-  The view state carries an
+  `insightsFailed`, `insightsSettledEmpty`, `weekSoFar` (`OverviewWeekSoFar?`) and `weekSoFarFailed`. `cardStatements` (`List<OverviewCardStatementRow>?`) holds the Card statement rows,
+  and null renders the skeleton. The view state carries an
   `OverviewStep` (`HasStep`/`StepEmitting`); `requestHistory` emits `OverviewHistoryRequested`,
   `requestBudgets` emits `OverviewBudgetsRequested`, `requestEditOverview` emits
   `OverviewEditOverviewRequested`, `openEntry` emits `OverviewEntryRequested`, `openBudget` emits
@@ -97,7 +97,7 @@ totals.
   from `PayableCard` to `OverviewCardStatementRow` (`cardName`, `payable`, `daysToCut`, `cutDate` and
   `cycleAmount`). It formats money, days and the cut date, and keeps the read's order.
 - `app/lib/ui/overview/overview_card_statement_section.dart` - `CardStatementTray` (the card, with the
-  skeleton, sparse-line and rows states) and `CardStatementRow`, which has no tap target.
+  skeleton, empty-line and rows states) and `CardStatementRow`, which has no tap target.
 - `app/lib/ui/overview/overview_insights_mapping.dart` - the pure mapping from the reads to view
   types: `OverviewInsights` (`OverviewInsightsHistoryNeeded`, `OverviewInsightsAvailable`),
   `OverviewInsightRow` (`lead`, `amount`, `tail`, `amountKind`), `OverviewWeekSoFar`
@@ -343,8 +343,8 @@ Overview tab and does not change the shell selection.
   no cap. A row has a header with the card name and the days to the cut, a 'Payable' label with its
   amount, and a caption 'Closes <d MMMM> / This cycle <amount>'. The days read '<n> days' for two or
   more and '1 day' for tomorrow. A cut is never today, because the cut day starts the next cycle.
-  Payable is the owed total of entries dated before the cut. This cycle is the card expenses from the
-  start of the cycle through today. When no card qualifies, the tray shows one line, 'No card
+  Payable is the owed total of entries dated before the cut. This cycle is the card's non-transfer expenses
+  from the start of the cycle through today. When no card qualifies, the tray shows one line, 'No card
   statements to pay.' The card has no tap target, no picker and no stored choice.
 - Recent entries: at most 4 active entries dated before tomorrow, newest first; same-day entries
   order by id descending. A row caption is
@@ -404,7 +404,7 @@ Overview tab and does not change the shell selection.
   cut in the next month. Coming up shifts back one day on the cut day and Card statement does not, so
   the two sections disagree on that day.
 - Card statement Payable counts only entries dated before the cut. An entry dated on or after the cut
-  makes it differ from the Payable on the Accounts screen, which uses the full account total. A card
+  makes it differ from the card's full account total. A card
   that owes only through such an entry is not listed.
 - A stored `overviewWidgets` list never gains `cardStatement`. Only the defaults carry it, so a saved
   list shows the card after the user adds it in Edit Overview.
@@ -551,8 +551,8 @@ Overview tab and does not change the shell selection.
 - The Card statement view state carries one row for the owing card with figures from the read, stays
   present while the analysis cache is pending, and is empty for a ledger where the card owes nothing
   (`app/test/ui/overview/overview_content_test.dart`, group 'Card statement').
-- `overviewSlotFor` returns a widget for `cardStatement` while pending, when empty and with rows, and a
-  stored list without `cardStatement` does not gain it (`app/test/ui/overview/overview_slots_test.dart`).
+- `overviewSlotFor` returns a widget for `cardStatement` while pending, when empty and with rows
+  (`app/test/ui/overview/overview_slots_test.dart`, group 'overviewSlotFor cardStatement').
 - The Card statement row layout, the 'No card statements to pay.' line and the absence of a tap target
   have no widget test.
 - These behaviors have no widget test: the docked presentation on open and desktop, the 'Edit
