@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-11-22
+Last reconciled: 2026-11-29
 
 ## Feature overview
 
@@ -30,6 +30,9 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   geometry. `shellWindowSizeProvider` defaults to `Size.zero`, so fixtures
   without the binding resolve mobile to phone and desktop platforms to
   desktop.
+- `app/lib/ui/shell/shell_navigation.dart` - `ShellRequest` (plain data with a unique int
+  occurrence), `ShellNavigationController` and `shellNavigationProvider`, which carry History requests
+  (such as Trends) to the unscoped History Flow.
 - `app/lib/ui/symbol_map.dart` - symbol-to-IconData mapping.
 - `app/lib/ui/theme/` - `spendwise_colors.dart` (`SpendWiseColors` ThemeExtension with the
   Harbour glass light/dark tokens), `spendwise_text.dart` (`SpendWiseText` with the amount roles `hero`, `headline`, `row` and `small`
@@ -226,6 +229,11 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   History is unmounted. Overview's View History selects History
   on every layout and pushes no route. There is no Trends destination in the
   shell. There is no header gear and no shell Add FAB.
+  `ShellNavigationController` (`shellNavigationProvider`, `app/lib/ui/shell/shell_navigation.dart`)
+  is the shell's History request channel. `selectHistory()` selects History. `openHistoryTrends()`
+  stores a fresh `ShellRequest` and selects History synchronously, awaiting nothing. `consume(request)`
+  clears only the matching request. The unscoped History Flow handles the request as described in
+  [transactions-ui.md](transactions-ui.md).
   `ShellPaneScope` supplies the mode, shared `splitOffset`, `sheetCovered` and `sheetPresented`.
   `sheetPresented` means at least one AppSheet is installed or exiting, including
   forms and pickers. Coverage is narrower: a sheet covers the shell only when its nearest

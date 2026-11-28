@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 6a34f454
+Last reconciled: 2026-11-29
 
 ## Feature overview
 
@@ -62,7 +62,12 @@ and edits existing ones (Edit entry); Add is the only place recurring plans are 
   `MaterialPageRoute` holding `TrendsFlow(onEnded: ...)` onto the Flow's navigator, where `onEnded` pops that route; the guard releases at
   `route.completed`. The push seeds nothing from History's selected date. The route and
   History's state survive resizes while History is selected, and are discarded when another
-  destination is selected and History unmounts.
+  destination is selected and History unmounts. The unscoped Flow also consumes the shell's pending
+  History Trends request (see Navigation).
+- `app/lib/ui/shell/shell_navigation.dart` - `ShellNavigationController` (`shellNavigationProvider`),
+  the shell's History request channel: `selectHistory()`, `openHistoryTrends()` (a fresh
+  `ShellRequest`, selecting History synchronously) and `consume(request)`, which clears only the
+  matching request.
 - `app/lib/ui/transactions/trends_detail_action.dart` - 'See more detail', the shared `AppLinkButton`
   (muted subtext colour, trailing chevron, 48 dp minimum hit size) aligned to the trailing edge, rendered
   below the totals band in unscoped History only, including empty months.
@@ -128,6 +133,13 @@ screen reuses the same screen with a custom title and `sourceIDs` filter. Each d
 navigator, and a destination's back stack lasts while that destination is selected. Every back
 control is the `PageHeader` back control, Flutter's icon-only `BackButton` with the default 'Back' accessible name; `goBack`
 pops inner child routes first.
+
+The unscoped `TransactionsFlow` consumes the pending `ShellRequest` from `shellNavigationProvider`
+only after its Navigator is mounted and History is the selected destination. It pushes the Trends
+page when none exists, reveals an open Trends route without resetting it, and waits for an exiting
+Trends route to complete before it acts. Repeated requests coalesce, and the Flow clears only the
+request it handled. Scoped Money flows never consume the request. No Overview widget calls
+`openHistoryTrends()` yet; only a test action does.
 
 Shared sheet composition follows installed routes rather than an Add-specific presentation provider.
 `AppSheetRoute.install` registers with the optional `shellSheetOccupancyProvider` until
