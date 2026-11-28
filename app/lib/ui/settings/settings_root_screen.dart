@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/common/feedback/inline_spinner.dart';
 import 'package:spendwise/ui/common/lists/section_label.dart';
 import 'package:spendwise/ui/common/navigation/page_header.dart';
 import 'package:spendwise/settings/settings_providers.dart';
@@ -17,6 +18,13 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final viewModel = ref.watch(settingsRootViewModelProvider.notifier);
     final scanStripEnabled = ref.watch(scanStripEnabledProvider);
+    final importStatus = ref.watch(
+      settingsRootViewModelProvider.select((state) => state.importStatus),
+    );
+    final importRow = _ImportRow(
+      status: importStatus,
+      onTap: viewModel.requestImport,
+    );
 
     final list = ListView(
       children: [
@@ -47,6 +55,7 @@ class SettingsScreen extends ConsumerWidget {
         ),
         const Divider(height: edgeThickness),
         const SectionLabel('Data', padding: _headerPadding),
+        importRow,
         _SettingsLink(
           icon: Icons.delete_outline,
           label: 'Recycle Bin',
@@ -85,6 +94,32 @@ class _SettingsLink extends StatelessWidget {
       title: Text(label),
       trailing: const Icon(Icons.chevron_right),
       onTap: onTap,
+    );
+  }
+}
+
+// MARK: - ImportRow
+class _ImportRow extends StatelessWidget {
+  const _ImportRow({required this.status, required this.onTap});
+
+  static const _icon = Icons.upload_outlined;
+  static const _title = 'Import from Money Manager';
+  static const _subtitle = 'Replaces all ledger data';
+
+  final ImportStatus status;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isIdle = status == ImportStatus.idle;
+    final isRunning = status == ImportStatus.running;
+    return ListTile(
+      leading: const Icon(_icon),
+      title: const Text(_title),
+      subtitle: const Text(_subtitle),
+      trailing: isRunning ? const InlineSpinner() : null,
+      enabled: isIdle,
+      onTap: isIdle ? onTap : null,
     );
   }
 }
