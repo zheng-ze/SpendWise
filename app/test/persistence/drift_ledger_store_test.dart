@@ -1340,4 +1340,111 @@ void main() {
       expect((await store.load()).plans['p-cu']!.template.note, isNull);
     });
   });
+
+  group('replace batch', () {
+    final oldChanges = <LedgerChange>[
+      UpsertAccount(account('ab01', 'old wallet')),
+      UpsertCategory(category('ca01', 'old food', parentID: null)),
+      UpsertEntry(entry('ec01', '12.34', source: 'ab01')),
+      UpsertBudget(
+        domain.Budget(
+          id: 'bd01',
+          categoryID: 'ca01',
+          limit: Decimal.fromInt(500),
+        ),
+      ),
+    ];
+    final newChanges = <LedgerChange>[
+      UpsertAccount(account('fe02', 'new wallet')),
+      UpsertCategory(category('cb02', 'new food', parentID: null)),
+      UpsertEntry(entry('ed02', '56.78', source: 'fe02')),
+      UpsertBudget(
+        domain.Budget(
+          id: 'be02',
+          categoryID: 'cb02',
+          limit: Decimal.fromInt(900),
+        ),
+      ),
+    ];
+
+    late LedgerState live;
+    late List<LedgerChange> replaceChanges;
+
+    Future<bool> hasSeeded() async =>
+        (await db.select(db.storeMeta).getSingle()).hasSeeded;
+
+    void expectSameContents(LedgerState actual, LedgerState expected) {
+      expect(actual.moneySources, expected.moneySources);
+      expect(actual.entries, expected.entries);
+      expect(actual.binnedEntries, expected.binnedEntries);
+      expect(actual.categories, expected.categories);
+      expect(actual.plans, expected.plans);
+      expect(actual.budgets, expected.budgets);
+    }
+
+    Future<void> failReplaceFlush() async {
+      flaky.failures = 3;
+      store.enqueue(replaceChanges);
+      final flush = expectLater(
+        store.flushNow(),
+        throwsA(isA<PersistenceBarrierFailure>()),
+      );
+      for (var i = 0; i < 2; i++) {
+        await settle();
+        clock.fire();
+      }
+      await flush;
+    }
+
+    setUp(() async {
+      await store.seedIfFirstLaunch(oldChanges);
+      live = LedgerState.replaying(oldChanges);
+      replaceChanges = live.replaceContents(LedgerState.replaying(newChanges));
+    });
+
+    test('commits in one transaction and keeps has_seeded', () async {
+      final attemptsBefore = flaky.transactionAttempts;
+
+      store.enqueue(replaceChanges);
+      await store.flushNow();
+
+      expectSameContents(await store.load(), LedgerState.replaying(newChanges));
+      expect(await hasSeeded(), isTrue);
+      expect(flaky.transactionAttempts, attemptsBefore + 1);
+    });
+
+    test(
+      'a failed batch reports failedWillRetry and leaves the old rows',
+      () async {
+        await failReplaceFlush();
+
+        expect(reported.last, SaveBannerState.failedWillRetry);
+        expectSameContents(
+          await store.load(),
+          LedgerState.replaying(oldChanges),
+        );
+      },
+    );
+
+    test(
+      'a rollback batch after a failed batch restores the old rows',
+      () async {
+        await failReplaceFlush();
+
+        store.enqueue(live.replaceContents(LedgerState.replaying(oldChanges)));
+        flaky.failures = 0;
+        await settle();
+
+        expect(clock.armedDelays, [const Duration(milliseconds: 250)]);
+
+        clock.fire();
+        await settle();
+
+        expectSameContents(
+          await store.load(),
+          LedgerState.replaying(oldChanges),
+        );
+      },
+    );
+  });
 }
