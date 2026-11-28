@@ -31,8 +31,8 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   without the binding resolve mobile to phone and desktop platforms to
   desktop.
 - `app/lib/ui/shell/shell_navigation.dart` - `ShellRequest` (plain data with a unique int
-  occurrence), `ShellNavigationController` and `shellNavigationProvider`, which carry History requests
-  (such as Trends) to the unscoped History Flow.
+  occurrence), `ShellNavigationController` and `shellNavigationProvider`, which carry the History
+  Trends request to the unscoped History Flow.
 - `app/lib/ui/symbol_map.dart` - symbol-to-IconData mapping.
 - `app/lib/ui/theme/` - `spendwise_colors.dart` (`SpendWiseColors` ThemeExtension with the
   Harbour glass light/dark tokens), `spendwise_text.dart` (`SpendWiseText` with the amount roles `hero`, `headline`, `row` and `small`

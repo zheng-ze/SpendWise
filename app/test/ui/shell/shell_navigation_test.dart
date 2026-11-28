@@ -43,7 +43,7 @@ void main() {
 
     _controller(container).openHistoryTrends();
 
-    expect(_pendingRequest(container), isA<ShellRequest>());
+    expect(container.read(shellNavigationProvider), isNotNull);
     expect(
       container.read(selectedDestinationProvider),
       ShellDestination.history,

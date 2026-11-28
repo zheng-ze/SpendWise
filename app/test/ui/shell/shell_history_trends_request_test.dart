@@ -37,6 +37,19 @@ class _LoadingTransactionsNotifier extends TransactionsNotifier {
   }
 }
 
+class _FailedTransactionsNotifier extends TransactionsNotifier {
+  _FailedTransactionsNotifier(super.scope);
+
+  @override
+  TransactionsViewState build() {
+    final built = super.build();
+    Future.microtask(() {
+      if (ref.mounted) state = AsyncError('failed', StackTrace.empty);
+    });
+    return built;
+  }
+}
+
 ProviderContainer _shellContainer({List<Override> overrides = const []}) {
   return buildShellContainer(
     ledger: Ledger(state: LedgerState()),
@@ -62,6 +75,15 @@ Future<void> _pumpShell(
 
 void _requestTrends(ProviderContainer container) {
   container.read(shellNavigationProvider.notifier).openHistoryTrends();
+}
+
+Future<void> _pumpShellOnHistory(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await _pumpShell(tester, container);
+  container.read(shellNavigationProvider.notifier).selectHistory();
+  await tester.pumpAndSettle();
 }
 
 Finder get _trends => find.byType(TrendsFlow, skipOffstage: false);
@@ -220,11 +242,82 @@ void main() {
 
       expect(_trends, findsNothing);
       expect(container.read(shellNavigationProvider), isNotNull);
+    },
+    timeout: uiTestTimeout,
+  );
 
+  testWidgets(
+    'a flow disposed after a request but before its pickup runs does not throw',
+    (tester) async {
+      final container = _shellContainer();
+      await _pumpShellOnHistory(tester, container);
+
+      _requestTrends(container);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
+
       expect(tester.takeException(), isNull);
     },
     timeout: uiTestTimeout,
   );
+
+  testWidgets(
+    'a request while the History view model has failed is honored once',
+    (tester) async {
+      final container = _shellContainer(
+        overrides: [
+          transactionsViewModelProvider(null)
+              .overrideWith(() => _FailedTransactionsNotifier(null)),
+        ],
+      );
+      await _pumpShell(tester, container);
+
+      _requestTrends(container);
+      await tester.pumpAndSettle();
+
+      expect(_trends, findsOneWidget);
+      expect(container.read(shellNavigationProvider), isNull);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets(
+    'a request while a sheet is open opens Trends once and keeps it after',
+    (tester) async {
+      final container = _shellContainer();
+      await _pumpShellOnHistory(tester, container);
+      final context = tester.element(find.byType(TransactionsFlow));
+      final sheet = pushShellSheet(context);
+      await tester.pumpAndSettle();
+
+      _requestTrends(container);
+      await tester.pumpAndSettle();
+      expect(_trends, findsOneWidget);
+      expect(container.read(shellNavigationProvider), isNull);
+
+      await closeShellSheet(tester, sheet);
+      expect(_trends, findsOneWidget);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets('a pending request is picked up when History is selected later', (
+    tester,
+  ) async {
+    final container = _shellContainer();
+    await _pumpShellOnHistory(tester, container);
+    final destination = container.read(selectedDestinationProvider.notifier);
+
+    _requestTrends(container);
+    destination.state = ShellDestination.overview;
+    await tester.pumpAndSettle();
+    expect(_trends, findsNothing);
+    expect(container.read(shellNavigationProvider), isNotNull);
+
+    destination.state = ShellDestination.history;
+    await tester.pumpAndSettle();
+
+    expect(_trends, findsOneWidget);
+    expect(container.read(shellNavigationProvider), isNull);
+  }, timeout: uiTestTimeout);
 }
