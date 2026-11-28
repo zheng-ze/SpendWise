@@ -57,7 +57,9 @@ class _TransactionsFlowState
   void initState() {
     super.initState();
     if (!_consumesShellRequests) return;
-    ref.listenManual(shellNavigationProvider, (_, _) => _schedulePickup());
+    ref.listenManual(shellNavigationProvider, (_, request) {
+      if (request != null) _schedulePickup();
+    });
     _schedulePickup();
   }
 
