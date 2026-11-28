@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
 import 'package:spendwise/ledger/analysis/insights/insight_rules.dart';
 import 'package:spendwise/ledger/analysis/insights/matched_day_insights.dart';
 import 'package:spendwise/ledger/analysis/summaries/period_summary.dart';
@@ -16,6 +18,7 @@ import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/overview/overview_card_statement_mapping.dart';
 import 'package:spendwise/ui/overview/overview_insights_mapping.dart';
+import 'package:spendwise/ui/overview/overview_top_categories_mapping.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
 // MARK: - Constants
@@ -102,12 +105,14 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
     this.insights,
     this.weekSoFar,
     this.cardStatements,
+    this.topCategories,
     this.todayFailed = false,
     this.thisMonthFailed = false,
     this.budgetWatchFailed = false,
     this.insightsFailed = false,
     this.insightsSettledEmpty = false,
     this.weekSoFarFailed = false,
+    this.topCategoriesFailed = false,
     this.recordedToday = false,
     this.step,
   });
@@ -121,6 +126,7 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
   final OverviewInsights? insights;
   final OverviewWeekSoFar? weekSoFar;
   final List<OverviewCardStatementRow>? cardStatements;
+  final OverviewTopCategories? topCategories;
 
   final bool todayFailed;
   final bool thisMonthFailed;
@@ -128,6 +134,7 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
   final bool insightsFailed;
   final bool insightsSettledEmpty;
   final bool weekSoFarFailed;
+  final bool topCategoriesFailed;
   final bool recordedToday;
   @override
   final OverviewStep? step;
@@ -144,12 +151,14 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
         insights: insights,
         weekSoFar: weekSoFar,
         cardStatements: cardStatements,
+        topCategories: topCategories,
         todayFailed: todayFailed,
         thisMonthFailed: thisMonthFailed,
         budgetWatchFailed: budgetWatchFailed,
         insightsFailed: insightsFailed,
         insightsSettledEmpty: insightsSettledEmpty,
         weekSoFarFailed: weekSoFarFailed,
+        topCategoriesFailed: topCategoriesFailed,
         recordedToday: recordedToday,
         step: step(),
       );
@@ -237,6 +246,15 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
     final weekValue = weekRead.value;
     final weekIsCurrent = weekRead.sourceRevision == currentLedger.revision;
     final payableCards = queries.readPayableCards().value;
+    final breakdownRead = queries.readCategoryBreakdown(
+      period: month.start,
+      mode: AnalysisPeriodMode.month,
+      kind: CategoryKind.expense,
+      level: BreakdownLevel.categories,
+    );
+    final breakdown = breakdownRead.value;
+    final breakdownIsCurrent =
+        breakdownRead.sourceRevision == currentLedger.revision;
     return OverviewViewState(
       day: day,
       today: todayIsCurrent ? today.value : null,
@@ -254,6 +272,10 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
           ? overviewWeekSoFar(weekValue)
           : null,
       weekSoFarFailed: weekRead.state == AnalysisQueryState.failed,
+      topCategories: breakdownIsCurrent && breakdown != null
+          ? overviewTopCategories(breakdown, ledgerState, month.start)
+          : null,
+      topCategoriesFailed: breakdownRead.state == AnalysisQueryState.failed,
       cardStatements: payableCards == null
           ? null
           : overviewCardStatements(payableCards),

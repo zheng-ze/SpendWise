@@ -45,6 +45,7 @@ Future<List<String>> _watchNames(LedgerState state) async {
 final _cutDateFormat = DateFormat('d MMMM');
 const _cutDatePrefix = 'Closes ';
 const _owingCardName = 'Amex Card';
+const _octoberCaption = 'October so far';
 
 String _daysLabel(int days) => days == 1 ? '1 day' : '$days days';
 
@@ -199,6 +200,78 @@ void main() {
 
       expect(viewState.cardStatements, isEmpty);
     });
+  });
+
+  group('Top categories', () {
+    test('ranks the seed expense categories with bar ratios', () async {
+      final state = LedgerState();
+      buildSeed(state, today: fixtureToday);
+
+      final top = (await _settled(Ledger(state: state))).topCategories!;
+
+      expect(top.caption, _octoberCaption);
+      expect(
+        [for (final row in top.rows) row.name],
+        ['Dining', 'Groceries', 'Transport'],
+      );
+      expect(
+        [for (final row in top.rows) row.amount],
+        ['-83.90', '-73.50', '-10.00'],
+      );
+      expect(top.rows[0].barRatio, 1.0);
+      expect(top.rows[1].barRatio, closeTo(0.876, 0.001));
+      expect(top.rows[2].barRatio, closeTo(0.119, 0.001));
+    });
+
+    test(
+      'a month with only income has no rows but keeps the caption',
+      () async {
+        final state = emptyState();
+        state.addEntry(entry(1, '100.00', fixtureToday, categoryID: salaryID));
+
+        final top = (await _settled(Ledger(state: state))).topCategories!;
+
+        expect(top.rows, isEmpty);
+        expect(top.caption, _octoberCaption);
+      },
+    );
+
+    test('a month with no entries has no rows but keeps the caption', () async {
+      final top = (await _settled(Ledger(state: emptyState()))).topCategories!;
+
+      expect(top.rows, isEmpty);
+      expect(top.caption, _octoberCaption);
+    });
+
+    test('stays null while the analysis computes', () async {
+      final pending = Completer<List<AnalysisItem>>();
+      final container = overviewContainer(
+        Ledger(state: defaultState()),
+        runner: (_) => pending.future,
+      );
+      container.listen(overviewViewModelProvider, (_, _) {});
+      await pumpEventQueue();
+
+      expect(_viewState(container).topCategories, isNull);
+    });
+
+    test(
+      'reads the month of today even when the Budgets month changes',
+      () async {
+        final ledger = Ledger(state: defaultState());
+        final container = overviewContainer(ledger);
+        container.listen(overviewViewModelProvider, (_, _) {});
+        container.listen(budgetsMonthChoiceProvider, (_, _) {});
+        container.read(budgetsMonthChoiceProvider.notifier).state =
+            DateTime.utc(2026, 3);
+        await settleAnalysis(container, ledger);
+
+        final top = _viewState(container).topCategories!;
+
+        expect(top.caption, _octoberCaption);
+        expect(top.rows, isNotEmpty);
+      },
+    );
   });
 
   group('Today freshness', () {

@@ -58,6 +58,29 @@ void main() {
     expect(figures.net, '+3,146.30');
   });
 
+  test('a failed breakdown read is flagged and Retry recomputes', () async {
+    final ledger = Ledger(state: defaultState());
+    var failing = true;
+    final container = overviewContainer(
+      ledger,
+      runner: (state) =>
+          failing ? Future.error(StateError('boom')) : syncComputeRunner(state),
+    );
+    container.listen(overviewViewModelProvider, (_, _) {});
+    await pumpEventQueue();
+    final failed = container.read(overviewViewModelProvider).requireValue;
+    expect(failed.topCategoriesFailed, isTrue);
+    expect(failed.topCategories, isNull);
+
+    failing = false;
+    container.read(overviewViewModelProvider.notifier).retryReads();
+    await settleAnalysis(container, ledger);
+
+    final viewState = container.read(overviewViewModelProvider).requireValue;
+    expect(viewState.topCategoriesFailed, isFalse);
+    expect(viewState.topCategories, isNotNull);
+  });
+
   test('This month rolls over to the new month with the day', () async {
     var now = DateTime.utc(2026, 10, 31);
     final ledger = Ledger(state: defaultState());
@@ -149,22 +172,25 @@ void main() {
       },
     );
 
-    test('requestTrends emits a trends request that clearStep clears', () async {
-      final container = await _keptContainer(Ledger(state: defaultState()));
-      final notifier = container.read(overviewViewModelProvider.notifier);
+    test(
+      'requestTrends emits a trends request that clearStep clears',
+      () async {
+        final container = await _keptContainer(Ledger(state: defaultState()));
+        final notifier = container.read(overviewViewModelProvider.notifier);
 
-      notifier.requestTrends();
-      expect(
-        container.read(overviewViewModelProvider).requireValue.step,
-        isA<OverviewTrendsRequested>(),
-      );
+        notifier.requestTrends();
+        expect(
+          container.read(overviewViewModelProvider).requireValue.step,
+          isA<OverviewTrendsRequested>(),
+        );
 
-      notifier.clearStep();
-      expect(
-        container.read(overviewViewModelProvider).requireValue.step,
-        isNull,
-      );
-    });
+        notifier.clearStep();
+        expect(
+          container.read(overviewViewModelProvider).requireValue.step,
+          isNull,
+        );
+      },
+    );
 
     test('requestEditOverview emits an edit-overview request that clearStep clears', () async {
       final container = await _keptContainer(Ledger(state: defaultState()));
