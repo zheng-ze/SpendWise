@@ -402,6 +402,67 @@ void main() {
       expect(() => _readSheet(row), throwsA(_readFailure('999')));
     });
 
+    test('a row number above the Excel maximum', () {
+      const row = '<row r="1048577"/>';
+
+      expect(() => _readSheet(row), throwsA(_readFailure('1048577')));
+    });
+
+    test('a row number at the Excel maximum is accepted', () {
+      final sheet = _readSheet('<row r="1048576"/>');
+
+      expect(sheet.rows, hasLength(1048576));
+    });
+
+    test('a column above the Excel maximum', () {
+      const row = '<row r="1"><c r="XFE1"><v>1</v></c></row>';
+
+      expect(() => _readSheet(row), throwsA(_readFailure('XFE')));
+    });
+
+    test('a very long column letter run fails without overflowing', () {
+      final row = '<row r="1"><c r="${'Z' * 5000}1"><v>1</v></c></row>';
+
+      expect(() => _readSheet(row), throwsA(_readFailure('beyond column')));
+    });
+
+    test('a sheet over the cell cap fails before filling gaps', () {
+      const reader = XlsxReader(maxCells: 10);
+      const rows =
+          '<row r="1"><c r="D1"><v>1</v></c></row>'
+          '<row r="2"><c r="D2"><v>1</v></c></row>'
+          '<row r="3"><c r="D3"><v>1</v></c></row>';
+      final bytes = buildMoneyManagerXlsx(
+        partOverrides: {sheetPart: _sheetXml(rows)},
+      );
+
+      expect(() => reader.read(bytes), throwsA(_readFailure('too many cells')));
+    });
+
+    test('a single cell far to the right trips the cell cap', () {
+      const row = '<row r="1"><c r="XFD1"><v>1</v></c></row>';
+      final bytes = buildMoneyManagerXlsx(
+        partOverrides: {sheetPart: _sheetXml(row)},
+      );
+
+      expect(
+        () => const XlsxReader(maxCells: 100).read(bytes),
+        throwsA(_readFailure('too many cells')),
+      );
+    });
+
+    test('a sheet exactly at the cell cap is read', () {
+      const reader = XlsxReader(maxCells: 8);
+      const rows =
+          '<row r="1"><c r="D1"><v>1</v></c></row>'
+          '<row r="2"><c r="D2"><v>1</v></c></row>';
+      final bytes = buildMoneyManagerXlsx(
+        partOverrides: {sheetPart: _sheetXml(rows)},
+      );
+
+      expect(reader.read(bytes).rows, hasLength(2));
+    });
+
     test('a negative shared string index', () {
       const row = '<row r="1"><c r="A1" t="s"><v>-1</v></c></row>';
 

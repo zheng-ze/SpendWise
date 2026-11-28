@@ -18,14 +18,19 @@ const _inlineStringType = 'inlineStr';
 const _letterBase = 26;
 const _asciiCaseBit = 0x20;
 const _asciiBeforeA = 96;
+const _maxRowNumber = 1048576;
+const _maxColumnNumber = 16384;
+const _defaultMaxCells = 10000000;
 final _columnLetters = RegExp('^[A-Za-z]+');
 
 final class XlsxReader {
-  const XlsxReader();
+  const XlsxReader({this.maxCells = _defaultMaxCells});
+
+  final int maxCells;
 
   XlsxSheet read(Uint8List bytes) {
     try {
-      return _parse(bytes);
+      return _parse(bytes, maxCells);
     } on XlsxReadFailure {
       rethrow;
     } catch (error) {
@@ -36,14 +41,14 @@ final class XlsxReader {
   }
 }
 
-XlsxSheet _parse(Uint8List bytes) {
+XlsxSheet _parse(Uint8List bytes, int maxCells) {
   final archive = ZipDecoder().decodeBytes(bytes);
   final workbook = _document(archive, _workbookPath);
   final rels = _document(archive, _relsPath);
   final sheetPath = _sheetPath(workbook, rels);
   final sheet = _document(archive, sheetPath);
   final sharedStrings = _sharedStrings(archive);
-  final rows = _readRows(sheet, sharedStrings);
+  final rows = _readRows(sheet, sharedStrings, maxCells);
   return XlsxSheet(rows: rows, date1904: _isDate1904(workbook));
 }
 
@@ -55,16 +60,26 @@ Iterable<XmlElement> _children(XmlElement parent, String name) {
   return parent.findElements(name, namespaceUri: _anyNamespace);
 }
 
-List<List<String>> _readRows(XmlDocument sheet, List<String> sharedStrings) {
+List<List<String>> _readRows(
+  XmlDocument sheet,
+  List<String> sharedStrings,
+  int maxCells,
+) {
   final rows = <List<String>>[];
+  var remainingCells = maxCells;
   for (final row in _descendants(sheet, 'row')) {
     final requested = int.tryParse(row.getAttribute('r') ?? '');
+    if (requested != null && requested > _maxRowNumber) {
+      throw XlsxReadFailure('Row $requested is beyond row $_maxRowNumber.');
+    }
     final index = requested == null ? rows.length : requested - 1;
     final placedAt = index < rows.length ? rows.length : index;
     while (rows.length < placedAt) {
       rows.add(<String>[]);
     }
-    rows.add(_readRow(row, sharedStrings));
+    final cells = _readRow(row, sharedStrings, remainingCells);
+    remainingCells -= cells.length;
+    rows.add(cells);
   }
   return rows;
 }
@@ -116,11 +131,18 @@ Iterable<XmlElement> _textElements(XmlElement element) {
   };
 }
 
-List<String> _readRow(XmlElement row, List<String> sharedStrings) {
+List<String> _readRow(
+  XmlElement row,
+  List<String> sharedStrings,
+  int remainingCells,
+) {
   final cells = <String>[];
   var nextColumn = 0;
   for (final cell in _children(row, 'c')) {
     final column = _column(cell.getAttribute('r')) ?? nextColumn;
+    if (column >= remainingCells) {
+      throw const XlsxReadFailure('The sheet has too many cells.');
+    }
     while (cells.length <= column) {
       cells.add('');
     }
@@ -135,11 +157,13 @@ int? _column(String? reference) {
       ? null
       : _columnLetters.stringMatch(reference);
   if (letters == null) return null;
-  final number = letters.codeUnits.fold<int>(
-    0,
-    (total, unit) =>
-        total * _letterBase + ((unit | _asciiCaseBit) - _asciiBeforeA),
-  );
+  var number = 0;
+  for (final unit in letters.codeUnits) {
+    number = number * _letterBase + ((unit | _asciiCaseBit) - _asciiBeforeA);
+    if (number > _maxColumnNumber) {
+      throw XlsxReadFailure('Column $letters is beyond column $_maxColumnNumber.');
+    }
+  }
   return number - 1;
 }
 
