@@ -106,24 +106,32 @@ TopCategoryRow _projectRow(
   BreakdownRow row,
   Map<String, TransactionCategory> categories,
 ) {
-  final category = row.bucketID == null ? null : categories[row.bucketID];
-  final synthetic =
-      row.bucketID != null &&
-      syntheticTransferExpenseAccountType(row.bucketID!) != null;
-  final name = category?.name ?? analysisBucketName(row.bucketID);
-  final symbol =
-      category?.symbol ??
-      (synthetic ? _syntheticTransferSymbol : _uncategorizedSymbol);
-  final color = category == null
-      ? colorHexFallback
-      : parseColorHex(category.colorHex);
+  final label = topCategoryLabel(row.bucketID, categories);
+  final savedHex = label.savedHex;
+  final color = savedHex == null ? colorHexFallback : parseColorHex(savedHex);
   return TopCategoryRow(
     bucketID: row.bucketID,
-    name: name,
-    icon: symbolIcon(symbol),
+    name: label.name,
+    icon: symbolIcon(label.symbolName),
     color: color,
     amount: row.amount,
     sharePercent: row.sharePercent,
+  );
+}
+
+({String name, String symbolName, String? savedHex}) topCategoryLabel(
+  String? bucketID,
+  Map<String, TransactionCategory> categories,
+) {
+  final category = bucketID == null ? null : categories[bucketID];
+  final synthetic =
+      bucketID != null && syntheticTransferExpenseAccountType(bucketID) != null;
+  return (
+    name: category?.name ?? analysisBucketName(bucketID),
+    symbolName:
+        category?.symbol ??
+        (synthetic ? _syntheticTransferSymbol : _uncategorizedSymbol),
+    savedHex: category?.colorHex,
   );
 }
 
