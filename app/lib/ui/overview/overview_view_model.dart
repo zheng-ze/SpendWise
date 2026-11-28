@@ -14,6 +14,7 @@ import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/overview/overview_card_statement_mapping.dart';
 import 'package:spendwise/ui/overview/overview_insights_mapping.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
@@ -100,6 +101,7 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
     this.budgetWatch,
     this.insights,
     this.weekSoFar,
+    this.cardStatements,
     this.todayFailed = false,
     this.thisMonthFailed = false,
     this.budgetWatchFailed = false,
@@ -118,6 +120,7 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
   final List<BudgetListCard>? budgetWatch;
   final OverviewInsights? insights;
   final OverviewWeekSoFar? weekSoFar;
+  final List<OverviewCardStatementRow>? cardStatements;
 
   final bool todayFailed;
   final bool thisMonthFailed;
@@ -140,6 +143,7 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
         budgetWatch: budgetWatch,
         insights: insights,
         weekSoFar: weekSoFar,
+        cardStatements: cardStatements,
         todayFailed: todayFailed,
         thisMonthFailed: thisMonthFailed,
         budgetWatchFailed: budgetWatchFailed,
@@ -229,6 +233,7 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
     final weekRead = queries.readWeekSoFar();
     final weekValue = weekRead.value;
     final weekIsCurrent = weekRead.sourceRevision == currentLedger.revision;
+    final payableCards = queries.readPayableCards().value;
     return OverviewViewState(
       day: day,
       today: todayIsCurrent ? today.value : null,
@@ -246,6 +251,9 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
           ? overviewWeekSoFar(weekValue)
           : null,
       weekSoFarFailed: weekRead.state == AnalysisQueryState.failed,
+      cardStatements: payableCards == null
+          ? null
+          : overviewCardStatements(payableCards),
       recordedToday: newest?.entry.date == day,
       recent: recent == null
           ? null

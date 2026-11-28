@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/ui/overview/overview_budget_watch_section.dart';
+import 'package:spendwise/ui/overview/overview_card_statement_section.dart';
 import 'package:spendwise/ui/overview/overview_coming_up_section.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/overview/overview_insights_section.dart';
@@ -41,6 +42,12 @@ OverviewCard? overviewCardFor(OverviewWidgetKind kind) => switch (kind) {
     build: (viewState, viewModel) =>
         RecentTray(rows: viewState.recent, viewModel: viewModel),
   ),
+  OverviewWidgetKind.cardStatement => OverviewCard(
+    title: overviewCardStatementTitle,
+    subtitle: overviewCardStatementSubtitle,
+    build: (viewState, viewModel) =>
+        CardStatementTray(rows: viewState.cardStatements),
+  ),
   OverviewWidgetKind.comingUp => OverviewCard(
     title: overviewComingUpTitle,
     subtitle: overviewComingUpSubtitle,
@@ -79,7 +86,6 @@ OverviewCard? overviewCardFor(OverviewWidgetKind kind) => switch (kind) {
     ),
   ),
   OverviewWidgetKind.topCategories ||
-  OverviewWidgetKind.cardStatement ||
   OverviewWidgetKind.accountBalances ||
   OverviewWidgetKind.spendingOverTime ||
   OverviewWidgetKind.savingsPocket => null,

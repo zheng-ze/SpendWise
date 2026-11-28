@@ -102,6 +102,7 @@ class DisplayPreferences {
       OverviewWidgetKind.today,
       OverviewWidgetKind.thisMonth,
       OverviewWidgetKind.recentEntries,
+      OverviewWidgetKind.cardStatement,
       OverviewWidgetKind.comingUp,
       OverviewWidgetKind.budgetWatch,
       OverviewWidgetKind.insights,

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/settings/display_preferences.dart';
+import 'package:spendwise/ui/overview/overview_card_statement_mapping.dart';
 import 'package:spendwise/ui/overview/overview_insights_mapping.dart';
 import 'package:spendwise/ui/overview/overview_slots.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
@@ -35,6 +36,7 @@ OverviewViewState _viewState({
   OverviewWeekSoFar? weekSoFar,
   bool insightsFailed = false,
   bool insightsSettledEmpty = false,
+  List<OverviewCardStatementRow>? cardStatements,
 }) => OverviewViewState(
   day: _day,
   today: null,
@@ -45,6 +47,7 @@ OverviewViewState _viewState({
   weekSoFar: weekSoFar,
   insightsFailed: insightsFailed,
   insightsSettledEmpty: insightsSettledEmpty,
+  cardStatements: cardStatements,
 );
 
 void main() {
@@ -52,6 +55,7 @@ void main() {
     OverviewWidgetKind.today,
     OverviewWidgetKind.thisMonth,
     OverviewWidgetKind.recentEntries,
+    OverviewWidgetKind.cardStatement,
     OverviewWidgetKind.comingUp,
     OverviewWidgetKind.budgetWatch,
     OverviewWidgetKind.insights,
@@ -70,7 +74,7 @@ void main() {
       );
     });
 
-    test('the defaults are the seven card kinds', () {
+    test('the defaults are the eight card kinds', () {
       expect(DisplayPreferences.defaults.overviewWidgets, allKinds);
     });
 
@@ -95,6 +99,47 @@ void main() {
     test('a stored list without insights or weekSoFar does not gain them', () {
       const stored = [OverviewWidgetKind.today, OverviewWidgetKind.budgetWatch];
       expect(overviewWidgetsOrDefault(stored), stored);
+    });
+  });
+
+  group('overviewSlotFor cardStatement', () {
+    final viewModel = _FakeOverviewViewModel();
+
+    test('is present while the read is pending', () {
+      final slot = overviewSlotFor(
+        OverviewWidgetKind.cardStatement,
+        viewState: _viewState(),
+        viewModel: viewModel,
+      );
+      expect(slot, isNotNull);
+    });
+
+    test('is present when no card owes anything', () {
+      final slot = overviewSlotFor(
+        OverviewWidgetKind.cardStatement,
+        viewState: _viewState(cardStatements: const []),
+        viewModel: viewModel,
+      );
+      expect(slot, isNotNull);
+    });
+
+    test('is present with rows', () {
+      final slot = overviewSlotFor(
+        OverviewWidgetKind.cardStatement,
+        viewState: _viewState(
+          cardStatements: const [
+            OverviewCardStatementRow(
+              cardName: 'Amex Card',
+              payable: 'S\$399.60',
+              daysToCut: '12 days',
+              cutDate: 'Closes 15 October',
+              cycleAmount: 'S\$285.10',
+            ),
+          ],
+        ),
+        viewModel: viewModel,
+      );
+      expect(slot, isNotNull);
     });
   });
 

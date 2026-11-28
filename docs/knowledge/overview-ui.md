@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: 2026-11-27
+Last reconciled: 2026-11-28
 
 ## Feature overview
 
@@ -25,12 +25,12 @@ taken in stored order. `placeOverviewCard` puts each card at the top of the shor
 two-column card takes the adjacent column pair that wastes the least space under the shorter column,
 then the lower top, then the leftmost pair. With one column every card stacks in stored order. With
 two columns each spanning card takes both columns. Only kinds whose builder returns a widget take
-part in placement. The default list is Today, This month, Recent entries, Coming up, Budget watch,
+part in placement. The default list is Today, This month, Recent entries, Card statement, Coming up, Budget watch,
 Insights and Week so far. `overviewCardFor` (`overview_slots.dart`) is the single kind-to-card
 mapping, an exhaustive switch with no default. Each `OverviewCard` carries a `title`, a `subtitle`
 and the `build` function that creates the widget; `OverviewSlotBuilder` returns a nullable `Widget`.
-Seven kinds map to a card: `today`, `thisMonth`, `recentEntries`, `comingUp`, `budgetWatch`,
-`insights` and `weekSoFar`. The other five (`topCategories`, `cardStatement`, `accountBalances`,
+Eight kinds map to a card: `today`, `thisMonth`, `recentEntries`, `cardStatement`, `comingUp`,
+`budgetWatch`, `insights` and `weekSoFar`. The other four (`topCategories`, `accountBalances`,
 `spendingOverTime` and `savingsPocket`) map to null and render nothing, with no placeholder. A card
 ticket adds a kind by replacing its null arm. `overviewSlotFor` is a thin wrapper over
 `overviewCardFor` that returns the built widget or null, and `overviewCardKinds` lists the kinds that
@@ -42,7 +42,7 @@ kind, either because it is empty or because it holds only kinds without a card,
 that list. A stored list with at least one card kind passes through unchanged, kinds without a card
 included, and is never replaced even if its cards render nothing. The stored value is not rewritten
 when the screen renders; it changes only when the user taps Done in Edit Overview. A user who has
-ever saved a display setting keeps the stored list, so the Budget watch, Insights and Week so far
+ever saved a display setting keeps the stored list, so the Card statement, Budget watch, Insights and Week so far
 defaults reach only installs that have never saved one.
 
 The header carries an 'Edit Overview' action that opens the Edit Overview sheet, described in its own
@@ -59,8 +59,8 @@ totals.
   `OverviewThisMonth` (caption and optional figures) and `OverviewMonthFigures` (signed value strings
   and `netKind`). `OverviewViewState.budgetWatch` holds the Budget watch rows (`BudgetListCard`) and
   `budgetWatchFailed` flags a failed read. It also carries `insights` (`OverviewInsights?`),
-  `insightsFailed`, `insightsSettledEmpty`, `weekSoFar` (`OverviewWeekSoFar?`) and `weekSoFarFailed`.
-  The view state carries an
+  `insightsFailed`, `insightsSettledEmpty`, `weekSoFar` (`OverviewWeekSoFar?`) and `weekSoFarFailed`. `cardStatements` (`List<OverviewCardStatementRow>?`) holds the Card statement rows,
+  and null renders the skeleton. The view state carries an
   `OverviewStep` (`HasStep`/`StepEmitting`); `requestHistory` emits `OverviewHistoryRequested`,
   `requestBudgets` emits `OverviewBudgetsRequested`, `requestEditOverview` emits
   `OverviewEditOverviewRequested`, `openEntry` emits `OverviewEntryRequested`, `openBudget` emits
@@ -89,10 +89,15 @@ totals.
 - `app/lib/ui/overview/overview_slots.dart` - `OverviewCard`, `overviewCardFor` (the single
   kind-to-card switch carrying title, subtitle and builder), `overviewSlotFor` (a thin wrapper
   over it), `overviewCardKinds` (the editor catalogue) and `overviewWidgetsOrDefault` (the seeding
-  rule). `thisMonth` maps to `ThisMonthTray`, `budgetWatch` maps to `BudgetWatchTray`,
+  rule). `thisMonth` maps to `ThisMonthTray`, `cardStatement` maps to `CardStatementTray`, `budgetWatch` maps to `BudgetWatchTray`,
   `insights` maps to `InsightsTray` and `weekSoFar` maps to `WeekSoFarTray`. `OverviewSlotBuilder` is
   nullable: the `insights` builder returns null while `OverviewViewState.insightsSettledEmpty` is
   true.
+- `app/lib/ui/overview/overview_card_statement_mapping.dart` - the pure mapping `overviewCardStatements`
+  from `PayableCard` to `OverviewCardStatementRow` (`cardName`, `payable`, `daysToCut`, `cutDate` and
+  `cycleAmount`). It formats money, days and the cut date, and keeps the read's order.
+- `app/lib/ui/overview/overview_card_statement_section.dart` - `CardStatementTray` (the card, with the
+  skeleton, empty-line and rows states) and `CardStatementRow`, which has no tap target.
 - `app/lib/ui/overview/overview_insights_mapping.dart` - the pure mapping from the reads to view
   types: `OverviewInsights` (`OverviewInsightsHistoryNeeded`, `OverviewInsightsAvailable`),
   `OverviewInsightRow` (`lead`, `amount`, `tail`, `amountKind`), `OverviewWeekSoFar`
@@ -124,7 +129,9 @@ totals.
   draws the tray surface and the joined border around each item of a section.
 - `app/lib/ui/overview/overview_constants.dart` - the Edit Overview copy: `overviewEditShownLabel`,
   `overviewEditHiddenLabel`, `overviewEditShownHint`, `overviewEditHiddenHint`, `overviewEditIntro`,
-  `overviewEditRestore` and `overviewEditDone`.
+  `overviewEditRestore` and `overviewEditDone`, and the Card statement copy: `overviewCardStatementTitle`,
+  `overviewCardStatementSubtitle`, `overviewCardStatementEmpty`, `overviewCardStatementPayableLabel` and
+  `overviewCardStatementCyclePrefix`.
 - `app/lib/ui/overview/overview_this_month_section.dart` - `ThisMonthTray` (the card, with the failed,
   skeleton, empty and figures states), `ThisMonthFigures` (the Spent, Income and Net rows and the
   caption), `ThisMonthCaption` and `ThisMonthFigureRow`.
@@ -193,7 +200,7 @@ The draft rules:
 - `canApply` is true while at least one kind is shown. A saved list without a card kind would
   render as the defaults, so Done is disabled instead of saving it. The last shown card may still be
   dragged into Hidden.
-- Restore default sets `kinds` to `DisplayPreferences.defaults.overviewWidgets`, the seven-kind
+- Restore default sets `kinds` to `DisplayPreferences.defaults.overviewWidgets`, the eight-kind
   default, with no confirmation. It replaces the whole list, so stored kinds without a card are
   dropped.
 
@@ -258,7 +265,7 @@ until its read is current for the Ledger revision. A failed `readMatchedDayInsig
 'Couldn't load your insights' and a filled Retry in the Insights tray, and a failed `readWeekSoFar()`
 renders 'Couldn't load this week's spending' and a filled Retry in the Week so far tray; both flags
 (`insightsFailed`, `weekSoFarFailed`) clear through the same `OverviewNotifier.retryReads`. The one
-exception to the gate is `insightsSettledEmpty`, described under Gotchas and invariants.
+exception to the gate is `insightsSettledEmpty`, described under Gotchas and invariants. `readPayableCards()` is a ledger-only read, so it is ready at once and has no failed state and no Retry. Its memo key holds today and the Ledger revision, so a day rollover recomputes the days to the cut. `OverviewNotifier.build` maps its value into `cardStatements`, and a null value renders the Card statement skeleton, as Recent entries and Coming up do. Each row's figures equal `readCardStatement(accountID:)` for that card.
 Tapping 'View History' calls `OverviewViewModel.requestHistory`; `OverviewFlow` consumes the
 resulting `OverviewHistoryRequested` exactly once and clears it, including requests made before its
 Navigator mounts. On every layout `BootChrome` supplies a callback that selects the
@@ -331,6 +338,14 @@ Overview tab and does not change the shell selection.
   (`OverviewWeekAvailable.totalTone` is null for neutral). There is no bar
   chart. When the state is history-needed the tray shows 'More daily history needed.' with the body
   'Record more entries over the last three weeks to compare this week fairly.'.
+- Card statement: every active card account with a statement day and a Payable above zero, from
+  `readPayableCards`, in nearest-cut order. Ties go to the card name and then to the ID. The list has
+  no cap. A row has a header with the card name and the days to the cut, a 'Payable' label with its
+  amount, and a caption 'Closes <d MMMM> / This cycle <amount>'. The days read '<n> days' for two or
+  more and '1 day' for tomorrow. A cut is never today, because the cut day starts the next cycle.
+  Payable is the owed total of entries dated before the cut. This cycle is the card's non-transfer expenses
+  from the start of the cycle through today. When no card qualifies, the tray shows one line, 'No card
+  statements to pay.' The card has no tap target, no picker and no stored choice.
 - Recent entries: at most 4 active entries dated before tomorrow, newest first; same-day entries
   order by id descending. A row caption is
   '<Today or d MMM> / <category> / <account line>' and the title is the entry name, falling back to
@@ -356,7 +371,7 @@ Overview tab and does not change the shell selection.
 - Placement never reorders cards, so some space cannot be removed. With column bottoms of 100, 400
   and 100, a two-column card goes at the top of 400 and leaves a 300 gap above it. The bottom edges
   of the last cards are also ragged.
-- Placement runs only over slots whose builder returns a widget, so the five unmapped kinds never take
+- Placement runs only over slots whose builder returns a widget, so the four unmapped kinds never take
   a cell. `spendingOverTime` has a span of two but no card yet, so its span is covered only by the
   pure tests until its card ships.
 - An empty Insights card takes no slot. `OverviewSlotBuilder` is nullable, and the `insights` builder
@@ -384,6 +399,15 @@ Overview tab and does not change the shell selection.
 - The 'Set a monthly cap' link is a `MonthlyCapAction` button with a 48x48 minimum tap target. Its
   tap opens Money at Budgets. Under a covering sheet it only dismisses that sheet, as described under
   Module interactions.
+- The Card statement card is untappable. It has no tap target, sends no request and emits no step.
+- On a statement day Coming up shows the card's statement closing today, while Card statement shows the
+  cut in the next month. Coming up shifts back one day on the cut day and Card statement does not, so
+  the two sections disagree on that day.
+- Card statement Payable counts only entries dated before the cut. An entry dated on or after the cut
+  makes it differ from the card's full account total. A card
+  that owes only through such an entry is not listed.
+- A stored `overviewWidgets` list never gains `cardStatement`. Only the defaults carry it, so a saved
+  list shows the card after the user adds it in Edit Overview.
 - 'View History' is a real action; it stays reachable for empty and section-loading Recent
   entries, not only for nonempty rows.
 - The This month card is deliberately untappable. It sends no History request and emits no step, so a
@@ -425,8 +449,8 @@ Overview tab and does not change the shell selection.
   least one card kind is returned unchanged, kinds without a card included
   (`app/test/ui/overview/overview_slots_test.dart`). The grid's use of the function has no widget
   test.
-- `overviewCardKinds` lists the seven kinds with a card in declaration order, and the defaults are
-  the seven-kind list (`app/test/ui/overview/overview_slots_test.dart`). `overviewSlotFor` returns
+- `overviewCardKinds` lists the eight kinds with a card in declaration order, and the defaults are
+  the eight-kind list (`app/test/ui/overview/overview_slots_test.dart`). `overviewSlotFor` returns
   null for `insights` while `insightsSettledEmpty` is true and a widget for a history-needed or
   failed Insights state (same file, with a hand-written fake `OverviewViewModel`).
 - Insights lines, amount kinds, the 2-row cap, the 'Uncategorized is' and 'Savings transfers are'
@@ -489,7 +513,7 @@ Overview tab and does not change the shell selection.
   moving it past the Hidden header, shows a card at its drop position, keeps kinds without a card at
   their exact index when shown cards are reordered (and in their relative order when a card is
   hidden or shown), reports `canApply` false when nothing is shown, restores the
-  seven-kind default and applies itself to the other display preferences unchanged
+  eight-kind default and applies itself to the other display preferences unchanged
   (`app/test/ui/overview/overview_edit_draft_test.dart`, groups 'shown and hidden', 'move within
   shown', 'move shown to hidden', 'move hidden to shown', 'moves that change nothing',
   'restoreDefault and applyTo'). An injected fifth card kind appears in `hidden` ('an injected fifth
@@ -501,7 +525,7 @@ Overview tab and does not change the shell selection.
 - On phone, dragging a grip reorders the list without dismissing the sheet, and Done saves the new
   order to `overviewWidgets`. Dragging a card into Hidden and then tapping outside discards the draft
   and leaves `overviewWidgets` unchanged
-  (`app/test/ui/overview/overview_edit_sheet_test.dart`, seeded with all seven card kinds). Both
+  (`app/test/ui/overview/overview_edit_sheet_test.dart`, seeded with all eight card kinds). Both
   cases assert preference values and the presence of the sheet only.
 - The sheet shows Shown and Hidden as two separate sections, each with a heading, a tray surface and
   an empty-state hint row that is a drop target (`overviewEditShownHint`, `overviewEditHiddenHint`).
@@ -519,6 +543,18 @@ Overview tab and does not change the shell selection.
   selects the budget in the open layout pane'). `BudgetsFlow` selects a budget requested before or
   while it is mounted and selects nothing without a request
   (`app/test/ui/budgets/budget_list/budgets_flow_pending_selection_test.dart`).
+- Card statement eligibility, the nearest-cut order with name and ID ties, the cut-day boundary, the
+  absence of a cap and the memoized read are covered by `app/test/ledger/analysis_payable_cards_test.dart`.
+  Each row's statement equals `readCardStatement(accountID:)` for its card (same file).
+- The Card statement mapping (money, '12 days' and '1 day', 'Closes 15 October', read order, empty in and
+  empty out) is covered by `app/test/ui/overview/overview_card_statement_mapping_test.dart`.
+- The Card statement view state carries one row for the owing card with figures from the read, stays
+  present while the analysis cache is pending, and is empty for a ledger where the card owes nothing
+  (`app/test/ui/overview/overview_content_test.dart`, group 'Card statement').
+- `overviewSlotFor` returns a widget for `cardStatement` while pending, when empty and with rows
+  (`app/test/ui/overview/overview_slots_test.dart`, group 'overviewSlotFor cardStatement').
+- The Card statement row layout, the 'No card statements to pay.' line and the absence of a tap target
+  have no widget test.
 - These behaviors have no widget test: the docked presentation on open and desktop, the 'Edit
   Overview' header action opening the sheet, Done disabled while nothing is shown, Restore default
   in the sheet, the two sections and their headings and hint rows, a drag from Hidden into Shown, a

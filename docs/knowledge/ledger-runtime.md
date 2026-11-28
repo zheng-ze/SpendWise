@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 2026-11-22
+Last reconciled: 2026-11-28
 
 ## Feature overview
 
@@ -27,6 +27,10 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
   monthly and yearly Trends periods, and compared with usual. `summaries/trends_period.dart` owns
   the sealed `TrendsPeriod` variants and their category-average result types.
   The pure-domain card query lives in `packages/domain/lib/src/analysis/card_statement.dart`.
+- `app/lib/ledger/analysis/summaries/payable_cards.dart` - `PayableCard` and `payableCards`, the pure
+  helper behind `readPayableCards`: the active card accounts with a statement day and a Payable above
+  zero, each paired with its domain `CardStatement` and days to the cut, ordered by next cut, then
+  account name, then account ID.
 - `app/lib/ledger/analysis/insights/usual_baseline.dart` - the usual baseline shared by month pace
   and budget forecasts: the complete months before the current month, the three-month minimum, and cents
   rounding.
@@ -198,7 +202,7 @@ treat-as-expense transfers can contribute to both spending and moved volume
 (`app/lib/ledger/analysis/summaries/period_summary.dart`; `app/test/ledger/analysis_today_period_test.dart`).
 
 `readRegisterDays`, `readRecent`, `readUpcoming`, `readSearch`, `readCalendarDays`,
-`readCardStatement`, `readFirstRecordMonth`, `readMonthCompleteness`, and `readWeekCompleteness`
+`readCardStatement`, `readPayableCards`, `readFirstRecordMonth`, `readMonthCompleteness`, and `readWeekCompleteness`
 evaluate against the current Ledger without waiting for analysis items.
 Successful results carry `Ledger.revision`; memo keys include normalized query parameters and
 revision, plus today for day-dependent reads. Exceptions fail only the affected query and retain
@@ -396,6 +400,14 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
 - `readCardStatement(accountID:)` wraps the domain query at today. An ineligible account returns
   a ready result with null value and the current Ledger revision (`analysis_queries.dart`;
   `analysis_service_test.dart`: `ineligibleCardIsReadyNullWithRevision`).
+- `readPayableCards()` returns `AnalysisQueryResult<List<PayableCard>>` at today: the active card accounts
+  with a statement day and a Payable above zero, in `payableCards` order (next cut, then account name,
+  then account ID). Each `PayableCard` holds the account name, the domain `CardStatement` that
+  `readCardStatement` returns for that account, and `daysToCut`, the whole days from today to `nextCut`.
+  The list has no cap. Its identity is `payable-cards`, its memo key holds today and `Ledger.revision`,
+  and it is ready immediately and carries the current Ledger revision
+  (`app/lib/ledger/analysis_queries_ledger_reads.dart:_readPayableCards`;
+  `app/test/ledger/analysis_payable_cards_test.dart`).
 
 ## Boot order
 

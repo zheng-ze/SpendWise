@@ -20,7 +20,7 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | Categories and the on-device category classifier | [categories-and-classification.md](categories-and-classification.md) |
 | Transactions list (shell History destination; scoped lists in Money) and entry form | [transactions-ui.md](transactions-ui.md) |
 | Trends page hosted by History and category drill-down | [stats-and-analysis-ui.md](stats-and-analysis-ui.md) |
-| Overview screen: Today, This month, Recent entries, Coming up, Budget watch, Insights, Week so far, and Edit Overview | [overview-ui.md](overview-ui.md) |
+| Overview screen: Today, This month, Recent entries, Card statement, Coming up, Budget watch, Insights, Week so far, and Edit Overview | [overview-ui.md](overview-ui.md) |
 | Money host with Budgets, Accounts, and Plans segments, and account/pocket forms | [accounts-ui.md](accounts-ui.md) |
 | Settings: categories, recycle bin, Money Manager import row, device-local display preferences | [settings-ui.md](settings-ui.md) |
 | Money Manager import: picker, .xlsx reader, parsing, ledger builder, atomic replacement and rollback | [money-manager-import.md](money-manager-import.md) |

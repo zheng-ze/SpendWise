@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
@@ -40,6 +41,15 @@ Future<List<String>> _watchNames(LedgerState state) async {
   final watch = (await _settled(Ledger(state: state))).budgetWatch!;
   return [for (final card in watch) card.name];
 }
+
+final _cutDateFormat = DateFormat('d MMMM');
+const _cutDatePrefix = 'Closes ';
+const _owingCardName = 'Amex Card';
+
+String _daysLabel(int days) => days == 1 ? '1 day' : '$days days';
+
+OverviewViewState _viewState(ProviderContainer container) =>
+    container.read(overviewViewModelProvider).requireValue;
 
 void main() {
   group('Today', () {
@@ -139,6 +149,55 @@ void main() {
 
     test('no budgets yields an empty list', () async {
       expect(await _watchNames(_seedWithBudgets({})), isEmpty);
+    });
+  });
+
+  group('Card statement', () {
+    test('holds one row for the owing card matching its statement', () async {
+      final ledger = Ledger(state: defaultState());
+      final container = overviewContainer(ledger);
+      container.listen(overviewViewModelProvider, (_, _) {});
+      await settleAnalysis(container, ledger);
+      final statement = container
+          .read(analysisQueriesProvider)!
+          .readCardStatement(accountID: cardID)
+          .value!;
+
+      final rows = _viewState(container).cardStatements!;
+
+      expect(rows, hasLength(1));
+      expect(rows.single.cardName, _owingCardName);
+      expect(rows.single.payable, formatMoney(statement.payable));
+      expect(rows.single.cycleAmount, formatMoney(statement.cycleAmount));
+      expect(
+        rows.single.daysToCut,
+        _daysLabel(statement.nextCut.difference(fixtureToday).inDays),
+      );
+      expect(
+        rows.single.cutDate,
+        '$_cutDatePrefix${_cutDateFormat.format(statement.nextCut)}',
+      );
+    });
+
+    test('is present while the analysis cache is pending', () async {
+      final pending = Completer<List<AnalysisItem>>();
+      final container = overviewContainer(
+        Ledger(state: defaultState()),
+        runner: (_) => pending.future,
+      );
+      container.listen(overviewViewModelProvider, (_, _) {});
+      await pumpEventQueue();
+
+      final viewState = _viewState(container);
+
+      expect(viewState.today, isNull);
+      expect(viewState.cardStatements!.single.cardName, _owingCardName);
+    });
+
+    test('is an empty list when no card owes anything', () async {
+      final viewState = await _settled(Ledger(state: emptyState()));
+
+      expect(viewState.cardStatements, isEmpty);
     });
   });
 
