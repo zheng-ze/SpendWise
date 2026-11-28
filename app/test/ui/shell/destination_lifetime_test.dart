@@ -25,6 +25,7 @@ import 'package:spendwise/ui/settings/category/category_list_screen.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/settings/settings_root_screen.dart';
 import 'package:spendwise/ui/stats/trends_flow.dart';
+import 'package:spendwise/ui/shell/shell_navigation.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import 'package:spendwise/ui/transactions/trends_detail_action.dart';
@@ -282,6 +283,25 @@ void main() {
     expect(find.byType(BudgetDetailScreen), findsNothing);
     expect(container.read(pendingBudgetSelectionProvider), isNull);
   }, timeout: uiTestTimeout);
+
+  testWidgets('Top categories Open Trends opens History with Trends on top', (
+    tester,
+  ) async {
+    final container = await _pumpBudgetWatchOverview(
+      tester,
+      shownKinds: const [OverviewWidgetKind.topCategories],
+    );
+
+    await tester.tap(find.text(overviewTopCategoriesTrendsLink));
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(selectedDestinationProvider),
+      ShellDestination.history,
+    );
+    expect(find.byType(TrendsFlow), findsOneWidget);
+    expect(container.read(shellNavigationProvider), isNull);
+  }, timeout: uiTestTimeout);
 }
 
 Ledger _noCapLedgerWithEntryToday() {
@@ -342,6 +362,7 @@ Future<void> _leaveAndReturnToMoney(
 Future<ProviderContainer> _pumpBudgetWatchOverview(
   WidgetTester tester, {
   ShellLayoutMode mode = ShellLayoutMode.phone,
+  List<OverviewWidgetKind> shownKinds = const [OverviewWidgetKind.budgetWatch],
 }) async {
   final ledger = buildShellLedger();
   final persistence = PersistenceProcessor(
@@ -355,7 +376,7 @@ Future<ProviderContainer> _pumpBudgetWatchOverview(
         Ready(ledger: ledger, persistence: persistence),
       ),
       initialDisplayPreferencesProvider.overrideWithValue(
-        DisplayPreferences(overviewWidgets: [OverviewWidgetKind.budgetWatch]),
+        DisplayPreferences(overviewWidgets: shownKinds),
       ),
     ],
   );
