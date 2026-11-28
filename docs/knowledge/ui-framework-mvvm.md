@@ -230,8 +230,8 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   on every layout and pushes no route. There is no Trends destination in the
   shell. There is no header gear and no shell Add FAB.
   `ShellNavigationController` (`shellNavigationProvider`, `app/lib/ui/shell/shell_navigation.dart`)
-  is the shell's History request channel. `selectHistory()` selects History. `openHistoryTrends()`
-  stores a fresh `ShellRequest` and selects History synchronously, awaiting nothing. `consume(request)`
+  is the shell's History request channel. `openHistoryTrends()` stores a fresh `ShellRequest` and
+  selects History synchronously, awaiting nothing. `consume(request)`
   clears only the matching request. The unscoped History Flow handles the request as described in
   [transactions-ui.md](transactions-ui.md).
   `ShellPaneScope` supplies the mode, shared `splitOffset`, `sheetCovered` and `sheetPresented`.

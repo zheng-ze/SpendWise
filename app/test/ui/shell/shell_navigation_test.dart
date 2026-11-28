@@ -26,18 +26,6 @@ void main() {
     expect(container.read(shellNavigationProvider), isNull);
   });
 
-  test('selectHistory selects History without creating a request', () {
-    final container = _newContainer();
-
-    _controller(container).selectHistory();
-
-    expect(
-      container.read(selectedDestinationProvider),
-      ShellDestination.history,
-    );
-    expect(container.read(shellNavigationProvider), isNull);
-  });
-
   test('openHistoryTrends stores a request and selects History', () {
     final container = _newContainer();
 

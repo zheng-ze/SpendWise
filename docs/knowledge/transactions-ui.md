@@ -65,9 +65,8 @@ and edits existing ones (Edit entry); Add is the only place recurring plans are 
   destination is selected and History unmounts. The unscoped Flow also consumes the shell's pending
   History Trends request (see Navigation).
 - `app/lib/ui/shell/shell_navigation.dart` - `ShellNavigationController` (`shellNavigationProvider`),
-  the shell's History request channel: `selectHistory()`, `openHistoryTrends()` (a fresh
-  `ShellRequest`, selecting History synchronously) and `consume(request)`, which clears only the
-  matching request.
+  the shell's History request channel: `openHistoryTrends()` (a fresh `ShellRequest`, selecting
+  History synchronously) and `consume(request)`, which clears only the matching request.
 - `app/lib/ui/transactions/trends_detail_action.dart` - 'See more detail', the shared `AppLinkButton`
   (muted subtext colour, trailing chevron, 48 dp minimum hit size) aligned to the trailing edge, rendered
   below the totals band in unscoped History only, including empty months.

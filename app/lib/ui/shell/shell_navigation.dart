@@ -23,15 +23,11 @@ class ShellNavigationController extends Notifier<ShellRequest?> {
   @override
   ShellRequest? build() => null;
 
-  void selectHistory() {
-    ref.read(selectedDestinationProvider.notifier).state =
-        ShellDestination.history;
-  }
-
   void openHistoryTrends() {
     _lastOccurrence += 1;
     state = ShellRequest(occurrence: _lastOccurrence);
-    selectHistory();
+    ref.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.history;
   }
 
   void consume(ShellRequest request) {

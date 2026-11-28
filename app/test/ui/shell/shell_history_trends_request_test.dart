@@ -82,7 +82,8 @@ Future<void> _pumpShellOnHistory(
   ProviderContainer container,
 ) async {
   await _pumpShell(tester, container);
-  container.read(shellNavigationProvider.notifier).selectHistory();
+  container.read(selectedDestinationProvider.notifier).state =
+      ShellDestination.history;
   await tester.pumpAndSettle();
 }
 
