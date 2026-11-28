@@ -11,6 +11,7 @@ import 'package:spendwise/ui/money/money_segment.dart';
 import 'package:spendwise/ui/overview/overview_flow.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
+import 'package:spendwise/ui/shell/shell_navigation.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/spendwise_wordmark.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
@@ -69,6 +70,8 @@ class _OverviewTabEntry extends ConsumerWidget {
               ShellDestination.history,
       onBudgetsSelected: () =>
           ref.read(moneySegmentProvider.notifier).openAt(MoneySegment.budgets),
+      onTrendsSelected: () =>
+          ref.read(shellNavigationProvider.notifier).openHistoryTrends(),
       onBudgetSelected: selectBudget,
     );
   }

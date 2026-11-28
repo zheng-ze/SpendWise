@@ -111,6 +111,7 @@ Future<ProviderContainer> _pumpOverview(WidgetTester tester) async {
       ShellDestination.overview: (_) => OverviewFlow(
         onHistorySelected: _ignore,
         onBudgetsSelected: _ignore,
+        onTrendsSelected: _ignore,
         onBudgetSelected: _ignoreBudget,
       ),
     },

@@ -20,6 +20,9 @@ class _FakeOverviewViewModel implements OverviewViewModel {
   void requestBudgets() {}
 
   @override
+  void requestTrends() {}
+
+  @override
   void requestEditOverview() {}
 
   @override

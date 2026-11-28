@@ -162,6 +162,8 @@ class OverviewHistoryRequested extends OverviewStep {}
 
 class OverviewBudgetsRequested extends OverviewStep {}
 
+class OverviewTrendsRequested extends OverviewStep {}
+
 class OverviewBudgetRequested extends OverviewStep {
   OverviewBudgetRequested(this.budgetID);
 
@@ -181,6 +183,7 @@ abstract class OverviewViewModel {
   void retryReads();
   void requestHistory();
   void requestBudgets();
+  void requestTrends();
   void requestEditOverview();
   void openEntry(String id);
   void openBudget(String budgetID);
@@ -276,6 +279,9 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
 
   @override
   void requestBudgets() => emitStep(OverviewBudgetsRequested());
+
+  @override
+  void requestTrends() => emitStep(OverviewTrendsRequested());
 
   @override
   void requestEditOverview() => emitStep(OverviewEditOverviewRequested());

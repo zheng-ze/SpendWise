@@ -149,6 +149,23 @@ void main() {
       },
     );
 
+    test('requestTrends emits a trends request that clearStep clears', () async {
+      final container = await _keptContainer(Ledger(state: defaultState()));
+      final notifier = container.read(overviewViewModelProvider.notifier);
+
+      notifier.requestTrends();
+      expect(
+        container.read(overviewViewModelProvider).requireValue.step,
+        isA<OverviewTrendsRequested>(),
+      );
+
+      notifier.clearStep();
+      expect(
+        container.read(overviewViewModelProvider).requireValue.step,
+        isNull,
+      );
+    });
+
     test('requestEditOverview emits an edit-overview request that clearStep clears', () async {
       final container = await _keptContainer(Ledger(state: defaultState()));
       final notifier = container.read(overviewViewModelProvider.notifier);

@@ -87,6 +87,7 @@ void main() {
           ShellDestination.overview: (_) => OverviewFlow(
             onHistorySelected: selectHistory,
             onBudgetsSelected: ignoreBudgets,
+            onTrendsSelected: ignoreBudgets,
             onBudgetSelected: ignoreBudget,
           ),
           ShellDestination.history: (_) => const TransactionsFlow(),
@@ -210,6 +211,7 @@ void main() {
         ShellDestination.overview: (_) => OverviewFlow(
           onHistorySelected: ignoreHistory,
           onBudgetsSelected: openBudgets,
+          onTrendsSelected: ignoreHistory,
           onBudgetSelected: ignoreBudget,
         ),
         ShellDestination.money: (_) => const MoneyFlow(),
