@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: 2026-11-28
+Last reconciled: 2026-11-29
 
 ## Feature overview
 
@@ -29,8 +29,8 @@ part in placement. The default list is Today, This month, Recent entries, Card s
 Insights and Week so far. `overviewCardFor` (`overview_slots.dart`) is the single kind-to-card
 mapping, an exhaustive switch with no default. Each `OverviewCard` carries a `title`, a `subtitle`
 and the `build` function that creates the widget; `OverviewSlotBuilder` returns a nullable `Widget`.
-Eight kinds map to a card: `today`, `thisMonth`, `recentEntries`, `cardStatement`, `comingUp`,
-`budgetWatch`, `insights` and `weekSoFar`. The other four (`topCategories`, `accountBalances`,
+Nine kinds map to a card: `today`, `thisMonth`, `recentEntries`, `topCategories`, `cardStatement`,
+`comingUp`, `budgetWatch`, `insights` and `weekSoFar`. The other three (`accountBalances`,
 `spendingOverTime` and `savingsPocket`) map to null and render nothing, with no placeholder. A card
 ticket adds a kind by replacing its null arm. `overviewSlotFor` is a thin wrapper over
 `overviewCardFor` that returns the built widget or null, and `overviewCardKinds` lists the kinds that
@@ -59,10 +59,12 @@ totals.
   `OverviewThisMonth` (caption and optional figures) and `OverviewMonthFigures` (signed value strings
   and `netKind`). `OverviewViewState.budgetWatch` holds the Budget watch rows (`BudgetListCard`) and
   `budgetWatchFailed` flags a failed read. It also carries `insights` (`OverviewInsights?`),
-  `insightsFailed`, `insightsSettledEmpty`, `weekSoFar` (`OverviewWeekSoFar?`) and `weekSoFarFailed`. `cardStatements` (`List<OverviewCardStatementRow>?`) holds the Card statement rows,
+  `insightsFailed`, `insightsSettledEmpty`, `weekSoFar` (`OverviewWeekSoFar?`) and `weekSoFarFailed`. It
+  also carries `topCategories` (`OverviewTopCategories?`) and `topCategoriesFailed`. `cardStatements` (`List<OverviewCardStatementRow>?`) holds the Card statement rows,
   and null renders the skeleton. The view state carries an
   `OverviewStep` (`HasStep`/`StepEmitting`); `requestHistory` emits `OverviewHistoryRequested`,
-  `requestBudgets` emits `OverviewBudgetsRequested`, `requestEditOverview` emits
+  `requestBudgets` emits `OverviewBudgetsRequested`, `requestTrends` emits `OverviewTrendsRequested`,
+  `requestEditOverview` emits
   `OverviewEditOverviewRequested`, `openEntry` emits `OverviewEntryRequested`, `openBudget` emits
   `OverviewBudgetRequested` and `clearStep` clears it. `OverviewEntryRow.entryId`
   identifies the entry a Recent row opens. Rebuilds preserve a pending step.
@@ -90,7 +92,8 @@ totals.
   kind-to-card switch carrying title, subtitle and builder), `overviewSlotFor` (a thin wrapper
   over it), `overviewCardKinds` (the editor catalogue) and `overviewWidgetsOrDefault` (the seeding
   rule). `thisMonth` maps to `ThisMonthTray`, `cardStatement` maps to `CardStatementTray`, `budgetWatch` maps to `BudgetWatchTray`,
-  `insights` maps to `InsightsTray` and `weekSoFar` maps to `WeekSoFarTray`. `OverviewSlotBuilder` is
+  `insights` maps to `InsightsTray`, `weekSoFar` maps to `WeekSoFarTray` and `topCategories` maps to
+  `TopCategoriesTray`. `OverviewSlotBuilder` is
   nullable: the `insights` builder returns null while `OverviewViewState.insightsSettledEmpty` is
   true.
 - `app/lib/ui/overview/overview_card_statement_mapping.dart` - the pure mapping `overviewCardStatements`
@@ -109,6 +112,16 @@ totals.
 - `app/lib/ui/overview/overview_week_so_far_section.dart` - `WeekSoFarTray` (the card, with the
   failed, skeleton, history-needed and content states) and `WeekSoFarContent` (range caption, total,
   optional comparison and usual note).
+- `app/lib/ui/overview/overview_top_categories_mapping.dart` - the pure mapping `overviewTopCategories`
+  from a `PeriodBreakdown`, the `LedgerState` and the month start to `OverviewTopCategories`
+  (`caption` and `rows`). Each `OverviewTopCategoryRow` holds `name`, `symbolName`, `savedHex`,
+  `amount` and `barRatio`. Row labels come from the shared `topCategoryLabel`
+  (`app/lib/ui/transactions/top_categories_view_model.dart`), which the History Top categories
+  projection also uses for the name, symbol and saved colour of a bucket.
+- `app/lib/ui/overview/overview_top_categories_section.dart` - `TopCategoriesTray` (the card, with the
+  failed, skeleton and content states), `TopCategoriesContent` (caption, rows or the empty copy, and
+  the 'Open Trends' link), `TopCategoriesRows`, `OverviewTopCategoryRowView` and `TopCategoryBar`.
+  Bar and icon colours come from `CategoryPalette.resolve` with the stored `chartColours`.
 - `app/lib/ui/overview/overview_budget_watch_section.dart` - `BudgetWatchTray` (the card, with the
   failed, skeleton, empty and rows states), `BudgetWatchEmpty` and `BudgetWatchRows`, which renders each
   row with `BudgetCard`.
@@ -145,10 +158,11 @@ totals.
   link and both Budget watch links use.
 - `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) subscribing to
   `OverviewStep` once, calling its required `onHistorySelected` callback for history requests, its
-  required `onBudgetsSelected` callback for budget-list requests, its required `onBudgetSelected`
+  required `onBudgetsSelected` callback for budget-list requests, its required `onTrendsSelected`
+  callback for `OverviewTrendsRequested`, its required `onBudgetSelected`
   callback for a single-budget request, `openEditOverview` for Edit Overview requests and
   `openEditEntry` for entry requests.
-  `BootChrome` supplies the budget and history callbacks (`app/lib/ui/shell/boot_chrome.dart`). It supplies its page
+  `BootChrome` supplies the budget, history and trends callbacks (`app/lib/ui/shell/boot_chrome.dart`). It supplies its page
   through `ShellPaneHost`. Its page builder
   passes the layout mode from `ShellPaneScope` and the page presentation to `OverviewScreen`.
 - `app/lib/ledger/analysis/summaries/today_summary.dart` - `TodaySummary` carries `spent`, `dailyGuide` and
@@ -157,8 +171,8 @@ totals.
   account lines, symbols and amount kinds for entries and projected plan occurrences.
 - `app/test/ui/overview/` - view model tests, the `overview_screen_test.dart` button-to-step tests
   (320x760), `overview_grid_placement_test.dart`, `overview_slots_test.dart` (card kinds and the
-  seeding rule and the nullable slot), `overview_content_test.dart` (the This month and Budget watch
-  reads), `overview_insights_mapping_test.dart` (the pure mapping),
+  seeding rule and the nullable slot), `overview_content_test.dart` (the This month, Budget watch, Top categories and Card statement
+  reads), `overview_top_categories_mapping_test.dart` (the pure Top categories mapping), `overview_insights_mapping_test.dart` (the pure mapping),
   `overview_insights_content_test.dart` (the Insights and Week so far reads),
   `overview_edit_draft_test.dart` (the draft), `overview_edit_sheet_test.dart` (the
   sheet's two widget cases) and the shared fixture.
@@ -266,6 +280,17 @@ until its read is current for the Ledger revision. A failed `readMatchedDayInsig
 renders 'Couldn't load this week's spending' and a filled Retry in the Week so far tray; both flags
 (`insightsFailed`, `weekSoFarFailed`) clear through the same `OverviewNotifier.retryReads`. The one
 exception to the gate is `insightsSettledEmpty`, described under Gotchas and invariants. `readPayableCards()` is a ledger-only read, so it is ready at once and has no failed state and no Retry. Its memo key holds today and the Ledger revision, so a day rollover recomputes the days to the cut. `OverviewNotifier.build` maps its value into `cardStatements`, and a null value renders the Card statement skeleton, as Recent entries and Coming up do. Each row's figures equal `readCardStatement(accountID:)` for that card.
+`OverviewNotifier.build` also calls `AnalysisQueries.readCategoryBreakdown` with `period` the month
+start of today, `mode` `AnalysisPeriodMode.month`, `kind` `CategoryKind.expense` and `level`
+`BreakdownLevel.categories`. `topCategories` follows the same current-revision gate as `today`: it is
+null, which renders a skeleton, until the read is current for the Ledger revision. A failed read sets
+`topCategoriesFailed`, and the tray renders 'Couldn't load your top categories' and a filled Retry
+that calls `OverviewNotifier.retryReads`, the same path as the other Retry buttons. The month comes
+from `todayProvider`, so the card never follows the month chosen on another screen.
+The 'Open Trends' link calls `OverviewViewModel.requestTrends`, which emits `OverviewTrendsRequested`.
+`OverviewFlow` consumes it once, clears it and calls `onTrendsSelected`, and `BootChrome` wires that to
+`shellNavigationProvider.notifier.openHistoryTrends()` (`app/lib/ui/shell/shell_navigation.dart`).
+Overview does not know about History or Trends.
 Tapping 'View History' calls `OverviewViewModel.requestHistory`; `OverviewFlow` consumes the
 resulting `OverviewHistoryRequested` exactly once and clears it, including requests made before its
 Navigator mounts. On every layout `BootChrome` supplies a callback that selects the
@@ -319,6 +344,16 @@ Overview tab and does not change the shell selection.
   budgets yet.' and an 'Add a budget' link, when no category budget exists, including when only an
   All spending budget exists. With rows it ends in a 'View budgets' link. It has no forecast line,
   chip, headline or legend.
+- Top categories: the first three rows of `readCategoryBreakdown` for the month of today, in the
+  read's own order, mapped by `overviewTopCategories`. The bucket rules are the ones History's Top
+  categories uses, so the Uncategorized bucket and the synthetic transfer-expense buckets
+  ('Savings transfers') can appear. The read keeps only buckets whose expense total is above zero
+  (`category_breakdown.dart`), so a month whose expenses net to zero or less in every bucket has no
+  rows. The amount is the bucket total negated and formatted without a currency symbol
+  (`formatSignedMoney`). `barRatio` is the row amount divided by the top row amount, so the top row
+  is full width and the others are relative to it. The caption is '<Month> so far'. With no rows the
+  card shows 'No spending yet' under the caption and keeps the 'Open Trends' link. Fewer than three
+  rows render without padding.
 - Insights: up to 2 lines from `readMatchedDayInsights`, mapped by `overviewInsights`
   (`overview_insights_mapping.dart`) in the read's own ranked order; the read's
   `InsightRules.maximumCategoryChanges` is the only cap. A line reads '<Category> is S$X higher than
@@ -371,7 +406,7 @@ Overview tab and does not change the shell selection.
 - Placement never reorders cards, so some space cannot be removed. With column bottoms of 100, 400
   and 100, a two-column card goes at the top of 400 and leaves a 300 gap above it. The bottom edges
   of the last cards are also ragged.
-- Placement runs only over slots whose builder returns a widget, so the four unmapped kinds never take
+- Placement runs only over slots whose builder returns a widget, so the three unmapped kinds never take
   a cell. `spendingOverTime` has a span of two but no card yet, so its span is covered only by the
   pure tests until its card ships.
 - An empty Insights card takes no slot. `OverviewSlotBuilder` is nullable, and the `insights` builder
@@ -399,6 +434,10 @@ Overview tab and does not change the shell selection.
 - The 'Set a monthly cap' link is a `MonthlyCapAction` button with a 48x48 minimum tap target. Its
   tap opens Money at Budgets. Under a covering sheet it only dismisses that sheet, as described under
   Module interactions.
+- Top categories rows are not tappable. Only the 'Open Trends' link acts, and it opens Trends from the
+  History destination without carrying a category.
+- A stored `overviewWidgets` list never gains `topCategories`. `DisplayPreferences.defaults` is
+  unchanged, so only Edit Overview adds the card to a saved list.
 - The Card statement card is untappable. It has no tap target, sends no request and emits no step.
 - On a statement day Coming up shows the card's statement closing today, while Card statement shows the
   cut in the next month. Coming up shifts back one day on the cut day and Card statement does not, so
@@ -449,8 +488,9 @@ Overview tab and does not change the shell selection.
   least one card kind is returned unchanged, kinds without a card included
   (`app/test/ui/overview/overview_slots_test.dart`). The grid's use of the function has no widget
   test.
-- `overviewCardKinds` lists the eight kinds with a card in declaration order, and the defaults are
-  the eight-kind list (`app/test/ui/overview/overview_slots_test.dart`). `overviewSlotFor` returns
+- `overviewCardKinds` lists the nine kinds with a card in declaration order, and the defaults are
+  the eight-kind list without `topCategories` (`app/test/ui/overview/overview_slots_test.dart`). `topCategories` has a titled
+  card listed right after `recentEntries` (same file). `overviewSlotFor` returns
   null for `insights` while `insightsSettledEmpty` is true and a widget for a history-needed or
   failed Insights state (same file, with a hand-written fake `OverviewViewModel`).
 - Insights lines, amount kinds, the 2-row cap, the 'Uncategorized is' and 'Savings transfers are'
@@ -525,7 +565,7 @@ Overview tab and does not change the shell selection.
 - On phone, dragging a grip reorders the list without dismissing the sheet, and Done saves the new
   order to `overviewWidgets`. Dragging a card into Hidden and then tapping outside discards the draft
   and leaves `overviewWidgets` unchanged
-  (`app/test/ui/overview/overview_edit_sheet_test.dart`, seeded with all eight card kinds). Both
+  (`app/test/ui/overview/overview_edit_sheet_test.dart`, seeded with all nine card kinds). Both
   cases assert preference values and the presence of the sheet only.
 - The sheet shows Shown and Hidden as two separate sections, each with a heading, a tray surface and
   an empty-state hint row that is a drop target (`overviewEditShownHint`, `overviewEditHiddenHint`).
@@ -555,6 +595,24 @@ Overview tab and does not change the shell selection.
   (`app/test/ui/overview/overview_slots_test.dart`, group 'overviewSlotFor cardStatement').
 - The Card statement row layout, the 'No card statements to pay.' line and the absence of a tap target
   have no widget test.
+- The Top categories mapping keeps read order and caps at three rows, negates amounts and sizes bars
+  relative to the top row, captions '<Month> so far', keeps the symbol and saved colour of a
+  category, renders one or two rows unpadded, maps an empty breakdown to no rows with the caption, and
+  keeps the History labels for Uncategorized and transfer buckets
+  (`app/test/ui/overview/overview_top_categories_mapping_test.dart`).
+- The Top categories view state ranks the seed expense categories (Dining, Groceries, Transport) with
+  their amounts and bar ratios, keeps the caption with no rows for an income-only month and an empty
+  month, stays null while the analysis computes, and reads the month of today when the Budgets month
+  changes (`app/test/ui/overview/overview_content_test.dart`, group 'Top categories'). A failed
+  breakdown read sets `topCategoriesFailed`, and Retry recomputes it
+  (`app/test/ui/overview/overview_view_model_test.dart`: 'a failed breakdown read is flagged and Retry
+  recomputes'). `requestTrends` emits `OverviewTrendsRequested`, and `clearStep` clears it (same file).
+  The zero-net-month empty copy follows from the read's positive-amount filter and has no Overview
+  test, and neither do the failure copy and the Retry button.
+- Tapping 'Open Trends' selects the History destination with Trends on top and leaves
+  `shellNavigationProvider` consumed (`app/test/ui/shell/destination_lifetime_test.dart`: 'Top
+  categories Open Trends opens History with Trends on top'). This is a navigation widget test, kept
+  because a logic test cannot prove the route.
 - These behaviors have no widget test: the docked presentation on open and desktop, the 'Edit
   Overview' header action opening the sheet, Done disabled while nothing is shown, Restore default
   in the sheet, the two sections and their headings and hint rows, a drag from Hidden into Shown, a
