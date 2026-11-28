@@ -9,9 +9,7 @@ List<String> rejected(List<MoneyManagerImportError> errors) {
 
 void main() {
   test('success has no message', () {
-    const counts = (entries: 1, accounts: 1, categories: 1);
-
-    expect(importErrorMessages(const ImportSucceeded(counts)), isEmpty);
+    expect(importErrorMessages(const ImportSucceeded()), isEmpty);
   });
 
   test('save failure keeps the plan wording', () {

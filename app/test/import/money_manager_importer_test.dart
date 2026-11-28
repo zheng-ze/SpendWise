@@ -110,12 +110,9 @@ void main() {
     final outcome = await _importer(ledger, flush).run(buildMoneyManagerXlsx());
 
     expect(outcome, isA<ImportSucceeded>());
-    final counts = (outcome as ImportSucceeded).counts;
-    expect(counts.entries, _importedEntries);
-    expect(counts.accounts, _importedAccounts);
-    expect(counts.categories, ledger.state.categories.length);
     expect(ledger.state.entries, hasLength(_importedEntries));
     expect(ledger.state.moneySources, hasLength(_importedAccounts));
+    expect(ledger.state.categories, isNotEmpty);
     expect(ledger.revision, revisionBefore + 1);
     expect(flush.calls, 1);
   });

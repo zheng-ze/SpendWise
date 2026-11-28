@@ -67,7 +67,7 @@ side (row, ViewModel state, Flow steps) is also described in `settings-ui.md`.
 
 ## Import pipeline
 
-`MoneyManagerImporter.run` returns a sealed `ImportOutcome`: `ImportSucceeded(counts)`,
+`MoneyManagerImporter.run` returns a sealed `ImportOutcome`: `ImportSucceeded`,
 `ImportRejected(errors)`, `ImportSaveFailed`, or `ImportFailedUnexpectedly`.
 
 1. **Read and build off the main isolate.** The injected `ImportBuildRunner` runs

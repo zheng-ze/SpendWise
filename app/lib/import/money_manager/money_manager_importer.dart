@@ -8,16 +8,12 @@ import 'package:spendwise/import/xlsx/xlsx_reader.dart';
 import 'package:spendwise/import/xlsx/xlsx_sheet.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
-typedef ImportCounts = ({int entries, int accounts, int categories});
-
 sealed class ImportOutcome {
   const ImportOutcome();
 }
 
 final class ImportSucceeded extends ImportOutcome {
-  const ImportSucceeded(this.counts);
-
-  final ImportCounts counts;
+  const ImportSucceeded();
 }
 
 final class ImportRejected extends ImportOutcome {
@@ -108,13 +104,10 @@ final class MoneyManagerImporter {
       // invariant check) must become ImportFailedUnexpectedly, revision unchanged.
       return const ImportFailedUnexpectedly();
     }
-    return _save(snapshot, imported);
+    return _save(snapshot);
   }
 
-  Future<ImportOutcome> _save(
-    LedgerState snapshot,
-    LedgerState imported,
-  ) async {
+  Future<ImportOutcome> _save(LedgerState snapshot) async {
     try {
       await flush();
     } catch (_) {
@@ -122,11 +115,7 @@ final class MoneyManagerImporter {
       ledger.replaceContents(snapshot);
       return const ImportSaveFailed();
     }
-    return ImportSucceeded((
-      entries: imported.entries.length,
-      accounts: imported.moneySources.length,
-      categories: imported.categories.length,
-    ));
+    return const ImportSucceeded();
   }
 }
 
