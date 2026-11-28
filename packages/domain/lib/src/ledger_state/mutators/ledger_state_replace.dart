@@ -11,6 +11,8 @@ extension LedgerStateReplace on LedgerState {
       ...replacement._upsertsForAllRows(),
     ];
     apply(changes);
+    // A replacement row can reuse an old row's id with a lifecycle that moves back
+    // (such as referenceOnly to active), which the one-way check would reject.
     _lifecycleAtLastCheck = null;
     return _checked(changes);
   }
