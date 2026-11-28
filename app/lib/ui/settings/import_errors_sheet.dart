@@ -8,7 +8,15 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 // MARK: - Constants
 
 const _sheetTitle = "Couldn't import";
-const _listPadding = EdgeInsets.fromLTRB(20, 8, 20, 20);
+const _listHorizontalInset = 20.0;
+const _listTopInset = 8.0;
+const _listBottomInset = 20.0;
+const _listPadding = EdgeInsets.fromLTRB(
+  _listHorizontalInset,
+  _listTopInset,
+  _listHorizontalInset,
+  _listBottomInset,
+);
 const _messageGap = 12.0;
 
 // MARK: - Show
