@@ -338,6 +338,31 @@ void main() {
       expect(errors, hasLength(3));
     });
 
+    test('accepts the last serial day of each epoch', () {
+      expect(dateOf('2958465'), DateTime.utc(9999, 12, 31));
+      expect(dateOf('2957003', date1904: true), DateTime.utc(9999, 12, 31));
+    });
+
+    test('rejects the serial after the last day of each epoch', () {
+      final errors = failedErrors([row(date: '2958466')]);
+      final errors1904 = failedErrors([row(date: '2957004')], date1904: true);
+
+      expect(errors.single, isA<InvalidDate>());
+      expect(errors1904.single, isA<InvalidDate>());
+    });
+
+    test('reports an out-of-range serial with its row beside other errors', () {
+      final errors = failedErrors([
+        row(date: '1000000000'),
+        row(),
+        row(account: ''),
+      ]);
+
+      final rows = errors.cast<MoneyManagerRowError>().map((e) => e.sheetRow);
+      expect(rows, [2, 4]);
+      expect(errors.map((e) => e.runtimeType), [InvalidDate, MissingAccount]);
+    });
+
     test('rejects a non-numeric date', () {
       final errors = failedErrors([row(date: '2026-11-26')]);
 

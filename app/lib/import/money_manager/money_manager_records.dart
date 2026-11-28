@@ -129,6 +129,8 @@ const _transferOutValue = 'Transfer-Out';
 const _supportedCurrency = 'SGD';
 const _maxAmountScale = 2;
 const _minSerialDay = 1;
+const _maxSerialDay1900 = 2958465;
+const _daysBetweenEpochs = 1462;
 const _headerRowCount = 1;
 const _firstSerialEpoch1900 = (1899, 12, 30);
 const _firstSerialEpoch1904 = (1904, 1, 1);
@@ -251,7 +253,10 @@ DateTime? _parseDate(String text, bool date1904) {
   final serial = Decimal.tryParse(text);
   if (serial == null) return null;
   final day = serial.floor().toBigInt().toInt();
-  if (day < _minSerialDay) return null;
+  final maxDay = date1904
+      ? _maxSerialDay1900 - _daysBetweenEpochs
+      : _maxSerialDay1900;
+  if (day < _minSerialDay || day > maxDay) return null;
   final (year, month, firstDay) = date1904
       ? _firstSerialEpoch1904
       : _firstSerialEpoch1900;
